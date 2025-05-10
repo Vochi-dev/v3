@@ -1,0 +1,637 @@
+2025-05-09 13:07:20,368 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746796039.0', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 13:07:30,156 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746796039.0', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 13:07:31,478 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '707f48b5-673c-4976-9356-bf2a31cecdd4', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000001', 'UniqueId': '1746796050.1', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 13:07:31,623 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '707f48b5-673c-4976-9356-bf2a31cecdd4', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000000', 'UniqueId': '1746796039.0', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 13:07:35,534 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 16:07:20', 'CallStatus': '2', 'DateReceived': '2025-05-09 16:07:19', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746796039.0', 'EndTime': '2025-05-09 16:07:35', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 13:18:18,345 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746796698.3', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 13:18:18,487 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:18:28,349 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746796698.3', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 13:18:28,408 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:18:35,259 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'dd7992f2-5ba4-4a6d-a600-2f79692dffae', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000003', 'UniqueId': '1746796708.4', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 13:18:35,403 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:18:35,519 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'dd7992f2-5ba4-4a6d-a600-2f79692dffae', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000002', 'UniqueId': '1746796698.3', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 13:18:35,619 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:18:39,673 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 16:18:18', 'CallStatus': '2', 'DateReceived': '2025-05-09 16:18:18', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746796698.3', 'EndTime': '2025-05-09 16:18:39', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 13:18:39,711 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:19:54,449 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746796794.6', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 13:19:54,520 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:20:06,134 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746796794.6', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 13:20:06,205 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:20:14,433 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '1b92b59f-481f-4219-b171-5a70022c995c', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000005', 'UniqueId': '1746796806.7', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 13:20:14,494 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:20:14,618 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '1b92b59f-481f-4219-b171-5a70022c995c', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000004', 'UniqueId': '1746796794.6', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 13:20:14,661 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:20:19,103 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 16:19:54', 'CallStatus': '2', 'DateReceived': '2025-05-09 16:19:54', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746796794.6', 'EndTime': '2025-05-09 16:20:18', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 13:20:19,158 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:26:06,855 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746797166.9', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 13:26:07,008 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:26:16,879 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746797166.9', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 13:26:16,985 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:26:23,572 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '17112486-4b27-453a-a057-60c5a9aa7350', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000007', 'UniqueId': '1746797176.10', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 13:26:23,699 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:26:23,803 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '17112486-4b27-453a-a057-60c5a9aa7350', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000006', 'UniqueId': '1746797166.9', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 13:26:23,872 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:26:26,279 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 16:26:06', 'CallStatus': '2', 'DateReceived': '2025-05-09 16:26:06', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746797166.9', 'EndTime': '2025-05-09 16:26:26', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 13:26:26,334 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:28:51,482 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746797331.12', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 13:28:51,569 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:29:03,240 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746797331.12', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 13:29:03,395 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:29:18,630 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '4a5eeac8-8bfd-4726-a709-e420ad327696', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000009', 'UniqueId': '1746797343.13', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 13:29:18,699 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:29:18,809 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '4a5eeac8-8bfd-4726-a709-e420ad327696', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000008', 'UniqueId': '1746797331.12', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 13:29:18,854 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:29:22,532 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 16:28:51', 'CallStatus': '2', 'DateReceived': '2025-05-09 16:28:51', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746797331.12', 'EndTime': '2025-05-09 16:29:22', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 13:29:22,578 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:29:38,344 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '', 'CallType': 1, 'UniqueId': '1746797377.15', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '3880903'}
+2025-05-09 13:29:38,447 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:29:49,430 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '8e4074af-5179-4e45-9a9a-c505cb27d24a', 'ConnectedLineName': '185', 'CallerIDNum': '375296254070', 'Channel': 'SIP/3880903-0000000b', 'UniqueId': '1746797378.16', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 13:29:49,503 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:29:49,609 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '8e4074af-5179-4e45-9a9a-c505cb27d24a', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000000a', 'UniqueId': '1746797377.15', 'ConnectedLineNum': '<unknown>', 'Token': '375291380627', 'Exten': '375296254070', 'CallerIDName': '185'}
+2025-05-09 13:29:49,647 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:29:53,600 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 16:29:38', 'CallStatus': '2', 'DateReceived': '2025-05-09 16:29:37', 'Phone': '375296254070', 'CallType': 1, 'UniqueId': '1746797377.15', 'EndTime': '2025-05-09 16:29:53', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '3880903'}
+2025-05-09 13:29:53,660 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:31:23,641 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746797483.18', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 13:31:23,760 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:31:33,602 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746797483.18', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 13:31:33,674 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:31:39,079 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '132d1d1b-9397-4d5b-b40e-46c0f0ecbded', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000000d', 'UniqueId': '1746797493.19', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 13:31:39,181 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:31:39,285 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '132d1d1b-9397-4d5b-b40e-46c0f0ecbded', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-0000000c', 'UniqueId': '1746797483.18', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 13:31:39,410 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:31:42,297 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 16:31:23', 'CallStatus': '2', 'DateReceived': '2025-05-09 16:31:23', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746797483.18', 'EndTime': '2025-05-09 16:31:42', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 13:31:42,360 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:32:41,672 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746797561.21', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 13:32:41,748 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:32:51,601 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746797561.21', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 13:32:51,687 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:32:58,223 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '5b856850-ba15-45d1-a1f5-e4243ffa9cfe', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000000f', 'UniqueId': '1746797571.22', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 13:32:58,364 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:32:58,455 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '5b856850-ba15-45d1-a1f5-e4243ffa9cfe', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-0000000e', 'UniqueId': '1746797561.21', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 13:32:58,576 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:33:01,283 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 16:32:41', 'CallStatus': '2', 'DateReceived': '2025-05-09 16:32:41', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746797561.21', 'EndTime': '2025-05-09 16:33:01', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 13:33:01,407 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:48:22,570 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746798502.24', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 13:48:22,660 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:48:27,068 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 16:48:22', 'CallStatus': '1', 'DateReceived': '2025-05-09 16:48:22', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746798502.24', 'EndTime': '2025-05-09 16:48:26', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 13:48:27,104 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:48:36,832 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '', 'CallType': 1, 'UniqueId': '1746798515.26', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '3880903'}
+2025-05-09 13:48:37,080 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 13:48:40,418 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 16:48:36', 'CallStatus': '0', 'DateReceived': '2025-05-09 16:48:35', 'Phone': '375296254070', 'CallType': 1, 'UniqueId': '1746798515.26', 'EndTime': '2025-05-09 16:48:40', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '3880903'}
+2025-05-09 13:48:40,466 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:09:30,112 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746799769.29', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:09:30,207 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:09:36,415 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:09:29', 'CallStatus': '1', 'DateReceived': '2025-05-09 17:09:29', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746799769.29', 'EndTime': '2025-05-09 17:09:36', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:09:36,487 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:13:48,750 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746800028.31', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:13:48,896 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:13:58,651 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746800028.31', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:13:58,652 - INFO - Event dial skipped (not in ALLOWED_EVENTS)
+2025-05-09 14:14:06,120 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:13:48', 'CallStatus': '0', 'DateReceived': '2025-05-09 17:13:48', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746800028.31', 'EndTime': '2025-05-09 17:14:05', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:14:06,247 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:17:16,596 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746800236.34', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:17:16,679 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:17:24,297 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:17:16', 'CallStatus': '1', 'DateReceived': '2025-05-09 17:17:16', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746800236.34', 'EndTime': '2025-05-09 17:17:24', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:17:24,407 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:20:15,999 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746800415.36', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:20:16,194 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:20:21,882 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:20:15', 'CallStatus': '1', 'DateReceived': '2025-05-09 17:20:15', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746800415.36', 'EndTime': '2025-05-09 17:20:21', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:20:21,962 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:23:58,983 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746800638.41', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:23:59,061 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:24:06,866 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:23:58', 'CallStatus': '1', 'DateReceived': '2025-05-09 17:23:58', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746800638.41', 'EndTime': '2025-05-09 17:24:06', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:24:06,964 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:26:42,075 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746800801.43', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:26:42,220 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:26:50,669 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:26:41', 'CallStatus': '1', 'DateReceived': '2025-05-09 17:26:41', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746800801.43', 'EndTime': '2025-05-09 17:26:50', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:26:50,746 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:27:11,749 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746800831.45', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:27:11,846 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:27:21,695 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746800831.45', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:27:21,696 - INFO - Event dial skipped (not in ALLOWED_EVENTS)
+2025-05-09 14:27:29,811 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:27:11', 'CallStatus': '0', 'DateReceived': '2025-05-09 17:27:11', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746800831.45', 'EndTime': '2025-05-09 17:27:29', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:27:29,903 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:27:38,141 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746800857.48', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:27:38,209 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:27:42,216 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:27:37', 'CallStatus': '1', 'DateReceived': '2025-05-09 17:27:37', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746800857.48', 'EndTime': '2025-05-09 17:27:42', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:27:42,366 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:27:49,901 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746800869.50', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:27:49,993 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:27:59,831 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746800869.50', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:27:59,831 - INFO - Event dial skipped (not in ALLOWED_EVENTS)
+2025-05-09 14:28:03,061 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '3305c408-cce3-4d56-ada8-08758753de47', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000020', 'UniqueId': '1746800879.51', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 14:28:03,061 - INFO - Event bridge skipped (not in ALLOWED_EVENTS)
+2025-05-09 14:28:03,178 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '3305c408-cce3-4d56-ada8-08758753de47', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-0000001f', 'UniqueId': '1746800869.50', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 14:28:03,178 - INFO - Event bridge skipped (not in ALLOWED_EVENTS)
+2025-05-09 14:28:09,221 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:27:49', 'CallStatus': '2', 'DateReceived': '2025-05-09 17:27:49', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746800869.50', 'EndTime': '2025-05-09 17:28:09', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 14:28:09,307 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:28:30,346 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746800910.53', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:28:30,439 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:28:40,253 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746800910.53', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:28:40,253 - INFO - Event dial skipped (not in ALLOWED_EVENTS)
+2025-05-09 14:28:41,213 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'b1e0d87c-9e3f-4616-a4e7-443a0bdeaa6d', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000021', 'UniqueId': '1746800910.53', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 14:28:41,214 - INFO - Event bridge skipped (not in ALLOWED_EVENTS)
+2025-05-09 14:28:41,317 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'b1e0d87c-9e3f-4616-a4e7-443a0bdeaa6d', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000022', 'UniqueId': '1746800920.54', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 14:28:41,317 - INFO - Event bridge skipped (not in ALLOWED_EVENTS)
+2025-05-09 14:28:44,306 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:28:30', 'CallStatus': '2', 'DateReceived': '2025-05-09 17:28:30', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746800910.53', 'EndTime': '2025-05-09 17:28:44', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 14:28:44,444 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:33:15,413 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746801195.56', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:33:15,592 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:33:25,329 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746801195.56', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:33:25,398 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:33:37,817 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:33:15', 'CallStatus': '0', 'DateReceived': '2025-05-09 17:33:15', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746801195.56', 'EndTime': '2025-05-09 17:33:37', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:33:37,961 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:39:09,231 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746801548.59', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:39:09,313 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:39:19,160 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746801548.59', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:39:19,386 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:39:26,693 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:39:09', 'CallStatus': '0', 'DateReceived': '2025-05-09 17:39:08', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746801548.59', 'EndTime': '2025-05-09 17:39:26', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:39:26,761 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:42:33,076 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746801752.62', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:42:33,183 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:42:43,043 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746801752.62', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:42:43,096 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 14:42:43,097 - INFO - Deleted start message with UniqueId 1746801752.62
+2025-05-09 14:42:43,153 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:42:44,966 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:42:32', 'CallStatus': '0', 'DateReceived': '2025-05-09 17:42:32', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746801752.62', 'EndTime': '2025-05-09 17:42:44', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:42:45,092 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:43:00,859 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746801780.65', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:43:00,952 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:43:10,785 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746801780.65', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:43:10,840 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 14:43:10,840 - INFO - Deleted start message with UniqueId 1746801780.65
+2025-05-09 14:43:10,907 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:43:23,480 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:43:00', 'CallStatus': '0', 'DateReceived': '2025-05-09 17:43:00', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746801780.65', 'EndTime': '2025-05-09 17:43:23', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:43:23,546 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:52:18,121 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746802337.68', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:52:18,222 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:52:28,110 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746802337.68', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:52:28,310 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 14:52:28,311 - INFO - Deleted start message for UniqueId 1746802337.68
+2025-05-09 14:52:28,475 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:52:30,248 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:52:17', 'CallStatus': '0', 'DateReceived': '2025-05-09 17:52:17', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746802337.68', 'EndTime': '2025-05-09 17:52:30', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:52:30,303 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:52:41,700 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746802361.71', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:52:41,861 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:52:51,661 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746802361.71', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:52:51,773 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 14:52:51,774 - INFO - Deleted start message for UniqueId 1746802361.71
+2025-05-09 14:52:51,914 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:52:58,137 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '79c346e2-d727-46af-8fad-22be59fca74d', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000002e', 'UniqueId': '1746802371.72', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 14:52:58,210 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:52:58,333 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '79c346e2-d727-46af-8fad-22be59fca74d', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-0000002d', 'UniqueId': '1746802361.71', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 14:52:58,373 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:53:07,497 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:52:41', 'CallStatus': '2', 'DateReceived': '2025-05-09 17:52:41', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746802361.71', 'EndTime': '2025-05-09 17:53:07', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 14:53:07,596 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:55:56,206 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746802555.74', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:55:56,321 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:56:07,272 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746802555.74', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:56:07,319 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 14:56:07,320 - INFO - Deleted start for UniqueId 1746802555.74
+2025-05-09 14:56:07,367 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:56:08,254 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:55:56', 'CallStatus': '0', 'DateReceived': '2025-05-09 17:55:55', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746802555.74', 'EndTime': '2025-05-09 17:56:08', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 14:56:08,293 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:56:17,773 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746802577.77', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 14:56:17,842 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:56:27,725 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746802577.77', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 14:56:27,850 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 14:56:27,850 - INFO - Deleted start for UniqueId 1746802577.77
+2025-05-09 14:56:27,979 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:56:37,293 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '6401dc93-3db1-4b76-b401-9ede4a57b8cc', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000032', 'UniqueId': '1746802587.78', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 14:56:37,357 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:56:37,485 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '6401dc93-3db1-4b76-b401-9ede4a57b8cc', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000031', 'UniqueId': '1746802577.77', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 14:56:37,505 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 14:56:37,505 - INFO - Deleted dial for LinkedId 1746802577.77
+2025-05-09 14:56:37,540 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 14:56:43,776 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 17:56:17', 'CallStatus': '2', 'DateReceived': '2025-05-09 17:56:17', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746802577.77', 'EndTime': '2025-05-09 17:56:43', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 14:56:43,858 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:00:28,560 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746802828.80', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:00:28,662 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:00:42,356 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746802828.80', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:00:42,489 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:00:42,490 - INFO - Deleted start for UniqueId 1746802828.80
+2025-05-09 15:00:42,620 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:00:49,323 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '57bf9d6b-0b4e-4fd4-b624-170bbce9bdce', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000034', 'UniqueId': '1746802842.81', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:00:49,394 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:00:49,516 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '57bf9d6b-0b4e-4fd4-b624-170bbce9bdce', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000033', 'UniqueId': '1746802828.80', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:00:49,555 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:00:49,556 - INFO - Deleted dial for LinkedId 1746802828.80
+2025-05-09 15:00:49,597 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:00:54,114 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:00:28', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:00:28', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746802828.80', 'EndTime': '2025-05-09 18:00:53', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:00:54,158 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:03:17,754 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746802997.83', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:03:17,861 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:03:27,743 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746802997.83', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:03:27,800 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:03:27,801 - INFO - Deleted start for UniqueId 1746802997.83
+2025-05-09 15:03:27,841 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:03:33,091 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '584a8696-d357-45ac-ad17-848831210ff9', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000036', 'UniqueId': '1746803007.84', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:03:33,157 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:03:33,257 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '584a8696-d357-45ac-ad17-848831210ff9', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000035', 'UniqueId': '1746802997.83', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:03:33,279 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:03:33,280 - INFO - Deleted dial for LinkedId 1746802997.83
+2025-05-09 15:03:33,317 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:03:38,905 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:03:17', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:03:17', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746802997.83', 'EndTime': '2025-05-09 18:03:38', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:03:39,000 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:07:30,516 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746803250.86', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:07:30,630 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:07:40,482 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746803250.86', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:07:40,544 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:07:40,544 - INFO - Deleted start for UniqueId 1746803250.86
+2025-05-09 15:07:40,588 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:07:42,312 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:07:30', 'CallStatus': '0', 'DateReceived': '2025-05-09 18:07:30', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746803250.86', 'EndTime': '2025-05-09 18:07:42', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 15:07:42,391 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:07:53,437 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746803273.89', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:07:53,518 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:08:03,321 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746803273.89', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:08:03,434 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:08:03,435 - INFO - Deleted start for UniqueId 1746803273.89
+2025-05-09 15:08:03,540 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:08:08,112 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'a1862cd7-f08d-423b-9d6e-607305f33195', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000003a', 'UniqueId': '1746803283.90', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:08:08,173 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:08:08,269 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'a1862cd7-f08d-423b-9d6e-607305f33195', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000039', 'UniqueId': '1746803273.89', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:08:08,331 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:08:08,332 - INFO - Deleted dial for LinkedId 1746803273.89
+2025-05-09 15:08:08,419 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:08:14,888 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:07:53', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:07:53', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746803273.89', 'EndTime': '2025-05-09 18:08:14', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:08:14,966 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:10:47,120 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746803446.92', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:10:47,207 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:10:57,081 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746803446.92', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:10:57,130 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:10:57,130 - INFO - Deleted start for UniqueId 1746803446.92
+2025-05-09 15:10:57,175 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:11:01,510 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'b1a4aca1-0ef2-4d76-99cc-d7192f0c19b8', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000003c', 'UniqueId': '1746803456.93', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:11:01,559 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:11:01,650 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'b1a4aca1-0ef2-4d76-99cc-d7192f0c19b8', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001375-0000003b', 'UniqueId': '1746803446.92', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:11:01,690 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:11:01,690 - INFO - Deleted dial for LinkedId 1746803446.92
+2025-05-09 15:11:01,753 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:11:06,690 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:10:46', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:10:46', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746803446.92', 'EndTime': '2025-05-09 18:11:06', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:11:06,729 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:13:20,200 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746803600.95', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:13:20,307 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:13:30,247 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746803600.95', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:13:30,296 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:13:30,296 - INFO - Deleted start for UniqueId 1746803600.95
+2025-05-09 15:13:30,335 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:13:32,202 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:13:20', 'CallStatus': '0', 'DateReceived': '2025-05-09 18:13:20', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746803600.95', 'EndTime': '2025-05-09 18:13:32', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 15:13:32,244 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:13:43,388 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746803623.98', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:13:43,463 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:13:53,346 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746803623.98', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:13:53,393 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:13:53,394 - INFO - Deleted start for UniqueId 1746803623.98
+2025-05-09 15:13:53,427 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:13:56,739 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'cea47caa-4e40-49de-b019-2542a7a02089', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000040', 'UniqueId': '1746803633.99', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:13:56,852 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:13:56,949 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'cea47caa-4e40-49de-b019-2542a7a02089', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-0000003f', 'UniqueId': '1746803623.98', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:13:56,950 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:14:00,861 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:13:43', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:13:43', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746803623.98', 'EndTime': '2025-05-09 18:14:00', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:14:00,901 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:14:18,417 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746803658.101', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:14:18,498 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:14:28,399 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746803658.101', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:14:28,594 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:14:28,595 - INFO - Deleted start for UniqueId 1746803658.101
+2025-05-09 15:14:28,739 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:14:30,889 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '8aa4a2ae-c2fb-4432-82eb-1b990ef8d8d7', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000042', 'UniqueId': '1746803668.102', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:14:30,889 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:14:30,990 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '8aa4a2ae-c2fb-4432-82eb-1b990ef8d8d7', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000041', 'UniqueId': '1746803658.101', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:14:30,991 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:14:37,217 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:14:18', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:14:18', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746803658.101', 'EndTime': '2025-05-09 18:14:37', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:14:37,358 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:14:45,086 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746803684.104', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:14:45,205 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:14:55,018 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746803684.104', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:14:55,075 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:14:55,076 - INFO - Deleted start for UniqueId 1746803684.104
+2025-05-09 15:14:55,157 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:15:01,331 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'b9bac667-64cc-485d-9bff-fa2483b4d5f2', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000044', 'UniqueId': '1746803694.105', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:15:01,332 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:15:01,443 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'b9bac667-64cc-485d-9bff-fa2483b4d5f2', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000043', 'UniqueId': '1746803684.104', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:15:01,443 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:15:10,018 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:14:44', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:14:44', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746803684.104', 'EndTime': '2025-05-09 18:15:09', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:15:10,175 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:15:23,958 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746803723.107', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:15:24,055 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:15:33,876 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746803723.107', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:15:33,925 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:15:33,926 - INFO - Deleted start for UniqueId 1746803723.107
+2025-05-09 15:15:33,968 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:15:38,331 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'c9cf3d0c-69e5-44b3-8aa6-dfb3b01c1114', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000046', 'UniqueId': '1746803733.108', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:15:38,332 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:15:38,438 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'c9cf3d0c-69e5-44b3-8aa6-dfb3b01c1114', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000045', 'UniqueId': '1746803723.107', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:15:38,438 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:15:42,447 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:15:23', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:15:23', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746803723.107', 'EndTime': '2025-05-09 18:15:42', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:15:42,512 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:21:14,579 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804074.110', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:21:14,662 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:21:24,625 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746804074.110', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:21:24,729 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:21:24,730 - INFO - Deleted start for UniqueId 1746804074.110
+2025-05-09 15:21:24,816 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:21:28,980 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '6f18f39e-fea0-46a2-996a-fe0b6f5e3b76', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000048', 'UniqueId': '1746804084.111', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:21:29,058 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:21:29,176 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '6f18f39e-fea0-46a2-996a-fe0b6f5e3b76', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000047', 'UniqueId': '1746804074.110', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:21:29,176 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:21:35,810 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:21:14', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:21:14', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804074.110', 'EndTime': '2025-05-09 18:21:35', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:21:35,881 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:23:42,151 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804221.113', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:23:42,347 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:23:52,134 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746804221.113', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:23:52,234 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:23:52,235 - INFO - Deleted start for UniqueId 1746804221.113
+2025-05-09 15:23:52,311 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:23:57,911 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '8521d713-3023-4843-bba8-65bfebd6206a', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000004a', 'UniqueId': '1746804231.114', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:23:57,982 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:23:58,153 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '8521d713-3023-4843-bba8-65bfebd6206a', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000049', 'UniqueId': '1746804221.113', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:23:58,153 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:24:02,563 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:23:42', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:23:41', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804221.113', 'EndTime': '2025-05-09 18:24:02', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:24:02,726 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:26:24,571 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804384.116', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:26:24,699 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:26:34,548 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746804384.116', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:26:34,603 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:26:34,604 - INFO - Deleted start for UniqueId 1746804384.116
+2025-05-09 15:26:34,643 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:26:37,386 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'cb8b834b-727a-4e4b-a7cc-71a78b06ae53', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000004c', 'UniqueId': '1746804394.117', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:26:37,545 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:26:37,545 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 15:26:37,720 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:26:37,812 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'cb8b834b-727a-4e4b-a7cc-71a78b06ae53', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-0000004b', 'UniqueId': '1746804384.116', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:26:37,812 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:26:41,308 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:26:24', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:26:24', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804384.116', 'EndTime': '2025-05-09 18:26:41', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:26:41,347 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:28:57,104 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804536.119', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:28:57,189 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:28:59,273 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:28:56', 'CallStatus': '1', 'DateReceived': '2025-05-09 18:28:56', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804536.119', 'EndTime': '2025-05-09 18:28:59', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 15:28:59,316 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:29:22,570 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804562.121', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:29:22,665 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:29:32,586 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746804562.121', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:29:32,639 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:29:32,639 - INFO - Deleted start for UniqueId 1746804562.121
+2025-05-09 15:29:32,684 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:29:38,289 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:29:22', 'CallStatus': '0', 'DateReceived': '2025-05-09 18:29:22', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804562.121', 'EndTime': '2025-05-09 18:29:38', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 15:29:38,423 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:30:08,207 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804607.124', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:30:08,309 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:30:18,238 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746804607.124', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:30:18,298 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:30:18,299 - INFO - Deleted start for UniqueId 1746804607.124
+2025-05-09 15:30:18,360 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:30:24,281 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '2efbceb7-5dbf-4b87-9b74-86a36a4e83a2', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000051', 'UniqueId': '1746804618.125', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:30:24,281 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:30:24,397 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '2efbceb7-5dbf-4b87-9b74-86a36a4e83a2', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000050', 'UniqueId': '1746804607.124', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:30:24,398 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:30:27,870 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:30:08', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:30:07', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804607.124', 'EndTime': '2025-05-09 18:30:27', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:30:27,963 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:30:37,184 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804636.127', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:30:37,382 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:30:47,147 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746804636.127', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:30:47,222 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:30:47,223 - INFO - Deleted start for UniqueId 1746804636.127
+2025-05-09 15:30:47,285 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:30:50,738 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '41902b64-dbb6-41a8-a110-37e75f523b27', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000053', 'UniqueId': '1746804647.128', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:30:50,738 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:30:50,835 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '41902b64-dbb6-41a8-a110-37e75f523b27', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000052', 'UniqueId': '1746804636.127', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:30:50,835 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:30:54,572 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:30:37', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:30:36', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804636.127', 'EndTime': '2025-05-09 18:30:54', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:30:54,636 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:31:03,098 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804662.130', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:31:03,173 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:31:13,024 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746804662.130', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:31:13,071 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:31:13,072 - INFO - Deleted start for UniqueId 1746804662.130
+2025-05-09 15:31:13,112 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:31:18,580 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:31:02', 'CallStatus': '0', 'DateReceived': '2025-05-09 18:31:02', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804662.130', 'EndTime': '2025-05-09 18:31:18', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 15:31:18,671 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:31:30,154 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804689.133', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:31:30,228 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:31:40,098 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746804689.133', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:31:40,169 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:31:40,170 - INFO - Deleted start for UniqueId 1746804689.133
+2025-05-09 15:31:40,248 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:31:43,090 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'cb4bf6ae-2b55-4063-a70e-56a10f4594eb', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000057', 'UniqueId': '1746804699.134', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:31:43,090 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:31:43,226 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'cb4bf6ae-2b55-4063-a70e-56a10f4594eb', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000056', 'UniqueId': '1746804689.133', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:31:43,227 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:31:48,570 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:31:29', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:31:29', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804689.133', 'EndTime': '2025-05-09 18:31:48', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:31:48,659 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:32:04,468 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804724.136', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:32:04,590 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:32:04,737 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:32:04', 'CallStatus': '1', 'DateReceived': '2025-05-09 18:32:04', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804724.136', 'EndTime': '2025-05-09 18:32:04', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 15:32:04,826 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:32:13,408 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804733.138', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:32:13,559 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:32:23,344 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746804733.138', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:32:23,447 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:32:23,448 - INFO - Deleted start for UniqueId 1746804733.138
+2025-05-09 15:32:23,521 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:32:28,626 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '3d51fa48-cd3e-4959-976a-34a8d8dfde0b', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000005a', 'UniqueId': '1746804743.139', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:32:28,626 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:32:28,720 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '3d51fa48-cd3e-4959-976a-34a8d8dfde0b', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000059', 'UniqueId': '1746804733.138', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:32:28,721 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:32:31,999 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:32:13', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:32:13', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804733.138', 'EndTime': '2025-05-09 18:32:31', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:32:32,086 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:36:06,903 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746804966.141', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:36:07,006 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:36:16,895 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746804966.141', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:36:16,955 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:36:16,956 - INFO - Deleted start for UniqueId 1746804966.141
+2025-05-09 15:36:17,000 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:36:20,110 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'f381fdbc-0ec9-4593-a14d-17f512b2bee4', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000005c', 'UniqueId': '1746804976.142', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:36:20,190 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:36:20,191 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 15:36:20,299 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:36:20,391 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'f381fdbc-0ec9-4593-a14d-17f512b2bee4', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-0000005b', 'UniqueId': '1746804966.141', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:36:20,391 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:36:22,853 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:36:06', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:36:06', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746804966.141', 'EndTime': '2025-05-09 18:36:22', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:36:22,895 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:37:10,532 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746805030.144', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:37:10,686 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:37:20,526 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746805030.144', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:37:20,611 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:37:20,611 - INFO - Deleted start for UniqueId 1746805030.144
+2025-05-09 15:37:20,689 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:37:23,988 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '693999bd-22c1-4b0a-a4bf-b78f18815f66', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-0000005d', 'UniqueId': '1746805030.144', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:37:23,988 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:37:24,088 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '693999bd-22c1-4b0a-a4bf-b78f18815f66', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000005e', 'UniqueId': '1746805040.145', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:37:24,088 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:37:27,584 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:37:10', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:37:10', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746805030.144', 'EndTime': '2025-05-09 18:37:27', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:37:27,650 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:37:37,213 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746805057.147', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:37:37,285 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:37:47,155 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746805057.147', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:37:47,262 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:37:47,263 - INFO - Deleted start for UniqueId 1746805057.147
+2025-05-09 15:37:47,395 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:37:48,953 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '0cae4666-611b-4edb-a776-facb59f6b064', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000060', 'UniqueId': '1746805067.148', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:37:48,953 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:37:49,051 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '0cae4666-611b-4edb-a776-facb59f6b064', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-0000005f', 'UniqueId': '1746805057.147', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:37:49,051 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:37:52,316 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:37:37', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:37:37', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746805057.147', 'EndTime': '2025-05-09 18:37:52', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:37:52,400 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:40:28,684 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746805228.150', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:40:28,765 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:40:38,614 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746805228.150', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:40:38,662 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:40:38,662 - INFO - Deleted start for UniqueId 1746805228.150
+2025-05-09 15:40:38,697 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:40:41,716 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '483a444c-55e3-48f4-9236-ff8e57546086', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000061', 'UniqueId': '1746805228.150', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:40:41,739 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:40:41,739 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 15:40:41,791 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:40:41,900 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '483a444c-55e3-48f4-9236-ff8e57546086', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000062', 'UniqueId': '1746805238.151', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:40:41,901 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:40:44,235 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:40:28', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:40:28', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746805228.150', 'EndTime': '2025-05-09 18:40:44', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:40:44,235 - INFO - Removed bridge_seen for ('375296254070', '185') due to hangup
+2025-05-09 15:40:57,446 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746805257.153', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:40:57,514 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:41:09,440 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746805257.153', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:41:09,555 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:41:09,556 - INFO - Deleted start for UniqueId 1746805257.153
+2025-05-09 15:41:09,632 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:41:12,406 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '5c926066-d278-429d-8870-9ddfcf3d3423', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000064', 'UniqueId': '1746805269.154', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:41:12,525 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:41:12,525 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 15:41:12,641 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:41:12,732 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '5c926066-d278-429d-8870-9ddfcf3d3423', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000063', 'UniqueId': '1746805257.153', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:41:12,732 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:41:16,316 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:40:57', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:40:57', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746805257.153', 'EndTime': '2025-05-09 18:41:16', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:41:16,316 - INFO - Removed bridge_seen for ('375296254070', '185') due to hangup
+2025-05-09 15:46:52,322 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746805612.156', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:46:52,455 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:47:02,223 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746805612.156', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:47:02,351 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:47:02,352 - INFO - Deleted start for UniqueId 1746805612.156
+2025-05-09 15:47:02,472 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:47:07,225 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '7d18aeae-c551-4f9c-8f2a-80236f59144f', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000065', 'UniqueId': '1746805612.156', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:47:07,247 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:47:07,247 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 15:47:07,280 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:47:07,399 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '7d18aeae-c551-4f9c-8f2a-80236f59144f', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000066', 'UniqueId': '1746805622.157', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:47:07,400 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:47:14,084 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:46:52', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:46:52', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746805612.156', 'EndTime': '2025-05-09 18:47:13', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:47:14,084 - INFO - Removed bridge_seen for ('375296254070', '185') due to hangup
+2025-05-09 15:50:20,030 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746805819.159', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:50:20,120 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:50:29,992 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746805819.159', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:50:30,050 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:50:30,051 - INFO - Deleted start for UniqueId 1746805819.159
+2025-05-09 15:50:30,090 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:50:35,308 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '03d09672-eabc-46c5-a5d2-066cb7d637d7', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001375-00000067', 'UniqueId': '1746805819.159', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:50:35,442 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:50:35,443 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 15:50:35,574 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:50:35,695 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '03d09672-eabc-46c5-a5d2-066cb7d637d7', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-00000068', 'UniqueId': '1746805829.160', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:50:35,696 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:50:40,245 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:50:19', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:50:19', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746805819.159', 'EndTime': '2025-05-09 18:50:40', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:50:40,245 - INFO - Removed bridge_seen for ('375296254070', '185') due to hangup
+2025-05-09 15:50:40,300 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:54:40,233 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746806079.162', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 15:54:40,332 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:54:50,163 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746806079.162', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 15:54:50,216 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:54:50,216 - INFO - Deleted start for UniqueId 1746806079.162
+2025-05-09 15:54:50,253 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:54:53,334 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'c62b56e9-1000-40bb-bb37-5344a1dcdb4a', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000006a', 'UniqueId': '1746806090.163', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 15:54:53,366 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 15:54:53,367 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 15:54:53,427 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 15:54:53,547 - INFO - Received event: bridge, Data: {'BridgeUniqueid': 'c62b56e9-1000-40bb-bb37-5344a1dcdb4a', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-00000069', 'UniqueId': '1746806079.162', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 15:54:53,547 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 15:54:56,180 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 18:54:40', 'CallStatus': '2', 'DateReceived': '2025-05-09 18:54:39', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746806079.162', 'EndTime': '2025-05-09 18:54:56', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 15:54:56,180 - INFO - Removed bridge_seen for ('375296254070', '185') due to hangup
+2025-05-09 15:54:56,218 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:03:32,239 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746806612.165', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 16:03:32,333 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:03:42,196 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746806612.165', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 16:03:42,317 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 16:03:42,318 - INFO - Deleted start for UniqueId 1746806612.165
+2025-05-09 16:03:42,414 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:03:45,465 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '3fb26015-baad-4eb1-8dfc-904f5921cc7b', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000006c', 'UniqueId': '1746806622.166', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 16:03:45,555 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 16:03:45,556 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 16:03:45,692 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:03:45,781 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '3fb26015-baad-4eb1-8dfc-904f5921cc7b', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-0000006b', 'UniqueId': '1746806612.165', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 16:03:45,782 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 16:03:48,105 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 19:03:32', 'CallStatus': '2', 'DateReceived': '2025-05-09 19:03:32', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746806612.165', 'EndTime': '2025-05-09 19:03:47', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 16:03:48,247 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 16:03:48,247 - INFO - Deleted bridge by phone 375296254070 and alt UniqueId 1746806622.166
+2025-05-09 16:03:48,247 - INFO - Removed bridge_seen for ('375296254070', '185') due to hangup
+2025-05-09 16:03:48,407 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:11:54,405 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746807114.168', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 16:11:54,516 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:12:04,361 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746807114.168', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 16:12:04,409 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 16:12:04,410 - INFO - Deleted start for UniqueId 1746807114.168
+2025-05-09 16:12:04,448 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:12:10,523 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '6d554fce-b936-4e9a-8405-4bbbb9126a4a', 'ConnectedLineName': 'test | 375296254070', 'CallerIDNum': '185', 'Channel': 'SIP/185-0000006e', 'UniqueId': '1746807124.169', 'ConnectedLineNum': '375296254070', 'Token': '375291380627', 'Exten': '', 'CallerIDName': ''}
+2025-05-09 16:12:10,606 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 16:12:10,607 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 16:12:10,678 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:12:10,780 - INFO - Received event: bridge, Data: {'BridgeUniqueid': '6d554fce-b936-4e9a-8405-4bbbb9126a4a', 'ConnectedLineName': '<unknown>', 'CallerIDNum': '375296254070', 'Channel': 'SIP/0001376-0000006d', 'UniqueId': '1746807114.168', 'ConnectedLineNum': '185', 'Token': '375291380627', 'Exten': '0001375', 'CallerIDName': 'test | 375296254070'}
+2025-05-09 16:12:10,780 - INFO - Ignored repeated bridge for ('375296254070', '185')
+2025-05-09 16:12:15,117 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 19:11:54', 'CallStatus': '2', 'DateReceived': '2025-05-09 19:11:54', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746807114.168', 'EndTime': '2025-05-09 19:12:14', 'Token': '375291380627', 'Extensions': ['185'], 'Trunk': '0001375'}
+2025-05-09 16:12:15,174 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 16:12:15,175 - INFO - Deleted bridge by phone 375296254070 and alt UniqueId 1746807124.169
+2025-05-09 16:12:15,175 - INFO - Removed bridge_seen for ('375296254070', '185') due to hangup
+2025-05-09 16:12:15,257 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:39:33,404 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746808773.171', 'Token': '375291380627', 'Phone': '375298488136', 'Trunk': '0001376'}
+2025-05-09 16:39:33,472 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:39:33,737 - INFO - Received event: dial, Data: {'Phone': '375298488136', 'ExtPhone': '375298488136', 'CallType': 0, 'UniqueId': '1746808773.171', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['152', '154', '158', '159', '234', '236', '240', '242', '244'], 'Trunk': '0001376'}
+2025-05-09 16:39:33,758 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 16:39:33,759 - INFO - Deleted start for UniqueId 1746808773.171
+2025-05-09 16:39:33,801 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:40:06,873 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 19:39:33', 'CallStatus': '0', 'DateReceived': '2025-05-09 19:39:33', 'Phone': '375298488136', 'CallType': 0, 'UniqueId': '1746808773.171', 'EndTime': '2025-05-09 19:40:06', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001376'}
+2025-05-09 16:40:06,925 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 16:40:06,925 - INFO - Deleted dial for Phone 375298488136
+2025-05-09 16:40:06,981 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:49:40,872 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746809380.176', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 16:49:40,999 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:49:50,830 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746809380.176', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 16:49:50,879 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 16:49:50,879 - INFO - Deleted start for UniqueId 1746809380.176
+2025-05-09 16:49:50,914 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 16:49:57,193 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 19:49:40', 'CallStatus': '0', 'DateReceived': '2025-05-09 19:49:40', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746809380.176', 'EndTime': '2025-05-09 19:49:57', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 16:49:57,246 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 16:49:57,248 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 16:49:57,288 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 17:33:28,560 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746812008.179', 'Token': '375291380627', 'Phone': '80296254070', 'Trunk': '3880903'}
+2025-05-09 17:33:28,673 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 17:33:38,580 - INFO - Received event: dial, Data: {'Phone': '0296254070', 'ExtPhone': '0296254070', 'CallType': 0, 'UniqueId': '1746812008.179', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '3880903'}
+2025-05-09 17:33:38,684 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 17:33:38,685 - INFO - Deleted start for UniqueId 1746812008.179
+2025-05-09 17:33:38,778 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 17:33:46,488 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 20:33:28', 'CallStatus': '0', 'DateReceived': '2025-05-09 20:33:28', 'Phone': '0296254070', 'CallType': 0, 'UniqueId': '1746812008.179', 'EndTime': '2025-05-09 20:33:46', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '3880903'}
+2025-05-09 17:33:46,643 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 17:33:46,643 - INFO - Deleted dial for Phone 0296254070
+2025-05-09 17:33:46,801 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 17:36:27,198 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746812186.182', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 17:36:27,356 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 17:36:37,202 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746812186.182', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 17:36:37,252 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 17:36:37,252 - INFO - Deleted start for UniqueId 1746812186.182
+2025-05-09 17:36:37,295 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 17:36:48,275 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 20:36:27', 'CallStatus': '0', 'DateReceived': '2025-05-09 20:36:26', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746812186.182', 'EndTime': '2025-05-09 20:36:48', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 17:36:48,327 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 17:36:48,327 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 17:36:48,366 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 18:54:58,460 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746816898.185', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 18:54:58,556 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 18:55:08,478 - INFO - Received event: dial, Data: {'Phone': '375296254070', 'ExtPhone': '375296254070', 'CallType': 0, 'UniqueId': '1746816898.185', 'ExtTrunk': '', 'Token': '375291380627', 'Extensions': ['185', '214'], 'Trunk': '0001375'}
+2025-05-09 18:55:08,592 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 18:55:08,593 - INFO - Deleted start for UniqueId 1746816898.185
+2025-05-09 18:55:08,675 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 18:55:13,405 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 21:54:58', 'CallStatus': '0', 'DateReceived': '2025-05-09 21:54:58', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746816898.185', 'EndTime': '2025-05-09 21:55:13', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 18:55:13,514 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 18:55:13,515 - INFO - Deleted dial for Phone 375296254070
+2025-05-09 18:55:13,683 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 18:55:57,032 - INFO - Received event: start, Data: {'CallType': 0, 'UniqueId': '1746816956.188', 'Token': '375291380627', 'Phone': '375296254070', 'Trunk': '0001375'}
+2025-05-09 18:55:57,195 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
+2025-05-09 18:56:03,797 - INFO - Received event: hangup, Data: {'StartTime': '2025-05-09 21:55:56', 'CallStatus': '1', 'DateReceived': '2025-05-09 21:55:56', 'Phone': '375296254070', 'CallType': 0, 'UniqueId': '1746816956.188', 'EndTime': '2025-05-09 21:56:03', 'Token': '375291380627', 'Extensions': [''], 'Trunk': '0001375'}
+2025-05-09 18:56:03,853 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/deleteMessage "HTTP/1.1 200 OK"
+2025-05-09 18:56:03,854 - INFO - Deleted start for UniqueId 1746816956.188
+2025-05-09 18:56:03,889 - INFO - HTTP Request: POST https://api.telegram.org/bot7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA/sendMessage "HTTP/1.1 200 OK"
