@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, Request
 import logging
 from telegram import Bot
@@ -114,16 +115,16 @@ async def receive_event(event_type: str, request: Request):
         call_status = data.get("CallStatus")
         unique_id = data.get("UniqueId")
 
-        if connected.lower() == "<unknown>" or data.get("ConnectedLineName", "").lower() == "<unknown>":
-            logging.info(f"Skipping bridge with unknown connected line: {data}")
-            return {"status": "skipped", "event": event_type}
-
         if re.fullmatch(r"\d{3}", caller):
             operator = caller
             client = connected
         else:
             operator = connected
             client = caller
+
+        if "<unknown>" in (caller, connected):
+            logging.info(f"Ignored unknown bridge with {caller}, {connected}")
+            return {"status": "ignored", "event": event_type}
 
         bridge_key = (client, operator)
         if bridge_key in bridge_seen:
@@ -235,15 +236,3 @@ async def receive_event(event_type: str, request: Request):
             logging.error(f"Failed to send raw hangup log: {e}")
 
         return {"status": "cleared", "event": event_type}
-
-    else:
-        message = f"📞 *Asterisk Event: {event_type}*\n"
-        for k, v in data.items():
-            if isinstance(v, str) and looks_like_phone(v):
-                v = format_phone_number(v)
-            message += f"{k}: {v}\n"
-        try:
-            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-        except Exception as e:
-            logging.error(f"Failed to send other: {e}")
-        return {"status": "sent", "event": event_type}
