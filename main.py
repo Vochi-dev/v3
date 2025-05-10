@@ -28,6 +28,10 @@ def format_phone_number(phone):
     if len(phone) == 10 and phone.startswith("0"):
         phone = "375" + phone[1:]
     
+    # Если номер начинается с "+" и его длина больше 10, но начинается с "8", обрубаем "8" и добавляем "375"
+    elif phone.startswith("+8") and len(phone) == 12:
+        phone = "+375" + phone[2:]
+    
     # Если номер уже начинается с "+" и является международным, пропускаем его
     elif phone.startswith("+") and len(phone) > 10:
         return phone
@@ -212,3 +216,4 @@ async def receive_event(event_type: str, request: Request):
         except Exception as e:
             logging.error(f"Failed to send other: {e}")
         return {"status": "sent", "event": event_type}
+
