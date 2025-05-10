@@ -200,8 +200,8 @@ async def receive_event(event_type: str, request: Request):
         try:
             start_time = data.get("StartTime")
             end_time = data.get("EndTime")
-            call_status = data.get("CallStatus")
-            call_type = data.get("CallType")
+            call_status = int(data.get("CallStatus", -1))
+            call_type = int(data.get("CallType", -1))
             duration = ""
             extensions = data.get("Extensions", [])
             cached = dial_cache.get(phone, {})
