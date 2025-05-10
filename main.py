@@ -6,6 +6,7 @@ import phonenumbers
 import re
 from db import init_db, log_event
 import json
+from datetime import datetime
 
 app = FastAPI()
 init_db()
@@ -186,7 +187,30 @@ async def receive_event(event_type: str, request: Request):
                 logging.info(f"Removed bridge_seen for {key} due to hangup")
 
         try:
-            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"❌ Вызов завершён\nАбонент: {formatted}")
+            start_time = data.get("StartTime")
+            end_time = data.get("EndTime")
+            call_type = data.get("CallType")
+            duration = ""
+
+            if start_time and end_time:
+                try:
+                    start = datetime.fromisoformat(start_time)
+                    end = datetime.fromisoformat(end_time)
+                    delta = end - start
+                    seconds = int(delta.total_seconds())
+                    duration = f"{seconds // 60:02}:{seconds % 60:02}"
+                except Exception:
+                    duration = ""
+
+            if call_type == 0:
+                msg = f"❌ Неотвеченный вызов\nАбонент: {formatted}"
+            else:
+                msg = f"❌ Вызов завершён\nАбонент: {formatted}"
+
+            if duration:
+                msg += f"\n⌛ {duration}"
+
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=msg)
         except Exception as e:
             logging.error(f"Failed to send formatted hangup: {e}")
 
