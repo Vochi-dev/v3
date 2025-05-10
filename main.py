@@ -103,7 +103,7 @@ async def receive_event(event_type: str, request: Request):
             sent = await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
             if raw_phone:
                 dial_store[raw_phone] = sent.message_id
-                dial_cache[raw_phone] = {
+                dial_cache[unique_id] = {
                     "extensions": extensions,
                     "call_type": call_type
                 }
@@ -133,7 +133,7 @@ async def receive_event(event_type: str, request: Request):
             logging.info(f"Ignored repeated bridge for {bridge_key}")
             return {"status": "ignored", "event": event_type}
 
-        cached = dial_cache.get(client, {})
+        cached = dial_cache.get(unique_id, {})
         call_type = cached.get("call_type")
 
         formatted_client = format_phone_number(client)
@@ -177,9 +177,8 @@ async def receive_event(event_type: str, request: Request):
                 try:
                     await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=store[unique_id])
                     del store[unique_id]
-                    logging.info(f"Deleted {event_type} by UniqueId {unique_id}")
-                except Exception as e:
-                    logging.error(f"Failed to delete {event_type} message: {e}")
+                except Exception:
+                    pass
 
         if phone in bridge_phone_index:
             alt_id = bridge_phone_index[phone]
@@ -187,24 +186,22 @@ async def receive_event(event_type: str, request: Request):
                 try:
                     await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=bridge_store[alt_id])
                     del bridge_store[alt_id]
-                    logging.info(f"Deleted bridge by phone {phone} and alt UniqueId {alt_id}")
-                except Exception as e:
-                    logging.error(f"Failed to delete bridge by phone: {e}")
+                except Exception:
+                    pass
             del bridge_phone_index[phone]
 
         for key in list(bridge_seen):
             if key[0] == phone:
                 bridge_seen.remove(key)
-                logging.info(f"Removed bridge_seen for {key} due to hangup")
 
         try:
             start_time = data.get("StartTime")
             end_time = data.get("EndTime")
-            call_status = int(data.get("CallStatus", -1))
-            call_type = int(data.get("CallType", -1))
+            call_status = data.get("CallStatus")
+            call_type = data.get("CallType")
             duration = ""
             extensions = data.get("Extensions", [])
-            cached = dial_cache.get(phone, {})
+            cached = dial_cache.get(unique_id, {})
             if not extensions:
                 extensions = cached.get("extensions", [])
 
@@ -236,8 +233,7 @@ async def receive_event(event_type: str, request: Request):
                     msg += " " + " ".join(f"☎️ {ext}" for ext in extensions)
             elif call_status == 2:
                 ext = f" ☎️ {extensions[0]}" if extensions else ""
-                msg = f"✅ Успешный звонок\nАбонент: {formatted}"
-                msg += f"\n⌛ {duration} 🔈 Запись{ext}"
+                msg = f"✅ Успешный звонок\nАбонент: {formatted}\n⌛ {duration} 🔈 Запись{ext}"
             else:
                 msg = f"❌ Завершённый звонок\nАбонент: {formatted}"
                 if duration:
