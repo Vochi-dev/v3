@@ -26,6 +26,7 @@ dial_store = {}
 bridge_store = {}
 bridge_phone_index = {}
 bridge_seen = set()
+dial_calltype = {}
 
 def format_phone_number(phone):
     logging.info(f"Original phone: {phone}")
@@ -81,15 +82,12 @@ async def receive_event(event_type: str, request: Request):
         return {"status": "sent", "event": event_type}
 
     elif event_type == "dial":
-        call_type = data.get("CallType")
         extensions = data.get("Extensions", [])
+        call_type = data.get("CallType")
         extensions_str = " ".join(f"🛎️{ext}" for ext in extensions if isinstance(ext, (str, int)))
-
         if call_type == 1:
-            # Исходящий
-            message = f"🛎️Исходящий звонок\nМенеджер: {extensions[0]} ➡️ 🛎️{formatted_phone}"
+            message = f"🛎️Исходящий звонок\nМенеджер: {extensions_str} ➡️ 🛎️{formatted_phone}"
         else:
-            # Входящий
             message = f"🛎️Входящий звонок\nАбонент: {formatted_phone} ➡️ {extensions_str}"
 
         if unique_id in message_store:
@@ -104,18 +102,20 @@ async def receive_event(event_type: str, request: Request):
             sent = await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
             if raw_phone:
                 dial_store[raw_phone] = sent.message_id
+                dial_calltype[raw_phone] = call_type
         except Exception as e:
             logging.error(f"Failed to send dial: {e}")
         return {"status": "sent", "event": event_type}
 
     elif event_type == "bridge":
-        if data.get("ConnectedLineNum") == "<unknown>" or data.get("ConnectedLineName") == "<unknown>":
-            logging.info(f"Ignoring bridge with unknown connection: {data}")
-            return {"status": "ignored", "event": event_type}
-
         caller = data.get("CallerIDNum", "")
         connected = data.get("ConnectedLineNum", "")
+        connected_name = data.get("ConnectedLineName", "")
         unique_id = data.get("UniqueId")
+
+        if connected_name == "<unknown>":
+            logging.info(f"Ignored unknown bridge entry")
+            return {"status": "ignored", "event": event_type}
 
         if re.fullmatch(r"\d{3}", caller):
             operator = caller
@@ -130,7 +130,12 @@ async def receive_event(event_type: str, request: Request):
             return {"status": "ignored", "event": event_type}
 
         formatted_client = format_phone_number(client)
-        message = f"🛎️Идет разговор\nАбонент: {formatted_client} ➡️ 🛎️{operator}"
+        call_type = dial_calltype.get(client)
+
+        if call_type == 1:
+            message = f"🛎️Идет разговор\nМенеджер: {operator} ➡️ {formatted_client}"
+        else:
+            message = f"🛎️Идет разговор\nАбонент: {formatted_client} ➡️ 🛎️{operator}"
 
         if client in dial_store:
             try:
@@ -214,19 +219,18 @@ async def receive_event(event_type: str, request: Request):
                 except Exception:
                     duration = ""
 
-            if str(call_status) == "0":
+            if call_status == 0 or call_status == "0":
                 msg = f"❌ Неотвеченный вызов\nАбонент: {formatted}"
-            elif str(call_status) == "1":
+            elif call_status == 1 or call_status == "1":
                 msg = f"❌ Клиент положил трубку\nАбонент: {formatted}"
-            elif str(call_status) == "2":
-                ext_display = f" ☎️ {extensions[0]}" if extensions else ""
-                msg = f"✅ Успешный звонок\nАбонент: {formatted}"
-                if duration:
-                    msg += f"\n⌛ {duration} 🔈 Запись{ext_display}"
+            elif call_status == 2 or call_status == "2":
+                ext_part = f" ☎️ {extensions[0]}" if extensions else ""
+                msg = f"✅ Успешный звонок\nАбонент: {formatted}\n⌛ {duration} 🔈 Запись{ext_part}"
             else:
                 msg = f"❌ Вызов завершён\nАбонент: {formatted}"
-                if duration:
-                    msg += f"\n⌛ {duration}"
+
+            if call_status not in ("2", 2) and duration:
+                msg += f"\n⌛ {duration}"
 
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=msg)
         except Exception as e:
