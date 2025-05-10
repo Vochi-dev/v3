@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, Request
 import logging
 from telegram import Bot
@@ -163,6 +162,9 @@ async def receive_event(event_type: str, request: Request):
         phone = data.get("Phone") or data.get("CallerIDNum") or ""
         unique_id = data.get("UniqueId")
         formatted = format_phone_number(phone)
+        call_status = data.get("CallStatus")
+        call_type = data.get("CallType")
+        extensions = data.get("Extensions", [])
 
         for store in [message_store, dial_store, bridge_store]:
             if unique_id in store:
@@ -192,9 +194,6 @@ async def receive_event(event_type: str, request: Request):
         try:
             start_time = data.get("StartTime")
             end_time = data.get("EndTime")
-            call_status = data.get("CallStatus")
-            call_type = data.get("CallType")
-            extensions = data.get("Extensions", [])
             duration = ""
 
             if start_time and end_time:
@@ -207,20 +206,19 @@ async def receive_event(event_type: str, request: Request):
                 except Exception:
                     duration = ""
 
-            if call_type == 1 and call_status == 2:
+            if call_status in [0, "0"]:
+                msg = f"❌ Неотвеченный вызов\nАбонент: {formatted}"
+            elif call_status in [1, "1"]:
+                msg = f"❌ Клиент положил трубку\nАбонент: {formatted}"
+            elif call_status in [2, "2"]:
+                label = "✅ Успешный исходящий звонок" if call_type == 1 else "✅ Успешный входящий звонок"
                 ext = f" ☎️ {extensions[0]}" if extensions else ""
-                msg = f"✅ Успешный исходящий звонок\nАбонент: {formatted}"
-                msg += f"\n⌛ {duration} 🔈 Запись{ext}"
-            elif call_type == 0 and call_status == 2:
-                ext = f" ☎️ {extensions[0]}" if extensions else ""
-                msg = f"✅ Успешный входящий звонок\nАбонент: {formatted}"
-                msg += f"\n⌛ {duration} 🔈 Запись{ext}"
-            elif call_status == 1 or call_status == "1":
-                msg = f"❌ Клиент положил трубку\nАбонент: {formatted}\n⌛ {duration}"
-            elif call_status == 0 or call_status == "0":
-                msg = f"❌ Неотвеченный вызов\nАбонент: {formatted}\n⌛ {duration}"
+                msg = f"{label}\nАбонент: {formatted}\n⌛ {duration} 🔈 Запись{ext}"
             else:
-                msg = f"❌ Вызов завершён\nАбонент: {formatted}\n⌛ {duration}"
+                msg = f"❌ Вызов завершён\nАбонент: {formatted}"
+
+            if call_status not in [2, "2"] and duration:
+                msg += f"\n⌛ {duration}"
 
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=msg)
         except Exception as e:
