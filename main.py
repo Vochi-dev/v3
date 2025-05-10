@@ -1,50 +1,34 @@
 from fastapi import FastAPI, Request
 import logging
-import json
-import re
+from telegram import Bot
 import phonenumbers
-from datetime import datetime
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Dispatcher, CallbackQueryHandler
+import re
 from db import init_db, log_event
+import json
+from datetime import datetime
 
 app = FastAPI()
 init_db()
 
-# ——— Настройка логирования ——————————————————————————————————————————————
 logging.basicConfig(
     filename="asterisk_events.log",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# ——— Настройки Telegram —————————————————————————————————————————————
 TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
 TELEGRAM_CHAT_ID   = "374573193"
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# ——— Dispatcher для inline-кнопок спойлера —————————————————————————————
-dispatcher = Dispatcher(bot, None, use_context=True, workers=0)
-
-# Словарь для хранения «спойлерных» деталей hangup по UID
-hangup_details: dict[str, str] = {}
-
-# ——— Хранилища промежуточных сообщений ——————————————————————————————
-message_store      = {}  # для start
-dial_store         = {}  # для dial
-bridge_store       = {}  # для bridge
-bridge_phone_index = {}  # для bridge по номеру
-bridge_seen        = set()
-dial_cache         = {}  # сохраняем call_type и extensions по uid
-
-# ——— Утилиты ————————————————————————————————————————————————————————
+message_store       = {}
+dial_store          = {}
+bridge_store        = {}
+bridge_phone_index  = {}
+bridge_seen         = set()
+dial_cache          = {}
+dial_phone_to_uid   = {}  # мапа телефон → UID
 
 def format_phone_number(phone: str) -> str:
-    """
-    Приводит телефон к формату +375 (XX) XXX-XX-XX.
-    Если приходит 10-значный без кода, добавляет 375,
-    если 11-значный начинающийся на 80, тоже правит на 375.
-    """
     logging.info(f"Original phone: {phone}")
     if len(phone) == 11 and phone.startswith("80"):
         phone = "375" + phone[2:]
@@ -56,144 +40,139 @@ def format_phone_number(phone: str) -> str:
         if not phone.startswith("+"):
             phone = "+" + phone
         parsed = phonenumbers.parse(phone, None)
-        e164 = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
+        e164   = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
         digits = e164[1:]
-        cc = str(parsed.country_code)
-        rest = digits[len(cc):]
-        code = rest[:2]
-        num  = rest[2:]
+        cc     = str(parsed.country_code)
+        rest   = digits[len(cc):]
+        code   = rest[:2]
+        num    = rest[2:]
         return f"+{cc} ({code}) {num[:3]}-{num[3:5]}-{num[5:]}"
-    except Exception:
+    except:
         return phone
-
-# ——— Обработчик inline-кнопки «Подробнее» —————————————————————————————
-
-def on_more(update: Update, context):
-    """
-    При нажатии на кнопку «▶️ Подробнее» подменяет текст
-    на полный спойлер detail для данного UID.
-    """
-    uid = update.callback_query.data
-    detail = hangup_details.get(uid, "ℹ️ Нет подробностей.")
-    update.callback_query.edit_message_text(text=detail, parse_mode="Markdown")
-
-dispatcher.add_handler(CallbackQueryHandler(on_more))
-
-# ——— Основной HTTP-эндпойнт для всех событий Asterisk ————————————————————
 
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
-    data = await request.json()
-    et   = event_type.lower()
-    uid  = data.get("UniqueId", "")
-    raw  = data.get("Phone") or data.get("CallerIDNum") or ""
-    phone = format_phone_number(raw)
+    data      = await request.json()
+    et        = event_type.lower()
+    uid       = data.get("UniqueId", "")
+    raw_phone = data.get("Phone") or data.get("CallerIDNum") or ""
+    phone     = format_phone_number(raw_phone)
 
-    # Логируем в БД и файл
     log_event(et, uid, json.dumps(data))
-    logging.info(f"Event={et} UID={uid} raw={raw} data={data}")
+    logging.info(f"Event {et}, UID={uid}, raw={raw_phone}, data={data}")
 
-    # ——— START ——————————————————————————————————————————————————————
+    #
+    # START
+    #
     if et == "start":
         txt = f"🛎️ Входящий звонок\nАбонент: {phone}"
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             message_store[uid] = sent.message_id
-            logging.info(f"Sent START message for {uid}")
-        except Exception as e:
-            logging.error(f"START send error: {e}")
+        except:
+            pass
         return {"status": "sent"}
 
-    # ——— DIAL ———————————————————————————————————————————————————————
+    #
+    # DIAL
+    #
     if et == "dial":
         ct   = int(data.get("CallType", 0))
         exts = data.get("Extensions", [])
+
         if ct == 1:
             txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}"
         else:
             txt = f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + " ".join(f"🛎️{e}" for e in exts)
 
-        # удаляем START, если был
+        # delete START
         if uid in message_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
-            except: pass
+            except:
+                pass
 
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             dial_store[uid] = sent.message_id
             dial_cache[uid] = {"call_type": ct, "extensions": exts}
-            logging.info(f"Sent DIAL message for {uid}")
-        except Exception as e:
-            logging.error(f"DIAL send error: {e}")
+            dial_phone_to_uid[raw_phone] = uid
+        except:
+            pass
+
         return {"status": "sent"}
 
-    # ——— BRIDGE —————————————————————————————————————————————————————
+    #
+    # BRIDGE
+    #
     if et == "bridge":
         caller    = data.get("CallerIDNum", "")
         connected = data.get("ConnectedLineNum", "")
         status    = int(data.get("CallStatus", 0))
 
-        # игнорируем повтор и unknown
-        if "<unknown>" in (caller, connected):
-            return {"status": "ignored"}
-        key = tuple(sorted((caller, connected)))
-        if key in bridge_seen:
+        # игнорируем, если оба неизвестны
+        if caller == "<unknown>" and connected == "<unknown>":
             return {"status": "ignored"}
 
-        # определяем client/operator
+        # определяем оператор/клиент
         if re.fullmatch(r"\d{3}", caller):
             op, cli = caller, connected
         else:
             op, cli = connected, caller
 
-        # проверяем, есть ли dial_cache
-        dc = dial_cache.get(uid, {})
-        ct = dc.get("call_type", 0)
+        # находим исходный UID по телефону клиента
+        orig_uid = dial_phone_to_uid.get(cli)
+        if not orig_uid:
+            return {"status": "ignored"}
 
-        # префикс по типу
-        if ct == 1 and status == 2:
-            pre = "✅ Успешный исходящий звонок"
-        elif ct == 0 and status == 2:
-            pre = "✅ Успешный входящий звонок"
-        else:
-            pre = "🛎️ Идет разговор"
-
-        txt = f"{pre}\nАбонент: {format_phone_number(cli)} ➡️ 🛎️{op}"
+        key = (cli, op)
+        if key in bridge_seen:
+            return {"status": "ignored"}
 
         # удаляем DIAL
-        if uid in dial_store:
-            try:
-                await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(uid))
-            except: pass
+        try:
+            await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(orig_uid, 0))
+        except:
+            pass
 
+        ct = dial_cache.get(orig_uid, {}).get("call_type", 0)
+        if   ct == 1 and status == 2: pre = "✅ Успешный исходящий звонок"
+        elif ct == 0 and status == 2: pre = "✅ Успешный входящий звонок"
+        else:                         pre = "🛎️ Идет разговор"
+
+        txt = f"{pre}\nАбонент: {format_phone_number(cli)} ➡️ 🛎️{op}"
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
-            bridge_store[uid] = sent.message_id
-            bridge_phone_index[cli] = uid
+            bridge_store[orig_uid]       = sent.message_id
+            bridge_phone_index[cli]      = orig_uid
             bridge_seen.add(key)
-            logging.info(f"Sent BRIDGE message for {uid}")
-        except Exception as e:
-            logging.error(f"BRIDGE send error: {e}")
+        except:
+            pass
+
         return {"status": "sent"}
 
-    # ——— HANGUP —————————————————————————————————————————————————————
+    #
+    # HANGUP
+    #
     if et == "hangup":
-        # удаляем все предыдущие по uid
+        # удаляем все по UID
         for store in (message_store, dial_store, bridge_store):
             if uid in store:
                 try:
                     await bot.delete_message(TELEGRAM_CHAT_ID, store.pop(uid))
-                except: pass
+                except:
+                    pass
 
-        # готовим данные
+        # расчёт длительности
         st   = data.get("StartTime")
         etme = data.get("EndTime")
         cs   = int(data.get("CallStatus", -1))
-        ct   = int(data.get("CallType",   -1))
-        exts = data.get("Extensions", []) or dial_cache.get(uid, {}).get("extensions", [])
+        ct   = int(data.get("CallType", -1))
+        raw_exts = data.get("Extensions", [])
+        exts = [e for e in raw_exts if e and str(e).strip()]
+        if not exts:
+            exts = dial_cache.get(uid, {}).get("extensions", [])
 
-        # считаем длительность
         dur = ""
         try:
             s = datetime.fromisoformat(st)
@@ -203,49 +182,43 @@ async def receive_event(event_type: str, request: Request):
         except:
             pass
 
-        # форматируем заголовок (всегда видно)
-        if ct == 0 and cs == 1:
-            header = f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}"
+        # строим финальный текст
+        if   ct == 1 and cs == 0:
+            m = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
+            if dur: m += f"\n⌛ {dur}"
+            for e in exts: m += f" ☎️ {e}"
+        elif ct == 0 and cs == 1:
+            m = f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}"
+            if dur: m += f"\n⌛ {dur}"
         elif ct == 0 and cs == 0:
-            header = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
-        elif ct == 1 and cs == 0:
-            header = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
-        elif cs == 2:
-            if ct == 0:
-                header = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}"
-            else:
-                header = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}"
+            m = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
+            if dur: m += f"\n⌛ {dur}"
+            for e in exts: m += f" ☎️ {e}"
+        elif ct == 0 and cs == 2:
+            m = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}"
+            m += f"\n⌛ {dur} 🔈 Запись"
+            if exts: m += f" ☎️ {exts[0]}"
+        elif ct == 1 and cs == 2:
+            m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}"
+            m += f"\n⌛ {dur} 🔈 Запись"
+            if exts: m += f" ☎️ {exts[0]}"
         else:
-            header = f"❌ Завершённый звонок\nАбонент: {phone}"
+            m = f"❌ Завершённый звонок\nАбонент: {phone}"
+            if dur: m += f"\n⌛ {dur}"
 
-        # детали для спойлера
-        detail = header
-        if dur:
-            detail += f"\n⌛ {dur}"
-        if cs in (0, 1):  # показываем extensions
-            for ex in exts:
-                if ex:
-                    detail += f" ☎️ {ex}"
-        elif cs == 2:
-            detail += f" 🔈 Запись"
-            if exts:
-                detail += f" ☎️ {exts[0]}"
+        try:
+            await bot.send_message(TELEGRAM_CHAT_ID, m)
+        except:
+            pass
 
-        # сохраняем под uid
-        hangup_details[uid] = detail
+        return {"status": "cleared"}
 
-        # отправляем только header + кнопка
-        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("▶️ Подробнее", callback_data=uid)]])
-        await bot.send_message(TELEGRAM_CHAT_ID, header, reply_markup=keyboard)
-        return {"status": "sent"}
-
-    # ——— Прочие события —————————————————————————————————————————————————
+    #
+    # OTHER EVENTS
+    #
     txt = f"📞 Event: {et}\n" + "\n".join(f"{k}: {v}" for k, v in data.items())
-    await bot.send_message(TELEGRAM_CHAT_ID, txt)
+    try:
+        await bot.send_message(TELEGRAM_CHAT_ID, txt)
+    except:
+        pass
     return {"status": "sent"}
-
-# ——— Запускаем polling диспетчера callback’ов ——————————————————————————
-@app.on_event("startup")
-async def start_dispatcher():
-    import threading
-    threading.Thread(target=dispatcher.start, daemon=True).start()
