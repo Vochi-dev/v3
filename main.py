@@ -76,7 +76,6 @@ async def receive_event(event_type: str, request: Request):
         try:
             sent = await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
             message_store[unique_id] = sent.message_id
-            logging.info(f"Start message sent: {sent}")
         except Exception as e:
             logging.error(f"Failed to send start: {e}")
         return {"status": "sent", "event": event_type}
@@ -95,7 +94,6 @@ async def receive_event(event_type: str, request: Request):
             try:
                 await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=message_store[unique_id])
                 del message_store[unique_id]
-                logging.info(f"Deleted start for UniqueId {unique_id}")
             except Exception as e:
                 logging.error(f"Failed to delete start: {e}")
 
@@ -122,8 +120,7 @@ async def receive_event(event_type: str, request: Request):
             client = caller
 
         bridge_key = (client, operator)
-        if bridge_key in bridge_seen or connected == "<unknown>":
-            logging.info(f"Ignored repeated or invalid bridge for {bridge_key}")
+        if bridge_key in bridge_seen:
             return {"status": "ignored", "event": event_type}
 
         call_type = dial_cache.get(client)
@@ -142,7 +139,6 @@ async def receive_event(event_type: str, request: Request):
             try:
                 await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=dial_store[client])
                 del dial_store[client]
-                logging.info(f"Deleted dial for Phone {client}")
             except Exception as e:
                 logging.error(f"Failed to delete dial: {e}")
 
@@ -168,9 +164,8 @@ async def receive_event(event_type: str, request: Request):
                 try:
                     await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=store[unique_id])
                     del store[unique_id]
-                    logging.info(f"Deleted {event_type} by UniqueId {unique_id}")
                 except Exception as e:
-                    logging.error(f"Failed to delete {event_type} message: {e}")
+                    logging.error(f"Failed to delete message: {e}")
 
         if phone in bridge_phone_index:
             alt_id = bridge_phone_index[phone]
@@ -178,7 +173,6 @@ async def receive_event(event_type: str, request: Request):
                 try:
                     await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=bridge_store[alt_id])
                     del bridge_store[alt_id]
-                    logging.info(f"Deleted bridge by phone {phone} and alt UniqueId {alt_id}")
                 except Exception as e:
                     logging.error(f"Failed to delete bridge by phone: {e}")
             del bridge_phone_index[phone]
@@ -186,7 +180,6 @@ async def receive_event(event_type: str, request: Request):
         for key in list(bridge_seen):
             if key[0] == phone:
                 bridge_seen.remove(key)
-                logging.info(f"Removed bridge_seen for {key} due to hangup")
 
         try:
             start_time = data.get("StartTime")
@@ -247,4 +240,3 @@ async def receive_event(event_type: str, request: Request):
         except Exception as e:
             logging.error(f"Failed to send other: {e}")
         return {"status": "sent", "event": event_type}
-
