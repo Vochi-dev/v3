@@ -216,4 +216,3 @@ async def receive_event(event_type: str, request: Request):
         except Exception as e:
             logging.error(f"Failed to send other: {e}")
         return {"status": "sent", "event": event_type}
-
