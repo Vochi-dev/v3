@@ -79,7 +79,6 @@ async def receive_event(event_type: str, request: Request):
             await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
         sent=await bot.send_message(TELEGRAM_CHAT_ID, txt)
         dial_store[uid]=sent.message_id
-        # Сохраняем расширения и тип по UID
         dial_cache[uid]={"call_type":ct,"extensions":exts}
         return {"status":"sent"}
 
@@ -95,11 +94,9 @@ async def receive_event(event_type: str, request: Request):
         else:
             op,cli=conn,caller
         key=(cli,op)
-        if key in bridge_seen:
+        if key in bridge_seen or uid not in dial_cache:
             return {"status":"ignored"}
-        if uid not in dial_cache:
-            return {"status":"ignored"}
-        # удаляем DIAL
+        # delete DIAL
         await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(uid,0))
         ct=dial_cache[uid]["call_type"]
         if ct==1 and cs==2:
@@ -117,11 +114,11 @@ async def receive_event(event_type: str, request: Request):
 
     # HANGUP
     if et=="hangup":
-        # удаляем всё по UID
+        # delete ALL by UID
         for store in (message_store, dial_store, bridge_store):
             if uid in store:
                 await bot.delete_message(TELEGRAM_CHAT_ID, store.pop(uid))
-        # готовим данные
+        # compute duration & fetch extensions
         st=data.get("StartTime"); etm=data.get("EndTime")
         cs=int(data.get("CallStatus",0)); ct=int(data.get("CallType",0))
         cache=dial_cache.get(uid, {})
@@ -132,7 +129,7 @@ async def receive_event(event_type: str, request: Request):
             sec=int((e-s).total_seconds()); dur=f"{sec//60:02}:{sec%60:02}"
         except: pass
 
-        # форматируем сообщение
+        # choose prefix
         if ct==1 and cs==0:
             m=f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
         elif ct==0 and cs==1:
@@ -140,14 +137,17 @@ async def receive_event(event_type: str, request: Request):
         elif ct==0 and cs==0:
             m=f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
         elif cs==2:
-            prefix = "✅ Успешный входящий звонок" if ct==0 else "✅ Успешный исходящий звонок"
-            m=f"{prefix}\nАбонент: {phone}"
+            # вот изменения префикса для cs==2:
+            if ct==1:
+                m=f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}"
+            else:
+                m=f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}"
         else:
             m=f"❌ Завершённый звонок\nАбонент: {phone}"
 
         if dur:
             m+=f"\n⌛ {dur}"
-        # добавляем номера в нужных кейсах
+        # добавляем номера туда, где нужно
         if (ct,cs) in ((0,0),(1,0)):
             for e in exts:
                 m+=f" ☎️ {e}"
@@ -157,7 +157,7 @@ async def receive_event(event_type: str, request: Request):
         await bot.send_message(TELEGRAM_CHAT_ID, m)
         return {"status":"cleared"}
 
-    # остальные события
+    # OTHER EVENTS
     txt="📞 Event "+et+"\n" + "\n".join(f"{k}: {v}" for k,v in data.items())
     await bot.send_message(TELEGRAM_CHAT_ID, txt)
     return {"status":"sent"}
