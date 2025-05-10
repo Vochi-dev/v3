@@ -28,6 +28,10 @@ def format_phone_number(phone):
     if len(phone) == 10 and phone.startswith("0"):
         phone = "375" + phone[1:]
     
+    # Если номер уже начинается с "+" и является международным, пропускаем его
+    elif phone.startswith("+") and len(phone) > 10:
+        return phone
+    
     try:
         if not phone.startswith("+"):
             phone = "+" + phone
