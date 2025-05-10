@@ -189,7 +189,7 @@ async def receive_event(event_type: str, request: Request):
         try:
             start_time = data.get("StartTime")
             end_time = data.get("EndTime")
-            call_type = data.get("CallType")
+            call_status = data.get("CallStatus")
             duration = ""
 
             if start_time and end_time:
@@ -202,7 +202,7 @@ async def receive_event(event_type: str, request: Request):
                 except Exception:
                     duration = ""
 
-            if call_type == 0:
+            if call_status == 0 or call_status == "0":
                 msg = f"❌ Неотвеченный вызов\nАбонент: {formatted}"
             else:
                 msg = f"❌ Вызов завершён\nАбонент: {formatted}"
