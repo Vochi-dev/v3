@@ -69,11 +69,14 @@ async def receive_event(event_type: str, request: Request):
     raw_phone = data.get("Phone") or data.get("CallerIDNum") or data.get("CallerIDName") or ""
     formatted_phone = format_phone_number(raw_phone)
 
+    logging.info(f"Raw phone: {raw_phone}, Formatted phone: {formatted_phone}")
+
     if event_type == "start":
         message = f"🛎️Входящий звонок\nАбонент: {formatted_phone}"
         try:
             sent = await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
             message_store[unique_id] = sent.message_id
+            logging.info(f"Start message sent: {sent}")
         except Exception as e:
             logging.error(f"Failed to send start: {e}")
         return {"status": "sent", "event": event_type}
@@ -92,6 +95,7 @@ async def receive_event(event_type: str, request: Request):
             try:
                 await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=message_store[unique_id])
                 del message_store[unique_id]
+                logging.info(f"Deleted start for UniqueId {unique_id}")
             except Exception as e:
                 logging.error(f"Failed to delete start: {e}")
 
@@ -119,6 +123,7 @@ async def receive_event(event_type: str, request: Request):
                     try:
                         await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=v)
                         del store[k]
+                        logging.info(f"Deleted message with key {k}")
                     except Exception as e:
                         logging.error(f"Failed to delete message {k}: {e}")
 
