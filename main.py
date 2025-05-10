@@ -102,6 +102,7 @@ async def receive_event(event_type: str, request: Request):
             if raw_phone:
                 dial_store[raw_phone] = sent.message_id
                 dial_cache[raw_phone] = call_type
+                dial_cache[unique_id] = call_type  # запомним и по ID
         except Exception as e:
             logging.error(f"Failed to send dial: {e}")
         return {"status": "sent", "event": event_type}
@@ -119,11 +120,16 @@ async def receive_event(event_type: str, request: Request):
             operator = connected
             client = caller
 
-        bridge_key = (client, operator)
-        if bridge_key in bridge_seen:
+        if "<unknown>" in (caller, connected):
+            logging.info(f"Skipping bridge with unknown participant: {caller}, {connected}")
             return {"status": "ignored", "event": event_type}
 
-        call_type = dial_cache.get(client)
+        bridge_key = (client, operator)
+        if bridge_key in bridge_seen:
+            logging.info(f"Ignored repeated bridge for {bridge_key}")
+            return {"status": "ignored", "event": event_type}
+
+        call_type = dial_cache.get(client) or dial_cache.get(unique_id)
         formatted_client = format_phone_number(client)
 
         if call_type == 1 and call_status == 2:
@@ -133,7 +139,7 @@ async def receive_event(event_type: str, request: Request):
         else:
             prefix = "🛎️Идет разговор"
 
-        message = f"{prefix}\nАбонент: {formatted_client} ➡️ 🛎️{operator}"
+        message = f"{prefix}\n{operator} ➡️ 🛎️{formatted_client}"
 
         if client in dial_store:
             try:
@@ -159,13 +165,21 @@ async def receive_event(event_type: str, request: Request):
         unique_id = data.get("UniqueId")
         formatted = format_phone_number(phone)
 
-        for store in [message_store, dial_store, bridge_store]:
+        # Безусловно удаляем ВСЕ сообщения с тем же UniqueId
+        for store in [message_store, bridge_store]:
             if unique_id in store:
                 try:
                     await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=store[unique_id])
                     del store[unique_id]
                 except Exception as e:
-                    logging.error(f"Failed to delete message: {e}")
+                    logging.error(f"Failed to delete by UniqueId in {event_type}: {e}")
+
+        if phone in dial_store:
+            try:
+                await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=dial_store[phone])
+                del dial_store[phone]
+            except Exception as e:
+                logging.error(f"Failed to delete dial by phone: {e}")
 
         if phone in bridge_phone_index:
             alt_id = bridge_phone_index[phone]
@@ -174,7 +188,7 @@ async def receive_event(event_type: str, request: Request):
                     await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=bridge_store[alt_id])
                     del bridge_store[alt_id]
                 except Exception as e:
-                    logging.error(f"Failed to delete bridge by phone: {e}")
+                    logging.error(f"Failed to delete bridge by phone index: {e}")
             del bridge_phone_index[phone]
 
         for key in list(bridge_seen):
@@ -206,31 +220,27 @@ async def receive_event(event_type: str, request: Request):
             elif call_status == 2 or call_status == "2":
                 ext = f" ☎️ {extensions[0]}" if extensions else ""
                 if call_type == 1:
-                    msg = f"✅ Успешный исходящий звонок\nАбонент: {formatted}"
+                    msg = f"✅ Успешный исходящий звонок\nАбонент: {formatted}\n⌛ {duration} 🔈 Запись{ext}"
+                elif call_type == 0:
+                    msg = f"✅ Успешный входящий звонок\nАбонент: {formatted}\n⌛ {duration} 🔈 Запись{ext}"
                 else:
-                    msg = f"✅ Успешный входящий звонок\nАбонент: {formatted}"
-                msg += f"\n⌛ {duration} 🔈 Запись{ext}"
+                    msg = f"✅ Успешный звонок\nАбонент: {formatted}\n⌛ {duration} 🔈 Запись{ext}"
                 await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=msg)
                 return {"status": "cleared", "event": event_type}
+            else:
+                msg = f"❌ Вызов завершён\nАбонент: {formatted}"
 
             if duration:
                 msg += f"\n⌛ {duration}"
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=msg)
+
         except Exception as e:
             logging.error(f"Failed to send formatted hangup: {e}")
-
-        try:
-            raw_msg = f"📞 Asterisk Event: hangup\n"
-            for k, v in data.items():
-                raw_msg += f"{k}: {v}\n"
-            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=raw_msg)
-        except Exception as e:
-            logging.error(f"Failed to send raw hangup log: {e}")
 
         return {"status": "cleared", "event": event_type}
 
     else:
-        message = f"📞 *Asterisk Event: {event_type}*\n"
+        message = f"📞 Asterisk Event: {event_type}\n"
         for k, v in data.items():
             if isinstance(v, str) and looks_like_phone(v):
                 v = format_phone_number(v)
@@ -238,5 +248,5 @@ async def receive_event(event_type: str, request: Request):
         try:
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
         except Exception as e:
-            logging.error(f"Failed to send other: {e}")
+            logging.error(f"Failed to send unknown event: {e}")
         return {"status": "sent", "event": event_type}
