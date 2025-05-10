@@ -103,7 +103,7 @@ async def receive_event(event_type: str, request: Request):
             sent = await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
             if raw_phone:
                 dial_store[raw_phone] = sent.message_id
-                dial_cache[raw_phone] = {
+                dial_cache[unique_id] = {
                     "extensions": extensions,
                     "call_type": call_type
                 }
@@ -133,7 +133,7 @@ async def receive_event(event_type: str, request: Request):
             logging.info(f"Ignored repeated bridge for {bridge_key}")
             return {"status": "ignored", "event": event_type}
 
-        cached = dial_cache.get(client, {})
+        cached = dial_cache.get(unique_id, {})
         call_type = cached.get("call_type")
 
         formatted_client = format_phone_number(client)
@@ -204,8 +204,9 @@ async def receive_event(event_type: str, request: Request):
             call_type = data.get("CallType")
             duration = ""
             extensions = data.get("Extensions", [])
-            cached = dial_cache.get(phone, {})
-            if not extensions or extensions == [""]:
+
+            cached = dial_cache.get(unique_id, {})
+            if not extensions:
                 extensions = cached.get("extensions", [])
 
             if start_time and end_time:
