@@ -60,18 +60,22 @@ async def receive_event(event_type: str, request: Request):
     raw_phone = data.get("Phone") or data.get("CallerIDNum") or data.get("CallerIDName") or ""
     formatted_phone = format_phone_number(raw_phone)
 
+    # Логирование информации о номере телефона
+    logging.info(f"Raw phone: {raw_phone}, Formatted phone: {formatted_phone}")
+
     if event_type == "start":
         # Логирование для проверки наличия номера телефона
         if not formatted_phone:
             logging.error(f"Start event: No phone number found. Data: {data}")
 
         message = f"🛎️Входящий звонок\nАбонент: {formatted_phone}"
+        logging.info(f"Sending start message: {message}")
+
         try:
-            logging.info(f"Sending start message: {message}")
             sent = await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message, parse_mode="Markdown")
+            logging.info(f"Start message sent: {sent}")
             if unique_id:
                 message_store[unique_id] = sent.message_id
-            logging.info(f"Start message sent successfully: {message}")
         except Exception as e:
             logging.error(f"Failed to send start: {e}")
         return {"status": "sent", "event": event_type}
