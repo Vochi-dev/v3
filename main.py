@@ -188,10 +188,20 @@ async def receive_event(event_type: str, request: Request):
                 bridge_seen.remove(key)
                 logging.info(f"Removed bridge_seen for {key} due to hangup")
 
+        # Форматированное сообщение
         try:
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"❌ Вызов завершён\nАбонент: {formatted}")
         except Exception as e:
-            logging.error(f"Failed to send hangup message: {e}")
+            logging.error(f"Failed to send formatted hangup: {e}")
+
+        # Сырое сообщение
+        try:
+            raw_msg = f"📞 Asterisk Event: hangup\n"
+            for k, v in data.items():
+                raw_msg += f"{k}: {v}\n"
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=raw_msg)
+        except Exception as e:
+            logging.error(f"Failed to send raw hangup log: {e}")
 
         return {"status": "cleared", "event": event_type}
 
