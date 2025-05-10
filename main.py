@@ -28,6 +28,7 @@ bridge_seen         = set()
 dial_cache          = {}
 dial_phone_to_uid   = {}      # <-- новая мапа телефон→uid
 
+
 def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
     if len(phone) == 11 and phone.startswith("80"):
@@ -49,6 +50,7 @@ def format_phone_number(phone: str) -> str:
         return f"+{cc} ({code}) {num[:3]}-{num[3:5]}-{num[5:]}"
     except:
         return phone
+
 
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
@@ -96,7 +98,7 @@ async def receive_event(event_type: str, request: Request):
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             dial_store[uid] = sent.message_id
             dial_cache[uid] = {"call_type": ct, "extensions": exts}
-            dial_phone_to_uid[raw_phone] = uid        # <-- сохраняем телефон→uid
+            dial_phone_to_uid[raw_phone] = uid
         except:
             pass
 
@@ -110,7 +112,7 @@ async def receive_event(event_type: str, request: Request):
         connected = data.get("ConnectedLineNum", "")
         status    = int(data.get("CallStatus", 0))
 
-        # игнорируем только если оба неизвестны
+        # игнорируем оба <unknown>
         if caller == "<unknown>" and connected == "<unknown>":
             return {"status": "ignored"}
 
@@ -163,7 +165,7 @@ async def receive_event(event_type: str, request: Request):
                 except:
                     pass
 
-        # форматируем итог
+        # строим итоговый текст
         st   = data.get("StartTime")
         etme = data.get("EndTime")
         cs   = int(data.get("CallStatus", -1))
@@ -182,13 +184,30 @@ async def receive_event(event_type: str, request: Request):
         except:
             pass
 
+        # СПОЙЛЕР для «Абонент положил трубку» (CallType=0, CallStatus=1)
+        if ct == 0 and cs == 1:
+            visible = "⬇️ ❌ Абонент положил трубку"
+            details = f"\nАбонент: {phone}"
+            if dur:
+                details += f"\n⌛ {dur}"
+            # MarkdownV2-экранирование
+            safe = details.replace("-", r"\-").replace(".", r"\.").replace("(", r"\(").replace(")", r"\)")
+            spoilered = f"||{safe}||"
+            try:
+                await bot.send_message(
+                    TELEGRAM_CHAT_ID,
+                    text=visible + spoilered,
+                    parse_mode="MarkdownV2"
+                )
+            except:
+                pass
+            return {"status": "cleared"}
+
+        # другие варианты hangup без спойлера
         if   ct == 1 and cs == 0:
             m = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
             if dur: m += f"\n⌛ {dur}"
             for e in exts: m += f" ☎️ {e}"
-        elif ct == 0 and cs == 1:
-            m = f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
         elif ct == 0 and cs == 0:
             m = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
             if dur: m += f"\n⌛ {dur}"
@@ -221,5 +240,3 @@ async def receive_event(event_type: str, request: Request):
     except:
         pass
     return {"status": "sent"}
-
-
