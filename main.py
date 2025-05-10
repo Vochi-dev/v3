@@ -99,10 +99,10 @@ async def receive_event(event_type: str, request: Request):
             sent = await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
             if raw_phone:
                 dial_store[raw_phone] = sent.message_id
-            dial_cache[unique_id] = {
-                "extensions": extensions,
-                "call_type": call_type
-            }
+                dial_cache[unique_id] = {
+                    "extensions": extensions,
+                    "call_type": call_type
+                }
         except Exception as e:
             logging.error(f"Failed to send dial: {e}")
         return {"status": "sent", "event": event_type}
