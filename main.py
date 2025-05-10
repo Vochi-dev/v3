@@ -114,6 +114,10 @@ async def receive_event(event_type: str, request: Request):
         call_status = data.get("CallStatus")
         unique_id = data.get("UniqueId")
 
+        if connected.lower() == "<unknown>" or data.get("ConnectedLineName", "").lower() == "<unknown>":
+            logging.info(f"Skipping bridge with unknown connected line: {data}")
+            return {"status": "skipped", "event": event_type}
+
         if re.fullmatch(r"\d{3}", caller):
             operator = caller
             client = connected
