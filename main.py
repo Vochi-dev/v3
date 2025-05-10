@@ -28,7 +28,6 @@ bridge_seen         = set()
 dial_cache          = {}
 dial_phone_to_uid   = {}      # <-- новая мапа телефон→uid
 
-
 def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
     if len(phone) == 11 and phone.startswith("80"):
@@ -50,7 +49,6 @@ def format_phone_number(phone: str) -> str:
         return f"+{cc} ({code}) {num[:3]}-{num[3:5]}-{num[5:]}"
     except:
         return phone
-
 
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
@@ -98,7 +96,7 @@ async def receive_event(event_type: str, request: Request):
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             dial_store[uid] = sent.message_id
             dial_cache[uid] = {"call_type": ct, "extensions": exts}
-            dial_phone_to_uid[raw_phone] = uid
+            dial_phone_to_uid[raw_phone] = uid        # <-- сохраняем телефон→uid
         except:
             pass
 
@@ -112,7 +110,7 @@ async def receive_event(event_type: str, request: Request):
         connected = data.get("ConnectedLineNum", "")
         status    = int(data.get("CallStatus", 0))
 
-        # игнорируем оба <unknown>
+        # игнорируем только если оба неизвестны
         if caller == "<unknown>" and connected == "<unknown>":
             return {"status": "ignored"}
 
@@ -165,7 +163,7 @@ async def receive_event(event_type: str, request: Request):
                 except:
                     pass
 
-        # строим итоговый текст
+        # форматируем итог
         st   = data.get("StartTime")
         etme = data.get("EndTime")
         cs   = int(data.get("CallStatus", -1))
@@ -184,50 +182,49 @@ async def receive_event(event_type: str, request: Request):
         except:
             pass
 
-        # СПОЙЛЕР для «Абонент положил трубку» (CallType=0, CallStatus=1)
+        # Абонент положил трубку — делаем HTML-спойлер
         if ct == 0 and cs == 1:
-            visible = "⬇️ ❌ Абонент положил трубку"
-            details = f"\nАбонент: {phone}"
+            header = "⬇️ ❌ Абонент положил трубку"
+            details = f"Абонент: {phone}\n"
             if dur:
-                details += f"\n⌛ {dur}"
-            # MarkdownV2-экранирование
-            safe = details.replace("-", r"\-").replace(".", r"\.").replace("(", r"\(").replace(")", r"\)")
-            spoilered = f"||{safe}||"
+                details += f"⌛ {dur}"
+            spoiler = f"<tg-spoiler>\n{details}\n</tg-spoiler>"
             try:
                 await bot.send_message(
                     TELEGRAM_CHAT_ID,
-                    text=visible + spoilered,
-                    parse_mode="MarkdownV2"
+                    f"{header}\n{spoiler}",
+                    parse_mode="HTML"
                 )
-            except:
-                pass
+            except Exception as e:
+                logging.error(f"Failed to send hangup spoiler: {e}")
             return {"status": "cleared"}
 
-        # другие варианты hangup без спойлера
+        # Остальные варианты hangup — отправляем как раньше
         if   ct == 1 and cs == 0:
             m = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
-            for e in exts: m += f" ☎️ {e}"
         elif ct == 0 and cs == 0:
             m = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
-            for e in exts: m += f" ☎️ {e}"
         elif ct == 0 and cs == 2:
             m = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}"
-            m += f"\n⌛ {dur} 🔈 Запись"
-            if exts: m += f" ☎️ {exts[0]}"
         elif ct == 1 and cs == 2:
             m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}"
-            m += f"\n⌛ {dur} 🔈 Запись"
-            if exts: m += f" ☎️ {exts[0]}"
         else:
             m = f"❌ Завершённый звонок\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
+
+        if dur:
+            m += f"\n⌛ {dur}"
+        if ct == 1 and cs == 0 or ct == 0 and cs == 0:
+            for e in exts:
+                m += f" ☎️ {e}"
+        if (ct == 0 and cs == 2) or (ct == 1 and cs == 2):
+            m += f" 🔈 Запись"
+            if exts:
+                m += f" ☎️ {exts[0]}"
 
         try:
             await bot.send_message(TELEGRAM_CHAT_ID, m)
-        except:
-            pass
+        except Exception as e:
+            logging.error(f"Failed to send formatted hangup: {e}")
 
         return {"status": "cleared"}
 
