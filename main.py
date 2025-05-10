@@ -1,3 +1,4 @@
+# 🧪 Автодеплой 2.0 из VS Code
 from fastapi import FastAPI, Request
 import logging
 from telegram import Bot
