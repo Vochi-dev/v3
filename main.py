@@ -24,12 +24,16 @@ bridge_phone_index = {}
 bridge_seen = set()
 
 def format_phone_number(phone):
+    # Логирование перед обработкой
+    logging.info(f"Original phone: {phone}")
+
     # Если номер длиной 10 символов, заменяем первую цифру на "375"
     if len(phone) == 10 and phone.startswith("0"):
         phone = "375" + phone[1:]
     
     # Если номер начинается с "+" и его длина больше 10, но начинается с "8", обрубаем "8" и добавляем "375"
     elif phone.startswith("+8") and len(phone) == 12:
+        logging.info(f"Processing +8 number: {phone}")
         phone = "+375" + phone[2:]
     
     # Если номер уже начинается с "+" и является международным, пропускаем его
@@ -48,6 +52,7 @@ def format_phone_number(phone):
         number = rest[2:]
         return f"+{country_code} ({code}) {number[:3]}-{number[3:5]}-{number[5:]}"
     except Exception:
+        logging.error(f"Error in formatting phone number: {phone}")
         return phone
 
 def looks_like_phone(value):
