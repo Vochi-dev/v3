@@ -69,14 +69,11 @@ async def receive_event(event_type: str, request: Request):
     raw_phone = data.get("Phone") or data.get("CallerIDNum") or data.get("CallerIDName") or ""
     formatted_phone = format_phone_number(raw_phone)
 
-    logging.info(f"Raw phone: {raw_phone}, Formatted phone: {formatted_phone}")
-
     if event_type == "start":
         message = f"🛎️Входящий звонок\nАбонент: {formatted_phone}"
         try:
             sent = await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
             message_store[unique_id] = sent.message_id
-            logging.info(f"Start message sent: {sent}")
         except Exception as e:
             logging.error(f"Failed to send start: {e}")
         return {"status": "sent", "event": event_type}
@@ -95,7 +92,6 @@ async def receive_event(event_type: str, request: Request):
             try:
                 await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=message_store[unique_id])
                 del message_store[unique_id]
-                logging.info(f"Deleted start for UniqueId {unique_id}")
             except Exception as e:
                 logging.error(f"Failed to delete start: {e}")
 
@@ -118,7 +114,6 @@ async def receive_event(event_type: str, request: Request):
         unique_id = data.get("UniqueId")
 
         if "<unknown>" in [caller, connected]:
-            logging.info(f"Ignored bridge with unknown values: caller={caller}, connected={connected}")
             return {"status": "ignored", "event": event_type}
 
         if re.fullmatch(r"\d{3}", caller):
@@ -130,7 +125,6 @@ async def receive_event(event_type: str, request: Request):
 
         bridge_key = (client, operator)
         if bridge_key in bridge_seen:
-            logging.info(f"Ignored repeated bridge for {bridge_key}")
             return {"status": "ignored", "event": event_type}
 
         cached = dial_cache.get(unique_id, {})
@@ -151,7 +145,6 @@ async def receive_event(event_type: str, request: Request):
             try:
                 await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=dial_store[client])
                 del dial_store[client]
-                logging.info(f"Deleted dial for Phone {client}")
             except Exception as e:
                 logging.error(f"Failed to delete dial: {e}")
 
@@ -172,14 +165,16 @@ async def receive_event(event_type: str, request: Request):
         unique_id = data.get("UniqueId")
         formatted = format_phone_number(phone)
 
+        # Удаляем все сообщения
         for store in [message_store, dial_store, bridge_store]:
-            if unique_id in store:
-                try:
-                    await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=store[unique_id])
-                    del store[unique_id]
-                    logging.info(f"Deleted {event_type} by UniqueId {unique_id}")
-                except Exception as e:
-                    logging.error(f"Failed to delete {event_type} message: {e}")
+            store_copy = dict(store)
+            for k, v in store_copy.items():
+                if k == unique_id or k == phone:
+                    try:
+                        await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=v)
+                        del store[k]
+                    except Exception as e:
+                        logging.error(f"Failed to delete message {k}: {e}")
 
         if phone in bridge_phone_index:
             alt_id = bridge_phone_index[phone]
@@ -187,63 +182,56 @@ async def receive_event(event_type: str, request: Request):
                 try:
                     await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=bridge_store[alt_id])
                     del bridge_store[alt_id]
-                    logging.info(f"Deleted bridge by phone {phone} and alt UniqueId {alt_id}")
                 except Exception as e:
-                    logging.error(f"Failed to delete bridge by phone: {e}")
+                    logging.error(f"Failed to delete bridge by alt id: {e}")
             del bridge_phone_index[phone]
 
         for key in list(bridge_seen):
             if key[0] == phone:
                 bridge_seen.remove(key)
-                logging.info(f"Removed bridge_seen for {key} due to hangup")
+
+        # Формирование текста
+        start_time = data.get("StartTime")
+        end_time = data.get("EndTime")
+        call_status = data.get("CallStatus")
+        call_type = data.get("CallType")
+        duration = ""
+        if start_time and end_time:
+            try:
+                start = datetime.fromisoformat(start_time)
+                end = datetime.fromisoformat(end_time)
+                delta = end - start
+                seconds = int(delta.total_seconds())
+                duration = f"{seconds // 60:02}:{seconds % 60:02}"
+            except:
+                duration = ""
+
+        cached = dial_cache.get(unique_id, {})
+        extensions = data.get("Extensions", []) or cached.get("extensions", [])
+
+        if call_type == 1 and call_status == 0:
+            msg = f"⬆️ ❌ Абонент не ответил\nАбонент: {formatted}"
+            if duration:
+                msg += f"\n⌛ {duration}"
+            if extensions:
+                msg += " " + " ".join(f"☎️ {ext}" for ext in extensions)
+        elif call_type == 0 and call_status == 1:
+            msg = f"⬇️ ❌ Абонент положил трубку\nАбонент: {formatted}"
+            if duration:
+                msg += f"\n⌛ {duration}"
+        elif call_type == 0 and call_status == 0:
+            msg = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {formatted}"
+            if duration:
+                msg += f"\n⌛ {duration}"
+            if extensions:
+                msg += " " + " ".join(f"☎️ {ext}" for ext in extensions)
+        elif call_status == 2:
+            ext = f" ☎️ {extensions[0]}" if extensions else ""
+            msg = f"✅ Успешный звонок\nАбонент: {formatted}\n⌛ {duration} 🔈 Запись{ext}"
+        else:
+            msg = f"❌ Ошибка отображения звонка\nАбонент: {formatted}"
 
         try:
-            start_time = data.get("StartTime")
-            end_time = data.get("EndTime")
-            call_status = data.get("CallStatus")
-            call_type = data.get("CallType")
-            duration = ""
-            extensions = data.get("Extensions", [])
-
-            cached = dial_cache.get(unique_id, {})
-            if not extensions:
-                extensions = cached.get("extensions", [])
-
-            if start_time and end_time:
-                try:
-                    start = datetime.fromisoformat(start_time)
-                    end = datetime.fromisoformat(end_time)
-                    delta = end - start
-                    seconds = int(delta.total_seconds())
-                    duration = f"{seconds // 60:02}:{seconds % 60:02}"
-                except Exception:
-                    duration = ""
-
-            if call_type == 1 and call_status == 0:
-                msg = f"⬆️ ❌ Абонент не ответил\nАбонент: {formatted}"
-                if duration:
-                    msg += f"\n⌛ {duration}"
-                if extensions:
-                    msg += " " + " ".join(f"☎️ {ext}" for ext in extensions)
-            elif call_type == 0 and call_status == 1:
-                msg = f"⬇️ ❌ Абонент положил трубку\nАбонент: {formatted}"
-                if duration:
-                    msg += f"\n⌛ {duration}"
-            elif call_type == 0 and call_status == 0:
-                msg = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {formatted}"
-                if duration:
-                    msg += f"\n⌛ {duration}"
-                if extensions:
-                    msg += " " + " ".join(f"☎️ {ext}" for ext in extensions)
-            elif call_status == 2:
-                ext = f" ☎️ {extensions[0]}" if extensions else ""
-                msg = f"✅ Успешный звонок\nАбонент: {formatted}"
-                msg += f"\n⌛ {duration} 🔈 Запись{ext}"
-            else:
-                msg = f"❌ Завершённый звонок\nАбонент: {formatted}"
-                if duration:
-                    msg += f"\n⌛ {duration}"
-
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=msg)
         except Exception as e:
             logging.error(f"Failed to send formatted hangup: {e}")
