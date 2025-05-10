@@ -204,6 +204,8 @@ async def receive_event(event_type: str, request: Request):
 
             if call_status == 0 or call_status == "0":
                 msg = f"❌ Неотвеченный вызов\nАбонент: {formatted}"
+            elif call_status == 1 or call_status == "1":
+                msg = f"❌ Клиент положил трубку\nАбонент: {formatted}"
             else:
                 msg = f"❌ Вызов завершён\nАбонент: {formatted}"
 
