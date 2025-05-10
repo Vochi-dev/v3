@@ -107,65 +107,11 @@ async def receive_event(event_type: str, request: Request):
             logging.error(f"Failed to send dial: {e}")
         return {"status": "sent", "event": event_type}
 
-    elif event_type == "bridge":
-        caller = data.get("CallerIDNum", "")
-        connected = data.get("ConnectedLineNum", "")
-        call_status = data.get("CallStatus")
-        unique_id = data.get("UniqueId")
-
-        if "<unknown>" in [caller, connected]:
-            return {"status": "ignored", "event": event_type}
-
-        if re.fullmatch(r"\d{3}", caller):
-            operator = caller
-            client = connected
-        else:
-            operator = connected
-            client = caller
-
-        bridge_key = (client, operator)
-        if bridge_key in bridge_seen:
-            return {"status": "ignored", "event": event_type}
-
-        cached = dial_cache.get(unique_id, {})
-        call_type = cached.get("call_type")
-
-        formatted_client = format_phone_number(client)
-
-        if call_type == 1 and call_status == 2:
-            prefix = "✅ Успешный исходящий звонок"
-        elif call_type == 0 and call_status == 2:
-            prefix = "✅ Успешный входящий звонок"
-        else:
-            prefix = "🛎️Идет разговор"
-
-        message = f"{prefix}\nАбонент: {formatted_client} ➡️ 🛎️{operator}"
-
-        if client in dial_store:
-            try:
-                await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=dial_store[client])
-                del dial_store[client]
-            except Exception as e:
-                logging.error(f"Failed to delete dial: {e}")
-
-        try:
-            sent = await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-            if unique_id:
-                bridge_store[unique_id] = sent.message_id
-            if client:
-                bridge_phone_index[client] = unique_id
-        except Exception as e:
-            logging.error(f"Failed to send bridge: {e}")
-
-        bridge_seen.add(bridge_key)
-        return {"status": "sent", "event": event_type}
-
     elif event_type == "hangup":
         phone = data.get("Phone") or data.get("CallerIDNum") or ""
         unique_id = data.get("UniqueId")
         formatted = format_phone_number(phone)
 
-        # Удаляем все сообщения
         for store in [message_store, dial_store, bridge_store]:
             store_copy = dict(store)
             for k, v in store_copy.items():
@@ -190,7 +136,6 @@ async def receive_event(event_type: str, request: Request):
             if key[0] == phone:
                 bridge_seen.remove(key)
 
-        # Формирование текста
         start_time = data.get("StartTime")
         end_time = data.get("EndTime")
         call_status = data.get("CallStatus")
