@@ -1,4 +1,4 @@
-rom fastapi import FastAPI, Request
+from fastapi import FastAPI, Request
 import logging
 from telegram import Bot
 import asyncio
@@ -146,14 +146,29 @@ async def receive_event(event_type: str, request: Request):
         unique_id = data.get("UniqueId")
         formatted = format_phone_number(phone)
 
-        for store in (message_store, dial_store, bridge_store):
-            if unique_id in store:
-                try:
-                    await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=store[unique_id])
-                    del store[unique_id]
-                    logging.info(f"Deleted message for UniqueId {unique_id} from {store}")
-                except Exception:
-                    pass
+        if unique_id in message_store:
+            try:
+                await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=message_store[unique_id])
+                del message_store[unique_id]
+                logging.info(f"Deleted start for UniqueId {unique_id}")
+            except Exception as e:
+                logging.error(f"Failed to delete start in hangup: {e}")
+
+        if phone in dial_store:
+            try:
+                await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=dial_store[phone])
+                del dial_store[phone]
+                logging.info(f"Deleted dial for Phone {phone}")
+            except Exception as e:
+                logging.error(f"Failed to delete dial in hangup: {e}")
+
+        if unique_id in bridge_store:
+            try:
+                await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=bridge_store[unique_id])
+                del bridge_store[unique_id]
+                logging.info(f"Deleted bridge by UniqueId {unique_id}")
+            except Exception as e:
+                logging.error(f"Failed to delete bridge by UniqueId: {e}")
 
         if phone in bridge_phone_index:
             alt_id = bridge_phone_index[phone]
@@ -161,9 +176,9 @@ async def receive_event(event_type: str, request: Request):
                 try:
                     await bot.delete_message(chat_id=TELEGRAM_CHAT_ID, message_id=bridge_store[alt_id])
                     del bridge_store[alt_id]
-                    logging.info(f"Deleted bridge for phone {phone} with alt ID {alt_id}")
-                except Exception:
-                    pass
+                    logging.info(f"Deleted bridge by phone {phone} and alt UniqueId {alt_id}")
+                except Exception as e:
+                    logging.error(f"Failed to delete bridge by phone: {e}")
             del bridge_phone_index[phone]
 
         for key in list(bridge_seen):
@@ -192,16 +207,17 @@ async def receive_event(event_type: str, request: Request):
             elif call_status == 1 or call_status == "1":
                 msg = f"❌ Клиент положил трубку\nАбонент: {formatted}"
             elif call_status == 2 or call_status == "2":
-                ext = ""
+                extension = ""
                 if isinstance(data.get("Extensions"), list) and data["Extensions"]:
-                    ext = f" ☎️ {data['Extensions'][0]}"
+                    extension = f" ☎️ {data['Extensions'][0]}"
                 msg = f"✅ Успешный звонок\nАбонент: {formatted}"
                 if duration:
-                    msg += f"\n⌛ {duration} 🔈 Запись{ext}"
+                    msg += f"\n⌛ {duration} 🔈 Запись{extension}"
             else:
-                msg = f"❌ Вызов завершён\nАбонент: {formatted}"
-                if duration:
-                    msg += f"\n⌛ {duration}"
+                msg = f"📞 Завершённый вызов\nАбонент: {formatted}"
+
+            if call_status not in ("2", 2) and duration:
+                msg += f"\n⌛ {duration}"
 
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=msg)
         except Exception as e:
