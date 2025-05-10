@@ -122,8 +122,8 @@ async def receive_event(event_type: str, request: Request):
             client = caller
 
         bridge_key = (client, operator)
-        if bridge_key in bridge_seen:
-            logging.info(f"Ignored repeated bridge for {bridge_key}")
+        if bridge_key in bridge_seen or connected == "<unknown>":
+            logging.info(f"Ignored repeated or invalid bridge for {bridge_key}")
             return {"status": "ignored", "event": event_type}
 
         call_type = dial_cache.get(client)
@@ -162,9 +162,6 @@ async def receive_event(event_type: str, request: Request):
         phone = data.get("Phone") or data.get("CallerIDNum") or ""
         unique_id = data.get("UniqueId")
         formatted = format_phone_number(phone)
-        call_status = data.get("CallStatus")
-        call_type = data.get("CallType")
-        extensions = data.get("Extensions", [])
 
         for store in [message_store, dial_store, bridge_store]:
             if unique_id in store:
@@ -194,6 +191,9 @@ async def receive_event(event_type: str, request: Request):
         try:
             start_time = data.get("StartTime")
             end_time = data.get("EndTime")
+            call_status = data.get("CallStatus")
+            call_type = data.get("CallType")
+            extensions = data.get("Extensions", [])
             duration = ""
 
             if start_time and end_time:
@@ -206,20 +206,22 @@ async def receive_event(event_type: str, request: Request):
                 except Exception:
                     duration = ""
 
-            if call_status in [0, "0"]:
+            if call_status == 0 or call_status == "0":
                 msg = f"❌ Неотвеченный вызов\nАбонент: {formatted}"
-            elif call_status in [1, "1"]:
+            elif call_status == 1 or call_status == "1":
                 msg = f"❌ Клиент положил трубку\nАбонент: {formatted}"
-            elif call_status in [2, "2"]:
-                label = "✅ Успешный исходящий звонок" if call_type == 1 else "✅ Успешный входящий звонок"
+            elif call_status == 2 or call_status == "2":
                 ext = f" ☎️ {extensions[0]}" if extensions else ""
-                msg = f"{label}\nАбонент: {formatted}\n⌛ {duration} 🔈 Запись{ext}"
-            else:
-                msg = f"❌ Вызов завершён\nАбонент: {formatted}"
+                if call_type == 1:
+                    msg = f"✅ Успешный исходящий звонок\nАбонент: {formatted}"
+                else:
+                    msg = f"✅ Успешный входящий звонок\nАбонент: {formatted}"
+                msg += f"\n⌛ {duration} 🔈 Запись{ext}"
+                await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=msg)
+                return {"status": "cleared", "event": event_type}
 
-            if call_status not in [2, "2"] and duration:
+            if duration:
                 msg += f"\n⌛ {duration}"
-
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=msg)
         except Exception as e:
             logging.error(f"Failed to send formatted hangup: {e}")
@@ -245,3 +247,4 @@ async def receive_event(event_type: str, request: Request):
         except Exception as e:
             logging.error(f"Failed to send other: {e}")
         return {"status": "sent", "event": event_type}
+
