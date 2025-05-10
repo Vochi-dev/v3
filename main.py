@@ -51,13 +51,13 @@ def format_phone_number(phone):
 
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
-    data=await request.json()
-    et=event_type.lower()
-    uid=data.get("UniqueId","")
-    raw=data.get("Phone") or data.get("CallerIDNum") or ""
-    phone=format_phone_number(raw)
+    data = await request.json()
+    et = event_type.lower()
+    uid = data.get("UniqueId","")
+    raw = data.get("Phone") or data.get("CallerIDNum") or ""
+    phone = format_phone_number(raw)
 
-    log_event(et,uid,json.dumps(data))
+    log_event(et, uid, json.dumps(data))
     logging.info(f"Event {et}, UID={uid}, raw={raw}")
 
     # START
@@ -69,7 +69,7 @@ async def receive_event(event_type: str, request: Request):
 
     # DIAL
     if et=="dial":
-        ct=data.get("CallType",0)
+        ct=int(data.get("CallType",0))
         exts=data.get("Extensions",[])
         if ct==1:
             txt=f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str,exts))} ➡️ {phone}"
@@ -82,11 +82,11 @@ async def receive_event(event_type: str, request: Request):
         dial_cache[uid]={"call_type":ct,"extensions":exts}
         return {"status":"sent"}
 
-    # BRIDGE
+    # BRIDGE (оставляем без изменений)
     if et=="bridge":
         caller=data.get("CallerIDNum","")
         conn=data.get("ConnectedLineNum","")
-        cs=data.get("CallStatus",0)
+        cs=int(data.get("CallStatus",0))
         if "<unknown>" in (caller,conn):
             return {"status":"ignored"}
         if re.fullmatch(r"\d{3}",caller):
@@ -116,13 +116,14 @@ async def receive_event(event_type: str, request: Request):
 
     # HANGUP
     if et=="hangup":
-        # delete all with same UID
+        # удаляем все предыдущие
         for store in (message_store,dial_store,bridge_store):
             if uid in store:
                 await bot.delete_message(TELEGRAM_CHAT_ID,store.pop(uid))
-        # format summary
+
+        # данные
         st=data.get("StartTime"); etm=data.get("EndTime")
-        cs=data.get("CallStatus"); ct=data.get("CallType")
+        cs=int(data.get("CallStatus",0)); ct=int(data.get("CallType",0))
         exts=data.get("Extensions",[]) or dial_cache.get(uid,{}).get("extensions",[])
         dur=""
         try:
@@ -130,32 +131,33 @@ async def receive_event(event_type: str, request: Request):
             sec=int((e-s).total_seconds()); dur=f"{sec//60:02}:{sec%60:02}"
         except: pass
 
+        # сборка
         if ct==1 and cs==0:
             m=f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
         elif ct==0 and cs==1:
             m=f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}"
         elif ct==0 and cs==0:
             m=f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
-        elif cs==2 and ct==0:
-            m=f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}"
-        elif cs==2 and ct==1:
-            m=f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}"
+        elif ct in (0,1) and cs==2:
+            prefix="✅ Успешный входящий звонок" if ct==0 else "✅ Успешный исходящий звонок"
+            m=f"{prefix}\nАбонент: {phone}"
         else:
-            m=f"❌ Завершенный звонок\nАбонент: {phone}"
+            # сюда не попадём, если всё выше
+            m=f"❌ Завершённый звонок\nАбонент: {phone}"
 
-        if dur: m+=f"\n⌛ {dur}"
-        # add extensions
+        if dur:
+            m+=f"\n⌛ {dur}"
+        # добавляем extensions в нужных сценариях
         if (ct,cs) in ((0,0),(1,0)):
             for e in exts:
                 m+=f" ☎️ {e}"
-        if cs==2:
-            if exts:
-                m+=f" 🔈 Запись ☎️ {exts[0]}"
+        if cs==2 and exts:
+            m+=f" 🔈 Запись ☎️ {exts[0]}"
 
         await bot.send_message(TELEGRAM_CHAT_ID,m)
         return {"status":"cleared"}
 
-    # OTHER
+    # все остальные
     txt=f"📞 Event {et}\n"+ "\n".join(f"{k}: {v}" for k,v in data.items())
     await bot.send_message(TELEGRAM_CHAT_ID,txt)
     return {"status":"sent"}
