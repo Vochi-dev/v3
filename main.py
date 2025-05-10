@@ -122,10 +122,6 @@ async def receive_event(event_type: str, request: Request):
             operator = connected
             client = caller
 
-        if "<unknown>" in (caller, connected):
-            logging.info(f"Ignored unknown bridge with {caller}, {connected}")
-            return {"status": "ignored", "event": event_type}
-
         bridge_key = (client, operator)
         if bridge_key in bridge_seen:
             logging.info(f"Ignored repeated bridge for {bridge_key}")
@@ -197,6 +193,7 @@ async def receive_event(event_type: str, request: Request):
             start_time = data.get("StartTime")
             end_time = data.get("EndTime")
             call_status = data.get("CallStatus")
+            call_type = data.get("CallType")
             extensions = data.get("Extensions", [])
             duration = ""
 
@@ -210,19 +207,21 @@ async def receive_event(event_type: str, request: Request):
                 except Exception:
                     duration = ""
 
-            if call_status == 0 or call_status == "0":
-                msg = f"❌ Неотвеченный вызов\nАбонент: {formatted}"
-            elif call_status == 1 or call_status == "1":
-                msg = f"❌ Клиент положил трубку\nАбонент: {formatted}"
-            elif call_status == 2 or call_status == "2":
+            if call_type == 1 and call_status == 2:
                 ext = f" ☎️ {extensions[0]}" if extensions else ""
-                msg = f"✅ Успешный звонок\nАбонент: {formatted}"
+                msg = f"✅ Успешный исходящий звонок\nАбонент: {formatted}"
                 msg += f"\n⌛ {duration} 🔈 Запись{ext}"
-                await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=msg)
-                return {"status": "cleared", "event": event_type}
+            elif call_type == 0 and call_status == 2:
+                ext = f" ☎️ {extensions[0]}" if extensions else ""
+                msg = f"✅ Успешный входящий звонок\nАбонент: {formatted}"
+                msg += f"\n⌛ {duration} 🔈 Запись{ext}"
+            elif call_status == 1 or call_status == "1":
+                msg = f"❌ Клиент положил трубку\nАбонент: {formatted}\n⌛ {duration}"
+            elif call_status == 0 or call_status == "0":
+                msg = f"❌ Неотвеченный вызов\nАбонент: {formatted}\n⌛ {duration}"
+            else:
+                msg = f"❌ Вызов завершён\nАбонент: {formatted}\n⌛ {duration}"
 
-            if duration:
-                msg += f"\n⌛ {duration}"
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=msg)
         except Exception as e:
             logging.error(f"Failed to send formatted hangup: {e}")
@@ -236,3 +235,15 @@ async def receive_event(event_type: str, request: Request):
             logging.error(f"Failed to send raw hangup log: {e}")
 
         return {"status": "cleared", "event": event_type}
+
+    else:
+        message = f"📞 *Asterisk Event: {event_type}*\n"
+        for k, v in data.items():
+            if isinstance(v, str) and looks_like_phone(v):
+                v = format_phone_number(v)
+            message += f"{k}: {v}\n"
+        try:
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+        except Exception as e:
+            logging.error(f"Failed to send other: {e}")
+        return {"status": "sent", "event": event_type"}
