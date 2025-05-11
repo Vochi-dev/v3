@@ -110,7 +110,7 @@ async def receive_event(event_type: str, request: Request):
                 pass
 
         trunk_info = f"\nЛиния: {trunk}" if trunk else ""
-        txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}{trunk_info}" if ct == 1 else f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + " ".join(f"🛎️{e}" for e in exts) + trunk_info
+        txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}{trunk_info}" if ct == 1 else f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + "\n".join(f"🛎️{e}" for e in exts) + trunk_info
 
         if uid in message_store:
             try:
@@ -253,3 +253,4 @@ async def receive_event(event_type: str, request: Request):
     except:
         pass
     return {"status": "sent"}
+
