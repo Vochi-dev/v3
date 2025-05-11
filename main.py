@@ -51,27 +51,6 @@ def format_phone_number(phone: str) -> str:
     except Exception:
         return phone
 
-@app.on_event("startup")
-async def start_bridge_resender():
-    async def resend_loop():
-        while True:
-            await asyncio.sleep(5)
-            for uid in list(active_bridges.keys()):
-                msg_id = bridge_store.get(uid)
-                if not msg_id:
-                    continue
-                try:
-                    await bot.delete_message(TELEGRAM_CHAT_ID, msg_id)
-                except:
-                    pass
-                try:
-                    txt = active_bridges[uid]["text"]
-                    sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
-                    bridge_store[uid] = sent.message_id
-                except:
-                    pass
-    asyncio.create_task(resend_loop())
-
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
     data = await request.json()
@@ -128,7 +107,7 @@ async def receive_event(event_type: str, request: Request):
         connected = data.get("ConnectedLineNum", "")
         status = int(data.get("CallStatus", 0))
 
-        if caller == "<unknown>" and connected == "<unknown>":
+        if not caller or not connected or caller == "<unknown>" or connected == "<unknown>":
             return {"status": "ignored"}
 
         if re.fullmatch(r"\d{3}", caller):
@@ -136,12 +115,12 @@ async def receive_event(event_type: str, request: Request):
         else:
             op, cli = connected, caller
 
-        if not cli:
+        if not cli or cli == "<unknown>":
             return {"status": "ignored"}
 
-        # определяем UID по номеру или напрямую
-        orig_uid = dial_phone_to_uid.get(cli) or data.get("UniqueId")
-        call_type = dial_cache.get(orig_uid, {}).get("call_type", 0)
+        orig_uid = dial_phone_to_uid.get(cli)
+        if not orig_uid:
+            return {"status": "ignored"}
 
         key = (cli, op)
         if key in bridge_seen:
@@ -152,6 +131,7 @@ async def receive_event(event_type: str, request: Request):
         except:
             pass
 
+        call_type = dial_cache.get(orig_uid, {}).get("call_type", 0)
         if status == 2:
             pre = "✅ Успешный исходящий звонок" if call_type == 1 else "✅ Успешный входящий звонок"
         else:
@@ -165,7 +145,6 @@ async def receive_event(event_type: str, request: Request):
             bridge_store[orig_uid] = sent.message_id
             bridge_phone_index[cli] = orig_uid
             bridge_seen.add(key)
-            active_bridges[orig_uid] = {"text": txt, "cli": cli, "op": op}
         except:
             pass
         return {"status": "sent"}
@@ -223,7 +202,8 @@ async def receive_event(event_type: str, request: Request):
                 m += f" ☎️ {exts[0]}"
         else:
             m = f"❌ Завершённый звонок\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
+            if dur:
+                m += f"\n⌛ {dur}"
 
         try:
             reply_id = hangup_reply_map.get(phone)
