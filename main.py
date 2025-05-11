@@ -208,6 +208,13 @@ async def receive_event(event_type: str, request: Request):
         if not raw_phone:
             return {"status": "ignored"}
 
+        # Тестовый запрос для проверки бота
+        try:
+            await bot.send_message(TELEGRAM_CHAT_ID, "Test: Hangup event received")
+            logging.info(f"Hangup: Test message sent successfully for UID={uid}")
+        except Exception as e:
+            logging.error(f"Hangup: Failed to send test message for UID={uid}: {e}")
+
         for store in (message_store, dial_store, bridge_store):
             if uid in store:
                 try:
@@ -243,7 +250,7 @@ async def receive_event(event_type: str, request: Request):
 
         pair_key = tuple(sorted([caller, callee])) if callee else (caller,)
         reply_id = hangup_reply_map.get(pair_key)
-        logging.info(f"Hangup: pair_key={pair_key}, reply_id={reply_id}, caller={caller}, callee={callee}, message={m}, hangup_reply_map={hangup_reply_map}")
+        logging.info(f"Hangup: UID={uid}, pair_key={pair_key}, reply_id={reply_id}, caller={caller}, callee={callee}, hangup_reply_map={hangup_reply_map}")
 
         if is_internal:
             if cs == 2:
@@ -269,21 +276,24 @@ async def receive_event(event_type: str, request: Request):
                 if exts:
                     m += f" ☎️ {exts[0]}"
             elif ct == 1 and cs == 2:
-                m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
-                if exts:
-                    m += f" ☎️ {exts[0]}"
+                m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}"
+                if dur: m += f"\n⌛ {dur}"
+                for e in exts:
+                    m += f" ☎️ {e}"
             else:
                 m = f"❌ Завершённый звонок\nАбонент: {phone}"
                 if dur: m += f"\n⌛ {dur}"
 
         try:
-            logging.info(f"Attempting to send hangup message: text={m}, reply_id={reply_id}")
-            sent = await bot.send_message(TELEGRAM_CHAT_ID, m, reply_to_message_id=reply_id) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, m)
+            logging.info(f"Hangup: Attempting to send message: text={m}, reply_id={reply_id}")
+            # Временно отключаем reply_id для теста
+            sent = await bot.send_message(TELEGRAM_CHAT_ID, m)  # Без reply_to_message_id
+            logging.info(f"Hangup: Message sent successfully for UID={uid}, message_id={sent.message_id}")
             if pair_key:
                 hangup_reply_map[pair_key] = sent.message_id
                 logging.info(f"Hangup: Saved pair_key={pair_key}, message_id={sent.message_id}, hangup_reply_map={hangup_reply_map}")
         except Exception as e:
-            logging.error(f"Failed to send hangup message: {e}, text={m}, reply_id={reply_id}")
+            logging.error(f"Hangup: Failed to send message for UID={uid}: {e}, text={m}, reply_id={reply_id}")
         return {"status": "cleared"}
 
     txt = f"📞 Event: {et}\n" + "\n".join(f"{k}: {v}" for k, v in data.items())
