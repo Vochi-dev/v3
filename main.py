@@ -7,6 +7,7 @@ from db import init_db, log_event
 import json
 from datetime import datetime
 import asyncio
+import traceback
 
 app = FastAPI()
 init_db()
@@ -75,15 +76,35 @@ def update_call_pair_message(caller, callee, message_id, is_internal=False):
     """Update the message ID for a caller-callee pair."""
     pair_key = get_call_pair_key(caller, callee, is_internal)
     if pair_key:
+        # Добавим дополнительные ключи для повышения вероятности совпадения
         call_pair_message_map[pair_key] = message_id
+        
+        # Добавим одиночные ключи для каждого номера
+        if caller:
+            call_pair_message_map[(caller,)] = message_id
+        if callee:
+            call_pair_message_map[(callee,)] = message_id
+            
         logging.info(f"Updated call_pair_message_map: {pair_key} -> {message_id}")
+        logging.info(f"Current map state: {call_pair_message_map}")
     return pair_key
 
 def get_call_pair_message(caller, callee, is_internal=False):
     """Get the latest message ID for a caller-callee pair."""
     pair_key = get_call_pair_key(caller, callee, is_internal)
     if pair_key and pair_key in call_pair_message_map:
-        return call_pair_message_map[pair_key]
+        message_id = call_pair_message_map[pair_key]
+        logging.info(f"Found message_id={message_id} for pair_key={pair_key}")
+        return message_id
+    
+    # Если не нашли по точному ключу, попробуем найти по частичному совпадению
+    if caller:
+        for key, msg_id in call_pair_message_map.items():
+            if caller in key:
+                logging.info(f"Found message by partial match: caller={caller} in key={key}, msg_id={msg_id}")
+                return msg_id
+    
+    logging.warning(f"No message found for caller={caller}, callee={callee}, is_internal={is_internal}")
     return None
 
 @app.on_event("startup")
@@ -97,7 +118,8 @@ async def start_bridge_resender():
                     continue
                 try:
                     await bot.delete_message(TELEGRAM_CHAT_ID, msg_id)
-                except:
+                except Exception as e:
+                    logging.error(f"Failed to delete message in resend_loop: {e}")
                     pass
                 try:
                     txt = active_bridges[uid]["text"]
@@ -109,7 +131,8 @@ async def start_bridge_resender():
                     callee = active_bridges[uid].get("op")
                     is_internal = is_internal_number(caller) and is_internal_number(callee)
                     update_call_pair_message(caller, callee, sent.message_id, is_internal)
-                except:
+                except Exception as e:
+                    logging.error(f"Failed to resend bridge message: {e}")
                     pass
     asyncio.create_task(resend_loop())
 
@@ -145,6 +168,7 @@ async def receive_event(event_type: str, request: Request):
             
             # Update call pair message map
             update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
+            logging.info(f"Start: Saved message_id={sent.message_id} for caller={raw_phone}, callee={callee}")
         except Exception as e:
             logging.error(f"Failed to send start message: {e}")
         
@@ -160,7 +184,8 @@ async def receive_event(event_type: str, request: Request):
         if uid in dial_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(uid))
-            except:
+            except Exception as e:
+                logging.error(f"Failed to delete dial message: {e}")
                 pass
 
         if is_internal:
@@ -171,7 +196,8 @@ async def receive_event(event_type: str, request: Request):
         if uid in message_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
-            except:
+            except Exception as e:
+                logging.error(f"Failed to delete start message: {e}")
                 pass
                 
         try:
@@ -185,6 +211,7 @@ async def receive_event(event_type: str, request: Request):
             
             # Update call pair message map
             update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
+            logging.info(f"Dial: Saved message_id={sent.message_id} for caller={raw_phone}, callee={callee}")
             
         except Exception as e:
             logging.error(f"Failed to send dial message: {e}")
@@ -220,7 +247,8 @@ async def receive_event(event_type: str, request: Request):
 
         try:
             await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(orig_uid, 0))
-        except:
+        except Exception as e:
+            logging.error(f"Failed to delete dial message in bridge: {e}")
             pass
 
         if is_internal:
@@ -238,6 +266,7 @@ async def receive_event(event_type: str, request: Request):
             
             # Update call pair message map
             update_call_pair_message(orig_caller, orig_callee, sent.message_id, is_internal)
+            logging.info(f"Bridge: Saved message_id={sent.message_id} for caller={orig_caller}, callee={orig_callee}")
             
         except Exception as e:
             logging.error(f"Failed to send bridge message: {e}")
@@ -298,8 +327,33 @@ async def receive_event(event_type: str, request: Request):
             logging.error(f"Hangup: Failed to calculate duration for UID={uid}: {e}")
 
         # Find a message ID to reply to
-        reply_id = get_call_pair_message(caller, callee, is_internal)
+        # Сначала проверяем диалы и бриджи
+        reply_id = None
+        orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(callee)
+        
+        if orig_uid in bridge_store:
+            reply_id = bridge_store[orig_uid]
+            logging.info(f"Hangup: Found reply_id={reply_id} from bridge_store for UID={uid}")
+        elif orig_uid in dial_store:
+            reply_id = dial_store[orig_uid]
+            logging.info(f"Hangup: Found reply_id={reply_id} from dial_store for UID={uid}")
+        elif orig_uid in message_store:
+            reply_id = message_store[orig_uid]
+            logging.info(f"Hangup: Found reply_id={reply_id} from message_store for UID={uid}")
+        
+        # Если не нашли в стандартных хранилищах, ищем по карте соответствий
+        if not reply_id:
+            reply_id = get_call_pair_message(caller, callee, is_internal)
+            logging.info(f"Hangup: Found reply_id={reply_id} from call_pair_message_map for UID={uid}")
+        
         logging.info(f"Hangup: UID={uid}, caller={caller}, callee={callee}, reply_id={reply_id}")
+        
+        # Отладка текущего состояния сопоставлений
+        logging.info(f"Hangup DEBUG: message_store={message_store}")
+        logging.info(f"Hangup DEBUG: dial_store={dial_store}")
+        logging.info(f"Hangup DEBUG: bridge_store={bridge_store}")
+        logging.info(f"Hangup DEBUG: dial_phone_to_uid={dial_phone_to_uid}")
+        logging.info(f"Hangup DEBUG: call_pair_message_map={call_pair_message_map}")
 
         # Format hangup message
         if is_internal:
@@ -336,8 +390,23 @@ async def receive_event(event_type: str, request: Request):
         # Send message with reply if possible
         try:
             if reply_id:
-                logging.info(f"Hangup: Sending with reply_id={reply_id} for UID={uid}")
-                sent = await bot.send_message(TELEGRAM_CHAT_ID, m, reply_to_message_id=reply_id)
+                logging.info(f"Hangup: Attempting to send with reply_id={reply_id} for UID={uid}")
+                try:
+                    # Явно приводим reply_id к типу int - это важно!
+                    reply_id_int = int(reply_id)
+                    sent = await bot.send_message(
+                        chat_id=TELEGRAM_CHAT_ID, 
+                        text=m, 
+                        reply_to_message_id=reply_id_int
+                    )
+                    logging.info(f"Hangup: Successfully sent as reply with reply_id={reply_id_int}")
+                except ValueError as ve:
+                    logging.error(f"Hangup: Invalid reply_id format: {reply_id}, error: {ve}")
+                    sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
+                except Exception as re:
+                    logging.error(f"Hangup: Failed to send as reply: {re}, falling back to regular message")
+                    logging.error(f"Hangup: Traceback: {traceback.format_exc()}")
+                    sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
             else:
                 logging.info(f"Hangup: No reply_id found for UID={uid}, sending without reply")
                 sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
@@ -348,11 +417,13 @@ async def receive_event(event_type: str, request: Request):
             
         except Exception as e:
             logging.error(f"Hangup: Failed to send message: {e}")
+            logging.error(f"Hangup: Traceback: {traceback.format_exc()}")
             try:
                 sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
                 logging.info(f"Hangup: Retry succeeded with message_id={sent.message_id}")
             except Exception as e2:
                 logging.error(f"Hangup: Retry also failed: {e2}")
+                logging.error(f"Hangup: Retry traceback: {traceback.format_exc()}")
 
         return {"status": "sent"}
 
