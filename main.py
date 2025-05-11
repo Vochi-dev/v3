@@ -6,6 +6,7 @@ import re
 from db import init_db, log_event
 import json
 from datetime import datetime
+import asyncio
 
 app = FastAPI()
 init_db()
@@ -17,16 +18,18 @@ logging.basicConfig(
 )
 
 TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
-TELEGRAM_CHAT_ID   = "374573193"
+TELEGRAM_CHAT_ID = "374573193"
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-message_store       = {}
-dial_store          = {}
-bridge_store        = {}
-bridge_phone_index  = {}
-bridge_seen         = set()
-dial_cache          = {}
-dial_phone_to_uid   = {}
+message_store = {}
+dial_store = {}
+bridge_store = {}
+bridge_phone_index = {}
+bridge_seen = set()
+dial_cache = {}
+dial_phone_to_uid = {}
+active_bridges = {}  # UID: {"text": str, "cli": str, "op": str}
+
 
 def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
@@ -47,6 +50,30 @@ def format_phone_number(phone: str) -> str:
         return f"+{cc} ({code}) {num[:3]}-{num[3:5]}-{num[5:]}"
     except Exception:
         return phone
+
+
+@app.on_event("startup")
+async def start_bridge_resender():
+    async def resend_loop():
+        while True:
+            await asyncio.sleep(5)
+            for uid in list(active_bridges.keys()):
+                msg_id = bridge_store.get(uid)
+                if not msg_id:
+                    continue
+                try:
+                    await bot.delete_message(TELEGRAM_CHAT_ID, msg_id)
+                except:
+                    pass
+                try:
+                    txt = active_bridges[uid]["text"]
+                    sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
+                    bridge_store[uid] = sent.message_id
+                except:
+                    pass
+
+    asyncio.create_task(resend_loop())
+
 
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
@@ -140,6 +167,7 @@ async def receive_event(event_type: str, request: Request):
             bridge_store[orig_uid] = sent.message_id
             bridge_phone_index[cli] = orig_uid
             bridge_seen.add(key)
+            active_bridges[orig_uid] = {"text": txt, "cli": cli, "op": op}
         except:
             pass
         return {"status": "sent"}
@@ -155,6 +183,7 @@ async def receive_event(event_type: str, request: Request):
                     await bot.delete_message(TELEGRAM_CHAT_ID, store.pop(uid))
                 except:
                     pass
+        active_bridges.pop(uid, None)
 
         st = data.get("StartTime")
         etme = data.get("EndTime")
