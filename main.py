@@ -105,6 +105,14 @@ async def receive_event(event_type: str, request: Request):
         if not raw_phone:
             logging.info(f"Ignored dial without phone. UID={uid}")
             return {"status": "ignored"}
+
+        # Удаление старого dial при повторном dial с тем же UID
+        if uid in dial_store:
+            try:
+                await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(uid))
+            except:
+                pass
+
         if ct == 1:
             txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}"
         else:
