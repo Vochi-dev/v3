@@ -35,6 +35,7 @@ active_bridges = {}        # UniqueId -> bridge details
 
 # Improved caller-callee pair tracking
 call_pair_message_map = {} # (caller, callee) -> latest message_id
+hangup_message_map = {}    # caller -> latest hangup message_id
 
 def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
@@ -327,24 +328,27 @@ async def receive_event(event_type: str, request: Request):
             logging.error(f"Hangup: Failed to calculate duration for UID={uid}: {e}")
 
         # Find a message ID to reply to
-        # Сначала проверяем диалы и бриджи
-        reply_id = None
-        orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(callee)
-        
-        if orig_uid in bridge_store:
-            reply_id = bridge_store[orig_uid]
-            logging.info(f"Hangup: Found reply_id={reply_id} from bridge_store for UID={uid}")
-        elif orig_uid in dial_store:
-            reply_id = dial_store[orig_uid]
-            logging.info(f"Hangup: Found reply_id={reply_id} from dial_store for UID={uid}")
-        elif orig_uid in message_store:
-            reply_id = message_store[orig_uid]
-            logging.info(f"Hangup: Found reply_id={reply_id} from message_store for UID={uid}")
-        
-        # Если не нашли в стандартных хранилищах, ищем по карте соответствий
+        # Сначала проверяем предыдущий hangup для этого caller
+        reply_id = hangup_message_map.get(caller)
+        logging.info(f"Hangup: Checked hangup_message_map for caller={caller}, reply_id={reply_id}")
+
+        # Если это первый hangup, ищем в bridge/dial/start
         if not reply_id:
-            reply_id = get_call_pair_message(caller, callee, is_internal)
-            logging.info(f"Hangup: Found reply_id={reply_id} from call_pair_message_map for UID={uid}")
+            orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(callee)
+            if orig_uid in bridge_store:
+                reply_id = bridge_store[orig_uid]
+                logging.info(f"Hangup: Found reply_id={reply_id} from bridge_store for UID={uid}")
+            elif orig_uid in dial_store:
+                reply_id = dial_store[orig_uid]
+                logging.info(f"Hangup: Found reply_id={reply_id} from dial_store for UID={uid}")
+            elif orig_uid in message_store:
+                reply_id = message_store[orig_uid]
+                logging.info(f"Hangup: Found reply_id={reply_id} from message_store for UID={uid}")
+            
+            # Если не нашли в хранилищах, ищем по карте соответствий
+            if not reply_id:
+                reply_id = get_call_pair_message(caller, callee, is_internal)
+                logging.info(f"Hangup: Found reply_id={reply_id} from call_pair_message_map for UID={uid}")
         
         logging.info(f"Hangup: UID={uid}, caller={caller}, callee={callee}, reply_id={reply_id}")
         
@@ -354,6 +358,7 @@ async def receive_event(event_type: str, request: Request):
         logging.info(f"Hangup DEBUG: bridge_store={bridge_store}")
         logging.info(f"Hangup DEBUG: dial_phone_to_uid={dial_phone_to_uid}")
         logging.info(f"Hangup DEBUG: call_pair_message_map={call_pair_message_map}")
+        logging.info(f"Hangup DEBUG: hangup_message_map={hangup_message_map}")
 
         # Format hangup message
         if is_internal:
@@ -392,7 +397,7 @@ async def receive_event(event_type: str, request: Request):
             if reply_id:
                 logging.info(f"Hangup: Attempting to send with reply_id={reply_id} for UID={uid}")
                 try:
-                    # Явно приводим reply_id к типу int - это важно!
+                    # Явно приводим reply_id к типу int
                     reply_id_int = int(reply_id)
                     sent = await bot.send_message(
                         chat_id=TELEGRAM_CHAT_ID, 
@@ -413,14 +418,21 @@ async def receive_event(event_type: str, request: Request):
                 
             # Update the call pair message map with the hangup message
             pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
+            # Update hangup message map for the caller
+            hangup_message_map[caller] = sent.message_id
             logging.info(f"Hangup: Sent message with id={sent.message_id} for pair_key={pair_key}")
+            logging.info(f"Hangup: Updated hangup_message_map: {caller} -> {sent.message_id}")
             
         except Exception as e:
             logging.error(f"Hangup: Failed to send message: {e}")
             logging.error(f"Hangup: Traceback: {traceback.format_exc()}")
             try:
                 sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
+                # Update maps even on retry
+                pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
+                hangup_message_map[caller] = sent.message_id
                 logging.info(f"Hangup: Retry succeeded with message_id={sent.message_id}")
+                logging.info(f"Hangup: Updated hangup_message_map: {caller} -> {sent.message_id}")
             except Exception as e2:
                 logging.error(f"Hangup: Retry also failed: {e2}")
                 logging.error(f"Hangup: Retry traceback: {traceback.format_exc()}")
