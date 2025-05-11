@@ -29,7 +29,7 @@ bridge_seen = set()
 dial_cache = {}
 dial_phone_to_uid = {}
 active_bridges = {}
-hangup_reply_map = {}  # Хранит один message_id для пар {caller, callee}
+hangup_reply_map = {}  # Хранит message_id для пар {caller, callee}
 
 def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
@@ -104,6 +104,12 @@ async def receive_event(event_type: str, request: Request):
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             message_store[uid] = sent.message_id
+            # Сохраняем pair_key для start
+            exts = data.get("Extensions", [])
+            if is_internal and exts:
+                pair_key = tuple(sorted([raw_phone, exts[0]]))
+                hangup_reply_map[pair_key] = sent.message_id
+                logging.info(f"Start: Saved pair_key={pair_key}, message_id={sent.message_id}, hangup_reply_map={hangup_reply_map}")
         except Exception as e:
             logging.error(f"Failed to send start message: {e}")
         return {"status": "sent"}
@@ -136,6 +142,9 @@ async def receive_event(event_type: str, request: Request):
             dial_phone_to_uid[raw_phone] = uid
             if is_internal and exts:
                 dial_phone_to_uid[exts[0]] = uid
+                pair_key = tuple(sorted([raw_phone, exts[0]]))
+                hangup_reply_map[pair_key] = sent.message_id
+                logging.info(f"Dial: Saved pair_key={pair_key}, message_id={sent.message_id}, hangup_reply_map={hangup_reply_map}")
         except Exception as e:
             logging.error(f"Failed to send dial message: {e}")
         return {"status": "sent"}
@@ -185,6 +194,9 @@ async def receive_event(event_type: str, request: Request):
             bridge_phone_index[orig_caller] = orig_uid
             bridge_seen.add(key)
             active_bridges[orig_uid] = {"text": txt, "cli": orig_caller, "op": orig_callee}
+            pair_key = tuple(sorted([orig_caller, orig_callee]))
+            hangup_reply_map[pair_key] = sent.message_id
+            logging.info(f"Bridge: Saved pair_key={pair_key}, message_id={sent.message_id}, hangup_reply_map={hangup_reply_map}")
         except Exception as e:
             logging.error(f"Failed to send bridge message: {e}")
         return {"status": "sent"}
@@ -203,7 +215,11 @@ async def receive_event(event_type: str, request: Request):
 
         caller = raw_phone
         exts = [e for e in data.get("Extensions", []) if e and str(e).strip()]
+        # Для внешних звонков пытаемся получить callee из bridge или dial_cache
         callee = exts[0] if exts else dial_cache.get(uid, {}).get("extensions", [""])[0]
+        if not callee and uid in active_bridges:
+            callee = active_bridges.get(uid, {}).get("op", "")
+
         if caller and callee:
             key = tuple(sorted([caller, callee]))
             bridge_seen.discard(key)
@@ -223,9 +239,9 @@ async def receive_event(event_type: str, request: Request):
         except:
             pass
 
-        pair_key = tuple(sorted([caller, callee])) if callee else None
-        reply_id = hangup_reply_map.get(pair_key) if pair_key else None
-        logging.info(f"Hangup: pair_key={pair_key}, reply_id={reply_id}, hangup_reply_map={hangup_reply_map}")
+        pair_key = tuple(sorted([caller, callee])) if callee else (caller,)
+        reply_id = hangup_reply_map.get(pair_key)
+        logging.info(f"Hangup: pair_key={pair_key}, reply_id={reply_id}, caller={caller}, callee={callee}, hangup_reply_map={hangup_reply_map}")
 
         if is_internal:
             if cs == 2:
