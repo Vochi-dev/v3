@@ -17,13 +17,14 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-TELEGRAM_BOT_TOKEN = "YOUR_TOKEN"
-TELEGRAM_CHAT_ID = "YOUR_CHAT_ID"
+TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
+TELEGRAM_CHAT_ID = "374573193"
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 message_store = {}
 dial_store = {}
 bridge_store = {}
+bridge_phone_index = {}
 bridge_seen = set()
 dial_cache = {}
 dial_phone_to_uid = {}
@@ -57,14 +58,14 @@ async def start_bridge_resender():
             await asyncio.sleep(5)
             for uid in list(active_bridges.keys()):
                 msg_id = bridge_store.get(uid)
-                txt = active_bridges[uid].get("text")
-                if not msg_id or not txt:
+                if not msg_id:
                     continue
                 try:
                     await bot.delete_message(TELEGRAM_CHAT_ID, msg_id)
                 except:
                     pass
                 try:
+                    txt = active_bridges[uid]["text"]
                     sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
                     bridge_store[uid] = sent.message_id
                 except:
@@ -99,12 +100,15 @@ async def receive_event(event_type: str, request: Request):
         exts = data.get("Extensions", [])
         if not raw_phone:
             return {"status": "ignored"}
+
         if uid in dial_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(uid))
             except:
                 pass
+
         txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}" if ct == 1 else f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + " ".join(f"🛎️{e}" for e in exts)
+
         if uid in message_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
@@ -124,7 +128,7 @@ async def receive_event(event_type: str, request: Request):
         connected = data.get("ConnectedLineNum", "")
         status = int(data.get("CallStatus", 0))
 
-        if not caller or not connected or caller == "<unknown>" or connected == "<unknown>":
+        if caller == "<unknown>" and connected == "<unknown>":
             return {"status": "ignored"}
 
         if re.fullmatch(r"\d{3}", caller):
@@ -132,7 +136,7 @@ async def receive_event(event_type: str, request: Request):
         else:
             op, cli = connected, caller
 
-        if not cli or cli == "<unknown>":
+        if not cli:
             return {"status": "ignored"}
 
         orig_uid = dial_phone_to_uid.get(cli)
@@ -149,13 +153,20 @@ async def receive_event(event_type: str, request: Request):
             pass
 
         call_type = dial_cache.get(orig_uid, {}).get("call_type", 0)
-        pre = "✅ Успешный исходящий звонок" if call_type == 1 and status == 2 else "✅ Успешный входящий звонок" if call_type == 0 and status == 2 else "⏱ Идет разговор"
+        if call_type == 1 and status == 2:
+            pre = "✅ Успешный исходящий звонок"
+        elif call_type == 0 and status == 2:
+            pre = "✅ Успешный входящий звонок"
+        else:
+            pre = "🛎️ Идет разговор"
+
         formatted_cli = format_phone_number(cli)
-        txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}" if call_type == 0 else f"{op} ➡️ ⏱ {formatted_cli}"
+        txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}" if call_type == 0 else f"{op} ➡️ 🛎️{formatted_cli}"
 
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             bridge_store[orig_uid] = sent.message_id
+            bridge_phone_index[cli] = orig_uid
             bridge_seen.add(key)
             active_bridges[orig_uid] = {"text": txt, "cli": cli, "op": op}
         except:
@@ -195,20 +206,24 @@ async def receive_event(event_type: str, request: Request):
         if ct == 1 and cs == 0:
             m = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
             if dur: m += f"\n⌛ {dur}"
-            for e in exts: m += f" ☎️ {e}"
+            for e in exts:
+                m += f" ☎️ {e}"
         elif ct == 0 and cs == 1:
             m = f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}"
             if dur: m += f"\n⌛ {dur}"
         elif ct == 0 and cs == 0:
             m = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
             if dur: m += f"\n⌛ {dur}"
-            for e in exts: m += f" ☎️ {e}"
+            for e in exts:
+                m += f" ☎️ {e}"
         elif ct == 0 and cs == 2:
             m = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
-            if exts: m += f" ☎️ {exts[0]}"
+            if exts:
+                m += f" ☎️ {exts[0]}"
         elif ct == 1 and cs == 2:
             m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
-            if exts: m += f" ☎️ {exts[0]}"
+            if exts:
+                m += f" ☎️ {exts[0]}"
         else:
             m = f"❌ Завершённый звонок\nАбонент: {phone}"
             if dur: m += f"\n⌛ {dur}"
@@ -219,6 +234,7 @@ async def receive_event(event_type: str, request: Request):
             hangup_reply_map[phone] = sent.message_id
         except:
             pass
+
         return {"status": "cleared"}
 
     txt = f"📞 Event: {et}\n" + "\n".join(f"{k}: {v}" for k, v in data.items())
