@@ -76,6 +76,7 @@ async def receive_event(event_type: str, request: Request):
         ct = int(data.get("CallType", 0))
         exts = data.get("Extensions", [])
         if not raw_phone:
+            logging.info(f"Ignored dial without phone. UID={uid}")
             return {"status": "ignored"}
         if ct == 1:
             txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}"
@@ -144,6 +145,10 @@ async def receive_event(event_type: str, request: Request):
         return {"status": "sent"}
 
     if et == "hangup":
+        if not raw_phone:
+            logging.info(f"Ignored hangup without phone. UID={uid}")
+            return {"status": "ignored"}
+
         for store in (message_store, dial_store, bridge_store):
             if uid in store:
                 try:
