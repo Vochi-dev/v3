@@ -34,6 +34,8 @@ def format_phone_number(phone: str) -> str:
         phone = "375" + phone[2:]
     elif len(phone) == 10 and phone.startswith("0"):
         phone = "375" + phone[1:]
+    elif phone.startswith("+") and len(phone) > 10:
+        return phone
     try:
         if not phone.startswith("+"):
             phone = "+" + phone
@@ -59,6 +61,11 @@ async def receive_event(event_type: str, request: Request):
     log_event(et, uid, json.dumps(data))
     logging.info(f"Event {et}, UID={uid}, raw={raw_phone}, data={data}")
 
+    IGNORED_EVENTS = {"init", "ping", "test", "healthcheck"}
+    if et in IGNORED_EVENTS:
+        logging.info(f"Ignored event type: {et}")
+        return {"status": "ignored"}
+
     if et == "start":
         txt = f"🛎️ Входящий звонок\nАбонент: {phone}"
         try:
@@ -71,7 +78,6 @@ async def receive_event(event_type: str, request: Request):
     if et == "dial":
         ct   = int(data.get("CallType", 0))
         exts = data.get("Extensions", [])
-
         if ct == 1:
             txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}"
         else:
@@ -127,8 +133,8 @@ async def receive_event(event_type: str, request: Request):
         txt = f"{pre}\nАбонент: {format_phone_number(cli)} ➡️ 🛎️{op}"
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
-            bridge_store[orig_uid]       = sent.message_id
-            bridge_phone_index[cli]      = orig_uid
+            bridge_store[orig_uid] = sent.message_id
+            bridge_phone_index[cli] = orig_uid
             bridge_seen.add(key)
         except:
             pass
@@ -191,6 +197,7 @@ async def receive_event(event_type: str, request: Request):
 
         return {"status": "cleared"}
 
+    # OTHER EVENTS
     txt = f"📞 Event: {et}\n" + "\n".join(f"{k}: {v}" for k, v in data.items())
     try:
         await bot.send_message(TELEGRAM_CHAT_ID, txt)
