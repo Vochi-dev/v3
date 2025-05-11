@@ -29,10 +29,12 @@ bridge_seen = set()
 dial_cache = {}
 dial_phone_to_uid = {}
 active_bridges = {}
-hangup_reply_map = {}
+hangup_reply_map = {}  # Хранит message_id для пар {caller, callee}
 
 def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
+    if not phone:
+        return phone
     if len(phone) == 11 and phone.startswith("80"):
         phone = "375" + phone[2:]
     elif len(phone) == 10 and phone.startswith("0"):
@@ -50,6 +52,10 @@ def format_phone_number(phone: str) -> str:
         return f"+{cc} ({code}) {num[:3]}-{num[3:5]}-{num[5:]}"
     except Exception:
         return phone
+
+def is_internal_number(number: str) -> bool:
+    """Проверяет, является ли номер внутренним (3-4 цифры)."""
+    return number and re.match(r"^\d{3,4}$", number)
 
 @app.on_event("startup")
 async def start_bridge_resender():
@@ -79,6 +85,7 @@ async def receive_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     raw_phone = data.get("Phone") or data.get("CallerIDNum") or data.get("ConnectedLineNum") or ""
     phone = format_phone_number(raw_phone)
+    call_type = int(data.get("CallType", 0))
 
     log_event(et, uid, json.dumps(data))
     logging.info(f"Event {et}, UID={uid}, raw={raw_phone}, data={data}")
@@ -86,8 +93,14 @@ async def receive_event(event_type: str, request: Request):
     if et in {"init", "ping", "test", "healthcheck"}:
         return {"status": "ignored"}
 
+    # Определяем, внутренний ли звонок
+    is_internal = call_type == 2 or (is_internal_number(raw_phone) and all(is_internal_number(e) for e in data.get("Extensions", [])))
+
     if et == "start":
-        txt = f"🛎️ Входящий звонок\nАбонент: {phone}"
+        if is_internal:
+            txt = f"🛎️ Внутренний звонок\n{raw_phone} ➡️ {data.get('Extensions', [''])[0]}"
+        else:
+            txt = f"🛎️ Входящий звонок\nАбонент: {phone}"
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             message_store[uid] = sent.message_id
@@ -96,9 +109,8 @@ async def receive_event(event_type: str, request: Request):
         return {"status": "sent"}
 
     if et == "dial":
-        ct = int(data.get("CallType", 0))
         exts = data.get("Extensions", [])
-        if not raw_phone:
+        if not raw_phone or not exts:
             return {"status": "ignored"}
 
         if uid in dial_store:
@@ -107,7 +119,10 @@ async def receive_event(event_type: str, request: Request):
             except:
                 pass
 
-        txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}" if ct == 1 else f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + " ".join(f"🛎️{e}" for e in exts)
+        if is_internal:
+            txt = f"🛎️ Внутренний звонок\n{raw_phone} ➡️ {exts[0]}"
+        else:
+            txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}" if call_type == 1 else f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + " ".join(f"🛎️{e}" for e in exts)
 
         if uid in message_store:
             try:
@@ -117,7 +132,7 @@ async def receive_event(event_type: str, request: Request):
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             dial_store[uid] = sent.message_id
-            dial_cache[uid] = {"call_type": ct, "extensions": exts}
+            dial_cache[uid] = {"call_type": call_type, "extensions": exts, "caller": raw_phone}
             dial_phone_to_uid[raw_phone] = uid
         except:
             pass
@@ -131,7 +146,7 @@ async def receive_event(event_type: str, request: Request):
         if caller == "<unknown>" and connected == "<unknown>":
             return {"status": "ignored"}
 
-        if re.fullmatch(r"\d{3}", caller):
+        if is_internal_number(caller):
             op, cli = caller, connected
         else:
             op, cli = connected, caller
@@ -139,7 +154,7 @@ async def receive_event(event_type: str, request: Request):
         if not cli:
             return {"status": "ignored"}
 
-        orig_uid = dial_phone_to_uid.get(cli)
+        orig_uid = dial_phone_to_uid.get(cli) or uid
         if not orig_uid:
             return {"status": "ignored"}
 
@@ -152,16 +167,12 @@ async def receive_event(event_type: str, request: Request):
         except:
             pass
 
-        call_type = dial_cache.get(orig_uid, {}).get("call_type", 0)
-        if call_type == 1 and status == 2:
-            pre = "✅ Успешный исходящий звонок"
-        elif call_type == 0 and status == 2:
-            pre = "✅ Успешный входящий звонок"
+        if is_internal:
+            txt = f"⏱ Идет внутренний разговор\n{cli} ➡️ {op}"
         else:
-            pre = "🛎️ Идет разговор"
-
-        formatted_cli = format_phone_number(cli)
-        txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}" if call_type == 0 else f"{op} ➡️ 🛎️{formatted_cli}"
+            pre = "✅ Успешный исходящий звонок" if call_type == 1 and status == 2 else "✅ Успешный входящий звонок" if call_type == 0 and status == 2 else "🛎️ Идет разговор"
+            formatted_cli = format_phone_number(cli)
+            txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}" if call_type == 0 else f"{pre}\n{op} ➡️ 🛎️{formatted_cli}"
 
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
@@ -194,6 +205,9 @@ async def receive_event(event_type: str, request: Request):
         if not exts:
             exts = dial_cache.get(uid, {}).get("extensions", [])
 
+        caller = raw_phone
+        callee = exts[0] if exts else dial_cache.get(uid, {}).get("caller", "")
+
         dur = ""
         try:
             s = datetime.fromisoformat(st)
@@ -203,35 +217,45 @@ async def receive_event(event_type: str, request: Request):
         except:
             pass
 
-        if ct == 1 and cs == 0:
-            m = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
-            for e in exts:
-                m += f" ☎️ {e}"
-        elif ct == 0 and cs == 1:
-            m = f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
-        elif ct == 0 and cs == 0:
-            m = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
-            for e in exts:
-                m += f" ☎️ {e}"
-        elif ct == 0 and cs == 2:
-            m = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
-            if exts:
-                m += f" ☎️ {exts[0]}"
-        elif ct == 1 and cs == 2:
-            m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
-            if exts:
-                m += f" ☎️ {exts[0]}"
+        # Проверяем, был ли предыдущий звонок с той же парой {caller, callee}
+        pair_key = tuple(sorted([caller, callee])) if callee else None
+        reply_id = hangup_reply_map.get(pair_key) if pair_key else None
+
+        if is_internal:
+            if cs == 2:
+                m = f"✅ Успешный внутренний звонок\n{caller} ➡️ {callee}\n⌛ {dur} 🔈 Запись"
+            else:
+                m = f"❌ Абонент не ответил\n{caller} ➡️ {callee}\n⌛ {dur}"
         else:
-            m = f"❌ Завершённый звонок\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
+            if ct == 1 and cs == 0:
+                m = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
+                if dur: m += f"\n⌛ {dur}"
+                for e in exts:
+                    m += f" ☎️ {e}"
+            elif ct == 0 and cs == 1:
+                m = f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}"
+                if dur: m += f"\n⌛ {dur}"
+            elif ct == 0 and cs == 0:
+                m = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
+                if dur: m += f"\n⌛ {dur}"
+                for e in exts:
+                    m += f" ☎️ {e}"
+            elif ct == 0 and cs == 2:
+                m = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
+                if exts:
+                    m += f" ☎️ {exts[0]}"
+            elif ct == 1 and cs == 2:
+                m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
+                if exts:
+                    m += f" ☎️ {exts[0]}"
+            else:
+                m = f"❌ Завершённый звонок\nАбонент: {phone}"
+                if dur: m += f"\n⌛ {dur}"
 
         try:
-            reply_id = hangup_reply_map.get(phone)
             sent = await bot.send_message(TELEGRAM_CHAT_ID, m, reply_to_message_id=reply_id) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, m)
-            hangup_reply_map[phone] = sent.message_id
+            if pair_key:
+                hangup_reply_map[pair_key] = sent.message_id
         except:
             pass
 
