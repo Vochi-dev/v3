@@ -113,9 +113,9 @@ async def receive_event(event_type: str, request: Request):
         
         # Исключение для внутренних звонков
         if not trunk and ct == 2:
-            txt = f"🛎️ Внутренний звонок\n" + "\n".join(f"🛎️{e}" for e in exts) + f" ➡️ {phone}{trunk_info}"
+            txt = f"🛎️ Внутренний звонок\n" + "\n".join(f"{e}" for e in exts) + f" ➡️ {phone}{trunk_info}"
         else:
-            txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}{trunk_info}" if ct == 1 else f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + "\n".join(f"🛎️{e}" for e in exts) + trunk_info
+            txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}{trunk_info}" if ct == 1 else f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + "\n".join(f"{e}" for e in exts) + trunk_info
 
         if uid in message_store:
             try:
@@ -171,7 +171,7 @@ async def receive_event(event_type: str, request: Request):
               "⏱ Идет разговор"
 
         formatted_cli = format_phone_number(cli)
-        txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}{trunk_info}" if call_type == 0 else f"{pre}\n{op} ➡️ 🛎️{formatted_cli}{trunk_info}"
+        txt = f"{pre}\nАбонент: {formatted_cli} ➡️ {op}{trunk_info}" if call_type == 0 else f"{pre}\n{op} ➡️ {formatted_cli}{trunk_info}"
 
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
@@ -217,23 +217,18 @@ async def receive_event(event_type: str, request: Request):
         except:
             pass
 
-        # Проверка, что хэнгап относится к тому же звонку (пара менеджеров та же)
         hangup_message = ""
         prev_exts = dial_cache.get(uid, {}).get("extensions", [])
-        if prev_exts == exts:  # Добавляем комментарий если пара менеджеров совпадает
+        if prev_exts == exts:
             if ct == 1 and cs == 0:
                 hangup_message = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}{trunk_info}"
                 if dur: hangup_message += f"\n⌛ {dur}"
-                for e in exts:
-                    hangup_message += f" ☎️ {e}"
             elif ct == 0 and cs == 1:
                 hangup_message = f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}{trunk_info}"
                 if dur: hangup_message += f"\n⌛ {dur}"
             elif ct == 0 and cs == 0:
                 hangup_message = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}{trunk_info}"
                 if dur: hangup_message += f"\n⌛ {dur}"
-                for e in exts:
-                    hangup_message += f" ☎️ {e}"
             elif ct == 0 and cs == 2:
                 hangup_message = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}{trunk_info}\n⌛ {dur} 🔈 Запись"
                 if exts:
@@ -262,5 +257,3 @@ async def receive_event(event_type: str, request: Request):
     except:
         pass
     return {"status": "sent"}
-
-
