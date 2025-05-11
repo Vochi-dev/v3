@@ -29,6 +29,7 @@ bridge_seen = set()
 dial_cache = {}
 dial_phone_to_uid = {}
 active_bridges = {}  # UID: {"text": str, "cli": str, "op": str}
+hangup_reply_map = {}  # phone → last message_id
 
 
 def format_phone_number(phone: str) -> str:
@@ -71,7 +72,6 @@ async def start_bridge_resender():
                     bridge_store[uid] = sent.message_id
                 except:
                     pass
-
     asyncio.create_task(resend_loop())
 
 
@@ -205,15 +205,18 @@ async def receive_event(event_type: str, request: Request):
 
         if ct == 1 and cs == 0:
             m = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
+            if dur:
+                m += f"\n⌛ {dur}"
             for e in exts:
                 m += f" ☎️ {e}"
         elif ct == 0 and cs == 1:
             m = f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
+            if dur:
+                m += f"\n⌛ {dur}"
         elif ct == 0 and cs == 0:
             m = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
+            if dur:
+                m += f"\n⌛ {dur}"
             for e in exts:
                 m += f" ☎️ {e}"
         elif ct == 0 and cs == 2:
@@ -230,7 +233,9 @@ async def receive_event(event_type: str, request: Request):
                 m += f"\n⌛ {dur}"
 
         try:
-            await bot.send_message(TELEGRAM_CHAT_ID, m)
+            reply_id = hangup_reply_map.get(phone)
+            sent = await bot.send_message(TELEGRAM_CHAT_ID, m, reply_to_message_id=reply_id) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, m)
+            hangup_reply_map[phone] = sent.message_id
         except:
             pass
 
