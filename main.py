@@ -35,6 +35,9 @@ def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
     if not phone:
         return phone
+    # Не форматируем внутренние номера (3-4 цифры)
+    if is_internal_number(phone):
+        return phone
     if len(phone) == 11 and phone.startswith("80"):
         phone = "375" + phone[2:]
     elif len(phone) == 10 and phone.startswith("0"):
@@ -88,7 +91,7 @@ async def receive_event(event_type: str, request: Request):
     call_type = int(data.get("CallType", 0))
 
     log_event(et, uid, json.dumps(data))
-    logging.info(f"Event {et}, UID={uid}, raw={raw_phone}, data={data}")
+    logging.info(f"Event {et}, UID={uid}, raw={raw_phone}, phone={phone}, data={data}")
 
     if et in {"init", "ping", "test", "healthcheck"}:
         return {"status": "ignored"}
@@ -104,10 +107,13 @@ async def receive_event(event_type: str, request: Request):
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             message_store[uid] = sent.message_id
-            # Сохраняем pair_key для start
             exts = data.get("Extensions", [])
             if is_internal and exts:
                 pair_key = tuple(sorted([raw_phone, exts[0]]))
+                hangup_reply_map[pair_key] = sent.message_id
+                logging.info(f"Start: Saved pair_key={pair_key}, message_id={sent.message_id}, hangup_reply_map={hangup_reply_map}")
+            elif not is_internal:
+                pair_key = (raw_phone,)
                 hangup_reply_map[pair_key] = sent.message_id
                 logging.info(f"Start: Saved pair_key={pair_key}, message_id={sent.message_id}, hangup_reply_map={hangup_reply_map}")
         except Exception as e:
@@ -185,8 +191,9 @@ async def receive_event(event_type: str, request: Request):
             txt = f"⏱ Идет внутренний разговор\n{orig_caller} ➡️ {orig_callee}"
         else:
             pre = "✅ Успешный исходящий звонок" if call_type == 1 and status == 2 else "✅ Успешный входящий звонок" if call_type == 0 and status == 2 else "🛎️ Идет разговор"
-            formatted_cli = format_phone_number(orig_caller if call_type == 1 else orig_callee)
-            txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{orig_callee}" if call_type == 0 else f"{pre}\n{orig_caller} ➡️ 🛎️{formatted_cli}"
+            # Для входящих звонков используем caller (внешний номер), для исходящих — callee
+            formatted_cli = format_phone_number(orig_caller if call_type == 0 else orig_callee)
+            txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{orig_callee if call_type == 0 else orig_caller}"
 
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
@@ -215,7 +222,6 @@ async def receive_event(event_type: str, request: Request):
 
         caller = raw_phone
         exts = [e for e in data.get("Extensions", []) if e and str(e).strip()]
-        # Для внешних звонков пытаемся получить callee из bridge или dial_cache
         callee = exts[0] if exts else dial_cache.get(uid, {}).get("extensions", [""])[0]
         if not callee and uid in active_bridges:
             callee = active_bridges.get(uid, {}).get("op", "")
