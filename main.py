@@ -146,21 +146,24 @@ async def receive_event(event_type: str, request: Request):
         if caller == "<unknown>" and connected == "<unknown>":
             return {"status": "ignored"}
 
-        if is_internal_number(caller):
-            op, cli = caller, connected
-        else:
-            op, cli = connected, caller
-
-        if not cli:
-            return {"status": "ignored"}
-
-        orig_uid = dial_phone_to_uid.get(cli) or uid
+        # Определяем инициатора звонка из dial_cache
+        orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(connected) or uid
         if not orig_uid:
             return {"status": "ignored"}
 
-        key = (cli, op)
+        # Получаем данные из dial_cache
+        dial_data = dial_cache.get(orig_uid, {})
+        orig_caller = dial_data.get("caller", caller)
+        orig_callee = dial_data.get("extensions", [connected])[0]
+
+        # Формируем ключ для фильтрации (всегда caller ➡️ callee)
+        key = tuple(sorted([orig_caller, orig_callee]))
         if key in bridge_seen:
             return {"status": "ignored"}
+
+        # Проверяем, что направление совпадает с dial
+        if is_internal and caller != orig_caller:
+            return {"status": "ignored"}  # Игнорируем обратный bridge
 
         try:
             await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(orig_uid, 0))
@@ -168,18 +171,18 @@ async def receive_event(event_type: str, request: Request):
             pass
 
         if is_internal:
-            txt = f"⏱ Идет внутренний разговор\n{cli} ➡️ {op}"
+            txt = f"⏱ Идет внутренний разговор\n{orig_caller} ➡️ {orig_callee}"
         else:
             pre = "✅ Успешный исходящий звонок" if call_type == 1 and status == 2 else "✅ Успешный входящий звонок" if call_type == 0 and status == 2 else "🛎️ Идет разговор"
-            formatted_cli = format_phone_number(cli)
-            txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}" if call_type == 0 else f"{pre}\n{op} ➡️ 🛎️{formatted_cli}"
+            formatted_cli = format_phone_number(orig_caller if call_type == 1 else orig_callee)
+            txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{orig_callee}" if call_type == 0 else f"{pre}\n{orig_caller} ➡️ 🛎️{formatted_cli}"
 
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             bridge_store[orig_uid] = sent.message_id
-            bridge_phone_index[cli] = orig_uid
+            bridge_phone_index[orig_caller] = orig_uid
             bridge_seen.add(key)
-            active_bridges[orig_uid] = {"text": txt, "cli": cli, "op": op}
+            active_bridges[orig_uid] = {"text": txt, "cli": orig_caller, "op": orig_callee}
         except:
             pass
         return {"status": "sent"}
