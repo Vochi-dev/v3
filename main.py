@@ -47,7 +47,7 @@ def format_phone_number(phone: str) -> str:
         rest = digits[len(cc):]
         code = rest[:2]
         num = rest[2:]
-        return f"+{cc} ({code}) {num[:3]}-{num[3:5]}-{num[5:]}"
+        return f"{cc} {code} {num[:3]}-{num[3:5]}-{num[5:]}"
     except Exception:
         return phone
 
@@ -262,4 +262,5 @@ async def receive_event(event_type: str, request: Request):
     except:
         pass
     return {"status": "sent"}
+
 
