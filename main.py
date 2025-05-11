@@ -134,6 +134,9 @@ async def receive_event(event_type: str, request: Request):
             dial_store[uid] = sent.message_id
             dial_cache[uid] = {"call_type": call_type, "extensions": exts, "caller": raw_phone}
             dial_phone_to_uid[raw_phone] = uid
+            # Для внутренних звонков добавляем и callee в dial_phone_to_uid
+            if is_internal and exts:
+                dial_phone_to_uid[exts[0]] = uid
         except:
             pass
         return {"status": "sent"}
@@ -144,11 +147,13 @@ async def receive_event(event_type: str, request: Request):
         status = int(data.get("CallStatus", 0))
 
         if caller == "<unknown>" and connected == "<unknown>":
+            logging.info(f"Bridge ignored: both caller and connected are <unknown>")
             return {"status": "ignored"}
 
-        # Определяем инициатора звонка из dial_cache
-        orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(connected) or uid
+        # Проверяем, есть ли звонок в dial_cache
+        orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(connected)
         if not orig_uid:
+            logging.info(f"Bridge ignored: no orig_uid found for caller={caller}, connected={connected}")
             return {"status": "ignored"}
 
         # Получаем данные из dial_cache
@@ -159,11 +164,13 @@ async def receive_event(event_type: str, request: Request):
         # Формируем ключ для фильтрации (всегда caller ➡️ callee)
         key = tuple(sorted([orig_caller, orig_callee]))
         if key in bridge_seen:
+            logging.info(f"Bridge ignored: key {key} already in bridge_seen")
             return {"status": "ignored"}
 
-        # Проверяем, что направление совпадает с dial
+        # Проверяем направление для внутренних звонков
         if is_internal and caller != orig_caller:
-            return {"status": "ignored"}  # Игнорируем обратный bridge
+            logging.info(f"Bridge ignored: internal call, caller {caller} != orig_caller {orig_caller}")
+            return {"status": "ignored"}
 
         try:
             await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(orig_uid, 0))
@@ -183,7 +190,8 @@ async def receive_event(event_type: str, request: Request):
             bridge_phone_index[orig_caller] = orig_uid
             bridge_seen.add(key)
             active_bridges[orig_uid] = {"text": txt, "cli": orig_caller, "op": orig_callee}
-        except:
+        except Exception as e:
+            logging.error(f"Failed to send bridge message: {e}")
             pass
         return {"status": "sent"}
 
@@ -199,6 +207,14 @@ async def receive_event(event_type: str, request: Request):
                     pass
         active_bridges.pop(uid, None)
 
+        # Очищаем bridge_seen для этого звонка
+        caller = raw_phone
+        exts = [e for e in data.get("Extensions", []) if e and str(e).strip()]
+        callee = exts[0] if exts else dial_cache.get(uid, {}).get("caller", "")
+        if caller and callee:
+            key = tuple(sorted([caller, callee]))
+            bridge_seen.discard(key)
+
         st = data.get("StartTime")
         etme = data.get("EndTime")
         cs = int(data.get("CallStatus", -1))
@@ -207,9 +223,6 @@ async def receive_event(event_type: str, request: Request):
         exts = [e for e in raw_exts if e and str(e).strip()]
         if not exts:
             exts = dial_cache.get(uid, {}).get("extensions", [])
-
-        caller = raw_phone
-        callee = exts[0] if exts else dial_cache.get(uid, {}).get("caller", "")
 
         dur = ""
         try:
