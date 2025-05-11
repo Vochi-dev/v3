@@ -158,7 +158,7 @@ async def receive_event(event_type: str, request: Request):
         elif call_type == 0 and status == 2:
             pre = "✅ Успешный входящий звонок"
         else:
-            pre = "🛎️ Идет разговор"
+            pre = "⏱ Идет разговор"
 
         formatted_cli = format_phone_number(cli)
         txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}" if call_type == 0 else f"{op} ➡️ 🛎️{formatted_cli}"
@@ -243,3 +243,4 @@ async def receive_event(event_type: str, request: Request):
     except:
         pass
     return {"status": "sent"}
+
