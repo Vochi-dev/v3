@@ -104,8 +104,14 @@ async def receive_event(event_type: str, request: Request):
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             message_store[uid] = sent.message_id
-        except:
-            pass
+            # Сохраняем pair_key для start
+            exts = data.get("Extensions", [])
+            if is_internal and exts:
+                pair_key = tuple(sorted([raw_phone, exts[0]]))
+                hangup_reply_map[pair_key] = sent.message_id
+                logging.info(f"Start: Saved pair_key={pair_key}, message_id={sent.message_id}")
+        except Exception as e:
+            logging.error(f"Failed to send start message: {e}")
         return {"status": "sent"}
 
     if et == "dial":
@@ -137,8 +143,11 @@ async def receive_event(event_type: str, request: Request):
             # Для внутренних звонков добавляем и callee в dial_phone_to_uid
             if is_internal and exts:
                 dial_phone_to_uid[exts[0]] = uid
-        except:
-            pass
+                pair_key = tuple(sorted([raw_phone, exts[0]]))
+                hangup_reply_map[pair_key] = sent.message_id
+                logging.info(f"Dial: Saved pair_key={pair_key}, message_id={sent.message_id}")
+        except Exception as e:
+            logging.error(f"Failed to send dial message: {e}")
         return {"status": "sent"}
 
     if et == "bridge":
@@ -190,9 +199,12 @@ async def receive_event(event_type: str, request: Request):
             bridge_phone_index[orig_caller] = orig_uid
             bridge_seen.add(key)
             active_bridges[orig_uid] = {"text": txt, "cli": orig_caller, "op": orig_callee}
+            # Сохраняем pair_key для bridge
+            pair_key = tuple(sorted([orig_caller, orig_callee]))
+            hangup_reply_map[pair_key] = sent.message_id
+            logging.info(f"Bridge: Saved pair_key={pair_key}, message_id={sent.message_id}")
         except Exception as e:
             logging.error(f"Failed to send bridge message: {e}")
-            pass
         return {"status": "sent"}
 
     if et == "hangup":
@@ -207,23 +219,21 @@ async def receive_event(event_type: str, request: Request):
                     pass
         active_bridges.pop(uid, None)
 
-        # Очищаем bridge_seen для этого звонка
+        # Очищаем bridge_seen и dial_phone_to_uid для этого звонка
         caller = raw_phone
         exts = [e for e in data.get("Extensions", []) if e and str(e).strip()]
-        callee = exts[0] if exts else dial_cache.get(uid, {}).get("caller", "")
+        callee = exts[0] if exts else dial_cache.get(uid, {}).get("extensions", [""])[0]
         if caller and callee:
             key = tuple(sorted([caller, callee]))
             bridge_seen.discard(key)
+            # Очищаем dial_phone_to_uid
+            for number in [caller, callee]:
+                dial_phone_to_uid.pop(number, None)
 
         st = data.get("StartTime")
         etme = data.get("EndTime")
         cs = int(data.get("CallStatus", -1))
         ct = int(data.get("CallType", -1))
-        raw_exts = data.get("Extensions", [])
-        exts = [e for e in raw_exts if e and str(e).strip()]
-        if not exts:
-            exts = dial_cache.get(uid, {}).get("extensions", [])
-
         dur = ""
         try:
             s = datetime.fromisoformat(st)
@@ -236,6 +246,7 @@ async def receive_event(event_type: str, request: Request):
         # Проверяем, был ли предыдущий звонок с той же парой {caller, callee}
         pair_key = tuple(sorted([caller, callee])) if callee else None
         reply_id = hangup_reply_map.get(pair_key) if pair_key else None
+        logging.info(f"Hangup: pair_key={pair_key}, reply_id={reply_id}")
 
         if is_internal:
             if cs == 2:
@@ -272,9 +283,9 @@ async def receive_event(event_type: str, request: Request):
             sent = await bot.send_message(TELEGRAM_CHAT_ID, m, reply_to_message_id=reply_id) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, m)
             if pair_key:
                 hangup_reply_map[pair_key] = sent.message_id
-        except:
-            pass
-
+                logging.info(f"Hangup: Saved pair_key={pair_key}, message_id={sent.message_id}")
+        except Exception as e:
+            logging.error(f"Failed to send hangup message: {e}")
         return {"status": "cleared"}
 
     txt = f"📞 Event: {et}\n" + "\n".join(f"{k}: {v}" for k, v in data.items())
