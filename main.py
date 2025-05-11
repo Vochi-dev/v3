@@ -24,7 +24,6 @@ bot = Bot(token=TELEGRAM_BOT_TOKEN)
 message_store = {}
 dial_store = {}
 bridge_store = {}
-bridge_phone_index = {}
 bridge_seen = set()
 dial_cache = {}
 dial_phone_to_uid = {}
@@ -150,18 +149,13 @@ async def receive_event(event_type: str, request: Request):
             pass
 
         call_type = dial_cache.get(orig_uid, {}).get("call_type", 0)
-        if status == 2:
-            pre = "✅ Успешный исходящий звонок" if call_type == 1 else "✅ Успешный входящий звонок"
-        else:
-            pre = "⏱ Идет разговор"
-
+        pre = "✅ Успешный исходящий звонок" if call_type == 1 and status == 2 else "✅ Успешный входящий звонок" if call_type == 0 and status == 2 else "⏱ Идет разговор"
         formatted_cli = format_phone_number(cli)
         txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}" if call_type == 0 else f"{op} ➡️ ⏱ {formatted_cli}"
 
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             bridge_store[orig_uid] = sent.message_id
-            bridge_phone_index[cli] = orig_uid
             bridge_seen.add(key)
             active_bridges[orig_uid] = {"text": txt, "cli": cli, "op": op}
         except:
@@ -233,4 +227,3 @@ async def receive_event(event_type: str, request: Request):
     except:
         pass
     return {"status": "sent"}
-
