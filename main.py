@@ -79,6 +79,7 @@ async def receive_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     raw_phone = data.get("Phone") or data.get("CallerIDNum") or data.get("ConnectedLineNum") or ""
     phone = format_phone_number(raw_phone)
+    trunk = data.get("Trunk", "")
 
     log_event(et, uid, json.dumps(data))
     logging.info(f"Event {et}, UID={uid}, raw={raw_phone}, data={data}")
@@ -87,7 +88,8 @@ async def receive_event(event_type: str, request: Request):
         return {"status": "ignored"}
 
     if et == "start":
-        txt = f"🛎️ Входящий звонок\nАбонент: {phone}"
+        trunk_info = f" Линия: {trunk}" if trunk else ""
+        txt = f"🛎️ Входящий звонок\nАбонент: {phone}{trunk_info}"
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             message_store[uid] = sent.message_id
@@ -107,7 +109,12 @@ async def receive_event(event_type: str, request: Request):
             except:
                 pass
 
-        txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}" if ct == 1 else f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + " ".join(f"🛎️{e}" for e in exts)
+        trunk_info = f" Линия: {trunk}" if trunk else ""
+        
+        if ct == 1:
+            txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}{trunk_info}"
+        else:
+            txt = f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ {' '.join(f'🛎️{e}' for e in exts)}{trunk_info}"
 
         if uid in message_store:
             try:
@@ -117,7 +124,7 @@ async def receive_event(event_type: str, request: Request):
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             dial_store[uid] = sent.message_id
-            dial_cache[uid] = {"call_type": ct, "extensions": exts}
+            dial_cache[uid] = {"call_type": ct, "extensions": exts, "trunk": trunk}
             dial_phone_to_uid[raw_phone] = uid
         except:
             pass
@@ -152,28 +159,35 @@ async def receive_event(event_type: str, request: Request):
         except:
             pass
 
-        call_type = dial_cache.get(orig_uid, {}).get("call_type", 0)
+        # Получаем информацию о транке из предыдущего dial-события
+        dial_info = dial_cache.get(orig_uid, {})
+        call_type = dial_info.get("call_type", 0)
+        saved_trunk = dial_info.get("trunk", "")
+        
+        # Используем сохраненный транк, если текущий не задан
+        trunk = trunk or saved_trunk
+        trunk_info = f" Линия: {trunk}" if trunk else ""
+
         if call_type == 1 and status == 2:
             pre = "✅ Успешный исходящий звонок"
         elif call_type == 0 and status == 2:
             pre = "✅ Успешный входящий звонок"
         else:
-            pre = "⏱ Идет разговор"  # Заменили 🛎️ на ⏱
+            pre = "⏱ Идет разговор"
 
         formatted_cli = format_phone_number(cli)
         
-        # Изменяем форматирование сообщения
         if call_type == 0:
-            txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}"
+            txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}{trunk_info}"
         else:
-            txt = f"{pre}\n{op} ➡️ 🛎️{formatted_cli}"
+            txt = f"{pre}\n{op} ➡️ 🛎️{formatted_cli}{trunk_info}"
 
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             bridge_store[orig_uid] = sent.message_id
             bridge_phone_index[cli] = orig_uid
             bridge_seen.add(key)
-            active_bridges[orig_uid] = {"text": txt, "cli": cli, "op": op}
+            active_bridges[orig_uid] = {"text": txt, "cli": cli, "op": op, "trunk": trunk}
         except:
             pass
         return {"status": "sent"}
@@ -196,8 +210,17 @@ async def receive_event(event_type: str, request: Request):
         ct = int(data.get("CallType", -1))
         raw_exts = data.get("Extensions", [])
         exts = [e for e in raw_exts if e and str(e).strip()]
+        
+        # Если в текущем событии нет расширений, берем из кеша
+        dial_info = dial_cache.get(uid, {})
         if not exts:
-            exts = dial_cache.get(uid, {}).get("extensions", [])
+            exts = dial_info.get("extensions", [])
+        
+        # Если в текущем событии нет транка, берем из кеша
+        if not trunk:
+            trunk = dial_info.get("trunk", "")
+        
+        trunk_info = f" Линия: {trunk}" if trunk else ""
 
         dur = ""
         try:
@@ -209,28 +232,28 @@ async def receive_event(event_type: str, request: Request):
             pass
 
         if ct == 1 and cs == 0:
-            m = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
+            m = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}{trunk_info}"
             if dur: m += f"\n⌛ {dur}"
             for e in exts:
                 m += f" ☎️ {e}"
         elif ct == 0 and cs == 1:
-            m = f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}"
+            m = f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}{trunk_info}"
             if dur: m += f"\n⌛ {dur}"
         elif ct == 0 and cs == 0:
-            m = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
+            m = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}{trunk_info}"
             if dur: m += f"\n⌛ {dur}"
             for e in exts:
                 m += f" ☎️ {e}"
         elif ct == 0 and cs == 2:
-            m = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
+            m = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}{trunk_info}\n⌛ {dur} 🔈 Запись"
             if exts:
                 m += f" ☎️ {exts[0]}"
         elif ct == 1 and cs == 2:
-            m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
+            m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}{trunk_info}\n⌛ {dur} 🔈 Запись"
             if exts:
                 m += f" ☎️ {exts[0]}"
         else:
-            m = f"❌ Завершённый звонок\nАбонент: {phone}"
+            m = f"❌ Завершённый звонок\nАбонент: {phone}{trunk_info}"
             if dur: m += f"\n⌛ {dur}"
 
         try:
