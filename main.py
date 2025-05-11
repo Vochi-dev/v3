@@ -26,7 +26,7 @@ bridge_store        = {}
 bridge_phone_index  = {}
 bridge_seen         = set()
 dial_cache          = {}
-dial_phone_to_uid   = {}  # мапа телефон → UID
+dial_phone_to_uid   = {}
 
 def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
@@ -34,8 +34,6 @@ def format_phone_number(phone: str) -> str:
         phone = "375" + phone[2:]
     elif len(phone) == 10 and phone.startswith("0"):
         phone = "375" + phone[1:]
-    elif phone.startswith("+") and len(phone) > 10:
-        return phone
     try:
         if not phone.startswith("+"):
             phone = "+" + phone
@@ -61,9 +59,6 @@ async def receive_event(event_type: str, request: Request):
     log_event(et, uid, json.dumps(data))
     logging.info(f"Event {et}, UID={uid}, raw={raw_phone}, data={data}")
 
-    #
-    # START
-    #
     if et == "start":
         txt = f"🛎️ Входящий звонок\nАбонент: {phone}"
         try:
@@ -73,9 +68,6 @@ async def receive_event(event_type: str, request: Request):
             pass
         return {"status": "sent"}
 
-    #
-    # DIAL
-    #
     if et == "dial":
         ct   = int(data.get("CallType", 0))
         exts = data.get("Extensions", [])
@@ -85,7 +77,6 @@ async def receive_event(event_type: str, request: Request):
         else:
             txt = f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + " ".join(f"🛎️{e}" for e in exts)
 
-        # delete START
         if uid in message_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
@@ -102,25 +93,19 @@ async def receive_event(event_type: str, request: Request):
 
         return {"status": "sent"}
 
-    #
-    # BRIDGE
-    #
     if et == "bridge":
         caller    = data.get("CallerIDNum", "")
         connected = data.get("ConnectedLineNum", "")
         status    = int(data.get("CallStatus", 0))
 
-        # игнорируем, если оба неизвестны
         if caller == "<unknown>" and connected == "<unknown>":
             return {"status": "ignored"}
 
-        # определяем оператор/клиент
         if re.fullmatch(r"\d{3}", caller):
             op, cli = caller, connected
         else:
             op, cli = connected, caller
 
-        # находим исходный UID по телефону клиента
         orig_uid = dial_phone_to_uid.get(cli)
         if not orig_uid:
             return {"status": "ignored"}
@@ -129,7 +114,6 @@ async def receive_event(event_type: str, request: Request):
         if key in bridge_seen:
             return {"status": "ignored"}
 
-        # удаляем DIAL
         try:
             await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(orig_uid, 0))
         except:
@@ -151,11 +135,7 @@ async def receive_event(event_type: str, request: Request):
 
         return {"status": "sent"}
 
-    #
-    # HANGUP
-    #
     if et == "hangup":
-        # удаляем все по UID
         for store in (message_store, dial_store, bridge_store):
             if uid in store:
                 try:
@@ -163,7 +143,6 @@ async def receive_event(event_type: str, request: Request):
                 except:
                     pass
 
-        # расчёт длительности
         st   = data.get("StartTime")
         etme = data.get("EndTime")
         cs   = int(data.get("CallStatus", -1))
@@ -182,7 +161,6 @@ async def receive_event(event_type: str, request: Request):
         except:
             pass
 
-        # строим финальный текст
         if   ct == 1 and cs == 0:
             m = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
             if dur: m += f"\n⌛ {dur}"
@@ -213,9 +191,6 @@ async def receive_event(event_type: str, request: Request):
 
         return {"status": "cleared"}
 
-    #
-    # OTHER EVENTS
-    #
     txt = f"📞 Event: {et}\n" + "\n".join(f"{k}: {v}" for k, v in data.items())
     try:
         await bot.send_message(TELEGRAM_CHAT_ID, txt)
