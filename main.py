@@ -210,19 +210,22 @@ async def receive_event(event_type: str, request: Request):
 
     if et == "hangup":
         if not raw_phone:
+            logging.info(f"Hangup: Ignored due to empty raw_phone, UID={uid}")
             return {"status": "ignored"}
+
+        logging.info(f"Hangup: Processing for UID={uid}, raw_phone={raw_phone}, data={data}")
 
         for store in (message_store, dial_store, bridge_store):
             if uid in store:
                 try:
                     await bot.delete_message(TELEGRAM_CHAT_ID, store.pop(uid))
-                except:
-                    pass
+                except Exception as e:
+                    logging.error(f"Hangup: Failed to delete message for UID={uid}: {e}")
+
         active_bridges.pop(uid, None)
 
         caller = raw_phone
         exts = [e for e in data.get("Extensions", []) if e and str(e).strip()]
-        # Используем extensions из dial_cache, если exts пустой
         if not exts and uid in dial_cache:
             exts = dial_cache[uid].get("extensions", [])
         callee = exts[0] if exts else dial_cache.get(uid, {}).get("extensions", [""])[0]
@@ -245,10 +248,10 @@ async def receive_event(event_type: str, request: Request):
             e = datetime.fromisoformat(etme)
             secs = int((e - s).total_seconds())
             dur = f"{secs//60:02}:{secs%60:02}"
-        except:
-            pass
+        except Exception as e:
+            logging.error(f"Hangup: Failed to calculate duration for UID={uid}: {e}")
 
-        pair_key = tuple(sorted([caller, callee])) if callee else (caller,)
+        pair_key = (caller,) if not is_internal else tuple(sorted([caller, callee])) if callee else (caller,)
         reply_id = hangup_reply_map.get(pair_key)
         logging.info(f"Hangup: UID={uid}, pair_key={pair_key}, reply_id={reply_id}, caller={caller}, callee={callee}, exts={exts}, hangup_reply_map={hangup_reply_map}")
 
@@ -283,15 +286,25 @@ async def receive_event(event_type: str, request: Request):
                 m = f"❌ Завершённый звонок\nАбонент: {phone}"
                 if dur: m += f"\n⌛ {dur}"
 
+        logging.info(f"Hangup: Prepared message for UID={uid}: text={m}, reply_id={reply_id}")
+
         try:
-            logging.info(f"Hangup: Attempting to send message: text={m}, reply_id={reply_id}")
-            sent = await bot.send_message(TELEGRAM_CHAT_ID, m, reply_to_message_id=reply_id) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, m)
-            logging.info(f"Hangup: Message sent successfully for UID={uid}, message_id={sent.message_id}")
-            if pair_key:
-                hangup_reply_map[pair_key] = sent.message_id
-                logging.info(f"Hangup: Saved pair_key={pair_key}, message_id={sent.message_id}, hangup_reply_map={hangup_reply_map}")
+            logging.info(f"Hangup: Attempting to send message with reply_id for UID={uid}")
+            sent = await bot.send_message(TELEGRAM_CHAT_ID, m, reply_to_message_id=reply_id)
+            logging.info(f"Hangup: Message sent successfully with reply_id for UID={uid}, message_id={sent.message_id}")
         except Exception as e:
-            logging.error(f"Hangup: Failed to send message for UID={uid}: {e}, text={m}, reply_id={reply_id}")
+            logging.error(f"Hangup: Failed to send message with reply_id for UID={uid}: {e}, text={m}, reply_id={reply_id}")
+            try:
+                logging.info(f"Hangup: Retrying without reply_id for UID={uid}")
+                sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
+                logging.info(f"Hangup: Message sent successfully without reply_id for UID={uid}, message_id={sent.message_id}")
+            except Exception as e2:
+                logging.error(f"Hangup: Failed to send message without reply_id for UID={uid}: {e2}, text={m}")
+
+        if pair_key:
+            hangup_reply_map[pair_key] = sent.message_id
+            logging.info(f"Hangup: Saved pair_key={pair_key}, message_id={sent.message_id}, hangup_reply_map={hangup_reply_map}")
+
         return {"status": "cleared"}
 
     txt = f"📞 Event: {et}\n" + "\n".join(f"{k}: {v}" for k, v in data.items())
