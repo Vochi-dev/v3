@@ -153,15 +153,16 @@ async def receive_event(event_type: str, request: Request):
             pass
 
         call_type = dial_cache.get(orig_uid, {}).get("call_type", 0)
-        if call_type == 1 and status == 2:
-            pre = "✅ Успешный исходящий звонок"
-        elif call_type == 0 and status == 2:
-            pre = "✅ Успешный входящий звонок"
+        if status == 2:
+            pre = "✅ Успешный исходящий звонок" if call_type == 1 else "✅ Успешный входящий звонок"
         else:
             pre = "⏱ Идет разговор"
 
         formatted_cli = format_phone_number(cli)
-        txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}" if call_type == 0 else f"{op} ➡️ 🛎️{formatted_cli}"
+        if call_type == 1:
+            txt = f"{op} ➡️ ⏱ {formatted_cli}"
+        else:
+            txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}"
 
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
@@ -226,7 +227,8 @@ async def receive_event(event_type: str, request: Request):
                 m += f" ☎️ {exts[0]}"
         else:
             m = f"❌ Завершённый звонок\nАбонент: {phone}"
-            if dur: m += f"\n⌛ {dur}"
+            if dur:
+                m += f"\n⌛ {dur}"
 
         try:
             reply_id = hangup_reply_map.get(phone)
@@ -243,4 +245,3 @@ async def receive_event(event_type: str, request: Request):
     except:
         pass
     return {"status": "sent"}
-
