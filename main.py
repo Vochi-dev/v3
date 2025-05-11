@@ -139,9 +139,9 @@ async def receive_event(event_type: str, request: Request):
         if not cli:
             return {"status": "ignored"}
 
-        orig_uid = dial_phone_to_uid.get(cli)
-        if not orig_uid:
-            return {"status": "ignored"}
+        # определяем UID по номеру или напрямую
+        orig_uid = dial_phone_to_uid.get(cli) or data.get("UniqueId")
+        call_type = dial_cache.get(orig_uid, {}).get("call_type", 0)
 
         key = (cli, op)
         if key in bridge_seen:
@@ -152,17 +152,13 @@ async def receive_event(event_type: str, request: Request):
         except:
             pass
 
-        call_type = dial_cache.get(orig_uid, {}).get("call_type", 0)
         if status == 2:
             pre = "✅ Успешный исходящий звонок" if call_type == 1 else "✅ Успешный входящий звонок"
         else:
             pre = "⏱ Идет разговор"
 
         formatted_cli = format_phone_number(cli)
-        if call_type == 1:
-            txt = f"{op} ➡️ ⏱ {formatted_cli}"
-        else:
-            txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}"
+        txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{op}" if call_type == 0 else f"{op} ➡️ ⏱ {formatted_cli}"
 
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
@@ -227,8 +223,7 @@ async def receive_event(event_type: str, request: Request):
                 m += f" ☎️ {exts[0]}"
         else:
             m = f"❌ Завершённый звонок\nАбонент: {phone}"
-            if dur:
-                m += f"\n⌛ {dur}"
+            if dur: m += f"\n⌛ {dur}"
 
         try:
             reply_id = hangup_reply_map.get(phone)
