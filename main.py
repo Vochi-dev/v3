@@ -17,8 +17,8 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
-TELEGRAM_CHAT_ID = "374573193"
+TELEGRAM_BOT_TOKEN = "YOUR_TOKEN"
+TELEGRAM_CHAT_ID = "YOUR_CHAT_ID"
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 message_store = {}
@@ -51,6 +51,27 @@ def format_phone_number(phone: str) -> str:
     except Exception:
         return phone
 
+@app.on_event("startup")
+async def start_bridge_resender():
+    async def resend_loop():
+        while True:
+            await asyncio.sleep(5)
+            for uid in list(active_bridges.keys()):
+                msg_id = bridge_store.get(uid)
+                txt = active_bridges[uid].get("text")
+                if not msg_id or not txt:
+                    continue
+                try:
+                    await bot.delete_message(TELEGRAM_CHAT_ID, msg_id)
+                except:
+                    pass
+                try:
+                    sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
+                    bridge_store[uid] = sent.message_id
+                except:
+                    pass
+    asyncio.create_task(resend_loop())
+
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
     data = await request.json()
@@ -79,15 +100,12 @@ async def receive_event(event_type: str, request: Request):
         exts = data.get("Extensions", [])
         if not raw_phone:
             return {"status": "ignored"}
-
         if uid in dial_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(uid))
             except:
                 pass
-
         txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}" if ct == 1 else f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + " ".join(f"🛎️{e}" for e in exts)
-
         if uid in message_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
@@ -145,6 +163,7 @@ async def receive_event(event_type: str, request: Request):
             bridge_store[orig_uid] = sent.message_id
             bridge_phone_index[cli] = orig_uid
             bridge_seen.add(key)
+            active_bridges[orig_uid] = {"text": txt, "cli": cli, "op": op}
         except:
             pass
         return {"status": "sent"}
@@ -182,28 +201,23 @@ async def receive_event(event_type: str, request: Request):
         if ct == 1 and cs == 0:
             m = f"⬆️ ❌ Абонент не ответил\nАбонент: {phone}"
             if dur: m += f"\n⌛ {dur}"
-            for e in exts:
-                m += f" ☎️ {e}"
+            for e in exts: m += f" ☎️ {e}"
         elif ct == 0 and cs == 1:
             m = f"⬇️ ❌ Абонент положил трубку\nАбонент: {phone}"
             if dur: m += f"\n⌛ {dur}"
         elif ct == 0 and cs == 0:
             m = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {phone}"
             if dur: m += f"\n⌛ {dur}"
-            for e in exts:
-                m += f" ☎️ {e}"
+            for e in exts: m += f" ☎️ {e}"
         elif ct == 0 and cs == 2:
             m = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
-            if exts:
-                m += f" ☎️ {exts[0]}"
+            if exts: m += f" ☎️ {exts[0]}"
         elif ct == 1 and cs == 2:
             m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
-            if exts:
-                m += f" ☎️ {exts[0]}"
+            if exts: m += f" ☎️ {exts[0]}"
         else:
             m = f"❌ Завершённый звонок\nАбонент: {phone}"
-            if dur:
-                m += f"\n⌛ {dur}"
+            if dur: m += f"\n⌛ {dur}"
 
         try:
             reply_id = hangup_reply_map.get(phone)
@@ -211,7 +225,6 @@ async def receive_event(event_type: str, request: Request):
             hangup_reply_map[phone] = sent.message_id
         except:
             pass
-
         return {"status": "cleared"}
 
     txt = f"📞 Event: {et}\n" + "\n".join(f"{k}: {v}" for k, v in data.items())
@@ -220,3 +233,4 @@ async def receive_event(event_type: str, request: Request):
     except:
         pass
     return {"status": "sent"}
+
