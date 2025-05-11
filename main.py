@@ -35,7 +35,6 @@ def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
     if not phone:
         return phone
-    # Не форматируем внутренние номера (3-4 цифры)
     if is_internal_number(phone):
         return phone
     if len(phone) == 11 and phone.startswith("80"):
@@ -57,7 +56,6 @@ def format_phone_number(phone: str) -> str:
         return phone
 
 def is_internal_number(number: str) -> bool:
-    """Проверяет, является ли номер внутренним (3-4 цифры)."""
     return number and re.match(r"^\d{3,4}$", number)
 
 @app.on_event("startup")
@@ -96,7 +94,6 @@ async def receive_event(event_type: str, request: Request):
     if et in {"init", "ping", "test", "healthcheck"}:
         return {"status": "ignored"}
 
-    # Определяем, внутренний ли звонок
     is_internal = call_type == 2 or (is_internal_number(raw_phone) and all(is_internal_number(e) for e in data.get("Extensions", [])))
 
     if et == "start":
@@ -191,7 +188,6 @@ async def receive_event(event_type: str, request: Request):
             txt = f"⏱ Идет внутренний разговор\n{orig_caller} ➡️ {orig_callee}"
         else:
             pre = "✅ Успешный исходящий звонок" if call_type == 1 and status == 2 else "✅ Успешный входящий звонок" if call_type == 0 and status == 2 else "🛎️ Идет разговор"
-            # Для входящих звонков используем caller (внешний номер), для исходящих — callee
             formatted_cli = format_phone_number(orig_caller if call_type == 0 else orig_callee)
             txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{orig_callee if call_type == 0 else orig_caller}"
 
@@ -247,7 +243,7 @@ async def receive_event(event_type: str, request: Request):
 
         pair_key = tuple(sorted([caller, callee])) if callee else (caller,)
         reply_id = hangup_reply_map.get(pair_key)
-        logging.info(f"Hangup: pair_key={pair_key}, reply_id={reply_id}, caller={caller}, callee={callee}, hangup_reply_map={hangup_reply_map}")
+        logging.info(f"Hangup: pair_key={pair_key}, reply_id={reply_id}, caller={caller}, callee={callee}, message={m}, hangup_reply_map={hangup_reply_map}")
 
         if is_internal:
             if cs == 2:
@@ -281,17 +277,18 @@ async def receive_event(event_type: str, request: Request):
                 if dur: m += f"\n⌛ {dur}"
 
         try:
+            logging.info(f"Attempting to send hangup message: text={m}, reply_id={reply_id}")
             sent = await bot.send_message(TELEGRAM_CHAT_ID, m, reply_to_message_id=reply_id) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, m)
             if pair_key:
                 hangup_reply_map[pair_key] = sent.message_id
                 logging.info(f"Hangup: Saved pair_key={pair_key}, message_id={sent.message_id}, hangup_reply_map={hangup_reply_map}")
         except Exception as e:
-            logging.error(f"Failed to send hangup message: {e}")
+            logging.error(f"Failed to send hangup message: {e}, text={m}, reply_id={reply_id}")
         return {"status": "cleared"}
 
     txt = f"📞 Event: {et}\n" + "\n".join(f"{k}: {v}" for k, v in data.items())
     try:
         await bot.send_message(TELEGRAM_CHAT_ID, txt)
-    except:
-        pass
+    except Exception as e:
+        logging.error(f"Failed to send event message: {e}")
     return {"status": "sent"}
