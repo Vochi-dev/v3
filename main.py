@@ -245,43 +245,38 @@ def update_hangup_message_map(caller, callee, message_id, is_internal=False):
         logging.info(f"Updated hangup_message_map for internal call: {caller} and {callee}")
 
 def get_relevant_hangup_message_id(caller, callee, is_internal=False):
-    def find_best_match(history, target_caller, target_callee):
+    def find_best_match(history, target_number):
         if not history:
             return None
         # Сортируем по времени (новейшие первыми)
         history = sorted(history, key=lambda x: x['timestamp'], reverse=True)
-        # Сначала ищем точное совпадение пары caller-callee
-        for entry in history:
-            if entry['caller'] == target_caller and entry['callee'] == target_callee:
-                return entry['message_id']
-        # Если точного совпадения нет, возвращаем последнее сообщение для caller
+        # Возвращаем последнее сообщение для номера клиента
         return history[0]['message_id'] if history else None
 
-    if not is_internal and caller:
-        history = hangup_message_map.get(caller, [])
-        return find_best_match(history, caller, callee)
-    elif not is_internal and callee:
-        history = hangup_message_map.get(callee, [])
-        return find_best_match(history, caller, callee)
-    elif is_internal and caller and callee:
-        history_caller = hangup_message_map.get(caller, [])
-        history_callee = hangup_message_map.get(callee, [])
-        reply_id_caller = find_best_match(history_caller, caller, callee)
-        reply_id_callee = find_best_match(history_callee, caller, callee)
-        return reply_id_caller or reply_id_callee
+    if not is_internal:
+        # Для внешних вызовов ищем только по номеру клиента
+        if caller and not is_internal_number(caller):
+            history = hangup_message_map.get(caller, [])
+            return find_best_match(history, caller)
+        elif callee and not is_internal_number(callee):
+            history = hangup_message_map.get(callee, [])
+            return find_best_match(history, callee)
+    # Для внутренних вызовов или если номер не найден, возвращаем None
     return None
 
 def get_call_pair_message(caller, callee, is_internal=False):
-    pair_key = get_call_pair_key(caller, callee, is_internal)
-    if pair_key and pair_key in call_pair_message_map:
-        message_id = call_pair_message_map[pair_key]
-        logging.info(f"Found message_id={message_id} for pair_key={pair_key}")
-        return message_id
-    if caller:
-        for key, msg_id in call_pair_message_map.items():
-            if caller in key:
-                logging.info(f"Found message by partial match: caller={caller} in key={key}, msg_id={msg_id}")
-                return msg_id
+    if not is_internal:
+        # Для внешних вызовов ищем только по номеру клиента
+        if caller and not is_internal_number(caller):
+            for key, msg_id in call_pair_message_map.items():
+                if caller in key:
+                    logging.info(f"Found message by client number match: caller={caller} in key={key}, msg_id={msg_id}")
+                    return msg_id
+        elif callee and not is_internal_number(callee):
+            for key, msg_id in call_pair_message_map.items():
+                if callee in key:
+                    logging.info(f"Found message by client number match: callee={callee} in key={key}, msg_id={msg_id}")
+                    return msg_id
     logging.warning(f"No message found for caller={caller}, callee={callee}, is_internal={is_internal}")
     return None
 
