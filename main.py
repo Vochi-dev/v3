@@ -546,6 +546,7 @@ async def receive_event(event_type: str, request: Request):
             bridge_seen.discard(key)
         st = data.get("StartTime")
         etme = data.get("EndTime")
+        SHELF
         cs = int(data.get("CallStatus", -1))
         ct = int(data.get("CallType", -1))
         dur = ""
@@ -582,11 +583,19 @@ async def receive_event(event_type: str, request: Request):
         logging.info(f"Hangup DEBUG: call_pair_message_map={call_pair_message_map}")
         logging.info(f"Hangup DEBUG: hangup_message_map={hangup_message_map}")
         if is_internal:
+            # Проверяем длину внутренних номеров, если хотя бы один длиннее 3 цифр, игнорируем
+            if (is_internal_number(caller) and len(caller) > 3) or (is_internal_number(callee) and len(callee) > 3):
+                logging.info(f"Hangup: Ignored due to internal number length > 3, caller={caller}, callee={callee}, UID={uid}")
+                return {"status": "ignored"}
             if cs == 2:
                 m = f"✅ Успешный внутренний звонок\n{caller} ➡️ {callee}\n⌛ {dur} 🔈 Запись"
             else:
                 m = f"❌ Абонент не ответил\n{caller} ➡️ {callee}\n⌛ {dur}"
         else:
+            # Проверяем длину внутренних номеров в списке extensions, если хотя бы один длиннее 3 цифр, игнорируем
+            if any(is_internal_number(ext) and len(ext) > 3 for ext in exts):
+                logging.info(f"Hangup: Ignored due to internal extension length > 3 in exts={exts}, UID={uid}")
+                return {"status": "ignored"}
             # Проверяем, начинается ли номер с +000
             display_phone = phone if not phone.startswith("+000") else "Номер не определен"
             if ct == 1 and cs == 0:
