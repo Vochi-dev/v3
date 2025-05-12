@@ -318,7 +318,7 @@ async def startup_tasks():
                     caller = active_bridges[uid].get("cli")
                     callee = active_bridges[uid].get("op")
                     is_internal = is_internal_number(caller) and is_internal_number(callee)
-                    reply_id = get_relevant_hangup_message_id(caller, callee, is_internal)
+                    reply_id = get_relevant_hangup_message_id(caller, callee, is_internal) if not is_internal else None
                     token = dial_cache.get(uid, {}).get("token", "")
                     logging.info(f"Bridge resend: Looking for reply_id for caller={caller}, callee={callee}, reply_id={reply_id}")
                     sent = await bot.send_message(
@@ -327,7 +327,8 @@ async def startup_tasks():
                         reply_to_message_id=reply_id
                     ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
                     bridge_store[uid] = sent.message_id
-                    update_call_pair_message(caller, callee, sent.message_id, is_internal)
+                    if not is_internal:
+                        update_call_pair_message(caller, callee, sent.message_id, is_internal)
                     save_telegram_message(sent.message_id, "bridge_resend", token, caller, callee, is_internal)
                     logging.info(f"Bridge resend: Sent message_id={sent.message_id} for UID={uid}, reply_id={reply_id}")
                 except Exception as e:
@@ -365,7 +366,7 @@ async def receive_event(event_type: str, request: Request):
         else:
             txt = f"🛎️ Входящий звонок\nАбонент: {phone}"
         try:
-            reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_internal)
+            reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_internal) if not is_internal else None
             logging.info(f"Start: Looking for reply_id for caller={raw_phone}, reply_id={reply_id}")
             sent = await bot.send_message(
                 chat_id=TELEGRAM_CHAT_ID,
@@ -373,7 +374,8 @@ async def receive_event(event_type: str, request: Request):
                 reply_to_message_id=reply_id
             ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
             message_store[uid] = sent.message_id
-            update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
+            if not is_internal:
+                update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
             save_telegram_message(sent.message_id, et, token, raw_phone, callee, is_internal)
             logging.info(f"Start: Saved message_id={sent.message_id} for caller={raw_phone}, callee={callee}, reply_id={reply_id}")
         except Exception as e:
@@ -392,9 +394,15 @@ async def receive_event(event_type: str, request: Request):
                 logging.error(f"Failed to delete dial message: {e}")
                 pass
         if is_internal:
-            txt = f"🛎️ Внутренний звонок\n{raw_phone} ➡️ {callee}"
+            # Форматируем внутренний звонок с переносом строки после стрелки
+            txt = f"🛎️ Внутренний звонок\n{raw_phone} ➡️\n{callee}"
         else:
-            txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️ {phone}" if call_type == 1 else f"🛎️ Входящий звонок\nАбонент: {phone} ➡️ " + " ".join(f"🛎️{e}" for e in exts)
+            if call_type == 1:
+                # Исходящий звонок: форматируем номера в столбик
+                txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️\n{phone}"
+            else:
+                # Входящий звонок: форматируем экстеншены в столбик после стрелки
+                txt = f"🛎️ Входящий звонок\nАбонент: {phone} ➡️\n" + "\n".join(f"🛎️{e}" for e in exts)
         if uid in message_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
@@ -402,7 +410,7 @@ async def receive_event(event_type: str, request: Request):
                 logging.error(f"Failed to delete start message: {e}")
                 pass
         try:
-            reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_internal)
+            reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_internal) if not is_internal else None
             logging.info(f"Dial: Looking for reply_id for caller={raw_phone}, reply_id={reply_id}")
             sent = await bot.send_message(
                 chat_id=TELEGRAM_CHAT_ID,
@@ -417,7 +425,8 @@ async def receive_event(event_type: str, request: Request):
                     dial_phone_to_uid[ext] = uid
             elif is_internal and callee:
                 dial_phone_to_uid[callee] = uid
-            update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
+            if not is_internal:
+                update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
             save_telegram_message(sent.message_id, et, token, raw_phone, callee, is_internal)
             logging.info(f"Dial: Saved message_id={sent.message_id} for caller={raw_phone}, callee={callee}, reply_id={reply_id}")
         except Exception as e:
@@ -465,7 +474,7 @@ async def receive_event(event_type: str, request: Request):
             formatted_cli = format_phone_number(orig_caller)
             txt = f"{pre}\nАбонент: {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ 🛎️{orig_callee if is_internal_number(orig_callee) else format_phone_number(orig_callee)}"
         try:
-            reply_id = get_relevant_hangup_message_id(orig_caller, orig_callee, is_internal)
+            reply_id = get_relevant_hangup_message_id(orig_caller, orig_callee, is_internal) if not is_internal else None
             logging.info(f"Bridge: Looking for reply_id for caller={orig_caller}, callee={orig_callee}, reply_id={reply_id}")
             sent = await bot.send_message(
                 chat_id=TELEGRAM_CHAT_ID,
@@ -475,7 +484,8 @@ async def receive_event(event_type: str, request: Request):
             bridge_store[orig_uid] = sent.message_id
             bridge_seen.add(key)
             active_bridges[orig_uid] = {"text": txt, "cli": orig_caller, "op": orig_callee}
-            update_call_pair_message(orig_caller, orig_callee, sent.message_id, is_internal)
+            if not is_internal:
+                update_call_pair_message(orig_caller, orig_callee, sent.message_id, is_internal)
             save_telegram_message(sent.message_id, et, token, orig_caller, orig_callee, is_internal)
             logging.info(f"Bridge: Saved message_id={sent.message_id} for caller={orig_caller}, callee={orig_callee}, reply_id={reply_id}")
         except Exception as e:
@@ -520,9 +530,9 @@ async def receive_event(event_type: str, request: Request):
         except Exception as e:
             logging.error(f"Hangup: Failed to calculate duration for UID={uid}: {e}")
         external_number = caller if ct == 0 else (callee if callee else caller)
-        reply_id = get_relevant_hangup_message_id(caller, callee, is_internal)
+        reply_id = get_relevant_hangup_message_id(caller, callee, is_internal) if not is_internal else None
         logging.info(f"Hangup: Checked hangup_message_map for external_number={external_number}, caller={caller}, callee={callee}, reply_id={reply_id}")
-        if not reply_id:
+        if not reply_id and not is_internal:
             orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(callee)
             logging.info(f"Hangup: orig_uid={orig_uid}, dial_phone_to_uid={dial_phone_to_uid}")
             if orig_uid in bridge_store:
@@ -599,19 +609,21 @@ async def receive_event(event_type: str, request: Request):
                 logging.info(f"Hangup: No reply_id found for UID={uid}, sending without reply")
                 sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
                 logging.info(f"Hangup: Sent without reply_id for UID={uid}, message_id={sent.message_id}")
-            pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
-            update_hangup_message_map(caller, callee, sent.message_id, is_internal)
+            if not is_internal:
+                pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
+                update_hangup_message_map(caller, callee, sent.message_id, is_internal)
+                logging.info(f"Hangup: Sent message with id={sent.message_id} for pair_key={pair_key}")
             save_telegram_message(sent.message_id, et, token, caller, callee, is_internal)
-            logging.info(f"Hangup: Sent message with id={sent.message_id} for pair_key={pair_key}")
         except Exception as e:
             logging.error(f"Hangup: Failed to send message: {e} for UID={uid}, text={m}")
             logging.error(f"Hangup: Traceback: {traceback.format_exc()}")
             try:
                 sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
-                pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
-                update_hangup_message_map(caller, callee, sent.message_id, is_internal)
+                if not is_internal:
+                    pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
+                    update_hangup_message_map(caller, callee, sent.message_id, is_internal)
+                    logging.info(f"Hangup: Retry succeeded with message_id={sent.message_id} for UID={uid}")
                 save_telegram_message(sent.message_id, et, token, caller, callee, is_internal)
-                logging.info(f"Hangup: Retry succeeded with message_id={sent.message_id} for UID={uid}")
             except Exception as e2:
                 logging.error(f"Hangup: Retry also failed: {e2} for UID={uid}, text={m}")
                 logging.error(f"Hangup: Retry traceback: {traceback.format_exc()}")
@@ -619,7 +631,7 @@ async def receive_event(event_type: str, request: Request):
 
     txt = f"📞 Event: {et}\n" + "\n".join(f"{k}: {v}" for k, v in data.items())
     try:
-        reply_id = get_relevant_hangup_message_id(raw_phone, "", is_internal)
+        reply_id = get_relevant_hangup_message_id(raw_phone, "", is_internal) if not is_internal else None
         sent = await bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
             text=txt,
