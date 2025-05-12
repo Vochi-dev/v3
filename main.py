@@ -138,7 +138,7 @@ async def receive_event(event_type: str, request: Request):
     data = await request.json()
     et = event_type.lower()
     uid = data.get("UniqueId", "")
-    raw_phone = data.get("Phone") or data.get("CallerIDNum") tineNum") or ""
+    raw_phone = data.get("Phone") or data.get("CallerIDNum") or data.get("ConnectedLineNum") or ""
     phone = format_phone_number(raw_phone)
     call_type = int(data.get("CallType", 0))
 
@@ -354,7 +354,7 @@ async def receive_event(event_type: str, request: Request):
                 m = f"❌ Завершённый звонок\nАбонент: {phone}"
                 if dur: m += f"\n⌛ {dur}"
         try:
-            logging.info(f"Hangup: Preparing to send message for UID={uid}: text={m```python
+            logging.info(f"Hangup: Preparing to send message for UID={uid}: text={m}, reply_id={reply_id}")
             sent = None
             if reply_id:
                 try:
