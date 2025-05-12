@@ -163,6 +163,82 @@ def load_hangup_message_history():
     except Exception as e:
         logging.error(f"Failed to load hangup message history: {e}")
 
+def get_client_hangup_stats(client_number):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Подсчет общего количества хэнгапов для клиента
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM events
+            WHERE event_type = 'hangup' AND (raw_json LIKE ? OR raw_json LIKE ?)
+        ''', (f'%{client_number}%', f'%{client_number}%'))
+        total_count = cursor.fetchone()['count']
+        
+        # Получение последнего хэнгапа для клиента
+        cursor.execute('''
+            SELECT raw_json, timestamp
+            FROM events
+            WHERE event_type = 'hangup' AND (raw_json LIKE ? OR raw_json LIKE ?)
+            ORDER BY timestamp DESC
+            LIMIT 1
+        ''', (f'%{client_number}%', f'%{client_number}%'))
+        last_hangup = cursor.fetchone()
+        conn.close()
+        
+        if last_hangup:
+            last_data = json.loads(last_hangup['raw_json'])
+            last_timestamp = last_hangup['timestamp']
+            try:
+                last_date = datetime.fromisoformat(last_timestamp).strftime("%d.%m.%Y %H:%M")
+            except Exception as e:
+                logging.error(f"Failed to format timestamp {last_timestamp}: {e}")
+                last_date = "Неизвестно"
+            return {
+                'total_count': total_count,
+                'last_data': last_data,
+                'last_date': last_date
+            }
+        return {
+            'total_count': total_count,
+            'last_data': None,
+            'last_date': None
+        }
+    except Exception as e:
+        logging.error(f"Failed to get client hangup stats for {client_number}: {e}")
+        return {
+            'total_count': 0,
+            'last_data': None,
+            'last_date': None
+        }
+
+def format_last_interaction(client_number):
+    stats = get_client_hangup_stats(client_number)
+    if not stats['last_data']:
+        return ""
+    
+    total_count = stats['total_count']
+    last_date = stats['last_date']
+    last_data = stats['last_data']
+    call_type = int(last_data.get("CallType", 0))
+    call_status = int(last_data.get("CallStatus", -1))
+    extensions = last_data.get("Extensions", [])
+    formatted_exts = " ".join(f"☎️{e}" for e in extensions) if extensions else "☎️Неизвестно"
+    
+    prefix = f"🛎️ {total_count}\nПоследний: {last_date}\n"
+    if call_type == 0 and call_status == 2:  # Входящий успешный
+        return f"{prefix}✅ 💰 ➡️ {formatted_exts}"
+    elif call_type == 1 and call_status == 2:  # Исходящий успешный
+        return f"{prefix}✅ {formatted_exts} ➡️ 💰"
+    elif call_type == 1 and call_status == 0:  # Исходящий неуспешный
+        return f"{prefix}❌ {formatted_exts} ➡️ 💰"
+    elif call_type == 0 and call_status == 0:  # Входящий пропущенный
+        return f"{prefix}❌ 💰 ➡️ {formatted_exts}"
+    elif call_type == 0 and call_status == 1:  # Входящий, клиент положил трубку
+        return f"{prefix}❌ 💰🙅‍♂️"
+    else:
+        return f"{prefix}❌ Неизвестный статус"
+    
 def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
     if not phone:
@@ -368,6 +444,12 @@ async def receive_event(event_type: str, request: Request):
             # Проверяем, начинается ли номер с +000
             display_phone = phone if not phone.startswith("+000") else "Номер не определен"
             txt = f"🛎️ Входящий звонок\n💰 {display_phone}"
+            # Добавляем информацию о последнем взаимодействии для внешнего номера
+            client_number = raw_phone if not is_internal_number(raw_phone) else callee
+            if client_number and not is_internal_number(client_number):
+                last_interaction = format_last_interaction(client_number)
+                if last_interaction:
+                    txt += f"\n\n{last_interaction}"
         try:
             reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_internal) if not is_internal else None
             logging.info(f"Start: Looking for reply_id for caller={raw_phone}, reply_id={reply_id}")
@@ -409,6 +491,12 @@ async def receive_event(event_type: str, request: Request):
             else:
                 # Входящий звонок (внешний): форматируем экстеншены в столбик после стрелки, убираем "Абонент"
                 txt = f"🛎️ <b>Входящий разговор</b>\n💰 {display_phone} ➡️\n" + "\n".join(f"☎️ {e}" for e in exts)
+            # Добавляем информацию о последнем взаимодействии для внешнего номера
+            client_number = raw_phone if not is_internal_number(raw_phone) else callee
+            if client_number and not is_internal_number(client_number):
+                last_interaction = format_last_interaction(client_number)
+                if last_interaction:
+                    txt += f"\n\n{last_interaction}"
         if uid in message_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
@@ -494,6 +582,12 @@ async def receive_event(event_type: str, request: Request):
             manager_emoji = "☎️" if is_internal_number(orig_caller) else "💰"
             callee_emoji = "☎️" if is_internal_number(orig_callee) else "💰"
             txt = f"{pre}\n{manager_emoji} {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ {callee_emoji} {display_callee}"
+            # Добавляем информацию о последнем взаимодействии для внешнего номера
+            client_number = orig_callee if not is_internal_number(orig_callee) else orig_caller
+            if client_number and not is_internal_number(client_number):
+                last_interaction = format_last_interaction(client_number)
+                if last_interaction:
+                    txt += f"\n\n{last_interaction}"
         try:
             reply_id = get_relevant_hangup_message_id(orig_caller, orig_callee, is_internal) if not is_internal else None
             logging.info(f"Bridge: Looking for reply_id for caller={orig_caller}, callee={orig_callee}, reply_id={reply_id}")
@@ -604,72 +698,4 @@ async def receive_event(event_type: str, request: Request):
                     m += f" ☎️ {e}"
             elif ct == 0 and cs == 2:
                 m = f"⬇️ ✅ Успешный входящий звонок\n💰 {display_phone}\n⌛ {dur} 🔈 Запись"
-                for e in exts:
-                    m += f" ☎️ {e}"
-            elif ct == 1 and cs == 2:
-                m = f"⬆️ ✅ Успешный исходящий звонок\n💰 {display_phone}\n⌛ {dur} 🔈 Запись"
-                for e in exts:
-                    m += f" ☎️ {e}"
-            else:
-                m = f"❌ Завершённый звонок\n💰 {display_phone}"
-                if dur: m += f"\n⌛ {dur}"
-        try:
-            logging.info(f"Hangup: Preparing to send message for UID={uid}: text={m}, reply_id={reply_id}")
-            sent = None
-            if reply_id:
-                try:
-                    reply_id_int = int(reply_id)
-                    sent = await bot.send_message(
-                        chat_id=TELEGRAM_CHAT_ID, 
-                        text=m, 
-                        reply_to_message_id=reply_id_int,
-                        parse_mode='HTML'
-                    )
-                    logging.info(f"Hangup: Successfully sent as reply with reply_id={reply_id_int} for UID={uid}, message_id={sent.message_id}")
-                except ValueError as ve:
-                    logging.error(f"Hangup: Invalid reply_id format: {reply_id}, error: {ve}")
-                    sent = await bot.send_message(TELEGRAM_CHAT_ID, m, parse_mode='HTML')
-                    logging.info(f"Hangup: Sent without reply_id due to invalid format for UID={uid}, message_id={sent.message_id}")
-                except Exception as re:
-                    logging.error(f"Hangup: Failed to send as reply: {re} for UID={uid}, reply_id={reply_id}")
-                    logging.error(f"Hangup: Traceback: {traceback.format_exc()}")
-                    sent = await bot.send_message(TELEGRAM_CHAT_ID, m, parse_mode='HTML')
-                    logging.info(f"Hangup: Sent without reply_id after failed reply for UID={uid}, message_id={sent.message_id}")
-            else:
-                logging.info(f"Hangup: No reply_id found for UID={uid}, sending without reply")
-                sent = await bot.send_message(TELEGRAM_CHAT_ID, m, parse_mode='HTML')
-                logging.info(f"Hangup: Sent without reply_id for UID={uid}, message_id={sent.message_id}")
-            if not is_internal:
-                pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
-                update_hangup_message_map(caller, callee, sent.message_id, is_internal)
-                logging.info(f"Hangup: Sent message with id={sent.message_id} for pair_key={pair_key}")
-            save_telegram_message(sent.message_id, et, token, caller, callee, is_internal)
-        except Exception as e:
-            logging.error(f"Hangup: Failed to send message: {e} for UID={uid}, text={m}")
-            logging.error(f"Hangup: Traceback: {traceback.format_exc()}")
-            try:
-                sent = await bot.send_message(TELEGRAM_CHAT_ID, m, parse_mode='HTML')
-                if not is_internal:
-                    pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
-                    update_hangup_message_map(caller, callee, sent.message_id, is_internal)
-                    logging.info(f"Hangup: Retry succeeded with message_id={sent.message_id} for UID={uid}")
-                save_telegram_message(sent.message_id, et, token, caller, callee, is_internal)
-            except Exception as e2:
-                logging.error(f"Hangup: Retry also failed: {e2} for UID={uid}, text={m}")
-                logging.error(f"Hangup: Retry traceback: {traceback.format_exc()}")
-        return {"status": "sent"}
-
-    txt = f"📞 Event: {et}\n" + "\n".join(f"{k}: {v}" for k, v in data.items())
-    try:
-        reply_id = get_relevant_hangup_message_id(raw_phone, "", is_internal) if not is_internal else None
-        sent = await bot.send_message(
-            chat_id=TELEGRAM_CHAT_ID,
-            text=txt,
-            reply_to_message_id=reply_id,
-            parse_mode='HTML'
-        ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt, parse_mode='HTML')
-        save_telegram_message(sent.message_id, et, token, raw_phone, "", is_internal)
-        logging.info(f"Sent generic event message with reply_id={reply_id}")
-    except Exception as e:
-        logging.error(f"Failed to send event message: {e}")
-    return {"status": "sent"}
+                for
