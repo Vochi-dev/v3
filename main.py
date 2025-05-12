@@ -461,7 +461,7 @@ async def receive_event(event_type: str, request: Request):
             orig_callee = connected
         key = tuple(sorted([orig_caller, orig_callee]))
         if key in bridge_seen:
-            logging.info(f"Bridge ignored: key {key} already in bridge_seen")
+            logging.info(f"Bridge ignoredady in bridge_seen")
             return {"status": "ignored"}
         if is_internal and caller != orig_caller:
             logging.info(f"Bridge ignored: internal call, caller {caller} != orig_caller {orig_caller}")
@@ -474,13 +474,22 @@ async def receive_event(event_type: str, request: Request):
         if is_internal:
             txt = f"⏱ Идет внутренний разговор\n{orig_caller} ➡️ {orig_callee}"
         else:
-            pre = "✅ Успешный исходящий звонок" if call_type == 1 and status == 2 else "✅ Успешный входящий звонок" if call_type == 0 and status == 2 else "🛎️ Идет разговор"
+            if call_type == 1 and status == 2:
+                pre = "✅ Успешный исходящий звонок"
+            elif call_type == 1:
+                pre = "⬆️ 💬 Исходящий разговор"
+            elif call_type == 0 and status == 2:
+                pre = "✅ Успешный входящий звонок"
+            else:
+                pre = "⬇️ 💬 Входящий разговор"
             formatted_cli = format_phone_number(orig_caller)
             # Проверяем, начинается ли номер с +000
             display_callee = orig_callee if is_internal_number(orig_callee) else format_phone_number(orig_callee)
             if not is_internal_number(orig_callee) and display_callee.startswith("+000"):
                 display_callee = "Номер не определен"
-            txt = f"{pre}\nАбонент: {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ 🛎️{display_callee}"
+            # Для внешних звонков используем ☎️ перед номером менеджера
+            manager_emoji = "☎️" if is_internal_number(orig_caller) else ""
+            txt = f"{pre}\nАбонент: {manager_emoji}{orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ 🛎️{display_callee}"
         try:
             reply_id = get_relevant_hangup_message_id(orig_caller, orig_callee, is_internal) if not is_internal else None
             logging.info(f"Bridge: Looking for reply_id for caller={orig_caller}, callee={orig_callee}, reply_id={reply_id}")
