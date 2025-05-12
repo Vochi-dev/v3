@@ -20,8 +20,8 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
-TELEGRAM_CHAT_ID = "374573193"
+TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"  # Замените на ваш токен
+TELEGRAM_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID"      # Замените на ID вашего чата
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 # Message stores
@@ -62,7 +62,7 @@ def init_database_tables():
                 logging.info("Added 'token' column to 'events' table")
             except Exception as e:
                 logging.warning(f"Could not add 'token' column to 'events' table: {e}")
-        
+
         # Таблица для сообщений Telegram с токеном и дополнительными полями
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS telegram_messages (
@@ -118,6 +118,7 @@ def save_telegram_message(message_id, event_type, token, caller, callee, is_inte
         logging.error(f"Failed to save Telegram message: {e}")
 
 def load_hangup_message_history():
+    logging.info("load_hangup_message_history: Starting to load history...")
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -160,9 +161,9 @@ def load_hangup_message_history():
         for key in hangup_message_map:
             hangup_message_map[key] = hangup_message_map[key][-5:]
         conn.close()
-        logging.info(f"Loaded hangup message history: {hangup_message_map}")
+        logging.info(f"load_hangup_message_history: History loaded successfully: {hangup_message_map}")
     except Exception as e:
-        logging.error(f"Failed to load hangup message history: {e}")
+        logging.error(f"load_hangup_message_history: Failed to load hangup message history: {e}")
 
 def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
@@ -277,7 +278,7 @@ def get_last_call_info(external_number: str) -> str:
 
         # сколько всего разговоров с этим номером
         cur.execute("""
-            SELECT COUNT(*) 
+            SELECT COUNT(*)
             FROM telegram_messages
             WHERE event_type = 'hangup'
               AND (caller = ? OR callee = ?)
@@ -364,7 +365,8 @@ async def startup_tasks():
                 try:
                     txt = active_bridges[uid]["text"]
                     caller = active_bridges[uid].get("cli")
-                    callee = active_bridges[uid].get("op")
+                    callee = active_bridges
+                    [uid].get("op")
                     is_internal = is_internal_number(caller) and is_internal_number(callee)
                     reply_id = get_relevant_hangup_message_id(caller, callee, is_internal) if not is_internal else None
                     token = dial_cache.get(uid, {}).get("token", "")
@@ -680,8 +682,8 @@ async def receive_event(event_type: str, request: Request):
                 try:
                     reply_id_int = int(reply_id)
                     sent = await bot.send_message(
-                        chat_id=TELEGRAM_CHAT_ID, 
-                        text=m, 
+                        chat_id=TELEGRAM_CHAT_ID,
+                        text=m,
                         reply_to_message_id=reply_id_int,
                         parse_mode='HTML'
                     )
