@@ -528,35 +528,24 @@ async def receive_event(event_type: str, request: Request):
         except Exception as e:
             logging.error(f"Failed to send dial message: {e}")
         return {"status": "sent"}
-# Продолжение функции receive_event из части 2.1
-# Этот заголовок добавлен для корректного синтаксиса в редакторе
-@app.post("/{event_type}")
-async def receive_event(event_type: str, request: Request):
-    data = await request.json()
-    et = event_type.lower()
-    uid = data.get("UniqueId", "")
-    raw_phone = data.get("Phone") or data.get("CallerIDNum") or data.get("ConnectedLineNum") or ""
-    phone = format_phone_number(raw_phone)
-    call_type = int(data.get("CallType", 0))
-    token = data.get("Token", "")
-    # Примечание: Это заглушка для синтаксиса, полная логика находится в части 2.1
-
-    is_internal = call_type == 2 or (is_internal_number(raw_phone) and all(is_internal_number(e) for e in data.get("Extensions", [])))
-
     if et == "bridge":
         caller = data.get("CallerIDNum", "")
         connected = data.get("ConnectedLineNum", "")
         status = int(data.get("CallStatus", 0))
-        logging.info(f"Bridge: Processing with caller={caller}, connected={connected}, status={status}")
+        logging.info(f"Bridge: Processing with caller={caller}, connected={connected}, status={status}, full_data={data}")
+        # Временно убираем игнорирование для отладки
         if caller == "<unknown>" and connected == "<unknown>":
-            logging.info(f"Bridge ignored: both caller and connected are <unknown>")
-            return {"status": "ignored"}
+            logging.warning(f"Bridge: both caller and connected are <unknown>, continuing for debug")
         orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(connected)
         if not orig_uid:
-            logging.info(f"Bridge ignored: no orig_uid found for caller={caller}, connected={connected}, dial_phone_to_uid={dial_phone_to_uid}")
-            return {"status": "ignored"}
-        dial_data = dial_cache.get(orig_uid, {})
-        call_type = dial_data.get("call_type", call_type)
+            logging.warning(f"Bridge: no orig_uid found for caller={caller}, connected={connected}, dial_phone_to_uid={dial_phone_to_uid}")
+            # Временно продолжаем обработку даже без orig_uid для отладки
+            orig_uid = uid  # Используем текущий UID как fallback
+            dial_data = {}
+            call_type = 0  # Default to incoming
+        else:
+            dial_data = dial_cache.get(orig_uid, {})
+            call_type = dial_data.get("call_type", call_type)
         token = dial_data.get("token", token)  # Используем токен из кэша или текущий
         logging.info(f"Bridge: orig_uid={orig_uid}, call_type={call_type}, dial_data={dial_data}")
         if call_type == 1:  # Outgoing call
@@ -567,11 +556,9 @@ async def receive_event(event_type: str, request: Request):
             orig_callee = connected
         key = tuple(sorted([orig_caller, orig_callee]))
         if key in bridge_seen:
-            logging.info(f"Bridge ignored: key {key} already in bridge_seen")
-            return {"status": "ignored"}
+            logging.info(f"Bridge: key {key} already in bridge_seen, continuing for debug")
         if is_internal and caller != orig_caller:
-            logging.info(f"Bridge ignored: internal call, caller {caller} != orig_caller {orig_caller}")
-            return {"status": "ignored"}
+            logging.info(f"Bridge: internal call mismatch, caller {caller} != orig_caller {orig_caller}, continuing for debug")
         try:
             await bot.delete_message(TELEGRAM_CHAT_ID, dial_store.pop(orig_uid, 0))
         except Exception as e:
@@ -593,7 +580,6 @@ async def receive_event(event_type: str, request: Request):
             display_callee = orig_callee if is_internal_number(orig_callee) else format_phone_number(orig_callee)
             if not is_internal_number(orig_callee) and display_callee.startswith("+000"):
                 display_callee = "Номер не определен"
-            # Для внешних звонков используем ☎️ перед номером менеджера
             manager_emoji = "☎️" if is_internal_number(orig_caller) else "💰"
             callee_emoji = "☎️" if is_internal_number(orig_callee) else "💰"
             txt = f"{pre}\n{manager_emoji} {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ {callee_emoji} {display_callee}"
@@ -620,10 +606,10 @@ async def receive_event(event_type: str, request: Request):
             logging.info(f"Bridge: Saved message_id={sent.message_id} for caller={orig_caller}, callee={orig_callee}, reply_id={reply_id}")
         except Exception as e:
             logging.error(f"Failed to send bridge message: {e}")
-        return {"status": "sent"}  
+        return {"status": "sent"}
     if et == "hangup":
         if not raw_phone:
-            logging.info(f"Hangup: Ignored due to empty raw_phone, UID={uid}")
+            logging.warning(f"Hangup: Ignored due to empty raw_phone, UID={uid}, full_data={data}")
             return {"status": "ignored"}
         logging.info(f"Hangup: Processing for UID={uid}, raw_phone={raw_phone}, data={data}")
         for store in (message_store, dial_store, bridge_store):
@@ -684,10 +670,8 @@ async def receive_event(event_type: str, request: Request):
         logging.info(f"Hangup DEBUG: call_pair_message_map={call_pair_message_map}")
         logging.info(f"Hangup DEBUG: hangup_message_map={hangup_message_map}")
         if is_internal:
-            # Проверяем длину внутренних номеров только для внутренних вызовов
-            if (is_internal_number(caller) and len(caller) > 3) or (is_internal_number(callee) and len(callee) > 3):
-                logging.info(f"Hangup: Ignored due to internal number length > 3, caller={caller}, callee={callee}, UID={uid}")
-                return {"status": "ignored"}
+            # Убираем проверку длины для отладки
+            logging.info(f"Hangup: Internal call, processing regardless of number length, caller={caller}, callee={callee}, UID={uid}")
             if cs == 2:
                 m = f"✅ Успешный внутренний звонок\n{caller} ➡️ {callee}\n⌛ {dur} 🔈 Запись"
             else:
@@ -779,4 +763,4 @@ async def receive_event(event_type: str, request: Request):
         logging.info(f"Sent generic event message with reply_id={reply_id}")
     except Exception as e:
         logging.error(f"Failed to send event message: {e}")
-    return {"status": "sent"}  
+    return {"status": "sent"}
