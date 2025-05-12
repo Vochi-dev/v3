@@ -403,10 +403,10 @@ async def receive_event(event_type: str, request: Request):
             display_phone = phone if not phone.startswith("+000") else "Номер не определен"
             if call_type == 1:
                 # Исходящий звонок (внешний): форматируем номер в столбик, убираем "Менеджер", используем ☎️
-                txt = f"🛎️ Исходящий звонок\n☎️ {', '.join(map(str, exts))} ➡️\n💰 {display_phone}"
+                txt = f"🛎️ *Исходящий разговор*\n☎️ {', '.join(map(str, exts))} ➡️\n💰 {display_phone}"
             else:
                 # Входящий звонок (внешний): форматируем экстеншены в столбик после стрелки, убираем "Абонент"
-                txt = f"🛎️ Входящий звонок\n💰 {display_phone} ➡️\n" + "\n".join(f"☎️ {e}" for e in exts)
+                txt = f"🛎️ *Входящий разговор*\n💰 {display_phone} ➡️\n" + "\n".join(f"☎️ {e}" for e in exts)
         if uid in message_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
@@ -477,11 +477,11 @@ async def receive_event(event_type: str, request: Request):
             if call_type == 1 and status == 2:
                 pre = "✅ Успешный исходящий звонок"
             elif call_type == 1:
-                pre = "⬆️ 💬 Исходящий разговор"
+                pre = "⬆️ 💬 *Исходящий разговор*"
             elif call_type == 0 and status == 2:
                 pre = "✅ Успешный входящий звонок"
             else:
-                pre = "⬇️ 💬 Входящий разговор"
+                pre = "⬇️ 💬 *Входящий разговор*"
             formatted_cli = format_phone_number(orig_caller)
             # Проверяем, начинается ли номер с +000
             display_callee = orig_callee if is_internal_number(orig_callee) else format_phone_number(orig_callee)
