@@ -125,8 +125,8 @@ async def start_bridge_resender():
                     caller = active_bridges[uid].get("cli")
                     callee = active_bridges[uid].get("op")
                     is_internal = is_internal_number(caller) and is_internal_number(callee)
-                    reply_id = hangup_message_map.get(callee if not is_internal else caller)
-                    logging.info(f"Bridge resend: Looking for reply_id for caller={caller}, callee={callee}, reply_id={reply_id}")
+                    reply_id = hangup_message_map.get(callee) if not is_internal else None
+                    logging.info(f"Bridge resend: Looking for reply_id for caller={caller}, callee={callee}, reply_id={reply_id}, hangup_message_map={hangup_message_map}")
                     sent = await bot.send_message(
                         chat_id=TELEGRAM_CHAT_ID,
                         text=txt,
@@ -166,7 +166,7 @@ async def receive_event(event_type: str, request: Request):
             txt = f"🛎️ Входящий звонок\nАбонент: {phone}"
         try:
             reply_id = hangup_message_map.get(raw_phone) if not is_internal else None
-            logging.info(f"Start: Looking for reply_id for caller={raw_phone}, reply_id={reply_id}")
+            logging.info(f"Start: Looking for reply_id for caller={raw_phone}, reply_id={reply_id}, hangup_message_map={hangup_message_map}")
             sent = await bot.send_message(
                 chat_id=TELEGRAM_CHAT_ID,
                 text=txt,
@@ -202,7 +202,7 @@ async def receive_event(event_type: str, request: Request):
                 pass
         try:
             reply_id = hangup_message_map.get(raw_phone) if not is_internal else None
-            logging.info(f"Dial: Looking for reply_id for caller={raw_phone}, reply_id={reply_id}")
+            logging.info(f"Dial: Looking for reply_id for caller={raw_phone}, reply_id={reply_id}, hangup_message_map={hangup_message_map}")
             sent = await bot.send_message(
                 chat_id=TELEGRAM_CHAT_ID,
                 text=txt,
@@ -226,15 +226,17 @@ async def receive_event(event_type: str, request: Request):
         caller = data.get("CallerIDNum", "")
         connected = data.get("ConnectedLineNum", "")
         status = int(data.get("CallStatus", 0))
+        logging.info(f"Bridge: Processing with caller={caller}, connected={connected}, status={status}")
         if caller == "<unknown>" and connected == "<unknown>":
             logging.info(f"Bridge ignored: both caller and connected are <unknown>")
             return {"status": "ignored"}
         orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(connected)
         if not orig_uid:
-            logging.info(f"Bridge ignored: no orig_uid found for caller={caller}, connected={connected}")
+            logging.info(f"Bridge ignored: no orig_uid found for caller={caller}, connected={connected}, dial_phone_to_uid={dial_phone_to_uid}")
             return {"status": "ignored"}
         dial_data = dial_cache.get(orig_uid, {})
         call_type = dial_data.get("call_type", call_type)
+        logging.info(f"Bridge: orig_uid={orig_uid}, call_type={call_type}, dial_data={dial_data}")
         if call_type == 1:  # Outgoing call
             orig_caller = connected  # Internal number
             orig_callee = dial_data.get("caller", caller)  # External number
@@ -260,8 +262,8 @@ async def receive_event(event_type: str, request: Request):
             formatted_cli = format_phone_number(orig_caller)
             txt = f"{pre}\nАбонент: {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ 🛎️{orig_callee if is_internal_number(orig_callee) else format_phone_number(orig_callee)}"
         try:
-            reply_id = hangup_message_map.get(orig_callee if call_type == 0 else orig_caller) if not is_internal else None
-            logging.info(f"Bridge: Looking for reply_id for caller={orig_caller}, callee={orig_callee}, reply_id={reply_id}")
+            reply_id = hangup_message_map.get(orig_callee) if not is_internal else None
+            logging.info(f"Bridge: Looking for reply_id for caller={orig_caller}, callee={orig_callee}, call_type={call_type}, reply_id={reply_id}, hangup_message_map={hangup_message_map}")
             sent = await bot.send_message(
                 chat_id=TELEGRAM_CHAT_ID,
                 text=txt,
@@ -300,7 +302,6 @@ async def receive_event(event_type: str, request: Request):
         if caller and callee:
             key = tuple(sorted([caller, callee]))
             bridge_seen.discard(key)
-            # Removed dial_phone_to_uid cleanup to preserve mappings
         st = data.get("StartTime")
         etme = data.get("EndTime")
         cs = int(data.get("CallStatus", -1))
@@ -314,21 +315,11 @@ async def receive_event(event_type: str, request: Request):
         except Exception as e:
             logging.error(f"Hangup: Failed to calculate duration for UID={uid}: {e}")
         external_number = caller if ct == 0 else (callee if callee else caller)
-        reply_id = hangup_message_map.get(external_number)
-        logging.info(f"Hangup: Checked hangup_message_map for external_number={external_number}, reply_id={reply_id}")
-        if reply_id:
-            try:
-                reply_id_int = int(reply_id)
-                if not await is_valid_message_id(reply_id_int):
-                    logging.warning(f"Hangup: reply_id={reply_id_int} is invalid, clearing from hangup_message_map")
-                    reply_id = None
-                    hangup_message_map.pop(external_number, None)
-            except ValueError as ve:
-                logging.error(f"Hangup: Invalid reply_id format: {reply_id}, error: {ve}")
-                reply_id = None
-                hangup_message_map.pop(external_number, None)
+        reply_id = hangup_message_map.get(external_number) or hangup_message_map.get(caller) or hangup_message_map.get(callee)
+        logging.info(f"Hangup: Checked hangup_message_map for external_number={external_number}, caller={caller}, callee={callee}, reply_id={reply_id}, hangup_message_map={hangup_message_map}")
         if not reply_id:
             orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(callee)
+            logging.info(f"Hangup: orig_uid={orig_uid}, dial_phone_to_uid={dial_phone_to_uid}")
             if orig_uid in bridge_store:
                 reply_id = bridge_store[orig_uid]
                 logging.info(f"Hangup: Found reply_id={reply_id} from bridge_store for UID={uid}")
@@ -341,7 +332,7 @@ async def receive_event(event_type: str, request: Request):
             if not reply_id:
                 reply_id = get_call_pair_message(caller, callee, is_internal)
                 logging.info(f"Hangup: Found reply_id={reply_id} from call_pair_message_map for UID={uid}")
-        logging.info(f"Hangup: UID={uid}, caller={caller}, callee={callee}, reply_id={reply_id}, exts={exts}")
+        logging.info(f"Hangup: UID={uid}, caller={caller}, callee={callee}, reply_id={reply_id}, exts={exts}, call_type={ct}")
         logging.info(f"Hangup DEBUG: message_store={message_store}")
         logging.info(f"Hangup DEBUG: dial_store={dial_store}")
         logging.info(f"Hangup DEBUG: bridge_store={bridge_store}")
