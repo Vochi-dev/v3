@@ -402,11 +402,11 @@ async def receive_event(event_type: str, request: Request):
             # Проверяем, начинается ли номер с +000
             display_phone = phone if not phone.startswith("+000") else "Номер не определен"
             if call_type == 1:
-                # Исходящий звонок (внешний): форматируем номер в столбик
-                txt = f"🛎️ Исходящий звонок\nМенеджер: {', '.join(map(str, exts))} ➡️\n{display_phone}"
+                # Исходящий звонок (внешний): форматируем номер в столбик, убираем "Менеджер", используем ☎️
+                txt = f"🛎️ Исходящий звонок\n☎️ {', '.join(map(str, exts))} ➡️\n{display_phone}"
             else:
-                # Входящий звонок (внешний): форматируем экстеншены в столбик после стрелки
-                txt = f"🛎️ Входящий звонок\nАбонент: {display_phone} ➡️\n" + "\n".join(f"🛎️{e}" for e in exts)
+                # Входящий звонок (внешний): форматируем экстеншены в столбик после стрелки, убираем "Абонент"
+                txt = f"🛎️ Входящий звонок\n{display_phone} ➡️\n" + "\n".join(f"☎️ {e}" for e in exts)
         if uid in message_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
@@ -461,7 +461,7 @@ async def receive_event(event_type: str, request: Request):
             orig_callee = connected
         key = tuple(sorted([orig_caller, orig_callee]))
         if key in bridge_seen:
-            logging.info(f"Bridge ignoredady in bridge_seen")
+            logging.info(f"Bridge ignored: key {key} already in bridge_seen")
             return {"status": "ignored"}
         if is_internal and caller != orig_caller:
             logging.info(f"Bridge ignored: internal call, caller {caller} != orig_caller {orig_caller}")
@@ -488,8 +488,9 @@ async def receive_event(event_type: str, request: Request):
             if not is_internal_number(orig_callee) and display_callee.startswith("+000"):
                 display_callee = "Номер не определен"
             # Для внешних звонков используем ☎️ перед номером менеджера
-            manager_emoji = "☎️" if is_internal_number(orig_caller) else ""
-            txt = f"{pre}\nАбонент: {manager_emoji}{orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ 🛎️{display_callee}"
+            manager_emoji = "☎️" if is_internal_number(orig_caller) else "🛎️"
+            callee_emoji = "☎️" if is_internal_number(orig_callee) else "🛎️"
+            txt = f"{pre}\n{manager_emoji} {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ {callee_emoji} {display_callee}"
         try:
             reply_id = get_relevant_hangup_message_id(orig_caller, orig_callee, is_internal) if not is_internal else None
             logging.info(f"Bridge: Looking for reply_id for caller={orig_caller}, callee={orig_callee}, reply_id={reply_id}")
