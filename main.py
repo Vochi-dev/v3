@@ -181,9 +181,14 @@ def format_phone_number(phone: str) -> str:
         digits = e164[1:]
         cc = str(parsed.country_code)
         rest = digits[len(cc):]
-        code = rest[:2]
-        num = rest[2:]
-        return f"+{cc} ({code}) {num[:3]}-{num[3:5]}-{num[5:]}"
+        if cc == "7":  # Специальная обработка для России (трехзначный код оператора)
+            code = rest[:3] if len(rest) > 3 else rest
+            num = rest[len(code):]
+            return f"+{cc} ({code}) {num[:3]}-{num[3:5]}-{num[5:]}"
+        else:
+            code = rest[:2]
+            num = rest[2:]
+            return f"+{cc} ({code}) {num[:3]}-{num[3:5]}-{num[5:]}"
     except Exception:
         return phone
 
@@ -324,8 +329,9 @@ async def startup_tasks():
                     sent = await bot.send_message(
                         chat_id=TELEGRAM_CHAT_ID,
                         text=txt,
-                        reply_to_message_id=reply_id
-                    ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
+                        reply_to_message_id=reply_id,
+                        parse_mode='HTML'
+                    ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt, parse_mode='HTML')
                     bridge_store[uid] = sent.message_id
                     if not is_internal:
                         update_call_pair_message(caller, callee, sent.message_id, is_internal)
@@ -373,8 +379,9 @@ async def receive_event(event_type: str, request: Request):
             sent = await bot.send_message(
                 chat_id=TELEGRAM_CHAT_ID,
                 text=txt,
-                reply_to_message_id=reply_id
-            ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
+                reply_to_message_id=reply_id,
+                parse_mode='HTML'
+            ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt, parse_mode='HTML')
             message_store[uid] = sent.message_id
             if not is_internal:
                 update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
@@ -403,10 +410,10 @@ async def receive_event(event_type: str, request: Request):
             display_phone = phone if not phone.startswith("+000") else "Номер не определен"
             if call_type == 1:
                 # Исходящий звонок (внешний): форматируем номер в столбик, убираем "Менеджер", используем ☎️
-                txt = f"🛎️ *Исходящий разговор*\n☎️ {', '.join(map(str, exts))} ➡️\n💰 {display_phone}"
+                txt = f"⬆️ <b>Набираем номер</b>\n☎️ {', '.join(map(str, exts))} ➡️\n💰 {display_phone}"
             else:
                 # Входящий звонок (внешний): форматируем экстеншены в столбик после стрелки, убираем "Абонент"
-                txt = f"🛎️ *Входящий разговор*\n💰 {display_phone} ➡️\n" + "\n".join(f"☎️ {e}" for e in exts)
+                txt = f"🛎️ <b>Входящий разговор</b>\n💰 {display_phone} ➡️\n" + "\n".join(f"☎️ {e}" for e in exts)
         if uid in message_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
@@ -419,8 +426,9 @@ async def receive_event(event_type: str, request: Request):
             sent = await bot.send_message(
                 chat_id=TELEGRAM_CHAT_ID,
                 text=txt,
-                reply_to_message_id=reply_id
-            ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
+                reply_to_message_id=reply_id,
+                parse_mode='HTML'
+            ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt, parse_mode='HTML')
             dial_store[uid] = sent.message_id
             dial_cache[uid] = {"call_type": call_type, "extensions": exts, "caller": raw_phone, "token": token}
             dial_phone_to_uid[raw_phone] = uid
@@ -477,11 +485,11 @@ async def receive_event(event_type: str, request: Request):
             if call_type == 1 and status == 2:
                 pre = "✅ Успешный исходящий звонок"
             elif call_type == 1:
-                pre = "⬆️ 💬 *Исходящий разговор*"
+                pre = "⬆️ 💬 <b>Исходящий разговор</b>"
             elif call_type == 0 and status == 2:
                 pre = "✅ Успешный входящий звонок"
             else:
-                pre = "⬇️ 💬 *Входящий разговор*"
+                pre = "⬇️ 💬 <b>Входящий разговор</b>"
             formatted_cli = format_phone_number(orig_caller)
             # Проверяем, начинается ли номер с +000
             display_callee = orig_callee if is_internal_number(orig_callee) else format_phone_number(orig_callee)
@@ -497,8 +505,9 @@ async def receive_event(event_type: str, request: Request):
             sent = await bot.send_message(
                 chat_id=TELEGRAM_CHAT_ID,
                 text=txt,
-                reply_to_message_id=reply_id
-            ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
+                reply_to_message_id=reply_id,
+                parse_mode='HTML'
+            ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt, parse_mode='HTML')
             bridge_store[orig_uid] = sent.message_id
             bridge_seen.add(key)
             active_bridges[orig_uid] = {"text": txt, "cli": orig_caller, "op": orig_callee}
@@ -613,21 +622,22 @@ async def receive_event(event_type: str, request: Request):
                     sent = await bot.send_message(
                         chat_id=TELEGRAM_CHAT_ID, 
                         text=m, 
-                        reply_to_message_id=reply_id_int
+                        reply_to_message_id=reply_id_int,
+                        parse_mode='HTML'
                     )
                     logging.info(f"Hangup: Successfully sent as reply with reply_id={reply_id_int} for UID={uid}, message_id={sent.message_id}")
                 except ValueError as ve:
                     logging.error(f"Hangup: Invalid reply_id format: {reply_id}, error: {ve}")
-                    sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
+                    sent = await bot.send_message(TELEGRAM_CHAT_ID, m, parse_mode='HTML')
                     logging.info(f"Hangup: Sent without reply_id due to invalid format for UID={uid}, message_id={sent.message_id}")
                 except Exception as re:
                     logging.error(f"Hangup: Failed to send as reply: {re} for UID={uid}, reply_id={reply_id}")
                     logging.error(f"Hangup: Traceback: {traceback.format_exc()}")
-                    sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
+                    sent = await bot.send_message(TELEGRAM_CHAT_ID, m, parse_mode='HTML')
                     logging.info(f"Hangup: Sent without reply_id after failed reply for UID={uid}, message_id={sent.message_id}")
             else:
                 logging.info(f"Hangup: No reply_id found for UID={uid}, sending without reply")
-                sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
+                sent = await bot.send_message(TELEGRAM_CHAT_ID, m, parse_mode='HTML')
                 logging.info(f"Hangup: Sent without reply_id for UID={uid}, message_id={sent.message_id}")
             if not is_internal:
                 pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
@@ -638,7 +648,7 @@ async def receive_event(event_type: str, request: Request):
             logging.error(f"Hangup: Failed to send message: {e} for UID={uid}, text={m}")
             logging.error(f"Hangup: Traceback: {traceback.format_exc()}")
             try:
-                sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
+                sent = await bot.send_message(TELEGRAM_CHAT_ID, m, parse_mode='HTML')
                 if not is_internal:
                     pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
                     update_hangup_message_map(caller, callee, sent.message_id, is_internal)
@@ -655,8 +665,9 @@ async def receive_event(event_type: str, request: Request):
         sent = await bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
             text=txt,
-            reply_to_message_id=reply_id
-        ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
+            reply_to_message_id=reply_id,
+            parse_mode='HTML'
+        ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt, parse_mode='HTML')
         save_telegram_message(sent.message_id, et, token, raw_phone, "", is_internal)
         logging.info(f"Sent generic event message with reply_id={reply_id}")
     except Exception as e:
