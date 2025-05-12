@@ -33,7 +33,7 @@ dial_cache = {}            # UniqueId -> call details cache
 dial_phone_to_uid = {}     # Phone number -> UniqueId mapping
 active_bridges = {}        # UniqueId -> bridge details
 
-# Improved caller-callee pair tracking
+# Caller-callee pair tracking
 call_pair_message_map = {} # (caller, callee) -> latest message_id
 hangup_message_map = {}    # caller -> latest hangup message_id
 
@@ -100,6 +100,17 @@ def get_call_pair_message(caller, callee, is_internal=False):
                 return msg_id
     logging.warning(f"No message found for caller={caller}, callee={callee}, is_internal={is_internal}")
     return None
+
+async def is_valid_message_id(message_id: int) -> bool:
+    """Check if a message_id is valid by attempting to interact with Telegram API."""
+    try:
+        # Telegram API doesn't provide a direct way to check message existence,
+        # so we check bot's access to the chat
+        await bot.get_chat_member(chat_id=TELEGRAM_CHAT_ID, user_id=bot.id)
+        return True
+    except Exception as e:
+        logging.error(f"Invalid message_id={message_id}: {e}")
+        return False
 
 @app.on_event("startup")
 async def start_bridge_resender():
@@ -208,7 +219,7 @@ async def receive_event(event_type: str, request: Request):
             return {"status": "ignored"}
         dial_data = dial_cache.get(orig_uid, {})
         orig_caller = dial_data.get("caller", caller)
-        orig_callee = dial_data.get("extensions", [connected])[0] if dial_data.get("extensions") else connected
+        orig_callee = connected  # Use ConnectedLineNum directly
         key = tuple(sorted([orig_caller, orig_callee]))
         if key in bridge_seen:
             logging.info(f"Bridge ignored: key {key} already in bridge_seen")
@@ -279,7 +290,19 @@ async def receive_event(event_type: str, request: Request):
         # Prioritize reply_id from hangup_message_map
         reply_id = hangup_message_map.get(caller)
         logging.info(f"Hangup: Checked hangup_message_map for caller={caller}, reply_id={reply_id}")
-        # If no previous hangup, fall back to bridge/dial/start
+        # Validate reply_id
+        if reply_id:
+            try:
+                reply_id_int = int(reply_id)
+                if not await is_valid_message_id(reply_id_int):
+                    logging.warning(f"Hangup: reply_id={reply_id_int} is invalid, clearing from hangup_message_map")
+                    reply_id = None
+                    hangup_message_map.pop(caller, None)
+            except ValueError as ve:
+                logging.error(f"Hangup: Invalid reply_id format: {reply_id}, error: {ve}")
+                reply_id = None
+                hangup_message_map.pop(caller, None)
+        # If no valid hangup reply_id, fall back to bridge/dial/start
         if not reply_id:
             orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(callee)
             if orig_uid in bridge_store:
@@ -294,7 +317,7 @@ async def receive_event(event_type: str, request: Request):
             if not reply_id:
                 reply_id = get_call_pair_message(caller, callee, is_internal)
                 logging.info(f"Hangup: Found reply_id={reply_id} from call_pair_message_map for UID={uid}")
-        logging.info(f"Hangup: UID={uid}, caller={caller}, callee={callee}, reply_id={reply_id}")
+        logging.info(f"Hangup: UID={uid}, caller={caller}, callee={callee}, reply_id={reply_id}, exts={exts}")
         logging.info(f"Hangup DEBUG: message_store={message_store}")
         logging.info(f"Hangup DEBUG: dial_store={dial_store}")
         logging.info(f"Hangup DEBUG: bridge_store={bridge_store}")
@@ -322,17 +345,18 @@ async def receive_event(event_type: str, request: Request):
                     m += f" ☎️ {e}"
             elif ct == 0 and cs == 2:
                 m = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
-                if exts:
-                    m += f" ☎️ {exts[0]}"
+                for e in exts:
+                    m += f" ☎️ {e}"
             elif ct == 1 and cs == 2:
                 m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {phone}\n⌛ {dur} 🔈 Запись"
-                if exts:
-                    m += f" ☎️ {exts[0]}"
+                for e in exts:
+                    m += f" ☎️ {e}"
             else:
                 m = f"❌ Завершённый звонок\nАбонент: {phone}"
                 if dur: m += f"\n⌛ {dur}"
         try:
             logging.info(f"Hangup: Preparing to send message for UID={uid}: text={m}, reply_id={reply_id}")
+            sent = None
             if reply_id:
                 try:
                     reply_id_int = int(reply_id)
