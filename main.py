@@ -519,6 +519,7 @@ async def receive_event(event_type: str, request: Request):
             logging.error(f"Failed to send dial message: {e}")
         return {"status": "sent"}
     # Строки 471-510
+    # Строки для замены в событии bridge
     if et == "bridge":
         caller = data.get("CallerIDNum", "")
         connected = data.get("ConnectedLineNum", "")
@@ -556,9 +557,11 @@ async def receive_event(event_type: str, request: Request):
             logging.error(f"Failed to delete dial message in bridge: {e}")
             pass
         if is_internal:
-            # Проверяем, совпадают ли номера, и добавляем альтернативный текст
+            # Проверяем, совпадают ли номера, и добавляем альтернативный текст с данными из Channel или Exten
             if orig_caller == orig_callee:
-                txt = f"⏱ Идет внутренний разговор (возможно ошибка данных)\n{orig_caller} ➡️ {orig_callee} (same number)"
+                channel_info = data.get("Channel", "Unknown Channel")
+                exten_info = data.get("Exten", "Unknown Exten")
+                txt = f"⏱ Идет внутренний разговор (возможно ошибка данных)\n{orig_caller} ➡️ {orig_callee} (same number)\n📡 Channel: {channel_info}\n🔄 Exten: {exten_info}"
             else:
                 txt = f"⏱ Идет внутренний разговор\n{orig_caller} ➡️ {orig_callee}"
         else:
@@ -570,7 +573,6 @@ async def receive_event(event_type: str, request: Request):
                 pre = "✅ Успешный входящий звонок"
             else:
                 pre = "⬇️ 💬 <b>Входящий разговор</b>"
-                # Строки 511-550
             formatted_cli = format_phone_number(orig_caller)
             # Проверяем, начинается ли номер с +000
             display_callee = orig_callee if is_internal_number(orig_callee) else format_phone_number(orig_callee)
@@ -579,7 +581,9 @@ async def receive_event(event_type: str, request: Request):
             manager_emoji = "☎️" if is_internal_number(orig_caller) else "💰"
             callee_emoji = "☎️" if is_internal_number(orig_callee) else "💰"
             if orig_caller == orig_callee:
-                txt = f"{pre} (возможно ошибка данных)\n{manager_emoji} {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ {callee_emoji} {display_callee} (same number)"
+                channel_info = data.get("Channel", "Unknown Channel")
+                exten_info = data.get("Exten", "Unknown Exten")
+                txt = f"{pre} (возможно ошибка данных)\n{manager_emoji} {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ {callee_emoji} {display_callee} (same number)\n📡 Channel: {channel_info}\n🔄 Exten: {exten_info}"
             else:
                 txt = f"{pre}\n{manager_emoji} {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ {callee_emoji} {display_callee}"
             # Добавляем информацию о последнем звонке
