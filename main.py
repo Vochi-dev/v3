@@ -293,7 +293,7 @@ async def startup_tasks():
     logging.info("Starting up the application...")
     try:
         # Инициализация таблиц в базе данных
-        init  init_database_tables()
+        init_database_tables()
         # Загрузка истории hangup-сообщений из базы данных
         load_hangup_message_history()
     except Exception as e:
