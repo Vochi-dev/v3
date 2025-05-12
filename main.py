@@ -163,6 +163,7 @@ def load_hangup_message_history():
         logging.info(f"Loaded hangup message history: {hangup_message_map}")
     except Exception as e:
         logging.error(f"Failed to load hangup message history: {e}")
+
 def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
     if not phone:
@@ -304,6 +305,8 @@ def get_last_call_info(external_number: str) -> str:
     history = sorted(history, key=lambda x: x['timestamp'], reverse=True)
     last_call = history[0]
     last_timestamp = datetime.fromisoformat(last_call['timestamp'])
+    # Добавляем поправку на GMT+3 (добавляем 3 часа)
+    last_timestamp = last_timestamp.replace(hour=(last_timestamp.hour + 3) % 24)
     formatted_date = last_timestamp.strftime("%d.%m.%Y %H:%M")
     
     caller = last_call['caller']
@@ -326,7 +329,7 @@ def get_last_call_info(external_number: str) -> str:
         manager = caller
         client = callee
     else:
-        return f"🛎️ {call_count}\nПоследний: {formatted_date}\n❓ Неизвестное направление"
+        return ""  # Возвращаем пустую строку, если направление не определено
     
     # Форматируем строку на основе направления и статуса
     status_text = ""
@@ -514,7 +517,6 @@ async def receive_event(event_type: str, request: Request):
         except Exception as e:
             logging.error(f"Failed to send dial message: {e}")
         return {"status": "sent"}
-
     if et == "bridge":
         caller = data.get("CallerIDNum", "")
         connected = data.get("ConnectedLineNum", "")
