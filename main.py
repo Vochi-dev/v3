@@ -110,7 +110,7 @@ async def is_valid_message_id(message_id: int) -> bool:
 async def start_bridge_resender():
     async def resend_loop():
         while True:
-            await asyncio.sleep(5)
+            await asyncio.sleep(10)  # Changed from 5 to 10 seconds
             for uid in list(active_bridges.keys()):
                 msg_id = bridge_store.get(uid)
                 if not msg_id:
@@ -122,14 +122,29 @@ async def start_bridge_resender():
                     pass
                 try:
                     txt = active_bridges[uid]["text"]
-                    sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
-                    bridge_store[uid] = sent.message_id
                     caller = active_bridges[uid].get("cli")
+                    reply_id = hangup_message_map.get(caller)
+                    if reply_id:
+                        try:
+                            reply_id_int = int(reply_id)
+                            if not await is_valid_message_id(reply_id_int):
+                                logging.warning(f"Bridge resend: reply_id={reply_id_int} is invalid for caller={caller}")
+                                reply_id = None
+                        except ValueError as ve:
+                            logging.error(f"Bridge resend: Invalid reply_id format: {reply_id}, error: {ve}")
+                            reply_id = None
+                    sent = await bot.send_message(
+                        chat_id=TELEGRAM_CHAT_ID,
+                        text=txt,
+                        reply_to_message_id=reply_id
+                    ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
+                    bridge_store[uid] = sent.message_id
                     callee = active_bridges[uid].get("op")
                     is_internal = is_internal_number(caller) and is_internal_number(callee)
                     update_call_pair_message(caller, callee, sent.message_id, is_internal)
+                    logging.info(f"Bridge resend: Sent message_id={sent.message_id} for UID={uid}, reply_id={reply_id}")
                 except Exception as e:
-                    logging.error(f"Failed to resend bridge message: {e}")
+                    logging.error(f"Failed to resend bridge message for UID={uid}: {e}")
                     pass
     asyncio.create_task(resend_loop())
 
@@ -158,10 +173,24 @@ async def receive_event(event_type: str, request: Request):
         else:
             txt = f"🛎️ Входящий звонок\nАбонент: {phone}"
         try:
-            sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
+            reply_id = hangup_message_map.get(raw_phone) if not is_internal else None
+            if reply_id:
+                try:
+                    reply_id_int = int(reply_id)
+                    if not await is_valid_message_id(reply_id_int):
+                        logging.warning(f"Start: reply_id={reply_id_int} is invalid for caller={raw_phone}")
+                        reply_id = None
+                except ValueError as ve:
+                    logging.error(f"Start: Invalid reply_id format: {reply_id}, error: {ve}")
+                    reply_id = None
+            sent = await bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=txt,
+                reply_to_message_id=reply_id
+            ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
             message_store[uid] = sent.message_id
             update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
-            logging.info(f"Start: Saved message_id={sent.message_id} for caller={raw_phone}, callee={callee}")
+            logging.info(f"Start: Saved message_id={sent.message_id} for caller={raw_phone}, callee={callee}, reply_id={reply_id}")
         except Exception as e:
             logging.error(f"Failed to send start message: {e}")
         return {"status": "sent"}
@@ -188,7 +217,21 @@ async def receive_event(event_type: str, request: Request):
                 logging.error(f"Failed to delete start message: {e}")
                 pass
         try:
-            sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
+            reply_id = hangup_message_map.get(raw_phone) if not is_internal else None
+            if reply_id:
+                try:
+                    reply_id_int = int(reply_id)
+                    if not await is_valid_message_id(reply_id_int):
+                        logging.warning(f"Dial: reply_id={reply_id_int} is invalid for caller={raw_phone}")
+                        reply_id = None
+                except ValueError as ve:
+                    logging.error(f"Dial: Invalid reply_id format: {reply_id}, error: {ve}")
+                    reply_id = None
+            sent = await bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=txt,
+                reply_to_message_id=reply_id
+            ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
             dial_store[uid] = sent.message_id
             dial_cache[uid] = {"call_type": call_type, "extensions": exts, "caller": raw_phone}
             dial_phone_to_uid[raw_phone] = uid
@@ -198,7 +241,7 @@ async def receive_event(event_type: str, request: Request):
             elif is_internal and callee:
                 dial_phone_to_uid[callee] = uid
             update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
-            logging.info(f"Dial: Saved message_id={sent.message_id} for caller={raw_phone}, callee={callee}")
+            logging.info(f"Dial: Saved message_id={sent.message_id} for caller={raw_phone}, callee={callee}, reply_id={reply_id}")
         except Exception as e:
             logging.error(f"Failed to send dial message: {e}")
         return {"status": "sent"}
@@ -241,12 +284,26 @@ async def receive_event(event_type: str, request: Request):
             formatted_cli = format_phone_number(orig_caller)
             txt = f"{pre}\nАбонент: {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ 🛎️{orig_callee if is_internal_number(orig_callee) else format_phone_number(orig_callee)}"
         try:
-            sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
+            reply_id = hangup_message_map.get(orig_caller if call_type == 1 else orig_callee) if not is_internal else None
+            if reply_id:
+                try:
+                    reply_id_int = int(reply_id)
+                    if not await is_valid_message_id(reply_id_int):
+                        logging.warning(f"Bridge: reply_id={reply_id_int} is invalid for caller={orig_caller}")
+                        reply_id = None
+                except ValueError as ve:
+                    logging.error(f"Bridge: Invalid reply_id format: {reply_id}, error: {ve}")
+                    reply_id = None
+            sent = await bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=txt,
+                reply_to_message_id=reply_id
+            ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
             bridge_store[orig_uid] = sent.message_id
             bridge_seen.add(key)
             active_bridges[orig_uid] = {"text": txt, "cli": orig_caller, "op": orig_callee}
             update_call_pair_message(orig_caller, orig_callee, sent.message_id, is_internal)
-            logging.info(f"Bridge: Saved message_id={sent.message_id} for caller={orig_caller}, callee={orig_callee}")
+            logging.info(f"Bridge: Saved message_id={sent.message_id} for caller={orig_caller}, callee={orig_callee}, reply_id={reply_id}")
         except Exception as e:
             logging.error(f"Failed to send bridge message: {e}")
         return {"status": "sent"}
