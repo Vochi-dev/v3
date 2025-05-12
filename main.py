@@ -9,6 +9,7 @@ from datetime import datetime
 import asyncio
 import traceback
 from collections import defaultdict
+import sqlite3
 
 app = FastAPI()
 init_db()
@@ -37,6 +38,130 @@ active_bridges = {}        # UniqueId -> bridge details
 # Caller-callee pair tracking
 call_pair_message_map = {} # (caller, callee) -> latest message_id
 hangup_message_map = defaultdict(list)  # number -> list of hangup records (message_id, caller, callee, timestamp)
+
+# Database connection for storing events and Telegram message history
+def get_db_connection():
+    try:
+        conn = sqlite3.connect("/root/asterisk-webhook/asterisk_events.db")
+        conn.row_factory = sqlite3.Row
+        return conn
+    except Exception as e:
+        logging.error(f"Failed to connect to database: {e}")
+        raise
+
+def init_database_tables():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Проверяем, есть ли поле token в таблице events
+        cursor.execute("PRAGMA table_info(events)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'token' not in columns:
+            try:
+                cursor.execute("ALTER TABLE events ADD COLUMN token TEXT")
+                logging.info("Added 'token' column to 'events' table")
+            except Exception as e:
+                logging.warning(f"Could not add 'token' column to 'events' table: {e}")
+        
+        # Таблица для сообщений Telegram с токеном
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS telegram_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                token TEXT,
+                caller TEXT NOT NULL,
+                callee TEXT,
+                is_internal INTEGER NOT NULL,
+                timestamp TEXT NOT NULL
+            )
+        ''')
+        conn.commit()
+        conn.close()
+        logging.info("Initialized database tables: checked 'events' and created 'telegram_messages' if needed")
+    except Exception as e:
+        logging.error(f"Failed to initialize database tables: {e}")
+
+def save_asterisk_event(event_type, unique_id, token, event_data):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        timestamp = datetime.now().isoformat()
+        raw_json = json.dumps(event_data)
+        cursor.execute('''
+            INSERT INTO events (timestamp, event_type, unique_id, raw_json, token)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (timestamp, event_type, unique_id, raw_json, token))
+        conn.commit()
+        conn.close()
+        logging.info(f"Saved Asterisk event: type={event_type}, unique_id={unique_id}, token={token}")
+    except Exception as e:
+        logging.error(f"Failed to save Asterisk event: {e}")
+
+def save_telegram_message(message_id, event_type, token, caller, callee, is_internal):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        timestamp = datetime.now().isoformat()
+        cursor.execute('''
+            INSERT INTO telegram_messages (message_id, event_type, token, caller, callee, is_internal, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (message_id, event_type, token, caller, callee, 1 if is_internal else 0, timestamp))
+        conn.commit()
+        conn.close()
+        logging.info(f"Saved Telegram message: message_id={message_id}, event_type={event_type}, token={token}, caller={caller}, callee={callee}")
+    except Exception as e:
+        logging.error(f"Failed to save Telegram message: {e}")
+
+def load_hangup_message_history():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Загружаем последние 100 записей типа hangup для восстановления истории
+        cursor.execute('''
+            SELECT message_id, token, caller, callee, is_internal, timestamp
+            FROM telegram_messages
+            WHERE event_type = 'hangup'
+            ORDER BY timestamp DESC
+            LIMIT 100
+        ''')
+        rows = cursor.fetchall()
+        hangup_message_map.clear()
+        for row in rows:
+            caller = row['caller']
+            callee = row['callee']
+            message_id = row['message_id']
+            timestamp = row['timestamp']
+            if row['is_internal']:
+                if caller:
+                    hangup_message_map[caller].append({
+                        'message_id': message_id,
+                        'caller': caller,
+                        'callee': callee,
+                        'timestamp': timestamp
+                    })
+                if callee:
+                    hangup_message_map[callee].append({
+                        'message_id': message_id,
+                        'caller': caller,
+                        'callee': callee,
+                        'timestamp': timestamp
+                    })
+            else:
+                if caller:
+                    hangup_message_map[caller].append({
+                        'message_id': message_id,
+                        'caller': caller,
+                        'callee': callee,
+                        'timestamp': timestamp
+                    })
+        # Ограничиваем историю последними 5 записями для каждого номера
+        for key in hangup_message_map:
+            hangup_message_map[key] = hangup_message_map[key][-5:]
+        conn.close()
+        logging.info(f"Loaded hangup message history: {hangup_message_map}")
+    except Exception as e:
+        logging.error(f"Failed to load hangup message history: {e}")
 
 def format_phone_number(phone: str) -> str:
     logging.info(f"Original phone: {phone}")
@@ -164,7 +289,18 @@ async def is_valid_message_id(message_id: int) -> bool:
         return False
 
 @app.on_event("startup")
-async def start_bridge_resender():
+async def startup_tasks():
+    logging.info("Starting up the application...")
+    try:
+        # Инициализация таблиц в базе данных
+        init_database_tables()
+        # Загрузка истории hangup-сообщений из базы данных
+        load_hangup_message_history()
+    except Exception as e:
+        logging.error(f"Failed during startup tasks: {e}")
+        logging.error(f"Startup traceback: {traceback.format_exc()}")
+
+    # Запуск цикла переотправки bridge-сообщений
     async def resend_loop():
         while True:
             await asyncio.sleep(10)  # 10-second interval
@@ -183,6 +319,7 @@ async def start_bridge_resender():
                     callee = active_bridges[uid].get("op")
                     is_internal = is_internal_number(caller) and is_internal_number(callee)
                     reply_id = get_relevant_hangup_message_id(caller, callee, is_internal)
+                    token = dial_cache.get(uid, {}).get("token", "")
                     logging.info(f"Bridge resend: Looking for reply_id for caller={caller}, callee={callee}, reply_id={reply_id}")
                     sent = await bot.send_message(
                         chat_id=TELEGRAM_CHAT_ID,
@@ -191,11 +328,13 @@ async def start_bridge_resender():
                     ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
                     bridge_store[uid] = sent.message_id
                     update_call_pair_message(caller, callee, sent.message_id, is_internal)
+                    save_telegram_message(sent.message_id, "bridge_resend", token, caller, callee, is_internal)
                     logging.info(f"Bridge resend: Sent message_id={sent.message_id} for UID={uid}, reply_id={reply_id}")
                 except Exception as e:
                     logging.error(f"Failed to resend bridge message for UID={uid}: {e}")
                     pass
     asyncio.create_task(resend_loop())
+    logging.info("Startup tasks completed, resend loop started")
 
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
@@ -205,9 +344,13 @@ async def receive_event(event_type: str, request: Request):
     raw_phone = data.get("Phone") or data.get("CallerIDNum") or data.get("ConnectedLineNum") or ""
     phone = format_phone_number(raw_phone)
     call_type = int(data.get("CallType", 0))
+    # Извлекаем токен из данных события (используем поле Token из лога)
+    token = data.get("Token", "")  # Теперь используем поле Token как токен
 
+    # Сохраняем событие Asterisk в базу данных
+    save_asterisk_event(et, uid, token, data)
     log_event(et, uid, json.dumps(data))
-    logging.info(f"Event {et}, UID={uid}, raw={raw_phone}, phone={phone}, data={data}")
+    logging.info(f"Event {et}, UID={uid}, raw={raw_phone}, phone={phone}, token={token}, data={data}")
 
     if et in {"init", "ping", "test", "healthcheck"}:
         return {"status": "ignored"}
@@ -231,6 +374,7 @@ async def receive_event(event_type: str, request: Request):
             ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
             message_store[uid] = sent.message_id
             update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
+            save_telegram_message(sent.message_id, et, token, raw_phone, callee, is_internal)
             logging.info(f"Start: Saved message_id={sent.message_id} for caller={raw_phone}, callee={callee}, reply_id={reply_id}")
         except Exception as e:
             logging.error(f"Failed to send start message: {e}")
@@ -266,7 +410,7 @@ async def receive_event(event_type: str, request: Request):
                 reply_to_message_id=reply_id
             ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
             dial_store[uid] = sent.message_id
-            dial_cache[uid] = {"call_type": call_type, "extensions": exts, "caller": raw_phone}
+            dial_cache[uid] = {"call_type": call_type, "extensions": exts, "caller": raw_phone, "token": token}
             dial_phone_to_uid[raw_phone] = uid
             if call_type == 1 and exts:  # For outgoing calls, map internal numbers
                 for ext in exts:
@@ -274,6 +418,7 @@ async def receive_event(event_type: str, request: Request):
             elif is_internal and callee:
                 dial_phone_to_uid[callee] = uid
             update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
+            save_telegram_message(sent.message_id, et, token, raw_phone, callee, is_internal)
             logging.info(f"Dial: Saved message_id={sent.message_id} for caller={raw_phone}, callee={callee}, reply_id={reply_id}")
         except Exception as e:
             logging.error(f"Failed to send dial message: {e}")
@@ -293,6 +438,7 @@ async def receive_event(event_type: str, request: Request):
             return {"status": "ignored"}
         dial_data = dial_cache.get(orig_uid, {})
         call_type = dial_data.get("call_type", call_type)
+        token = dial_data.get("token", token)  # Используем токен из кэша или текущий
         logging.info(f"Bridge: orig_uid={orig_uid}, call_type={call_type}, dial_data={dial_data}")
         if call_type == 1:  # Outgoing call
             orig_caller = connected  # Internal number
@@ -330,6 +476,7 @@ async def receive_event(event_type: str, request: Request):
             bridge_seen.add(key)
             active_bridges[orig_uid] = {"text": txt, "cli": orig_caller, "op": orig_callee}
             update_call_pair_message(orig_caller, orig_callee, sent.message_id, is_internal)
+            save_telegram_message(sent.message_id, et, token, orig_caller, orig_callee, is_internal)
             logging.info(f"Bridge: Saved message_id={sent.message_id} for caller={orig_caller}, callee={orig_callee}, reply_id={reply_id}")
         except Exception as e:
             logging.error(f"Failed to send bridge message: {e}")
@@ -355,6 +502,7 @@ async def receive_event(event_type: str, request: Request):
             callee = active_bridges.get(uid, {}).get("op", "")
         if not callee and uid in dial_cache:
             callee = dial_cache[uid].get("extensions", [""])[0]
+        token = dial_cache.get(uid, {}).get("token", token)  # Используем токен из кэша или текущий
         active_bridges.pop(uid, None)
         if caller and callee:
             key = tuple(sorted([caller, callee]))
@@ -453,6 +601,7 @@ async def receive_event(event_type: str, request: Request):
                 logging.info(f"Hangup: Sent without reply_id for UID={uid}, message_id={sent.message_id}")
             pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
             update_hangup_message_map(caller, callee, sent.message_id, is_internal)
+            save_telegram_message(sent.message_id, et, token, caller, callee, is_internal)
             logging.info(f"Hangup: Sent message with id={sent.message_id} for pair_key={pair_key}")
         except Exception as e:
             logging.error(f"Hangup: Failed to send message: {e} for UID={uid}, text={m}")
@@ -461,6 +610,7 @@ async def receive_event(event_type: str, request: Request):
                 sent = await bot.send_message(TELEGRAM_CHAT_ID, m)
                 pair_key = update_call_pair_message(caller, callee, sent.message_id, is_internal)
                 update_hangup_message_map(caller, callee, sent.message_id, is_internal)
+                save_telegram_message(sent.message_id, et, token, caller, callee, is_internal)
                 logging.info(f"Hangup: Retry succeeded with message_id={sent.message_id} for UID={uid}")
             except Exception as e2:
                 logging.error(f"Hangup: Retry also failed: {e2} for UID={uid}, text={m}")
@@ -475,6 +625,7 @@ async def receive_event(event_type: str, request: Request):
             text=txt,
             reply_to_message_id=reply_id
         ) if reply_id else await bot.send_message(TELEGRAM_CHAT_ID, txt)
+        save_telegram_message(sent.message_id, et, token, raw_phone, "", is_internal)
         logging.info(f"Sent generic event message with reply_id={reply_id}")
     except Exception as e:
         logging.error(f"Failed to send event message: {e}")
