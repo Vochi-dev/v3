@@ -293,7 +293,7 @@ async def startup_tasks():
     logging.info("Starting up the application...")
     try:
         # Инициализация таблиц в базе данных
-        init_database_tables()
+        init  init_database_tables()
         # Загрузка истории hangup-сообщений из базы данных
         load_hangup_message_history()
     except Exception as e:
@@ -366,7 +366,7 @@ async def receive_event(event_type: str, request: Request):
         else:
             # Проверяем, начинается ли номер с +000
             display_phone = phone if not phone.startswith("+000") else "Номер не определен"
-            txt = f"🛎️ Входящий звонок\nАбонент: {display_phone}"
+            txt = f"🛎️ Входящий звонок\n💶 {display_phone}"
         try:
             reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_internal) if not is_internal else None
             logging.info(f"Start: Looking for reply_id for caller={raw_phone}, reply_id={reply_id}")
@@ -403,10 +403,10 @@ async def receive_event(event_type: str, request: Request):
             display_phone = phone if not phone.startswith("+000") else "Номер не определен"
             if call_type == 1:
                 # Исходящий звонок (внешний): форматируем номер в столбик, убираем "Менеджер", используем ☎️
-                txt = f"🛎️ Исходящий звонок\n☎️ {', '.join(map(str, exts))} ➡️\n{display_phone}"
+                txt = f"💶 Исходящий звонок\n☎️ {', '.join(map(str, exts))} ➡️\n💶 {display_phone}"
             else:
                 # Входящий звонок (внешний): форматируем экстеншены в столбик после стрелки, убираем "Абонент"
-                txt = f"🛎️ Входящий звонок\n{display_phone} ➡️\n" + "\n".join(f"☎️ {e}" for e in exts)
+                txt = f"💶 Входящий звонок\n💶 {display_phone} ➡️\n" + "\n".join(f"☎️ {e}" for e in exts)
         if uid in message_store:
             try:
                 await bot.delete_message(TELEGRAM_CHAT_ID, message_store.pop(uid))
@@ -488,8 +488,8 @@ async def receive_event(event_type: str, request: Request):
             if not is_internal_number(orig_callee) and display_callee.startswith("+000"):
                 display_callee = "Номер не определен"
             # Для внешних звонков используем ☎️ перед номером менеджера
-            manager_emoji = "☎️" if is_internal_number(orig_caller) else "🛎️"
-            callee_emoji = "☎️" if is_internal_number(orig_callee) else "🛎️"
+            manager_emoji = "☎️" if is_internal_number(orig_caller) else "💶"
+            callee_emoji = "☎️" if is_internal_number(orig_callee) else "💶"
             txt = f"{pre}\n{manager_emoji} {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ {callee_emoji} {display_callee}"
         try:
             reply_id = get_relevant_hangup_message_id(orig_caller, orig_callee, is_internal) if not is_internal else None
@@ -581,28 +581,28 @@ async def receive_event(event_type: str, request: Request):
             # Проверяем, начинается ли номер с +000
             display_phone = phone if not phone.startswith("+000") else "Номер не определен"
             if ct == 1 and cs == 0:
-                m = f"⬆️ ❌ Абонент не ответил\nАбонент: {display_phone}"
+                m = f"⬆️ ❌ Абонент не ответил\n💶 {display_phone}"
                 if dur: m += f"\n⌛ {dur}"
                 for e in exts:
                     m += f" ☎️ {e}"
             elif ct == 0 and cs == 1:
-                m = f"⬇️ ❌ Абонент положил трубку\nАбонент: {display_phone}"
+                m = f"⬇️ ❌ Абонент положил трубку\n💶 {display_phone}"
                 if dur: m += f"\n⌛ {dur}"
             elif ct == 0 and cs == 0:
-                m = f"⬇️ ❌ Неотвеченный звонок\nАбонент: {display_phone}"
+                m = f"⬇️ ❌ Неотвеченный звонок\n💶 {display_phone}"
                 if dur: m += f"\n⌛ {dur}"
                 for e in exts:
                     m += f" ☎️ {e}"
             elif ct == 0 and cs == 2:
-                m = f"⬇️ ✅ Успешный входящий звонок\nАбонент: {display_phone}\n⌛ {dur} 🔈 Запись"
+                m = f"⬇️ ✅ Успешный входящий звонок\n💶 {display_phone}\n⌛ {dur} 🔈 Запись"
                 for e in exts:
                     m += f" ☎️ {e}"
             elif ct == 1 and cs == 2:
-                m = f"⬆️ ✅ Успешный исходящий звонок\nАбонент: {display_phone}\n⌛ {dur} 🔈 Запись"
+                m = f"⬆️ ✅ Успешный исходящий звонок\n💶 {display_phone}\n⌛ {dur} 🔈 Запись"
                 for e in exts:
                     m += f" ☎️ {e}"
             else:
-                m = f"❌ Завершённый звонок\nАбонент: {display_phone}"
+                m = f"❌ Завершённый звонок\n💶 {display_phone}"
                 if dur: m += f"\n⌛ {dur}"
         try:
             logging.info(f"Hangup: Preparing to send message for UID={uid}: text={m}, reply_id={reply_id}")
