@@ -216,43 +216,16 @@ def update_call_pair_message(caller, callee, message_id, is_internal=False):
         logging.info(f"Current call_pair_message_map state: {call_pair_message_map}")
     return pair_key
 
-def update_hangup_message_map(caller, callee, message_id, is_internal=False, call_status=-1, call_type=-1, extensions=[]):
-    external_number = caller if not is_internal else None
-    if external_number:
-        hangup_message_map[external_number].append({
-            'message_id': message_id,
-            'caller': caller,
-            'callee': callee,
-            'timestamp': datetime.now().isoformat(),
-            'call_status': call_status,
-            'call_type': call_type,
-            'extensions': extensions
-        })
-        # Ограничиваем историю последними 5 записями
-        hangup_message_map[external_number] = hangup_message_map[external_number][-5:]
-        logging.info(f"Updated hangup_message_map: {external_number} -> {message_id}, history: {hangup_message_map[external_number]}")
-    elif is_internal and caller and callee:
-        hangup_message_map[caller].append({
-            'message_id': message_id,
-            'caller': caller,
-            'callee': callee,
-            'timestamp': datetime.now().isoformat(),
-            'call_status': call_status,
-            'call_type': call_type,
-            'extensions': extensions
-        })
-        hangup_message_map[caller] = hangup_message_map[caller][-5:]
-        hangup_message_map[callee].append({
-            'message_id': message_id,
-            'caller': caller,
-            'callee': callee,
-            'timestamp': datetime.now().isoformat(),
-            'call_status': call_status,
-            'call_type': call_type,
-            'extensions': extensions
-        })
-        hangup_message_map[callee] = hangup_message_map[callee][-5:]
-        logging.info(f"Updated hangup_message_map for internal call: {caller} and {callee}")
+def update_hangup_message_map(caller, callee, message_id, is_internal=False, **_):
+    if is_internal:
+        for num in (caller, callee):
+            if num:
+                hangup_message_map[num].append(message_id)
+                hangup_message_map[num] = hangup_message_map[num][-5:]
+    else:
+        if caller and not is_internal_number(caller):
+            hangup_message_map[caller].append(message_id)
+            hangup_message_map[caller] = hangup_message_map[caller][-5:]
 
 def get_relevant_hangup_message_id(caller, callee, is_internal=False):
     def find_best_match(history, target_number):
@@ -291,72 +264,77 @@ def get_call_pair_message(caller, callee, is_internal=False):
     return None
 
 def get_last_call_info(external_number: str) -> str:
+    """
+    Берём факт + статистику последнего разговора с внешним номером
+    исключительно из БД telegram_messages, а не из оперативного словаря.
+    """
     if not external_number or is_internal_number(external_number):
         return ""
-    
-    history = hangup_message_map.get(external_number, [])
-    if not history:
-        return ""
-    
-    # Считаем общее количество звонков (ограниченное историей в 5 записей)
-    call_count = len(history)
-    
-    # Берем последний звонок (самый новый)
-    history = sorted(history, key=lambda x: x['timestamp'], reverse=True)
-    last_call = history[0]
-    last_timestamp = datetime.fromisoformat(last_call['timestamp'])
-    # Добавляем поправку на GMT+3 (добавляем 3 часа)
-    last_timestamp = last_timestamp.replace(hour=(last_timestamp.hour + 3) % 24)
-    formatted_date = last_timestamp.strftime("%d.%m.%Y %H:%M")
-    
-    caller = last_call['caller']
-    callee = last_call['callee']
-    call_status = last_call['call_status']
-    call_type = last_call['call_type']
-    extensions = last_call['extensions']
-    is_caller_external = not is_internal_number(caller)
-    is_callee_external = not is_internal_number(callee)
-    
-    # Определяем направление звонка
-    if is_caller_external and not is_callee_external:
-        # Входящий звонок (клиент -> менеджер)
-        direction = "incoming"
-        manager = callee
-        client = caller
-    elif is_callee_external and not is_caller_external:
-        # Исходящий звонок (менеджер -> клиент)
-        direction = "outgoing"
-        manager = caller
-        client = callee
-    else:
-        return ""  # Возвращаем пустую строку, если направление не определено
-    
-    # Форматируем строку на основе направления и статуса
-    status_text = ""
-    if direction == "incoming":
-        if call_status == 2:
-            status_text = f"✅ 💰 ➡️ ☎️{manager}"
-        elif call_status == 1:
-            status_text = "❌ 💰🙅‍♂️"
-        else:  # missed or no_answer (call_status == 0)
-            if extensions and len(extensions) > 1:
-                status_text = f"❌ 💰 ➡️ {' '.join([f'☎️{ext}' for ext in extensions])}"
-            else:
-                status_text = f"❌ 💰 ➡️ ☎️{manager}"
-    else:  # outgoing
-        if call_status == 2:
-            status_text = f"✅ ☎️{manager} ➡️ 💰"
-        else:  # no_answer or missed
-            status_text = f"❌ ☎️{manager} ➡️ 💰"
-    
-    return f"🛎️ {call_count}\nПоследний: {formatted_date}\n{status_text}"
-async def is_valid_message_id(message_id: int) -> bool:
+
     try:
-        await bot.get_chat_member(chat_id=TELEGRAM_CHAT_ID, user_id=bot.id)
-        return True
+        conn = get_db_connection()
+        cur  = conn.cursor()
+
+        # сколько всего разговоров с этим номером
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM telegram_messages
+            WHERE event_type = 'hangup'
+              AND (caller = ? OR callee = ?)
+              AND is_internal = 0
+        """, (external_number, external_number))
+        call_count = cur.fetchone()[0]
+        if call_count == 0:
+            conn.close()
+            return ""
+
+        # данные о самом свежем hangup-сообщении
+        cur.execute("""
+            SELECT caller, callee, timestamp, call_status, call_type, extensions
+            FROM telegram_messages
+            WHERE event_type = 'hangup'
+              AND (caller = ? OR callee = ?)
+              AND is_internal = 0
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """, (external_number, external_number))
+        row = cur.fetchone()
+        conn.close()
+
+        ts         = datetime.fromisoformat(row['timestamp']).strftime("%d.%m.%Y %H:%M")
+        caller     = row['caller']
+        callee     = row['callee']
+        call_type  = row['call_type']
+        call_status= row['call_status']
+        exts       = json.loads(row['extensions']) if row['extensions'] else []
+
+        # кто менеджер, кто клиент
+        if is_internal_number(caller):
+            manager = caller
+            client  = callee
+            direction = "outgoing"
+        else:
+            manager = callee
+            client  = caller
+            direction = "incoming"
+
+        # статус-строка
+        if direction == "incoming":
+            if call_status == 2:
+                status = f"✅ 💰 ➡️ ☎️{manager}"
+            elif call_status == 1:
+                status = "❌ 💰🙅‍♂️"
+            else:
+                status = f"❌ 💰 ➡️ {' '.join('☎️'+e for e in exts) if exts else '☎️'+manager}"
+        else:  # исходящий
+            status = "✅ ☎️{} ➡️ 💰".format(manager) if call_status == 2 else "❌ ☎️{} ➡️ 💰".format(manager)
+
+        return f"🛎️ {call_count}\nПоследний: {ts}\n{status}"
+
     except Exception as e:
-        logging.error(f"Invalid message_id={message_id}: {e}")
-        return False
+        logging.error(f"get_last_call_info: DB error {e}")
+        return ""
+
 
 @app.on_event("startup")
 async def startup_tasks():
