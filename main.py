@@ -65,7 +65,6 @@ def is_internal_number(number: str) -> bool:
     return number and re.match(r"^\d{3,4}$", number)
 
 def get_call_pair_key(caller, callee, is_internal=False):
-    """Create a consistent pair key for caller-callee pairs."""
     if not caller or caller == "<unknown>":
         return None
     if is_internal and callee:
@@ -74,7 +73,6 @@ def get_call_pair_key(caller, callee, is_internal=False):
         return (caller,)
 
 def update_call_pair_message(caller, callee, message_id, is_internal=False):
-    """Update the message ID for a caller-callee pair."""
     pair_key = get_call_pair_key(caller, callee, is_internal)
     if pair_key:
         call_pair_message_map[pair_key] = message_id
@@ -87,7 +85,6 @@ def update_call_pair_message(caller, callee, message_id, is_internal=False):
     return pair_key
 
 def get_call_pair_message(caller, callee, is_internal=False):
-    """Get the latest message ID for a caller-callee pair."""
     pair_key = get_call_pair_key(caller, callee, is_internal)
     if pair_key and pair_key in call_pair_message_map:
         message_id = call_pair_message_map[pair_key]
@@ -102,10 +99,7 @@ def get_call_pair_message(caller, callee, is_internal=False):
     return None
 
 async def is_valid_message_id(message_id: int) -> bool:
-    """Check if a message_id is valid by attempting to interact with Telegram API."""
     try:
-        # Telegram API doesn't provide a direct way to check message existence,
-        # so we check bot's access to the chat
         await bot.get_chat_member(chat_id=TELEGRAM_CHAT_ID, user_id=bot.id)
         return True
     except Exception as e:
@@ -144,7 +138,7 @@ async def receive_event(event_type: str, request: Request):
     data = await request.json()
     et = event_type.lower()
     uid = data.get("UniqueId", "")
-    raw_phone = data.get("Phone") or data.get("CallerIDNum") or data.get("ConnectedLineNum") or ""
+    raw_phone = data.get("Phone") or data.get("CallerIDNum") tineNum") or ""
     phone = format_phone_number(raw_phone)
     call_type = int(data.get("CallType", 0))
 
@@ -198,7 +192,10 @@ async def receive_event(event_type: str, request: Request):
             dial_store[uid] = sent.message_id
             dial_cache[uid] = {"call_type": call_type, "extensions": exts, "caller": raw_phone}
             dial_phone_to_uid[raw_phone] = uid
-            if is_internal and callee:
+            if call_type == 1 and exts:  # For outgoing calls, map internal numbers
+                for ext in exts:
+                    dial_phone_to_uid[ext] = uid
+            elif is_internal and callee:
                 dial_phone_to_uid[callee] = uid
             update_call_pair_message(raw_phone, callee, sent.message_id, is_internal)
             logging.info(f"Dial: Saved message_id={sent.message_id} for caller={raw_phone}, callee={callee}")
@@ -218,8 +215,13 @@ async def receive_event(event_type: str, request: Request):
             logging.info(f"Bridge ignored: no orig_uid found for caller={caller}, connected={connected}")
             return {"status": "ignored"}
         dial_data = dial_cache.get(orig_uid, {})
-        orig_caller = dial_data.get("caller", caller)
-        orig_callee = connected  # Use ConnectedLineNum directly
+        call_type = dial_data.get("call_type", call_type)
+        if call_type == 1:  # Outgoing call
+            orig_caller = connected  # Internal number
+            orig_callee = dial_data.get("caller", caller)  # External number
+        else:  # Incoming or internal call
+            orig_caller = dial_data.get("caller", caller)
+            orig_callee = connected
         key = tuple(sorted([orig_caller, orig_callee]))
         if key in bridge_seen:
             logging.info(f"Bridge ignored: key {key} already in bridge_seen")
@@ -236,8 +238,8 @@ async def receive_event(event_type: str, request: Request):
             txt = f"⏱ Идет внутренний разговор\n{orig_caller} ➡️ {orig_callee}"
         else:
             pre = "✅ Успешный исходящий звонок" if call_type == 1 and status == 2 else "✅ Успешный входящий звонок" if call_type == 0 and status == 2 else "🛎️ Идет разговор"
-            formatted_cli = format_phone_number(orig_caller if call_type == 0 else orig_callee)
-            txt = f"{pre}\nАбонент: {formatted_cli} ➡️ 🛎️{orig_callee if call_type == 0 else orig_caller}"
+            formatted_cli = format_phone_number(orig_caller)
+            txt = f"{pre}\nАбонент: {orig_caller if is_internal_number(orig_caller) else formatted_cli} ➡️ 🛎️{orig_callee if is_internal_number(orig_callee) else format_phone_number(orig_callee)}"
         try:
             sent = await bot.send_message(TELEGRAM_CHAT_ID, txt)
             bridge_store[orig_uid] = sent.message_id
@@ -287,10 +289,8 @@ async def receive_event(event_type: str, request: Request):
             dur = f"{secs//60:02}:{secs%60:02}"
         except Exception as e:
             logging.error(f"Hangup: Failed to calculate duration for UID={uid}: {e}")
-        # Prioritize reply_id from hangup_message_map
         reply_id = hangup_message_map.get(caller)
         logging.info(f"Hangup: Checked hangup_message_map for caller={caller}, reply_id={reply_id}")
-        # Validate reply_id
         if reply_id:
             try:
                 reply_id_int = int(reply_id)
@@ -302,7 +302,6 @@ async def receive_event(event_type: str, request: Request):
                 logging.error(f"Hangup: Invalid reply_id format: {reply_id}, error: {ve}")
                 reply_id = None
                 hangup_message_map.pop(caller, None)
-        # If no valid hangup reply_id, fall back to bridge/dial/start
         if not reply_id:
             orig_uid = dial_phone_to_uid.get(caller) or dial_phone_to_uid.get(callee)
             if orig_uid in bridge_store:
@@ -355,7 +354,7 @@ async def receive_event(event_type: str, request: Request):
                 m = f"❌ Завершённый звонок\nАбонент: {phone}"
                 if dur: m += f"\n⌛ {dur}"
         try:
-            logging.info(f"Hangup: Preparing to send message for UID={uid}: text={m}, reply_id={reply_id}")
+            logging.info(f"Hangup: Preparing to send message for UID={uid}: text={m```python
             sent = None
             if reply_id:
                 try:
