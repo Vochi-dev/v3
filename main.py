@@ -298,10 +298,21 @@ def get_last_call_info(external_number: str) -> str:
     if not history:
         return ""
     
-    # Считаем общее количество звонков (ограниченное историей в 5 записей)
-    call_count = len(history)
+    # Считаем общее количество звонков напрямую из базы данных
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COUNT(*) FROM telegram_messages
+            WHERE event_type = 'hangup' AND caller = ?
+        ''', (external_number,))
+        call_count = cursor.fetchone()[0]
+        conn.close()
+    except Exception as e:
+        logging.error(f"Failed to count hangups from database for {external_number}: {e}")
+        call_count = len(history)  # В случае ошибки используем данные из памяти как fallback
     
-    # Берем последний звонок (самый новый)
+    # Берем последний звонок (самый новый) из истории в памяти
     history = sorted(history, key=lambda x: x['timestamp'], reverse=True)
     last_call = history[0]
     last_timestamp = datetime.fromisoformat(last_call['timestamp'])
@@ -517,6 +528,21 @@ async def receive_event(event_type: str, request: Request):
         except Exception as e:
             logging.error(f"Failed to send dial message: {e}")
         return {"status": "sent"}
+# Продолжение функции receive_event из части 2.1
+# Этот заголовок добавлен для корректного синтаксиса в редакторе
+@app.post("/{event_type}")
+async def receive_event(event_type: str, request: Request):
+    data = await request.json()
+    et = event_type.lower()
+    uid = data.get("UniqueId", "")
+    raw_phone = data.get("Phone") or data.get("CallerIDNum") or data.get("ConnectedLineNum") or ""
+    phone = format_phone_number(raw_phone)
+    call_type = int(data.get("CallType", 0))
+    token = data.get("Token", "")
+    # Примечание: Это заглушка для синтаксиса, полная логика находится в части 2.1
+
+    is_internal = call_type == 2 or (is_internal_number(raw_phone) and all(is_internal_number(e) for e in data.get("Extensions", [])))
+
     if et == "bridge":
         caller = data.get("CallerIDNum", "")
         connected = data.get("ConnectedLineNum", "")
@@ -594,8 +620,7 @@ async def receive_event(event_type: str, request: Request):
             logging.info(f"Bridge: Saved message_id={sent.message_id} for caller={orig_caller}, callee={orig_callee}, reply_id={reply_id}")
         except Exception as e:
             logging.error(f"Failed to send bridge message: {e}")
-        return {"status": "sent"}
-
+        return {"status": "sent"}  
     if et == "hangup":
         if not raw_phone:
             logging.info(f"Hangup: Ignored due to empty raw_phone, UID={uid}")
@@ -754,4 +779,4 @@ async def receive_event(event_type: str, request: Request):
         logging.info(f"Sent generic event message with reply_id={reply_id}")
     except Exception as e:
         logging.error(f"Failed to send event message: {e}")
-    return {"status": "sent"}
+    return {"status": "sent"}  
