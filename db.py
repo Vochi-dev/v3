@@ -1,18 +1,23 @@
 import sqlite3
-import logging
 from config import DB_PATH
 
-def get_db_connection():
+def init_database_tables():
     """
-    Returns a connection to SQLite database
+    Create the required tables in the SQLite database.
     """
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    cursor = conn.cursor()
 
-def init_db():
-    """
-    Initialize database tables by delegating to services.events.init_database_tables.
-    """
-    from services.events import init_database_tables
-    init_database_tables()
+    # Создаем таблицу email_users
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS email_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            right_all BOOLEAN DEFAULT 0,
+            right_1 BOOLEAN DEFAULT 0,
+            right_2 BOOLEAN DEFAULT 0
+        );
+    """)
+    conn.commit()
+    conn.close()
