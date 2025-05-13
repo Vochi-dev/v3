@@ -5,6 +5,7 @@ import asyncio
 from telegram import Bot
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+print(f"🔑 TELEGRAM_BOT_TOKEN: {TELEGRAM_BOT_TOKEN}")
 from app.services.events import (
     init_database_tables,
     load_hangup_message_history,
