@@ -38,12 +38,13 @@ async def login_submit(request: Request, password: str = Form(...)):
 async def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
-# Здесь другие роуты, которые связаны с админкой, например, для работы с email-пользователями
+# Новый пункт меню для управления email-пользователями
 @router.get("/email-users", dependencies=[Depends(require_login)], response_class=HTMLResponse)
 async def email_users_admin(request: Request):
-    # Допустим, получаем список пользователей (это просто пример)
-    users = get_all_emails()
+    # Получаем список email пользователей
+    users = get_all_emails()  # Должен быть реализован в app/services/users.py
     users.sort(key=lambda x: x["number"])
+    
     rows = "".join([
         f"<tr><td>{u['number']}</td><td>{u['email']}</td><td>{u['name']}</td>"
         f"<td><input type='checkbox' {'checked' if u['right_all'] else ''}></td>"
@@ -51,6 +52,8 @@ async def email_users_admin(request: Request):
         f"<td><input type='checkbox' {'checked' if u['right_2'] else ''}></td></tr>"
         for u in users
     ])
+    
+    # HTML-шаблон для страницы с email пользователями
     return f"""
     <h1>Email-пользователи</h1>
     <form method="post" enctype="multipart/form-data" action="/admin/upload-emails">
@@ -62,17 +65,22 @@ async def email_users_admin(request: Request):
       {rows}
     </table>
     """
-    
+
+# Роут для загрузки файла с email пользователями
 @router.post("/admin/upload-emails")
 async def upload_emails(file: UploadFile):
     # Чтение и обработка файла
     text_wrapper = TextIOWrapper(file.file, encoding='utf-8')
     reader = csv.DictReader(text_wrapper)
     new_entries = []
+    
     for row in reader:
         email = row.get("Email") or row.get("email") or ""
         name = row.get("NAME") or row.get("Name") or row.get("name") or ""
+        
         if email:
             new_entries.append({"email": email.strip(), "name": name.strip()})
-    add_or_update_emails_from_file(new_entries)
+    
+    # Добавление или обновление email пользователей в базу
+    add_or_update_emails_from_file(new_entries)  # Должен быть реализован в app/services/users.py
     return RedirectResponse(url="/admin/email-users", status_code=303)
