@@ -4,14 +4,14 @@ import asyncio
 
 from telegram import Bot
 
-from app.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-from app.services.events import (
+from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from services.events import (
     init_database_tables,
     load_hangup_message_history,
     save_asterisk_event,
     save_telegram_message,
 )
-from app.services.calls import (
+from services.calls import (
     process_start,
     process_dial,
     process_bridge,
@@ -38,7 +38,7 @@ async def on_startup():
     # prepare DB
     init_database_tables()
     load_hangup_message_history()
-    # background task to re-send active "bridges"
+    # background task: re-send active "bridges" every 10s
     asyncio.create_task(
         create_resend_loop(
             dial_cache,
@@ -56,10 +56,10 @@ async def receive_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # save raw event to DB
+    # save raw Asterisk event
     save_asterisk_event(et, uid, token, data)
 
-    # dispatch to the correct handler
+    # dispatch to handler
     handlers = {
         "start": process_start,
         "dial": process_dial,
@@ -68,7 +68,7 @@ async def receive_event(event_type: str, request: Request):
     }
     handler = handlers.get(et)
     if handler:
-        # all process_* funcs take: bot, chat_id, raw_data
-        return await handler(bot, TELEGRAM_CHAT_ID, data)
+        # each process_* signature: (bot, chat_id, raw_data, dial_cache, bridge_store, active_bridges)
+        return await handler(bot, TELEGRAM_CHAT_ID, data, dial_cache, bridge_store, active_bridges)
 
     return {"status": "ignored"}
