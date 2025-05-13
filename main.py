@@ -64,7 +64,6 @@ async def receive_event(event_type: str, request: Request):
     }
     handler = handlers.get(et)
     if handler:
-        # process_* сами достанут нужные кэши из модуля calls
         return await handler(bot, TELEGRAM_CHAT_ID, data)
 
     return {"status": "ignored"}
