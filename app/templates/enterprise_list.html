@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Список предприятий</title></head>
+<body>
+  <h1>Список предприятий</h1>
+  <a href="/admin/enterprises/create">Добавить новое</a>
+  <table border="1" cellpadding="5" cellspacing="0">
+    <tr>
+      <th>Number</th><th>Name</th><th>Name2</th><th>Bot Token</th><th>Chat ID</th>
+      <th>IP</th><th>Secret</th><th>Host</th><th>Created At</th><th>Actions</th>
+    </tr>
+    {% for ent in enterprises %}
+    <tr>
+      <td>{{ ent.number }}</td>
+      <td>{{ ent.name }}</td>
+      <td>{{ ent.name2 }}</td>
+      <td>{{ ent.bot_token }}</td>
+      <td>{{ ent.chat_id }}</td>
+      <td>{{ ent.ip }}</td>
+      <td>{{ ent.secret }}</td>
+      <td>{{ ent.host }}</td>
+      <td>{{ ent.created_at }}</td>
+      <td>
+        <a href="/admin/enterprises/edit/{{ ent.number }}">Редактировать</a>
+        <form action="/admin/enterprises/delete/{{ ent.number }}" method="post" style="display:inline">
+          <button type="submit" onclick="return confirm('Удалить?')">Удалить</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p><a href="/admin">← назад</a></p>
+</body>
+</html>

@@ -1,0 +1,16 @@
+[0;1;31m×[0m admin_app.service - FastAPI Admin App for Telegram Bot
+     Loaded: loaded (/etc/systemd/system/admin_app.service; enabled; vendor preset: enabled)
+     Active: [0;1;31mfailed[0m (Result: exit-code) since Tue 2025-05-13 07:47:07 UTC; 38min ago
+   Main PID: 2018 (code=exited, status=1/FAILURE)
+        CPU: 405ms
+
+May 13 07:47:07 v3b systemd[1]: Stopped FastAPI Admin App for Telegram Bot.
+May 13 07:47:07 v3b systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185madmin_app.service: Start request repeated too quickly.[0m
+May 13 07:47:07 v3b systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185madmin_app.service: Failed with result 'exit-code'.[0m
+May 13 07:47:07 v3b systemd[1]: [0;1;31m[0;1;39m[0;1;31mFailed to start FastAPI Admin App for Telegram Bot.[0m
+May 13 08:09:03 v3b systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185m/etc/systemd/system/admin_app.service:5: Unknown key name 'WorkingDirectory' in section 'Unit', ignoring.[0m
+May 13 08:09:03 v3b systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185m/etc/systemd/system/admin_app.service:6: Unknown key name 'Environment' in section 'Unit', ignoring.[0m
+May 13 08:09:03 v3b systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185m/etc/systemd/system/admin_app.service:7: Unknown key name 'ExecStart' in section 'Unit', ignoring.[0m
+May 13 08:09:03 v3b systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185m/etc/systemd/system/admin_app.service:8: Unknown key name 'Restart' in section 'Unit', ignoring.[0m
+May 13 08:09:03 v3b systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185m/etc/systemd/system/admin_app.service:9: Unknown key name 'RestartSec' in section 'Unit', ignoring.[0m
+May 13 08:09:03 v3b systemd[1]: [0;1;31m[0;1;39m[0;1;31madmin_app.service: Service has no ExecStart=, ExecStop=, or SuccessAction=. Refusing.[0m
