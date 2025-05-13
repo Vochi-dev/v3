@@ -19,11 +19,10 @@ from app.services.calls import (
     create_resend_loop,
 )
 
-
 app = FastAPI()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# temporary in-memory stores for calls
+# in-memory stores
 dial_cache = {}
 bridge_store = {}
 active_bridges = {}
@@ -36,10 +35,8 @@ logging.basicConfig(
 
 @app.on_event("startup")
 async def on_startup():
-    # prepare DB
     init_database_tables()
     load_hangup_message_history()
-    # background task: re-send active "bridges" every 10s
     asyncio.create_task(
         create_resend_loop(
             dial_cache,
@@ -57,10 +54,8 @@ async def receive_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # save raw Asterisk event
     save_asterisk_event(et, uid, token, data)
 
-    # dispatch to handler
     handlers = {
         "start": process_start,
         "dial": process_dial,
@@ -69,7 +64,7 @@ async def receive_event(event_type: str, request: Request):
     }
     handler = handlers.get(et)
     if handler:
-        # each process_* signature: (bot, chat_id, raw_data, dial_cache, bridge_store, active_bridges)
+        # каждый process_* получает: bot, chat_id, данные + stores
         return await handler(bot, TELEGRAM_CHAT_ID, data, dial_cache, bridge_store, active_bridges)
 
     return {"status": "ignored"}
