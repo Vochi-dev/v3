@@ -5,19 +5,20 @@ import asyncio
 from telegram import Bot
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-from services.events import (
+from app.services.events import (
     init_database_tables,
     load_hangup_message_history,
     save_asterisk_event,
     save_telegram_message,
 )
-from services.calls import (
+from app.services.calls import (
     process_start,
     process_dial,
     process_bridge,
     process_hangup,
     create_resend_loop,
 )
+
 
 app = FastAPI()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
