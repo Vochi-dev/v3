@@ -68,7 +68,7 @@ async def receive_event(event_type: str, request: Request):
     }
     handler = handlers.get(et)
     if handler:
-        # Все process_* принимают (bot, chat_id, data, [dial_cache,...])
-        return await handler(bot, TELEGRAM_CHAT_ID, data, dial_cache, bridge_store, active_bridges)
+        # передаём только три аргумента — bot, chat_id и сам запрос
+        return await handler(bot, TELEGRAM_CHAT_ID, data)
 
     return {"status": "ignored"}
