@@ -35,8 +35,10 @@ logging.basicConfig(
 
 @app.on_event("startup")
 async def on_startup():
+    # Подготовка БД
     init_database_tables()
     load_hangup_message_history()
+    # Фоновый цикл переотправки «мостов»
     asyncio.create_task(
         create_resend_loop(
             dial_cache,
@@ -54,8 +56,10 @@ async def receive_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
+    # Сохраняем «сырое» событие в БД
     save_asterisk_event(et, uid, token, data)
 
+    # Диспатчим в нужный обработчик
     handlers = {
         "start": process_start,
         "dial": process_dial,
@@ -64,20 +68,7 @@ async def receive_event(event_type: str, request: Request):
     }
     handler = handlers.get(et)
     if handler:
-<<<<<<< HEAD
-        return await handler(bot, TELEGRAM_CHAT_ID, data)
-
-    return {"status": "ignored"}
-=======
-<<<<<<< HEAD
-        # process_* сами достанут нужные кэши из модуля calls
-        return await handler(bot, TELEGRAM_CHAT_ID, data)
-
-    return {"status": "ignored"}
-=======
-        # каждый process_* получает: bot, chat_id, данные + stores
+        # Все process_* принимают (bot, chat_id, data, [dial_cache,...])
         return await handler(bot, TELEGRAM_CHAT_ID, data, dial_cache, bridge_store, active_bridges)
 
     return {"status": "ignored"}
->>>>>>> a98388b (Добавить разделы админки и сервисы обработки событий)
->>>>>>> bbbb87b (Добавить разделы админки и сервисы обработки событий)
