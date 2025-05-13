@@ -1,13 +1,12 @@
-import os
-from dotenv import load_dotenv
-load_dotenv()  # Загружаем переменные из .env до использования config
-
 from fastapi import FastAPI, Request
 import logging
 import asyncio
 
 from telegram import Bot
-from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+
+# 🔧 Жестко прописанные значения токена и chat_id
+TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
+TELEGRAM_CHAT_ID = "374573193"
 
 print(f"🔑 TELEGRAM_BOT_TOKEN: {TELEGRAM_BOT_TOKEN}")
 
@@ -41,8 +40,10 @@ logging.basicConfig(
 
 @app.on_event("startup")
 async def on_startup():
+    # Подготовка БД
     init_database_tables()
     load_hangup_message_history()
+    # Фоновый цикл переотправки «мостов»
     asyncio.create_task(
         create_resend_loop(
             dial_cache,
@@ -60,8 +61,10 @@ async def receive_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
+    # Сохраняем «сырое» событие в БД
     save_asterisk_event(et, uid, token, data)
 
+    # Диспатчим в нужный обработчик
     handlers = {
         "start": process_start,
         "dial": process_dial,
