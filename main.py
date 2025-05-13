@@ -64,7 +64,7 @@ async def receive_event(event_type: str, request: Request):
     }
     handler = handlers.get(et)
     if handler:
-        # каждый process_* получает: bot, chat_id, данные + stores
-        return await handler(bot, TELEGRAM_CHAT_ID, data, dial_cache, bridge_store, active_bridges)
+        # process_* сами достанут нужные кэши из модуля calls
+        return await handler(bot, TELEGRAM_CHAT_ID, data)
 
     return {"status": "ignored"}
