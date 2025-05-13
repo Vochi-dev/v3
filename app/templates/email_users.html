@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление Email-пользователями</title>
+</head>
+<body>
+    <h1>Управление Email-пользователями</h1>
+    <form method="post" enctype="multipart/form-data" action="/admin/upload-emails">
+        <input type="file" name="file" required>
+        <button type="submit">Загрузить</button>
+    </form>
+    <br>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>№</th>
+                <th>Email</th>
+                <th>Название</th>
+                <th>All</th>
+                <th>1</th>
+                <th>2</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.number }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.name }}</td>
+                <td><input type="checkbox" {% if user.right_all %}checked{% endif %}></td>
+                <td><input type="checkbox" {% if user.right_1 %}checked{% endif %}></td>
+                <td><input type="checkbox" {% if user.right_2 %}checked{% endif %}></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
