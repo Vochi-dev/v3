@@ -34,7 +34,9 @@ async def on_startup():
     init_database_tables()
     load_hangup_message_history()
     # Фоновая переотправка «мостов»
-    asyncio.create_task(create_resend_loop(bot, TELEGRAM_CHAT_ID))
+    from app.services.calls import create_resend_loop
+    asyncio.create_task(create_resend_loop(bot, TELEGRAM_CHAT_ID, dial_cache, bridge_store, active_bridges))
+
 
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
