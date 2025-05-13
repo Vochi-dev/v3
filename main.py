@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request
 import logging
 import asyncio
-
 from telegram import Bot
 
 # 🔧 Жестко прописанные значения токена и chat_id
@@ -24,8 +23,14 @@ from app.services.calls import (
     create_resend_loop,
 )
 
+# Импортируем роутер для email
+from app.routers import admin_email  
+
 app = FastAPI()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
+
+# Подключаем роутер для работы с email
+app.include_router(admin_email.router)
 
 # in-memory stores
 dial_cache = {}
