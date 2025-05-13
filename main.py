@@ -1,16 +1,14 @@
 import os
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv()  # Загружаем переменные из .env до использования config
+
 from fastapi import FastAPI, Request
 import logging
 import asyncio
 
-from dotenv import load_dotenv
-load_dotenv()  # Загружаем переменные из .env
-
 from telegram import Bot
-
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+
 print(f"🔑 TELEGRAM_BOT_TOKEN: {TELEGRAM_BOT_TOKEN}")
 
 from app.services.events import (
@@ -43,10 +41,8 @@ logging.basicConfig(
 
 @app.on_event("startup")
 async def on_startup():
-    # Подготовка БД
     init_database_tables()
     load_hangup_message_history()
-    # Фоновый цикл переотправки «мостов»
     asyncio.create_task(
         create_resend_loop(
             dial_cache,
@@ -64,10 +60,8 @@ async def receive_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # Сохраняем «сырое» событие в БД
     save_asterisk_event(et, uid, token, data)
 
-    # Диспатчим в нужный обработчик
     handlers = {
         "start": process_start,
         "dial": process_dial,
@@ -76,7 +70,6 @@ async def receive_event(event_type: str, request: Request):
     }
     handler = handlers.get(et)
     if handler:
-        # передаём только три аргумента — bot, chat_id и сам запрос
         return await handler(bot, TELEGRAM_CHAT_ID, data)
 
     return {"status": "ignored"}
