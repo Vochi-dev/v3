@@ -22,6 +22,11 @@ from app.services.calls import (
 app = FastAPI()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
+# temporary in-memory stores for calls
+dial_cache = {}
+bridge_store = {}
+active_bridges = {}
+
 logging.basicConfig(
     filename="asterisk_events.log",
     level=logging.INFO,
@@ -30,13 +35,19 @@ logging.basicConfig(
 
 @app.on_event("startup")
 async def on_startup():
-    # Подготовка БД
+    # prepare DB
     init_database_tables()
     load_hangup_message_history()
-    # Фоновая переотправка «мостов»
-    from app.services.calls import create_resend_loop
-    asyncio.create_task(create_resend_loop(bot, TELEGRAM_CHAT_ID, dial_cache, bridge_store, active_bridges))
-
+    # background task to re-send active "bridges"
+    asyncio.create_task(
+        create_resend_loop(
+            dial_cache,
+            bridge_store,
+            active_bridges,
+            bot,
+            TELEGRAM_CHAT_ID
+        )
+    )
 
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
@@ -45,10 +56,10 @@ async def receive_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # Сохраняем в БД «сырое» событие
+    # save raw event to DB
     save_asterisk_event(et, uid, token, data)
 
-    # Выбор обработчика по типу события
+    # dispatch to the correct handler
     handlers = {
         "start": process_start,
         "dial": process_dial,
@@ -57,7 +68,7 @@ async def receive_event(event_type: str, request: Request):
     }
     handler = handlers.get(et)
     if handler:
-        # Каждый процесс_* принимает: bot, chat_id, raw data
+        # all process_* funcs take: bot, chat_id, raw_data
         return await handler(bot, TELEGRAM_CHAT_ID, data)
-    # По умолчанию — игнор
+
     return {"status": "ignored"}
