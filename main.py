@@ -1,11 +1,14 @@
 from fastapi import FastAPI, Request
 import logging
 import asyncio
-
 from telegram import Bot
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-print(f"🔑 TELEGRAM_BOT_TOKEN: {TELEGRAM_BOT_TOKEN}")
+
+# Отладка: записываем токен в файл
+with open("/tmp/debug_token.txt", "w") as f:
+    f.write(f"TELEGRAM_BOT_TOKEN={TELEGRAM_BOT_TOKEN}\n")
+
 from app.services.events import (
     init_database_tables,
     load_hangup_message_history,
@@ -69,7 +72,7 @@ async def receive_event(event_type: str, request: Request):
     }
     handler = handlers.get(et)
     if handler:
-        # передаём только три аргумента — bot, chat_id и сам запрос
         return await handler(bot, TELEGRAM_CHAT_ID, data)
 
     return {"status": "ignored"}
+
