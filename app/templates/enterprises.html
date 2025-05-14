@@ -1,21 +1,44 @@
-<!doctype html>
+<!-- /app/templates/enterprises.html -->
+<!DOCTYPE html>
 <html lang="ru">
-<head><meta charset="utf-8"><title>Список предприятий</title></head>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список предприятий</title>
+</head>
 <body>
-<a href="/admin">← назад</a>
-<h1>Список предприятий</h1>
+    <h1>Список предприятий</h1>
+    <button onclick="window.location.href='/admin/enterprises/add'">➕ Добавить предприятие</button>
 
-<a href="/admin/enterprises/new">➕ Добавить предприятие</a>
-
-<table border="1" cellpadding="4" cellspacing="0">
-  <tr><th>ID</th><th>Название</th><th>Bot Token</th><th>Создано</th></tr>
-  {% for r in rows %}
-  <tr>
-    <td>{{ r.number }}</td>
-    <td>{{ r.name }}</td>
-    <td>{{ r.bot_token }}</td>
-    <td>{{ r.created_at }}</td>
-  </tr>
-  {% endfor %}
-</table>
-</body></html>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Название</th>
+                <th>Bot Token</th>
+                <th>Chat ID</th>
+                <th>IP</th>
+                <th>Secret</th>
+                <th>Host</th>
+                <th>Дата создания</th>
+                <th>Доп. имя</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for enterprise in enterprises %}
+            <tr>
+                <td>{{ enterprise['number'] }}</td>
+                <td>{{ enterprise['name'] }}</td>
+                <td>{{ enterprise['bot_token'] }}</td>
+                <td>{{ enterprise['chat_id'] }}</td>
+                <td>{{ enterprise['ip'] }}</td>
+                <td>{{ enterprise['secret'] }}</td>
+                <td>{{ enterprise['host'] }}</td>
+                <td>{{ enterprise['created_at'] }}</td>
+                <td>{{ enterprise['name2'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
