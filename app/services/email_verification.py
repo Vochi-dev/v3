@@ -1,9 +1,9 @@
 # app/services/email_verification.py
 # -*- coding: utf-8 -*-
 """
-Подтверждение e-mail c учётом схемы:
-  • email_users.number → enterprises.number (TEXT PK)
-  • telegram_users не хранит enterprise, только email/token/verified
+Упрощённая логика:
+• e-mail считается валидным, если есть в email_users (без привязки к enterprise)
+• e-mail может быть активирован только в одном боте (telegram_users.verified = 1)
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ import datetime as dt
 import secrets
 import smtplib
 from email.message import EmailMessage
-from pathlib import Path
 from typing import Optional, Tuple
 
 import aiosqlite
@@ -27,37 +26,26 @@ from app.config import (
     VERIFY_URL_BASE,
 )
 
-# ------------------------------------------------------------------ #
 TOKEN_TTL_MINUTES = 30
 
 
+# ---------- utils ----------------------------------------------------
 def random_token(nbytes: int = 16) -> str:
     return secrets.token_urlsafe(nbytes)
 
 
-# ---------- проверки ------------------------------------------------
-async def email_exists_for_enterprise(email: str, enterprise_number: str) -> bool:
-    """
-    Есть ли email в email_users и принадлежит ли нужному enterprise.number
-    """
+# ---------- проверки -------------------------------------------------
+async def email_exists(email: str) -> bool:
+    """Есть ли e-mail в таблице email_users (независимо от предприятия)."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            """
-            SELECT 1
-              FROM email_users
-             WHERE email  = ?
-               AND number = ?
-            """,
-            (email, enterprise_number),
+            "SELECT 1 FROM email_users WHERE email = ?", (email,)
         ) as cur:
             return (await cur.fetchone()) is not None
 
 
-async def email_already_linked(email: str) -> bool:
-    """
-    True, если email уже в telegram_users и verified = 1
-    (т.е. активирован в каком-то боте)
-    """
+async def email_already_verified(email: str) -> bool:
+    """True, если e-mail уже verified в telegram_users (то есть занят)."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
             "SELECT 1 FROM telegram_users WHERE email = ? AND verified = 1",
@@ -66,11 +54,11 @@ async def email_already_linked(email: str) -> bool:
             return (await cur.fetchone()) is not None
 
 
-# ---------- вставка / обновление -----------------------------------
+# ---------- вставка / обновление ------------------------------------
 async def upsert_telegram_user(tg_id: int, email: str, token: str) -> None:
     """
-    Сохраняем (tg_id, email, token, verified=0). Если email уже есть,
-    перезаписываем tg_id и token, сбрасываем verified.
+    Сохраняем (tg_id, email, token, verified=0).
+    Если e-mail уже был, сбрасываем verified и обновляем token.
     """
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
@@ -88,7 +76,7 @@ async def upsert_telegram_user(tg_id: int, email: str, token: str) -> None:
         await db.commit()
 
 
-# ---------- письмо --------------------------------------------------
+# ---------- письмо ---------------------------------------------------
 async def send_verification_email(email: str, token: str) -> None:
     link = f"{VERIFY_URL_BASE}/{token}"
 
@@ -100,7 +88,7 @@ async def send_verification_email(email: str, token: str) -> None:
         msg.set_content(
             f"Здравствуйте!\n\n"
             f"Для подтверждения доступа перейдите по ссылке:\n{link}\n\n"
-            f"Ссылка активна {TOKEN_TTL_MINUTES} минут."
+            f"Ссылка действительна {TOKEN_TTL_MINUTES} минут."
         )
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as smtp:
             smtp.login(SMTP_USER, SMTP_PASS)
@@ -109,15 +97,14 @@ async def send_verification_email(email: str, token: str) -> None:
     await asyncio.to_thread(_sync_send)
 
 
-# ---------- подтверждение токена ------------------------------------
+# ---------- подтверждение токена -------------------------------------
 async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
     """
-    Если токен найден и не просрочен — ставим verified=1, очищаем token,
-    возвращаем (True, tg_id). Иначе (False, None).
+    Делает verified=1, если токен валиден и не просрочен.
+    Возвращает (успех, tg_id | None).
     """
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-
         async with db.execute(
             "SELECT tg_id, added_at, verified FROM telegram_users WHERE token = ?",
             (token,),
@@ -126,24 +113,7 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
 
         if row is None:
             return False, None
-
         if row["verified"] == 1:
             return True, row["tg_id"]
 
-        # TTL по столбцу added_at ("YYYY-MM-DD HH:MM:SS")
-        added_at = dt.datetime.strptime(row["added_at"], "%Y-%m-%d %H:%M:%S")
-        if dt.datetime.utcnow() - added_at > dt.timedelta(minutes=TOKEN_TTL_MINUTES):
-            return False, None
-
-        await db.execute(
-            """
-            UPDATE telegram_users
-               SET verified = 1,
-                   token    = NULL
-             WHERE token = ?
-            """,
-            (token,),
-        )
-        await db.commit()
-
-    return True, row["tg_id"]
+        added_at = dt.datetime.strptime(row["added_at"], "%Y-%m-%d %H_]()_
