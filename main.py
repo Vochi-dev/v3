@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 import asyncio, logging
 from telegram import Bot
 
-# ──────────── базовые константы (можно вынести в .env) ────────────
+# ──────────── базовые константы (позже можно вынести в .env) ────────────
 TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
 TELEGRAM_CHAT_ID   = "374573193"
 print(f"🔑 TELEGRAM_BOT_TOKEN: {TELEGRAM_BOT_TOKEN}")
@@ -19,16 +19,23 @@ from app.services.calls import (
 )
 
 # ──────────── роутеры ────────────
-from app.routers import admin, auth_email          # admin → /admin/*  (префикс уже внутри)
-                                                  # auth_email → /verify-email/{token}
+# каждый файл в app/routers/ сам задаёт prefix="/admin" (кроме auth_email)
+from app.routers import (
+    admin,              # /admin           (панель + e-mail-список)
+    enterprise,         # /admin/enterprises
+    user_requests,      # /admin/requests
+    auth_email          # /verify-email/{token}
+)
 
 # ──────────── FastAPI и бот для уведомлений ────────────
 app = FastAPI()
 tg_notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# регистрируем роутеры
-app.include_router(admin.router)                  # ⚠️ без prefix!
-app.include_router(auth_email.router)
+# регистрируем все роутеры
+app.include_router(admin.router)
+app.include_router(enterprise.router)
+app.include_router(user_requests.router)
+app.include_router(auth_email.router)        # без префикса
 
 # in-memory кэши звонков
 dial_cache, bridge_store, active_bridges = {}, {}, {}
@@ -47,7 +54,7 @@ async def startup_tasks():
     init_database_tables()
     load_hangup_message_history()
 
-    # 2. Фоновая пересылка «мостов»
+    # 2. фоновая пересылка «мостов»
     asyncio.create_task(
         create_resend_loop(
             dial_cache, bridge_store, active_bridges,
@@ -56,7 +63,7 @@ async def startup_tasks():
     )
 
     # 3. aiogram-бот (long-polling)
-    from app.telegram.bot import dp               # импорт здесь, чтобы избежать циклов
+    from app.telegram.bot import dp   # импорт здесь → нет циклов
     asyncio.create_task(dp.start_polling())
 
 # ──────────── приём веб-хуков Asterisk ────────────
@@ -75,8 +82,7 @@ async def receive_event(event_type: str, request: Request):
         "bridge": process_bridge,
         "hangup": process_hangup,
     }
-    handler = handlers.get(et)
-    if handler:
+    if (handler := handlers.get(et)):
         return await handler(tg_notify_bot, TELEGRAM_CHAT_ID, data)
 
     return {"status": "ignored"}
