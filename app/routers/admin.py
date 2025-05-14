@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Request, Form, Depends, HTTPException, status, UploadFile
+from fastapi import (
+    APIRouter, Request, Form, Depends,
+    HTTPException, status, UploadFile
+)
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from app.config import ADMIN_PASSWORD
