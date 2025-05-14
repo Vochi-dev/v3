@@ -43,7 +43,9 @@ async def setup_bot() -> None:
     )
     if enterprise_number is None:
         raise RuntimeError("bot_token not found in enterprises table")
-    bot["enterprise_number"] = enterprise_number
+
+    # храним как атрибут бота
+    setattr(bot, "enterprise_number", enterprise_number)
     logging.info("Bot started for enterprise %s", enterprise_number)
 
     # 3) register handlers
