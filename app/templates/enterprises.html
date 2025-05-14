@@ -1,98 +1,55 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Список предприятий</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-
-        table, th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #f2f2f2;
-        }
-
-        button {
-            padding: 8px 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        .back-btn {
-            background-color: #f44336;
-        }
-
-        .add-btn {
-            background-color: #008CBA;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Список предприятий</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background: #f0f0f0; }
+    a.button { display: inline-block; margin-right: 1rem; padding: 0.5rem 1rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+  </style>
 </head>
 <body>
-
-<h2>Список предприятий</h2>
-
-<!-- Кнопки для добавления и возврата -->
-<div>
-    <a href="/admin/enterprises/add">
-        <button class="add-btn">
-            <i class="fas fa-plus"></i> Добавить предприятие
-        </button>
-    </a>
-    <a href="/admin">
-        <button class="back-btn">
-            <i class="fas fa-arrow-left"></i> Назад
-        </button>
-    </a>
-</div>
-
-<!-- Таблица с данными -->
-<table>
+  <h1>Список предприятий</h1>
+  <div>
+    <a href="/admin/enterprises/add" class="button">Добавить предприятие</a>
+    <a href="/admin" class="button">Назад</a>
+  </div>
+  <table>
     <thead>
-        <tr>
-            <th>ID</th>
-            <th>Название</th>
-            <th>Bot Token</th>
-            <th>Chat ID</th>
-            <th>IP</th>
-            <th>Secret</th>
-            <th>Host</th>
-            <th>Создано</th>
-            <th>Доп. имя</th>
-        </tr>
+      <tr>
+        <th>Номер</th>
+        <th>Название</th>
+        <th>Bot Token</th>
+        <th>Chat ID</th>
+        <th>IP</th>
+        <th>Secret</th>
+        <th>Host</th>
+        <th>Создано</th>
+        <th>Доп. имя</th>
+      </tr>
     </thead>
     <tbody>
-        {% for enterprise in rows %}
-        <tr>
-            <td>{{ enterprise.number }}</td>
-            <td>{{ enterprise.name }}</td>
-            <td>{{ enterprise.bot_token }}</td>
-            <td>{{ enterprise.chat_id }}</td>
-            <td>{{ enterprise.ip }}</td>
-            <td>{{ enterprise.secret }}</td>
-            <td>{{ enterprise.host }}</td>
-            <td>{{ enterprise.created_at }}</td>
-            <td>{{ enterprise.name2 }}</td>
-        </tr>
-        {% endfor %}
+      {% for ent in enterprises %}
+      <tr>
+        <td>{{ ent.number }}</td>
+        <td>{{ ent.name }}</td>
+        <td>{{ ent.bot_token }}</td>
+        <td>{{ ent.chat_id }}</td>
+        <td>{{ ent.ip }}</td>
+        <td>{{ ent.secret }}</td>
+        <td>{{ ent.host }}</td>
+        <td>{{ ent.created_at }}</td>
+        <td>{{ ent.name2 }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="9">Нет предприятий</td>
+      </tr>
+      {% endfor %}
     </tbody>
-</table>
-
+  </table>
 </body>
 </html>
