@@ -3,7 +3,6 @@ import logging
 import asyncio
 from telegram import Bot
 
-# 🔧 Жестко прописанные значения токена и chat_id
 TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
 TELEGRAM_CHAT_ID = "374573193"
 
@@ -23,29 +22,26 @@ from app.services.calls import (
     create_resend_loop,
 )
 
-# ✅ Подключаем нужные роутеры
-from app.routers import admin, admin_email
+# ✅ Только один импорт — admin
+from app.routers import admin
 
 app = FastAPI()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# ✅ Регистрируем роутеры
+# ✅ Только один роутер
 app.include_router(admin.router)
-app.include_router(admin_email.router)
 
 # 🧠 in-memory stores
 dial_cache = {}
 bridge_store = {}
 active_bridges = {}
 
-# 📜 Логирование
 logging.basicConfig(
     filename="asterisk_events.log",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# 🚀 Стартовые задачи
 @app.on_event("startup")
 async def on_startup():
     init_database_tables()
@@ -60,7 +56,6 @@ async def on_startup():
         )
     )
 
-# 📥 Обработка событий Asterisk
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
     data = await request.json()
