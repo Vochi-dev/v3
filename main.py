@@ -3,7 +3,7 @@ import logging
 import asyncio
 from telegram import Bot
 
-# 🔧 Жестко прописанные значения токена и chat_id
+# Жестко прописанные значения токена и chat_id
 TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
 TELEGRAM_CHAT_ID = "374573193"
 
@@ -23,13 +23,14 @@ from app.services.calls import (
     create_resend_loop,
 )
 
-# ✅ Импортируем корректный роутер админки
-from app.routers import admin
+# ✅ Подключаем все нужные роутеры
+from app.routers import admin  # вот это обязательно
+# from app.routers import admin_email  # больше не нужно, уже включено в admin
 
 app = FastAPI()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# ✅ Подключаем админский роутер (включает логин, email-таблицу и пр.)
+# ✅ Подключение главного admin роутера
 app.include_router(admin.router)
 
 # in-memory stores
@@ -45,10 +46,8 @@ logging.basicConfig(
 
 @app.on_event("startup")
 async def on_startup():
-    # Подготовка БД
     init_database_tables()
     load_hangup_message_history()
-    # Фоновый цикл переотправки «мостов»
     asyncio.create_task(
         create_resend_loop(
             dial_cache,
@@ -66,10 +65,8 @@ async def receive_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # Сохраняем «сырое» событие в БД
     save_asterisk_event(et, uid, token, data)
 
-    # Диспатчим в нужный обработчик
     handlers = {
         "start": process_start,
         "dial": process_dial,
