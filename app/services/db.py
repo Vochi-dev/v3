@@ -1,19 +1,22 @@
 # app/services/db.py
+# -*- coding: utf-8 -*-
+"""Обёртки вокруг SQLite — под фактическую схему (enterprises.number)."""
+
 import aiosqlite
 from typing import Optional
 
-from app.config import DB_PATH        # убедитесь, что в config.py есть переменная DB_PATH
+from app.config import DB_PATH
 
 
-async def get_enterprise_by_bot_token(bot_token: str) -> Optional[aiosqlite.Row]:
+async def get_enterprise_number_by_bot_token(bot_token: str) -> Optional[str]:
     """
-    Верни строку из таблицы enterprises по bot_token.
-    Если ничего не нашли — верни None.
+    Возвращает номер (enterprises.number) для данного bot_token
+    или None, если не нашли.
     """
     async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, name FROM enterprises WHERE bot_token = ?",
+            "SELECT number FROM enterprises WHERE bot_token = ?",
             (bot_token,),
         ) as cur:
-            return await cur.fetchone()
+            row = await cur.fetchone()
+            return row[0] if row else None
