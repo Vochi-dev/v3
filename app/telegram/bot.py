@@ -1,6 +1,6 @@
 # app/telegram/bot.py
 # -*- coding: utf-8 -*-
-"""Точка входа бота (aiogram v3) — сохраняем enterprise_number."""
+"""Точка входа aiogram-бота с автосбросом webhook."""
 
 import asyncio
 import logging
@@ -19,13 +19,21 @@ async def main() -> None:
     bot = Bot(token=TELEGRAM_BOT_TOKEN, parse_mode="HTML")
     dp = Dispatcher(storage=MemoryStorage())
 
-    enterprise_number = await get_enterprise_number_by_bot_token(TELEGRAM_BOT_TOKEN)
+    # --- сбрасываем возможный старый webhook ----------
+    await bot.delete_webhook(drop_pending_updates=True)
+    logging.info("Webhook removed, switched to long-polling")
+
+    # --- определяем предприятие -----------------------
+    enterprise_number = await get_enterprise_number_by_bot_token(
+        TELEGRAM_BOT_TOKEN
+    )
     if enterprise_number is None:
         raise RuntimeError("bot_token не найден в таблице enterprises")
 
     bot["enterprise_number"] = enterprise_number
     logging.info("Bot started for enterprise %s", enterprise_number)
 
+    # --- подключаем хэндлеры и запускаем -------------
     dp.include_router(onboarding_router)
     await dp.start_polling(bot)
 
