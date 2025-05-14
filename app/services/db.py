@@ -1,19 +1,19 @@
-import sqlite3
-from pathlib import Path
+# app/services/db.py
+import aiosqlite
+from typing import Optional
 
-from app.config import DB_PATH   # путь к БД уже есть в config.py
+from app.config import DB_PATH        # убедитесь, что в config.py есть переменная DB_PATH
 
-Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)   # на всякий случай
 
-def get_connection() -> sqlite3.Connection:
+async def get_enterprise_by_bot_token(bot_token: str) -> Optional[aiosqlite.Row]:
     """
-    Открывает БД и включает row_factory → dict-like доступ.
-    Использовать так:
-
-        conn = get_connection()
-        rows = conn.execute("SELECT * FROM enterprises").fetchall()
-        conn.close()
+    Верни строку из таблицы enterprises по bot_token.
+    Если ничего не нашли — верни None.
     """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT id, name FROM enterprises WHERE bot_token = ?",
+            (bot_token,),
+        ) as cur:
+            return await cur.fetchone()
