@@ -17,25 +17,24 @@ logging.basicConfig(level=logging.INFO)
 
 
 async def main() -> None:
-    # ---- инициализация бота -----------------------------------------
+    # ---- инициализируем бота ---------------------------------------
     bot = Bot(
         token=TELEGRAM_BOT_TOKEN,
         default=DefaultBotProperties(parse_mode="HTML"),
     )
     dp = Dispatcher(storage=MemoryStorage())
 
-    # ---- сбрасываем возможный старый webhook ------------------------
+    # ---- убираем возможный старый webhook --------------------------
     await bot.delete_webhook(drop_pending_updates=True)
     logging.info("Webhook removed, switched to long-polling")
 
-    # ---- определяем предприятие ------------------------------------
+    # ---- просто логируем, что это за предприятие -------------------
     enterprise_number = await get_enterprise_number_by_bot_token(
         TELEGRAM_BOT_TOKEN
     )
     if enterprise_number is None:
         raise RuntimeError("bot_token не найден в таблице enterprises")
 
-    bot["enterprise_number"] = enterprise_number
     logging.info("Bot started for enterprise %s", enterprise_number)
 
     # ---- подключаем хэндлеры и запускаем ---------------------------
