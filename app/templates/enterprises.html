@@ -4,6 +4,16 @@
 <body>
   <a href="/admin/">← Назад</a>
   <h1>Список предприятий</h1>
-  <p>Пока что здесь заглушка. Потом выведем таблицу из БД.</p>
+
+  <table border="1" cellpadding="4">
+    <tr><th>ID</th><th>Название</th><th>Bot Token</th><th>Создано</th></tr>
+    {% for e in enterprises %}
+      <tr>
+        <td>{{ e.id }}</td><td>{{ e.name }}</td><td>{{ e.bot_token }}</td><td>{{ e.created_at }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4">Пока пусто</td></tr>
+    {% endfor %}
+  </table>
 </body>
 </html>
