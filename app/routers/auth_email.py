@@ -1,30 +1,35 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import HTMLResponse
-import sqlite3
+import sqlite3, uuid
 from app.config import DB_PATH
 
 router = APIRouter()
 
-def _conn():
-    c = sqlite3.connect(DB_PATH)
-    c.row_factory = sqlite3.Row
-    return c
+def _db_conn():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-@router.get("/verify-email", response_class=HTMLResponse)
+@router.get("/verify-email/{token}", response_class=HTMLResponse)
 async def verify_email(token: str):
-    with _conn() as conn:
-        cur = conn.execute(
-            "SELECT tg_id, email, verified FROM telegram_users WHERE token = ?",
-            (token,)
-        )
-        row = cur.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Bad token")
+    conn = _db_conn()
+    cur  = conn.cursor()
+    cur.execute("SELECT * FROM telegram_users WHERE token = ?", (token,))
+    row = cur.fetchone()
 
-        if row["verified"]:
-            return "<h2>Ваш e-mail уже подтверждён 👍</h2>"
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Неверная ссылка")
 
-        conn.execute("UPDATE telegram_users SET verified = 1 WHERE token = ?", (token,))
-        conn.commit()
+    # помечаем как подтверждённого
+    cur.execute(
+        "UPDATE telegram_users SET verified = 1 WHERE token = ?",
+        (token,)
+    )
+    conn.commit()
+    conn.close()
 
-    return "<h2>Спасибо! E-mail подтверждён. Вернитесь в Telegram — бот уже ждёт 😉</h2>"
+    return (
+        "<h1>Спасибо!</h1>"
+        "<p>Ваш e-mail успешно подтверждён. "
+        "Вы можете пользоваться ботом.</p>"
+    )
