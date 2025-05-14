@@ -1,23 +1,16 @@
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>{{ 'Редактирование' if enterprise else 'Создание' }} предприятия</title></head>
-<body>
-  <h1>{{ 'Редактирование' if enterprise else 'Создание' }} предприятия</h1>
-  <form method="post">
-    {% if not enterprise %}
-    <label>Number: <input name="number" required></label><br>
-    {% else %}
-    <p>Number: {{ enterprise.number }}</p>
-    {% endif %}
-    <label>Name: <input name="name" value="{{ enterprise.name if enterprise else '' }}" required></label><br>
-    <label>Name2: <input name="name2" value="{{ enterprise.name2 if enterprise else '' }}" required></label><br>
-    <label>Bot Token: <input name="bot_token" value="{{ enterprise.bot_token if enterprise else '' }}" required></label><br>
-    <label>Chat ID: <input name="chat_id" value="{{ enterprise.chat_id if enterprise else '' }}" required></label><br>
-    <label>IP: <input name="ip" value="{{ enterprise.ip if enterprise else '' }}" required></label><br>
-    <label>Secret: <input name="secret" value="{{ enterprise.secret if enterprise else '' }}" required></label><br>
-    <label>Host: <input name="host" value="{{ enterprise.host if enterprise else '' }}" required></label><br>
-    <button type="submit">Сохранить</button>
-  </form>
-  <p><a href="/admin/enterprises">← Назад к списку</a></p>
-</body>
-</html>
+<!DOCTYPE html><html lang="ru"><head>
+<meta charset="UTF-8"><title>Новое предприятие</title></head><body>
+<h1>Добавить предприятие</h1>
+
+<form method="post" action="/admin/enterprises/new">
+  <label>Номер:<br><input name="number" required></label><br><br>
+  <label>Название:<br><input name="name" required></label><br><br>
+  <label>Bot&nbsp;Token:<br><input name="bot_token" required></label><br><br>
+  <label>Chat&nbsp;ID:<br><input name="chat_id" required></label><br><br>
+  <label>IP:<br><input name="ip" required></label><br><br>
+  <label>Host:<br><input name="host" required></label><br><br>
+
+  <button type="submit">Сохранить</button>
+  <a href="/admin/enterprises">Отмена</a>
+</form>
+</body></html>
