@@ -1,26 +1,51 @@
-import csv
+import sqlite3
 from typing import List, Dict
-from app.models import EmailUser  # Ваши модели данных, используемые в базе данных
+from app.config import DB_PATH
 
-# Функция для получения всех email пользователей из базы данных
 def get_all_emails() -> List[Dict]:
-    # Допустим, мы получаем всех пользователей из базы данных
-    users = EmailUser.objects.all()  # Пример для ORM
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM email_users")
+    rows = cur.fetchall()
+    conn.close()
+
     return [
-        {"number": user.number, "email": user.email, "name": user.name, 
-         "right_all": user.right_all, "right_1": user.right_1, "right_2": user.right_2}
-        for user in users
+        {
+            "number": row["number"],
+            "email": row["email"],
+            "name": row["name"],
+            "right_all": bool(row["right_all"]),
+            "right_1": bool(row["right_1"]),
+            "right_2": bool(row["right_2"]),
+        }
+        for row in rows
     ]
 
-# Функция для добавления или обновления email пользователей из файла
 def add_or_update_emails_from_file(new_entries: List[Dict]):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
     for entry in new_entries:
-        # Пытаемся найти пользователя по email
-        user = EmailUser.objects.filter(email=entry['email']).first()
-        if user:
-            # Обновляем существующего пользователя
-            user.name = entry['name']
-            user.save()
+        email = entry["email"]
+        name = entry["name"]
+
+        cur.execute("SELECT COUNT(*) FROM email_users WHERE email = ?", (email,))
+        exists = cur.fetchone()[0]
+
+        if exists:
+            cur.execute("UPDATE email_users SET name = ? WHERE email = ?", (name, email))
         else:
-            # Создаем нового пользователя
-            EmailUser.objects.create(email=entry['email'], name=entry['name'])
+            # Определяем новый number
+            cur.execute("SELECT MAX(number) FROM email_users")
+            max_number = cur.fetchone()[0] or 0
+            new_number = max_number + 1
+
+            cur.execute("""
+                INSERT INTO email_users (number, email, name, right_all, right_1, right_2)
+                VALUES (?, ?, ?, 0, 0, 0)
+            """, (new_number, email, name))
+
+    conn.commit()
+    conn.close()
