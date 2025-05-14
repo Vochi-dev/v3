@@ -3,7 +3,7 @@ import logging
 import asyncio
 from telegram import Bot
 
-# Жестко прописанные значения токена и chat_id
+# 🔧 Жестко прописанные значения токена и chat_id
 TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
 TELEGRAM_CHAT_ID = "374573193"
 
@@ -23,14 +23,13 @@ from app.services.calls import (
     create_resend_loop,
 )
 
-# ✅ Подключаем все нужные роутеры
-from app.routers import admin  # вот это обязательно
-# from app.routers import admin_email  # больше не нужно, уже включено в admin
+# ❗ Импорт корректного роутера
+from app.routers import admin
 
 app = FastAPI()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# ✅ Подключение главного admin роутера
+# ❗ Подключение правильного роутера
 app.include_router(admin.router)
 
 # in-memory stores
