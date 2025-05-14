@@ -1,12 +1,13 @@
-# app/routers/enterprise.py
-from fastapi import APIRouter, Depends
-from .admin import require_login           # общая проверка куки
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from .admin import require_login
 
-router = APIRouter(prefix="/admin/enterprises")
+router    = APIRouter(prefix="/admin/enterprises")
+templates = Jinja2Templates(directory="app/templates")
 
-# ───────── список предприятий ─────────
-@router.get("/",  dependencies=[Depends(require_login)])
-@router.get("",   dependencies=[Depends(require_login)])   # вариант без «/»
-async def list_enterprises():
-    # TODO: получить реальные данные из БД
-    return {"msg": "список предприятий"}
+@router.get("/", response_class=HTMLResponse, dependencies=[Depends(require_login)])
+@router.get("",  response_class=HTMLResponse, dependencies=[Depends(require_login)])
+async def list_enterprises(request: Request):
+    # TODO: передать фактические данные
+    return templates.TemplateResponse("enterprises.html", {"request": request})
