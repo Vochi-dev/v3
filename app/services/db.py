@@ -1,17 +1,20 @@
->/dev/null <<'PY'
+# app/services/db.py
 import sqlite3
-from app.config import DB_PATH
+from pathlib import Path
 
-def connect():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+from app.config import DB_PATH   # путь к БД уже есть в config.py
+
+Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)   # на всякий случай
+
+def get_connection() -> sqlite3.Connection:
+    """
+    Открывает БД и включает row_factory → dict-like доступ.
+    Использовать так:
+
+        conn = get_connection()
+        rows = conn.execute("SELECT * FROM enterprises").fetchall()
+        conn.close()
+    """
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
-
-def fetch_all(sql: str, params: tuple = ()):
-    with connect() as conn:
-        return conn.execute(sql, params).fetchall()
-
-def execute(sql: str, params: tuple = ()):
-    with connect() as conn:
-        conn.execute(sql, params)
-        conn.commit()
