@@ -1,7 +1,10 @@
 # main.py
 # -*- coding: utf-8 -*-
 """
-ASGI-приложение FastAPI для приёма вебхуков, фоновых задач и админ-панели.
+ASGI-приложение FastAPI:
+— /health           — проверка здоровья
+— /admin/...        — админ-панель
+— /events/{type}    — приём событий от Asterisk
 Polling Telegram-бота запускается отдельно через python3 -m app.telegram.bot
 """
 
@@ -12,24 +15,20 @@ from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
 
-# ───────── Конфигурация ─────────
+# ─────────── Конфигурация ───────────
 TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
 TELEGRAM_CHAT_ID   = "374573193"
 
 app = FastAPI()
-
-# ─── Jinja2 для рендеринга шаблонов ───
 templates = Jinja2Templates(directory="app/templates")
+notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# ─── health-check ───
+# ─────────── Health-check ───────────
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
-# ─── Telegram-бот для уведомлений о звонках ───
-notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
-
-# ─── подключаем роутеры ──────────────────────────
+# ─────────── Подключаем админ-роутеры ───────────
 from app.routers import admin, enterprise, user_requests, auth_email
 
 app.include_router(admin.router)
@@ -37,20 +36,20 @@ app.include_router(enterprise.router)
 app.include_router(user_requests.router)
 app.include_router(auth_email.router)
 
-# ─── кэши для звонков ───────────────────────────
+# ─────────── Кэши и сервисы для звонков ───────────
 from app.services.events import init_database_tables, load_hangup_message_history, save_asterisk_event
 from app.services.calls import process_start, process_dial, process_bridge, process_hangup, create_resend_loop
 
 dial_cache, bridge_store, active_bridges = {}, {}, {}
 
-# ─── логирование событий ────────────────────────
+# ─────────── Логирование ───────────
 logging.basicConfig(
     filename="asterisk_events.log",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# ─── фоновые задачи при старте ───────────────────
+# ─────────── Фоновые задачи при старте ───────────
 @app.on_event("startup")
 async def startup_tasks():
     # 1) Инициализация БД и загрузка истории hangup
@@ -65,13 +64,13 @@ async def startup_tasks():
         )
     )
 
-    # 3) Telegram-бот polling запускаем отдельно:
+    # 3) Telegram-бот polling запускайте отдельно:
     #    python3 -m app.telegram.bot
 
-# ─── вебхук для Asterisk-событий ──────────────────
-@app.post("/{event_type}")
+# ─────────── Новый эндпоинт для Asterisk-событий ───────────
+@app.post("/events/{event_type}")
 async def receive_event(event_type: str, request: Request):
-    data = await request.json()
+    data = await request.json()  # теперь сюда попадут только Asterisk POST
     et   = event_type.lower()
     uid  = data.get("UniqueId", "")
     token= data.get("Token", "")
