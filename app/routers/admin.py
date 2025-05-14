@@ -1,85 +1,62 @@
-# /root/asterisk-webhook/main.py
-from fastapi import FastAPI, Request
-import asyncio, logging
-from telegram import Bot                             # python-telegram-bot (уведомления от Asterisk)
-
-# ───────── базовые константы (при желании вынесите в .env / app.config) ─────────
-TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
-TELEGRAM_CHAT_ID   = "374573193"
-print(f"🔑 TELEGRAM_BOT_TOKEN: {TELEGRAM_BOT_TOKEN}")
-
-# ───────── сервис-слой Asterisk ─────────
-from app.services.events import (
-    init_database_tables, load_hangup_message_history, save_asterisk_event,
+from fastapi import (
+    APIRouter, Request, Form, Depends,
+    HTTPException, status, UploadFile, File
 )
-from app.services.calls import (
-    process_start, process_dial, process_bridge, process_hangup, create_resend_loop,
-)
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from app.config import ADMIN_PASSWORD
+from app.services.users import get_all_emails, add_or_update_emails_from_file
+import csv, io
 
-# ───────── роутеры FastAPI ─────────
-from app.routers import (
-    admin,              # /admin/…            — логин, дашборд, email-лист
-    enterprise,         # /admin/enterprises/…
-    user_requests,      # /admin/requests/…
-    auth_email          # /verify-email/{token}
-)
+router = APIRouter(prefix="/admin")
+templates = Jinja2Templates(directory="app/templates")
 
-# ───────── FastAPI-приложение + бот для уведомлений ─────────
-app           = FastAPI()
-tg_notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
-
-# Подключаем роутеры **без дополнительных prefix-ов**
-app.include_router(admin.router)
-app.include_router(enterprise.router)
-app.include_router(user_requests.router)
-app.include_router(auth_email.router)
-
-# in-memory кэши звонков
-dial_cache, bridge_store, active_bridges = {}, {}, {}
-
-# ───────── логирование ─────────
-logging.basicConfig(
-    filename="asterisk_events.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
-# ───────── lifecycle ─────────
-@app.on_event("startup")
-async def startup_tasks():
-    # 1) База
-    init_database_tables()
-    load_hangup_message_history()
-
-    # 2) фон для «мостов»
-    asyncio.create_task(
-        create_resend_loop(
-            dial_cache, bridge_store, active_bridges,
-            tg_notify_bot, TELEGRAM_CHAT_ID,
+# ───────────────── helpers ─────────────────
+def require_login(request: Request):
+    if request.cookies.get("session") != "valid":
+        raise HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            headers={"Location": "/admin/login"}
         )
-    )
 
-    # 3) aiogram-бот (long-polling)
-    from app.telegram.bot import dp          # импорт здесь — избегаем циклов
-    asyncio.create_task(dp.start_polling())
+# ───────────────── auth ────────────────────
+@router.get("/login", response_class=HTMLResponse)
+async def login_form(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request, "error": None})
 
-# ───────── приём веб-хуков Asterisk ─────────
-@app.post("/{event_type}")
-async def receive_event(event_type: str, request: Request):
-    data  = await request.json()
-    et    = event_type.lower()
-    uid   = data.get("UniqueId", "")
-    token = data.get("Token", "")
+@router.post("/login", response_class=HTMLResponse)
+async def login_submit(request: Request, password: str = Form(...)):
+    if password != ADMIN_PASSWORD:
+        return templates.TemplateResponse(
+            "login.html", {"request": request, "error": "Неверный пароль"}, status_code=401
+        )
+    resp = RedirectResponse("/admin/", status_code=303)
+    resp.set_cookie("session", "valid", httponly=True, max_age=86400, path="/admin")
+    return resp
 
-    save_asterisk_event(et, uid, token, data)
+# ───────── dashboard ─────────
+@router.get("/", response_class=HTMLResponse, dependencies=[Depends(require_login)])
+async def dashboard(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
-    handlers = {
-        "start":  process_start,
-        "dial":   process_dial,
-        "bridge": process_bridge,
-        "hangup": process_hangup,
-    }
-    if (handler := handlers.get(et)):
-        return await handler(tg_notify_bot, TELEGRAM_CHAT_ID, data)
+@router.get("", include_in_schema=False)          # /admin → /dashboard
+async def dashboard_alias(request: Request):
+    return await dashboard(request)
 
-    return {"status": "ignored"}
+# ───────── email-users ───────
+@router.get("/email-users", response_class=HTMLResponse, dependencies=[Depends(require_login)])
+async def email_users_admin(request: Request):
+    users = sorted(get_all_emails(), key=lambda x: x["number"])
+    return templates.TemplateResponse("email_users.html", {"request": request, "users": users})
+
+@router.post("/upload-emails", dependencies=[Depends(require_login)])
+async def upload_emails(file: UploadFile = File(...)):
+    raw = await file.read()
+    reader = csv.DictReader(io.StringIO(raw.decode("utf-8")))
+    rows = [
+        {"email": (r.get("Email") or r.get("email") or "").strip(),
+         "name":  (r.get("NAME")  or r.get("Name")  or r.get("name")  or "").strip()}
+        for r in reader if (r.get("Email") or r.get("email"))
+    ]
+    add_or_update_emails_from_file(rows)
+    return RedirectResponse("/admin/email-users", status_code=303)

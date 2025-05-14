@@ -1,16 +1,12 @@
 # app/routers/enterprise.py
-from fastapi import APIRouter, Request, Depends, HTTPException, status
-from .admin import require_login           # проверка авторизации
+from fastapi import APIRouter, Depends
+from .admin import require_login           # общая проверка куки
 
 router = APIRouter(prefix="/admin/enterprises")
 
-# ───────── примеры маршрутов ─────────
-@router.get("", dependencies=[Depends(require_login)])
+# ───────── список предприятий ─────────
+@router.get("/",  dependencies=[Depends(require_login)])
+@router.get("",   dependencies=[Depends(require_login)])   # вариант без «/»
 async def list_enterprises():
-    # TODO: вернуть список предприятий из БД
+    # TODO: получить реальные данные из БД
     return {"msg": "список предприятий"}
-
-@router.post("", dependencies=[Depends(require_login)])
-async def create_enterprise(payload: dict):
-    # TODO: добавить предприятие
-    return {"msg": "предприятие создано", "data": payload}
