@@ -23,14 +23,14 @@ from app.services.calls import (
     create_resend_loop,
 )
 
-# Импортируем роутер для email
-from app.routers import admin_email  
+# ✅ Импортируем корректный роутер админки
+from app.routers import admin
 
 app = FastAPI()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# Подключаем роутер для работы с email
-app.include_router(admin_email.router)
+# ✅ Подключаем админский роутер (включает логин, email-таблицу и пр.)
+app.include_router(admin.router)
 
 # in-memory stores
 dial_cache = {}
