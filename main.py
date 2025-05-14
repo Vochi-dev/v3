@@ -1,16 +1,14 @@
 # /root/asterisk-webhook/main.py
 from fastapi import FastAPI, Request
-import logging, asyncio
-from telegram import Bot                          # python-telegram-bot (для уведомлений Asterisk)
+import asyncio, logging
+from telegram import Bot
 
-# ────────────────────────────
-# Константы (позже можно вынести в .env / app.config)
+# ──────────── базовые константы (можно вынести в .env) ────────────
 TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
 TELEGRAM_CHAT_ID   = "374573193"
 print(f"🔑 TELEGRAM_BOT_TOKEN: {TELEGRAM_BOT_TOKEN}")
-# ────────────────────────────
 
-# Сервисы Asterisk-интеграции
+# ──────────── сервисы Asterisk ────────────
 from app.services.events import (
     init_database_tables, load_hangup_message_history,
     save_asterisk_event,
@@ -20,23 +18,20 @@ from app.services.calls import (
     process_hangup, create_resend_loop,
 )
 
-# Роутеры FastAPI
-from app.routers import admin, auth_email          # auth_email → /verify-email/{token}
+# ──────────── роутеры ────────────
+from app.routers import admin, auth_email          # admin → /admin/*  (префикс уже внутри)
+                                                  # auth_email → /verify-email/{token}
 
-# ────────────────────────────
+# ──────────── FastAPI и бот для уведомлений ────────────
 app = FastAPI()
-
-# бот для уведомлений (старый python-telegram-bot)
 tg_notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# регистрируем роутеры админ-панели и подтверждения email
-app.include_router(admin.router, prefix="/admin")
-app.include_router(auth_email.router)              # без префикса
+# регистрируем роутеры
+app.include_router(admin.router)                  # ⚠️ без prefix!
+app.include_router(auth_email.router)
 
 # in-memory кэши звонков
-dial_cache: dict  = {}
-bridge_store: dict = {}
-active_bridges: dict = {}
+dial_cache, bridge_store, active_bridges = {}, {}, {}
 
 # логирование
 logging.basicConfig(
@@ -45,14 +40,14 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# ─────────────── FastAPI startup ───────────────
+# ──────────── lifecycle ────────────
 @app.on_event("startup")
-async def startup_tasks() -> None:
-    # 1. подготовка БД
+async def startup_tasks():
+    # 1. База
     init_database_tables()
     load_hangup_message_history()
 
-    # 2. фоновая переотправка «мостов»
+    # 2. Фоновая пересылка «мостов»
     asyncio.create_task(
         create_resend_loop(
             dial_cache, bridge_store, active_bridges,
@@ -60,18 +55,13 @@ async def startup_tasks() -> None:
         )
     )
 
-    # 3. запускаем aiogram-бота (опрос long-polling)
-    #    Импорт внутри функции, чтобы избежать циклических зависимостей
-    from app.telegram.bot import dp                # aiogram Dispatcher
-    loop = asyncio.get_event_loop()
-    loop.create_task(dp.start_polling())           # aiogram Bot создаётся в app.telegram.bot
+    # 3. aiogram-бот (long-polling)
+    from app.telegram.bot import dp               # импорт здесь, чтобы избежать циклов
+    asyncio.create_task(dp.start_polling())
 
-# ─────────────── Asterisk веб-хуки ───────────────
+# ──────────── приём веб-хуков Asterisk ────────────
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
-    """
-    Принимаем события Asterisk (/start /dial /bridge /hangup)
-    """
     data   = await request.json()
     et     = event_type.lower()
     uid    = data.get("UniqueId", "")
