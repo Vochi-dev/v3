@@ -23,7 +23,7 @@ def require_login(request: Request) -> None:
 @router.get("", response_class=HTMLResponse)
 async def root_redirect(request: Request):
     """
-    GET /admin → форма логина
+    GET /admin → перенаправление на форму входа
     """
     return RedirectResponse(url="/admin/login", status_code=status.HTTP_302_FOUND)
 
@@ -61,9 +61,13 @@ async def dashboard(request: Request):
     GET /admin/dashboard → дашборд
     """
     require_login(request)
-    async with await get_connection() as db:
+    db = await get_connection()
+    try:
         cur = await db.execute("SELECT COUNT(*) AS cnt FROM enterprises")
         row = await cur.fetchone()
+    finally:
+        await db.close()
+
     return templates.TemplateResponse(
         "dashboard.html",
         {"request": request, "enterprise_count": row["cnt"]}
@@ -76,9 +80,13 @@ async def list_enterprises(request: Request):
     GET /admin/enterprises → список предприятий
     """
     require_login(request)
-    async with await get_connection() as db:
+    db = await get_connection()
+    try:
         cur = await db.execute("SELECT number, name, bot_token FROM enterprises")
         rows = await cur.fetchall()
+    finally:
+        await db.close()
+
     return templates.TemplateResponse(
         "enterprises.html",
         {"request": request, "enterprises": rows}
