@@ -1,7 +1,4 @@
-from fastapi import (
-    APIRouter, Request, Form, Depends,
-    HTTPException, status, UploadFile
-)
+from fastapi import APIRouter, Request, Form, Depends, HTTPException, status, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from app.config import ADMIN_PASSWORD
@@ -12,7 +9,7 @@ import csv
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="app/templates")
 
-
+# Проверка авторизации
 def require_login(request: Request):
     if request.cookies.get("session") != "valid":
         raise HTTPException(
@@ -20,12 +17,12 @@ def require_login(request: Request):
             headers={"Location": "/admin/login"}
         )
 
-
+# Форма логина
 @router.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
     return templates.TemplateResponse("login.html", {"request": request, "error": None})
 
-
+# Отправка формы логина
 @router.post("/login", response_class=HTMLResponse)
 async def login_submit(request: Request, password: str = Form(...)):
     if password != ADMIN_PASSWORD:
@@ -36,19 +33,19 @@ async def login_submit(request: Request, password: str = Form(...)):
     response.set_cookie(key="session", value="valid", httponly=True, max_age=86400, path="/admin")
     return response
 
-
+# Главная страница админки
 @router.get("/", dependencies=[Depends(require_login)], response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
-
+# Таблица пользователей
 @router.get("/email-users", dependencies=[Depends(require_login)], response_class=HTMLResponse)
 async def email_users_admin(request: Request):
     users = get_all_emails()
     users.sort(key=lambda x: x["number"])
     return templates.TemplateResponse("email_users.html", {"request": request, "users": users})
 
-
+# Обработка загрузки файла с email'ами
 @router.post("/upload-emails", dependencies=[Depends(require_login)])
 async def upload_emails(file: UploadFile):
     text_wrapper = TextIOWrapper(file.file, encoding='utf-8')
