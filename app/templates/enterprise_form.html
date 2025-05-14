@@ -1,16 +1,18 @@
-<!DOCTYPE html><html lang="ru"><head>
-<meta charset="UTF-8"><title>Новое предприятие</title></head><body>
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>Новое предприятие</title></head>
+<body>
+<a href="/admin/enterprises">← список</a>
 <h1>Добавить предприятие</h1>
 
-<form method="post" action="/admin/enterprises/new">
-  <label>Номер:<br><input name="number" required></label><br><br>
-  <label>Название:<br><input name="name" required></label><br><br>
-  <label>Bot&nbsp;Token:<br><input name="bot_token" required></label><br><br>
-  <label>Chat&nbsp;ID:<br><input name="chat_id" required></label><br><br>
-  <label>IP:<br><input name="ip" required></label><br><br>
-  <label>Host:<br><input name="host" required></label><br><br>
-
+<form method="post">
+  <p>ID / Number:     <input name="number" required></p>
+  <p>Название:        <input name="name" required></p>
+  <p>Bot Token:       <input name="bot_token" required></p>
+  <p>Chat ID:         <input name="chat_id" required></p>
+  <p>IP:              <input name="ip" required></p>
+  <p>Secret:          <input name="secret" required></p>
+  <p>Host:            <input name="host" required></p>
   <button type="submit">Сохранить</button>
-  <a href="/admin/enterprises">Отмена</a>
 </form>
 </body></html>

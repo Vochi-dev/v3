@@ -1,26 +1,21 @@
-<!DOCTYPE html><html lang="ru"><head>
-<meta charset="UTF-8"><title>Список предприятий</title></head><body>
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>Список предприятий</title></head>
+<body>
+<a href="/admin">← назад</a>
 <h1>Список предприятий</h1>
 
-<a href="/admin/enterprises/new">➕ Добавить предприятие</a><br><br>
+<a href="/admin/enterprises/new">➕ Добавить предприятие</a>
 
 <table border="1" cellpadding="4" cellspacing="0">
+  <tr><th>ID</th><th>Название</th><th>Bot Token</th><th>Создано</th></tr>
+  {% for r in rows %}
   <tr>
-    <th>№</th><th>Название</th><th>Bot&nbsp;Token</th>
-    <th>Chat&nbsp;ID</th><th>IP</th><th>Host</th><th>Создано</th>
-  </tr>
-  {% for e in rows %}
-  <tr>
-    <td>{{ e.number }}</td>
-    <td>{{ e.name }}</td>
-    <td>{{ e.bot_token }}</td>
-    <td>{{ e.chat_id }}</td>
-    <td>{{ e.ip }}</td>
-    <td>{{ e.host }}</td>
-    <td>{{ e.created_at }}</td>
+    <td>{{ r.number }}</td>
+    <td>{{ r.name }}</td>
+    <td>{{ r.bot_token }}</td>
+    <td>{{ r.created_at }}</td>
   </tr>
   {% endfor %}
 </table>
-<br>
-<a href="/admin">← Назад</a>
 </body></html>
