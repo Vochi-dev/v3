@@ -1,19 +1,69 @@
-from fastapi import APIRouter, Request, Depends
-from app.services.db import get_connection
+# app/routers/enterprise.py
+# -*- coding: utf-8 -*-
+from fastapi import APIRouter, Request, Form, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-router = APIRouter(prefix="/admin/enterprises")
+from app.routers.admin import require_login
+from app.services.db import get_connection
+import datetime as dt
 
-# создаем объект templates, указав директорию с шаблонами
+router = APIRouter(prefix="/admin/enterprises", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
 
-@router.get("")
-async def list_enterprises(request: Request):
-    # Получаем все данные из базы, включая name2
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2 FROM enterprises")
-        rows = cur.fetchall()
 
-    # Рендерим шаблон с полным списком данных
-    return templates.TemplateResponse("enterprises.html", {"request": request, "rows": rows})
+@router.get("", response_class=HTMLResponse)
+async def list_enterprises(request: Request):
+    require_login(request)
+    db = await get_connection()
+    try:
+        cur = await db.execute(
+            "SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2 "
+            "FROM enterprises ORDER BY created_at DESC"
+        )
+        rows = await cur.fetchall()
+    finally:
+        await db.close()
+    return templates.TemplateResponse(
+        "enterprises.html",
+        {"request": request, "enterprises": rows}
+    )
+
+
+@router.get("/add", response_class=HTMLResponse)
+async def add_enterprise_page(request: Request):
+    require_login(request)
+    return templates.TemplateResponse(
+        "add_enterprise.html",
+        {"request": request}
+    )
+
+
+@router.post("/add", response_class=RedirectResponse)
+async def add_enterprise(
+    request: Request,
+    number: str = Form(...),
+    name: str = Form(...),
+    bot_token: str = Form(...),
+    chat_id: str = Form(...),
+    ip: str = Form(...),
+    secret: str = Form(...),
+    host: str = Form(...),
+    name2: str = Form(""),
+):
+    require_login(request)
+    created_at = dt.datetime.utcnow().isoformat()
+    db = await get_connection()
+    try:
+        await db.execute(
+            "INSERT INTO enterprises (number,name,bot_token,chat_id,ip,secret,host,created_at,name2) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            (number, name, bot_token, chat_id, ip, secret, host, created_at, name2),
+        )
+        await db.commit()
+    finally:
+        await db.close()
+    return RedirectResponse(
+        url="/admin/enterprises",
+        status_code=status.HTTP_303_SEE_OTHER
+    )

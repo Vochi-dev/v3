@@ -1,6 +1,8 @@
 # app/routers/admin.py
 # -*- coding: utf-8 -*-
-from fastapi import APIRouter, Request, Form, status, HTTPException
+from fastapi import (
+    APIRouter, Request, Form, status, HTTPException
+)
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -12,27 +14,29 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 def require_login(request: Request) -> None:
-    """
-    Проверяет, что в cookies есть auth=1,
-    иначе выбрасывает 401 Unauthorized.
-    """
     if request.cookies.get("auth") != "1":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized"
+        )
 
 
 @router.get("", response_class=HTMLResponse)
 async def root_redirect(request: Request):
-    """
-    GET /admin → перенаправление на форму входа
-    """
-    return RedirectResponse(url="/admin/login", status_code=status.HTTP_302_FOUND)
+    # если уже залогинен — на дашборд, иначе — на форму логина
+    if request.cookies.get("auth") == "1":
+        return RedirectResponse(
+            url="/admin/dashboard",
+            status_code=status.HTTP_302_FOUND
+        )
+    return RedirectResponse(
+        url="/admin/login",
+        status_code=status.HTTP_302_FOUND
+    )
 
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    """
-    GET /admin/login → страница входа
-    """
     return templates.TemplateResponse(
         "login.html",
         {"request": request, "error": None}
@@ -41,29 +45,28 @@ async def login_page(request: Request):
 
 @router.post("/login", response_class=HTMLResponse)
 async def login(request: Request, password: str = Form(...)):
-    """
-    POST /admin/login → проверка пароля и установка cookie
-    """
     if password != ADMIN_PASSWORD:
         return templates.TemplateResponse(
             "login.html",
             {"request": request, "error": "Неверный пароль"},
             status_code=status.HTTP_401_UNAUTHORIZED
         )
-    response = RedirectResponse(url="/admin/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(
+        url="/admin/dashboard",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
     response.set_cookie("auth", "1", httponly=True)
     return response
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    """
-    GET /admin/dashboard → дашборд
-    """
     require_login(request)
     db = await get_connection()
     try:
-        cur = await db.execute("SELECT COUNT(*) AS cnt FROM enterprises")
+        cur = await db.execute(
+            "SELECT COUNT(*) AS cnt FROM enterprises"
+        )
         row = await cur.fetchone()
     finally:
         await db.close()
@@ -76,13 +79,13 @@ async def dashboard(request: Request):
 
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
-    """
-    GET /admin/enterprises → список предприятий
-    """
     require_login(request)
     db = await get_connection()
     try:
-        cur = await db.execute("SELECT number, name, bot_token FROM enterprises")
+        cur = await db.execute(
+            "SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2 "
+            "FROM enterprises ORDER BY created_at DESC"
+        )
         rows = await cur.fetchall()
     finally:
         await db.close()
