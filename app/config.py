@@ -1,11 +1,22 @@
-# app/config.py
+import os
+from dotenv import load_dotenv
 
-# Telegram
-TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdwxn4vxBI3f19VeA"
-TELEGRAM_CHAT_ID   = "374573193"
+load_dotenv()
 
-# Путь до базы
-DB_PATH = "/root/asterisk-webhook/asterisk_events.db"
+# 🛡️ Пароль администратора (для /admin/login)
+ADMIN_PASSWORD = "SuperS3cret!"
 
-# Чат для админских уведомлений (можно оставить равно TELEGRAM_CHAT_ID)
-ADMIN_CHAT_ID = TELEGRAM_CHAT_ID
+# 📨 Почта
+EMAIL_HOST = os.getenv("EMAIL_HOST", "mailbe04.hoster.by")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+EMAIL_FROM = os.getenv("EMAIL_FROM", "")
+
+# 📦 Путь к базе данных
+DB_PATH = os.getenv("DB_PATH", "/root/asterisk-webhook/asterisk_events.db")
+
+# 🤖 Telegram
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
