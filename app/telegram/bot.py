@@ -1,11 +1,12 @@
 # app/telegram/bot.py
 # -*- coding: utf-8 -*-
-"""Точка входа aiogram-бота с автосбросом webhook."""
+"""Точка входа aiogram-бота (v3.20+) с автосбросом webhook."""
 
 import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.bot import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from app.config import TELEGRAM_BOT_TOKEN
@@ -16,14 +17,18 @@ logging.basicConfig(level=logging.INFO)
 
 
 async def main() -> None:
-    bot = Bot(token=TELEGRAM_BOT_TOKEN, parse_mode="HTML")
+    # ---- инициализация бота -----------------------------------------
+    bot = Bot(
+        token=TELEGRAM_BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode="HTML"),
+    )
     dp = Dispatcher(storage=MemoryStorage())
 
-    # --- сбрасываем возможный старый webhook ----------
+    # ---- сбрасываем возможный старый webhook ------------------------
     await bot.delete_webhook(drop_pending_updates=True)
     logging.info("Webhook removed, switched to long-polling")
 
-    # --- определяем предприятие -----------------------
+    # ---- определяем предприятие ------------------------------------
     enterprise_number = await get_enterprise_number_by_bot_token(
         TELEGRAM_BOT_TOKEN
     )
@@ -33,7 +38,7 @@ async def main() -> None:
     bot["enterprise_number"] = enterprise_number
     logging.info("Bot started for enterprise %s", enterprise_number)
 
-    # --- подключаем хэндлеры и запускаем -------------
+    # ---- подключаем хэндлеры и запускаем ---------------------------
     dp.include_router(onboarding_router)
     await dp.start_polling(bot)
 
