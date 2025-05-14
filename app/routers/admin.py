@@ -21,7 +21,18 @@ def require_login(request: Request) -> None:
 
 
 @router.get("", response_class=HTMLResponse)
+async def root_redirect(request: Request):
+    """
+    GET /admin → форма логина
+    """
+    return RedirectResponse(url="/admin/login", status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
+    """
+    GET /admin/login → страница входа
+    """
     return templates.TemplateResponse(
         "login.html",
         {"request": request, "error": None}
@@ -30,6 +41,9 @@ async def login_page(request: Request):
 
 @router.post("/login", response_class=HTMLResponse)
 async def login(request: Request, password: str = Form(...)):
+    """
+    POST /admin/login → проверка пароля и установка cookie
+    """
     if password != ADMIN_PASSWORD:
         return templates.TemplateResponse(
             "login.html",
@@ -43,6 +57,9 @@ async def login(request: Request, password: str = Form(...)):
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
+    """
+    GET /admin/dashboard → дашборд
+    """
     require_login(request)
     async with await get_connection() as db:
         cur = await db.execute("SELECT COUNT(*) AS cnt FROM enterprises")
@@ -55,6 +72,9 @@ async def dashboard(request: Request):
 
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
+    """
+    GET /admin/enterprises → список предприятий
+    """
     require_login(request)
     async with await get_connection() as db:
         cur = await db.execute("SELECT number, name, bot_token FROM enterprises")
