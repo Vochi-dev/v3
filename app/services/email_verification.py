@@ -1,4 +1,3 @@
-# app/services/email_verification.py
 import sqlite3, secrets, string, smtplib, ssl
 from email.message import EmailMessage
 from datetime import datetime
@@ -7,7 +6,7 @@ from app.config import (
     EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD,
     EMAIL_USE_TLS, EMAIL_FROM,
 )
-from app.services.db import get_db_connection   # если у вас уже есть хелпер
+from app.services.db import get_connection   # если у вас уже есть хелпер
 
 TOKEN_LEN = 32
 
@@ -16,7 +15,7 @@ def _random_token(n: int = TOKEN_LEN) -> str:
 
 # ───────── БД ──────────────────────────────────────────────────────────
 def upsert_telegram_user(tg_id: int, email: str, token: str):
-    with get_db_connection() as conn:
+    with get_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO telegram_users (tg_id, email, token, verified, added_at)
@@ -27,7 +26,7 @@ def upsert_telegram_user(tg_id: int, email: str, token: str):
 
 def mark_verified(token: str) -> tuple[bool, int]:
     """Вернуть (успех, tg_id)"""
-    with get_db_connection() as conn:
+    with get_connection() as conn:
         cur = conn.cursor()
         cur.execute("SELECT tg_id FROM telegram_users WHERE token=? AND verified=0", (token,))
         row = cur.fetchone()
@@ -39,14 +38,14 @@ def mark_verified(token: str) -> tuple[bool, int]:
         return True, tg_id
 
 def email_exists(email: str) -> bool:
-    with get_db_connection() as conn:
+    with get_connection() as conn:
         cur = conn.cursor()
         cur.execute("SELECT 1 FROM email_users WHERE email=?", (email,))
         return cur.fetchone() is not None
 
 def email_already_linked(email: str, bot_token: str) -> bool:
     """Не позволяем привязать e-mail к другому боту"""
-    with get_db_connection() as conn:
+    with get_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
             SELECT e.bot_token
