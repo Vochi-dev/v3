@@ -23,18 +23,15 @@ from app.services.calls import (
     create_resend_loop,
 )
 
-# ✅ Подключаем только admin роутер
-from app.routers import admin, admin_email  # ✅ добавили импорт
+# ✅ Подключаем нужные роутеры
+from app.routers import admin, admin_email
 
 app = FastAPI()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
+# ✅ Регистрируем роутеры
 app.include_router(admin.router)
-app.include_router(admin_email.router)  # ✅ добавили регистрацию
-
-
-# ✅ Регистрируем admin роутер
-app.include_router(admin.router)
+app.include_router(admin_email.router)
 
 # 🧠 in-memory stores
 dial_cache = {}
