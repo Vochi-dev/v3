@@ -1,29 +1,15 @@
 # app/services/admin_tables.py
 import sqlite3
-from typing import List, Dict
 from app.config import DB_PATH
 
-def fetch_all(q: str, params=()) -> List[Dict]:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute(q, params).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+def fetch_all(sql: str, params: tuple = ()):
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        return conn.execute(sql, params).fetchall()
 
-# предприятия
-def get_enterprises() -> List[Dict]:
-    return fetch_all("SELECT * FROM enterprises ORDER BY id")
+# ───────── Списки для админ-панели ─────────
+def get_enterprises():
+    return fetch_all("SELECT * FROM enterprises ORDER BY number")
 
-# заявки
-def get_requests() -> List[Dict]:
-    sql = """
-      SELECT ur.id,
-             ur.email,
-             e.name       AS enterprise,
-             ur.status,
-             ur.created_at
-        FROM user_requests ur
-   LEFT JOIN enterprises  e ON e.id = ur.enterprise_id
-    ORDER BY ur.created_at DESC
-    """
-    return fetch_all(sql)
+def get_requests():
+    return fetch_all("SELECT * FROM user_requests ORDER BY created_at DESC")
