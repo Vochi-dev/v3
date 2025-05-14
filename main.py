@@ -1,14 +1,13 @@
-# /root/asterisk-webhook/main.py
+# main.py (в корне проекта)
 from fastapi import FastAPI, Request
 import asyncio, logging
 from telegram import Bot
 
-# ──────────── базовые константы (позже можно вынести в .env) ────────────
+# ──────────── базовые константы ────────────
 TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
 TELEGRAM_CHAT_ID   = "374573193"
-print(f"🔑 TELEGRAM_BOT_TOKEN: {TELEGRAM_BOT_TOKEN}")
 
-# ──────────── сервисы Asterisk ────────────
+# ──────────── импорты сервисов и роутеров ────────────
 from app.services.events import (
     init_database_tables, load_hangup_message_history,
     save_asterisk_event,
@@ -17,44 +16,34 @@ from app.services.calls import (
     process_start, process_dial, process_bridge,
     process_hangup, create_resend_loop,
 )
-
-# ──────────── роутеры ────────────
-# каждый файл в app/routers/ сам задаёт prefix="/admin" (кроме auth_email)
 from app.routers import (
-    admin,              # /admin           (панель + e-mail-список)
-    enterprise,         # /admin/enterprises
-    user_requests,      # /admin/requests
-    auth_email          # /verify-email/{token}
+    admin, enterprise, user_requests, auth_email
 )
 
-# ──────────── FastAPI и бот для уведомлений ────────────
+# ──────────── приложение FastAPI и бот для нотификаций ────────────
 app = FastAPI()
 tg_notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# регистрируем все роутеры
 app.include_router(admin.router)
 app.include_router(enterprise.router)
 app.include_router(user_requests.router)
-app.include_router(auth_email.router)        # без префикса
+app.include_router(auth_email.router)
 
-# in-memory кэши звонков
 dial_cache, bridge_store, active_bridges = {}, {}, {}
 
-# логирование
 logging.basicConfig(
     filename="asterisk_events.log",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# ──────────── lifecycle ────────────
 @app.on_event("startup")
 async def startup_tasks():
-    # 1. База
+    # 1. инициализация БД и истории
     init_database_tables()
     load_hangup_message_history()
 
-    # 2. фоновая пересылка «мостов»
+    # 2. фоновый цикл пересылки «мостов»
     asyncio.create_task(
         create_resend_loop(
             dial_cache, bridge_store, active_bridges,
@@ -62,11 +51,11 @@ async def startup_tasks():
         )
     )
 
-    # 3. aiogram-бот (long-polling)
-    from app.telegram.bot import dp   # импорт здесь → нет циклов
-    asyncio.create_task(dp.start_polling())
+    # 3. запуск aiogram-бота
+    from app.telegram.bot import bot, dp, setup_bot
+    await setup_bot()
+    asyncio.create_task(dp.start_polling(bot))
 
-# ──────────── приём веб-хуков Asterisk ────────────
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
     data   = await request.json()
