@@ -24,10 +24,14 @@ from app.services.calls import (
 )
 
 # ✅ Подключаем только admin роутер
-from app.routers import admin
+from app.routers import admin, admin_email  # ✅ добавили импорт
 
 app = FastAPI()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
+
+app.include_router(admin.router)
+app.include_router(admin_email.router)  # ✅ добавили регистрацию
+
 
 # ✅ Регистрируем admin роутер
 app.include_router(admin.router)
