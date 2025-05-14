@@ -2,40 +2,24 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Управление email-пользователями</title>
-
-    <style>
-        body { font-family: sans-serif; margin: 20px; }
-        a.back { display:inline-block; margin-bottom:14px; text-decoration:none; }
-        table { border-collapse: collapse; width:100%; }
-        th, td { border:1px solid #999; padding:6px 8px; }
-        th { background:#f2f2f2; }
-        input[type="checkbox"] { pointer-events:none; }   /* только показ */
-        form { margin-bottom: 18px; }
-    </style>
+    <title>Управление Email-пользователями</title>
 </head>
 <body>
-    <a class="back" href="/admin">← Назад к панели</a>
-    <h1>Управление email-пользователями</h1>
+    <h1>
+        <a href="/admin" style="text-decoration:none;">← Назад</a>
+        &nbsp;Управление Email-пользователями
+    </h1>
 
-    <!-- форма загрузки CSV -->
     <form method="post" enctype="multipart/form-data" action="/admin/upload-emails">
-        <input type="file" name="file" accept=".csv" required>
+        <input type="file" name="file" required>
         <button type="submit">Загрузить CSV</button>
-        <small>(экспортируйте список из Excel/Numbers как CSV UTF-8)</small>
     </form>
 
-    <!-- таблица пользователей -->
-    <table>
+    <table border="1" cellspacing="0" cellpadding="4" style="margin-top:1em;">
         <thead>
             <tr>
-                <th>№</th>
-                <th>Email</th>
-                <th>Название</th>
-                <th>All</th>
-                <th>1</th>
-                <th>2</th>
+                <th>№</th><th>Email</th><th>Название</th>
+                <th>All</th><th>1</th><th>2</th>
             </tr>
         </thead>
         <tbody>
@@ -44,9 +28,9 @@
                 <td>{{ user.number }}</td>
                 <td>{{ user.email }}</td>
                 <td>{{ user.name }}</td>
-                <td><input type="checkbox" {% if user.right_all %}checked{% endif %}></td>
-                <td><input type="checkbox" {% if user.right_1  %}checked{% endif %}></td>
-                <td><input type="checkbox" {% if user.right_2  %}checked{% endif %}></td>
+                <td><input type="checkbox" {% if user.right_all %}checked{% endif %} disabled></td>
+                <td><input type="checkbox" {% if user.right_1 %}checked{% endif %} disabled></td>
+                <td><input type="checkbox" {% if user.right_2 %}checked{% endif %} disabled></td>
             </tr>
             {% endfor %}
         </tbody>
