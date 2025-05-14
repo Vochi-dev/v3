@@ -1,35 +1,26 @@
-from fastapi import APIRouter, HTTPException, status
+# app/routers/auth_email.py
+from fastapi import APIRouter, Request, HTTPException, status
 from fastapi.responses import HTMLResponse
-import sqlite3, uuid
-from app.config import DB_PATH
+from app.services.email_verification import mark_verified
+from telegram import Bot
+from app.config import TELEGRAM_BOT_TOKEN
 
 router = APIRouter()
-
-def _db_conn():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 @router.get("/verify-email/{token}", response_class=HTMLResponse)
 async def verify_email(token: str):
-    conn = _db_conn()
-    cur  = conn.cursor()
-    cur.execute("SELECT * FROM telegram_users WHERE token = ?", (token,))
-    row = cur.fetchone()
+    ok, tg_id = mark_verified(token)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Токен не найден или устарел")
 
-    if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Неверная ссылка")
+    # шлём сообщение прямо в Telegram
+    try:
+        await notify_bot.send_message(chat_id=tg_id, text="🎉 Почта подтверждена! Бот полностью готов к работе.")
+    except Exception:
+        pass
 
-    # помечаем как подтверждённого
-    cur.execute(
-        "UPDATE telegram_users SET verified = 1 WHERE token = ?",
-        (token,)
-    )
-    conn.commit()
-    conn.close()
-
-    return (
-        "<h1>Спасибо!</h1>"
-        "<p>Ваш e-mail успешно подтверждён. "
-        "Вы можете пользоваться ботом.</p>"
-    )
+    return """
+    <h1>Почта подтверждена!</h1>
+    <p>Теперь вы можете вернуться в Telegram-бот и пользоваться всеми функциями.</p>
+    """
