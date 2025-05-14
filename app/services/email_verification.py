@@ -6,12 +6,13 @@
 • проверка наличия e-mail в email_users
 • проверка, что e-mail не подтверждён ранее
 • upsert в telegram_users
-• отправка письма с ссылкой
+• отправка письма с ссылкой (STARTTLS или SSL)
 • mark_verified — подтверждение токена
 """
 
 import asyncio
 import datetime as dt
+import logging
 import secrets
 import smtplib
 from email.message import EmailMessage
@@ -19,9 +20,16 @@ from typing import Optional, Tuple
 
 import aiosqlite
 
-from app.config import DB_PATH, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, VERIFY_URL_BASE
+from app.config import (
+    DB_PATH,
+    SMTP_HOST,
+    SMTP_PORT,
+    SMTP_USER,
+    SMTP_PASS,
+    VERIFY_URL_BASE,
+    EMAIL_USE_TLS,
+)
 
-# Время жизни токена в минутах
 TOKEN_TTL_MINUTES = 30
 
 
@@ -34,8 +42,7 @@ async def email_exists(email: str) -> bool:
     """Проверяет, что e-mail есть в таблице email_users."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            "SELECT 1 FROM email_users WHERE email = ?",
-            (email,),
+            "SELECT 1 FROM email_users WHERE email = ?", (email,)
         ) as cur:
             return await cur.fetchone() is not None
 
@@ -74,7 +81,8 @@ async def upsert_telegram_user(tg_id: int, email: str, token: str) -> None:
 
 async def send_verification_email(email: str, token: str) -> None:
     """
-    Формирует ссылку VERIFY_URL_BASE/<token> и отправляет письмо.
+    Формирует ссылку VERIFY_URL_BASE/<token> и отправляет письмо
+    по SMTP: если EMAIL_USE_TLS=True и порт≠465 — STARTTLS, иначе SSL.
     """
     link = f"{VERIFY_URL_BASE}/{token}"
 
@@ -84,14 +92,23 @@ async def send_verification_email(email: str, token: str) -> None:
         msg["From"] = SMTP_USER
         msg["To"] = email
         msg.set_content(
-            "Здравствуйте!\n\n"
-            "Чтобы подтвердить доступ к боту, перейдите по ссылке:\n"
-            f"{link}\n\n"
+            f"Здравствуйте!\n\n"
+            f"Чтобы подтвердить доступ к боту, перейдите по ссылке:\n\n{link}\n\n"
             f"Ссылка действительна {TOKEN_TTL_MINUTES} минут."
         )
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as smtp:
-            smtp.login(SMTP_USER, SMTP_PASS)
-            smtp.send_message(msg)
+        try:
+            if EMAIL_USE_TLS and SMTP_PORT != 465:
+                server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+                server.ehlo()
+                server.starttls()
+            else:
+                server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT)
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+            server.quit()
+        except Exception:
+            logging.exception("Failed to send verification email to %s", email)
+            raise
 
     await asyncio.to_thread(_send_sync)
 
@@ -112,31 +129,24 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
         ) as cur:
             row = await cur.fetchone()
 
-        # нет такой записи
         if row is None:
             return False, None
-
-        # уже подтверждён ранее
         if row["verified"] == 1:
             return True, row["tg_id"]
 
         # парсим время добавления
         added_at_str = row["added_at"]
         try:
-            # ожидаемый формат "YYYY-MM-DD HH:MM:SS"
             added_at = dt.datetime.strptime(added_at_str, "%Y-%m-%d %H:%M:%S")
         except ValueError:
-            # fallback: ISO формат
             try:
                 added_at = dt.datetime.fromisoformat(added_at_str)
             except Exception:
                 return False, None
 
-        # проверяем жизнь токена
         if dt.datetime.utcnow() - added_at > dt.timedelta(minutes=TOKEN_TTL_MINUTES):
             return False, None
 
-        # подтверждаем
         await db.execute(
             "UPDATE telegram_users SET verified = 1, token = NULL WHERE token = ?",
             (token,),

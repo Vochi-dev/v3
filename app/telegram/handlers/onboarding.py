@@ -1,7 +1,11 @@
 # app/telegram/handlers/onboarding.py
 # -*- coding: utf-8 -*-
-"""Хэндлеры /start и приёма e-mail без проверки предприятия."""
+"""
+Хэндлеры /start и приёма e-mail без проверки предприятия,
+с логированием ошибок отправки письма.
+"""
 
+import logging
 from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
@@ -23,36 +27,34 @@ class Signup(StatesGroup):
     waiting_email = State()
 
 
-# ---------------- /start --------------------------------------------
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext) -> None:
     await message.answer("Привет! Введите ваш корпоративный e-mail:")
     await state.set_state(Signup.waiting_email)
 
 
-# ---------------- приём e-mail --------------------------------------
 @router.message(Signup.waiting_email)
 async def receive_email(message: Message, state: FSMContext) -> None:
     email = message.text.strip().lower()
 
-    # format check
+    # формат
     if "@" not in email or "." not in email:
         await message.answer("Это не похоже на e-mail. Попробуйте ещё раз:")
         return
 
-    # 1️⃣ e-mail существует в базе?
+    # 1) e-mail есть в базе?
     if not await email_exists(email):
         await message.answer("⛔️ Такой e-mail не найден. Обратитесь к администратору.")
         await state.clear()
         return
 
-    # 2️⃣ ещё не активирован в другом боте?
+    # 2) не подтверждён ли уже?
     if await email_already_verified(email):
         await message.answer("⛔️ Этот e-mail уже подтверждён в другом боте.")
         await state.clear()
         return
 
-    # 3️⃣ всё ок — генерируем токен, сохраняем, шлём письмо
+    # 3) сохраняем и шлём письмо
     token = random_token()
     await upsert_telegram_user(message.from_user.id, email, token)
 
