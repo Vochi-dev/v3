@@ -23,26 +23,29 @@ from app.services.calls import (
     create_resend_loop,
 )
 
-# ❗ Импорт корректного роутера
-from app.routers import admin
+# ✅ Подключаем оба роутера
+from app.routers import admin, admin_email
 
 app = FastAPI()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# ❗ Подключение правильного роутера
+# ✅ Роутеры
 app.include_router(admin.router)
+app.include_router(admin_email.router)
 
-# in-memory stores
+# 🧠 in-memory stores
 dial_cache = {}
 bridge_store = {}
 active_bridges = {}
 
+# 📜 Логирование
 logging.basicConfig(
     filename="asterisk_events.log",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+# 🚀 Стартовые задачи
 @app.on_event("startup")
 async def on_startup():
     init_database_tables()
@@ -57,6 +60,7 @@ async def on_startup():
         )
     )
 
+# 📥 Обработка событий Asterisk
 @app.post("/{event_type}")
 async def receive_event(event_type: str, request: Request):
     data = await request.json()
