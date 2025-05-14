@@ -1,24 +1,19 @@
-# app/routers/enterprise.py
-from fastapi import APIRouter, Request, Depends, HTTPException, status
+from fastapi import APIRouter, Request, Depends
 from app.services.db import get_connection
-from .admin import require_login
+from fastapi.templating import Jinja2Templates  # импортируем Jinja2Templates
 
 router = APIRouter(prefix="/admin/enterprises")
 
-# ───────── примеры маршрутов ─────────
-@router.get("", dependencies=[Depends(require_login)])
+# создаем объект templates, указав директорию с шаблонами
+templates = Jinja2Templates(directory="app/templates")
+
+@router.get("")
 async def list_enterprises(request: Request):
-    # Изменяем запрос, чтобы получить все поля
+    # Получаем данные из базы
     with get_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
-            SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2
-            FROM enterprises
-        """)
-        enterprises = cur.fetchall()
+        cur.execute("SELECT * FROM enterprises")
+        rows = cur.fetchall()
 
-    # Возвращаем шаблон с предприятиями
-    return templates.TemplateResponse("enterprises.html", {
-        "request": request,
-        "enterprises": enterprises
-    })
+    # Рендерим шаблон с данными
+    return templates.TemplateResponse("enterprises.html", {"request": request, "rows": rows})
