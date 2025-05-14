@@ -40,7 +40,8 @@ async def email_exists(email: str) -> bool:
     """Проверяем, что e-mail есть в таблице email_users."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            "SELECT 1 FROM email_users WHERE email = ?", (email,)
+            "SELECT 1 FROM email_users WHERE email = ?",
+            (email,),
         ) as cur:
             return await cur.fetchone() is not None
 
@@ -61,19 +62,3 @@ async def upsert_telegram_user(tg_id: int, email: str, token: str) -> None:
     • tg_id, email, token, verified=0, added_at=CURRENT_TIMESTAMP
     """
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """
-            INSERT INTO telegram_users (tg_id, email, token, verified, added_at)
-                 VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)
-            ON CONFLICT(email) DO UPDATE
-                  SET tg_id    = excluded.tg_id,
-                      token    = excluded.token,
-                      verified = 0,
-                      added_at = CURRENT_TIMESTAMP
-            """,
-            (tg_id, email, token),
-        )
-        await db.commit()
-
-
-async def send_verification_email(email: str, token
