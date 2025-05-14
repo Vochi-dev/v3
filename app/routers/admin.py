@@ -1,62 +1,63 @@
-from fastapi import (
-    APIRouter, Request, Form, Depends,
-    HTTPException, status, UploadFile, File
-)
+# app/routers/admin.py
+# -*- coding: utf-8 -*-
+from fastapi import APIRouter, Request, Form, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from app.config import ADMIN_PASSWORD
-from app.services.users import get_all_emails, add_or_update_emails_from_file
-import csv, io
 
-router = APIRouter(prefix="/admin")
+from app.config import ADMIN_PASSWORD
+from app.services.db import get_connection
+
+router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
 
-# ───────────────── helpers ─────────────────
-def require_login(request: Request):
-    if request.cookies.get("session") != "valid":
-        raise HTTPException(
-            status_code=status.HTTP_303_SEE_OTHER,
-            headers={"Location": "/admin/login"}
-        )
 
-# ───────────────── auth ────────────────────
-@router.get("/login", response_class=HTMLResponse)
-async def login_form(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+def _check_auth(request: Request) -> bool:
+    return request.cookies.get("auth") == "1"
+
+
+@router.get("", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "error": None}
+    )
+
 
 @router.post("/login", response_class=HTMLResponse)
-async def login_submit(request: Request, password: str = Form(...)):
+async def login(request: Request, password: str = Form(...)):
     if password != ADMIN_PASSWORD:
         return templates.TemplateResponse(
-            "login.html", {"request": request, "error": "Неверный пароль"}, status_code=401
+            "login.html",
+            {"request": request, "error": "Неверный пароль"},
+            status_code=status.HTTP_401_UNAUTHORIZED
         )
-    resp = RedirectResponse("/admin/", status_code=303)
-    resp.set_cookie("session", "valid", httponly=True, max_age=86400, path="/admin")
-    return resp
+    response = RedirectResponse(url="/admin/dashboard", status_code=303)
+    response.set_cookie("auth", "1", httponly=True)
+    return response
 
-# ───────── dashboard ─────────
-@router.get("/", response_class=HTMLResponse, dependencies=[Depends(require_login)])
+
+@router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    if not _check_auth(request):
+        return RedirectResponse(url="/admin", status_code=303)
+    # например, посчитаем число предприятий
+    async with await get_connection() as db:
+        cur = await db.execute("SELECT COUNT(*) AS cnt FROM enterprises")
+        row = await cur.fetchone()
+    return templates.TemplateResponse(
+        "dashboard.html",
+        {"request": request, "enterprise_count": row["cnt"]}
+    )
 
-@router.get("", include_in_schema=False)          # /admin → /dashboard
-async def dashboard_alias(request: Request):
-    return await dashboard(request)
 
-# ───────── email-users ───────
-@router.get("/email-users", response_class=HTMLResponse, dependencies=[Depends(require_login)])
-async def email_users_admin(request: Request):
-    users = sorted(get_all_emails(), key=lambda x: x["number"])
-    return templates.TemplateResponse("email_users.html", {"request": request, "users": users})
-
-@router.post("/upload-emails", dependencies=[Depends(require_login)])
-async def upload_emails(file: UploadFile = File(...)):
-    raw = await file.read()
-    reader = csv.DictReader(io.StringIO(raw.decode("utf-8")))
-    rows = [
-        {"email": (r.get("Email") or r.get("email") or "").strip(),
-         "name":  (r.get("NAME")  or r.get("Name")  or r.get("name")  or "").strip()}
-        for r in reader if (r.get("Email") or r.get("email"))
-    ]
-    add_or_update_emails_from_file(rows)
-    return RedirectResponse("/admin/email-users", status_code=303)
+@router.get("/enterprises", response_class=HTMLResponse)
+async def list_enterprises(request: Request):
+    if not _check_auth(request):
+        return RedirectResponse(url="/admin", status_code=303)
+    async with await get_connection() as db:
+        cur = await db.execute("SELECT number, name, bot_token FROM enterprises")
+        rows = await cur.fetchall()
+    return templates.TemplateResponse(
+        "enterprises.html",
+        {"request": request, "enterprises": rows}
+    )
