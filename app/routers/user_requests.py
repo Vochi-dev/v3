@@ -1,35 +1,54 @@
 # app/routers/user_requests.py
-from fastapi import APIRouter, Request, Depends, Form, status
-from fastapi.responses import RedirectResponse, HTMLResponse
+# -*- coding: utf-8 -*-
+from fastapi import APIRouter, Request, status, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlite3 import connect
-from .admin import require_login
-from app.config import DB_PATH
 
-router = APIRouter(prefix="/admin/requests")
-tpl    = Jinja2Templates(directory="app/templates")
+from app.routers.admin import require_login
+from app.services.db import get_connection
 
-def fetch_all(q:str,p:tuple=()):
-    with connect(DB_PATH) as c:
-        c.row_factory = lambda cur,row: dict(zip([x[0] for x in cur.description],row))
-        return c.execute(q,p).fetchall()
+router = APIRouter(prefix="/admin/requests", tags=["admin"])
+templates = Jinja2Templates(directory="app/templates")
 
-def execute(q:str,p:tuple):
-    with connect(DB_PATH) as c:
-        c.execute(q,p); c.commit()
 
-# list
-@router.get("", response_class=HTMLResponse,
-            dependencies=[Depends(require_login)])
+@router.get("", response_class=HTMLResponse)
 async def list_requests(request: Request):
-    rows = fetch_all("SELECT * FROM user_requests ORDER BY created_at DESC")
-    return tpl.TemplateResponse("user_requests.html", {"request": request, "rows": rows})
+    require_login(request)
+    async with await get_connection() as db:
+        cur = await db.execute(
+            """
+            SELECT
+                id, created_at, email, enterprise, comment, status
+            FROM user_requests
+            ORDER BY created_at DESC
+            """
+        )
+        rows = await cur.fetchall()
+    return templates.TemplateResponse(
+        "user_requests.html",
+        {"request": request, "requests": rows}
+    )
 
-# approve-/reject-buttons → POST
-@router.post("/{req_id}/{action}", dependencies=[Depends(require_login)])
-async def change_status(req_id: int, action: str):
-    if action not in ("approve", "reject"):
-        raise HTTPException(status_code=400, detail="Bad action")
-    new_status = "approved" if action == "approve" else "rejected"
-    execute("UPDATE user_requests SET status=? WHERE id=?", (new_status, req_id))
-    return RedirectResponse("/admin/requests", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.post("/approve/{request_id}", response_class=RedirectResponse)
+async def approve_request(request_id: int, request: Request):
+    require_login(request)
+    async with await get_connection() as db:
+        await db.execute(
+            "UPDATE user_requests SET status='approved' WHERE id = ?",
+            (request_id,),
+        )
+        await db.commit()
+    return RedirectResponse(url="/admin/requests", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/reject/{request_id}", response_class=RedirectResponse)
+async def reject_request(request_id: int, request: Request):
+    require_login(request)
+    async with await get_connection() as db:
+        await db.execute(
+            "UPDATE user_requests SET status='rejected' WHERE id = ?",
+            (request_id,),
+        )
+        await db.commit()
+    return RedirectResponse(url="/admin/requests", status_code=status.HTTP_303_SEE_OTHER)
