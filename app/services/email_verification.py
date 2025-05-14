@@ -1,77 +1,187 @@
-import sqlite3, secrets, string, smtplib, ssl
+# app/services/email_verification.py
+# -*- coding: utf-8 -*-
+"""
+Вся логика, связанная с подтверждением e-mail:
+• генерация токена
+• проверка, что e-mail относится к предприятию
+• проверка, что e-mail ещё не активирован в другом боте
+• upsert в telegram_users
+• отправка письма
+• подтверждение токена (mark_verified)
+"""
+
+from __future__ import annotations
+
+import asyncio
+import datetime as dt
+import secrets
+import smtplib
 from email.message import EmailMessage
-from datetime import datetime
+from typing import Optional, Tuple
+
+import aiosqlite
+
 from app.config import (
     DB_PATH,
-    EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD,
-    EMAIL_USE_TLS, EMAIL_FROM,
+    SMTP_HOST,
+    SMTP_PORT,
+    SMTP_USER,
+    SMTP_PASS,
+    VERIFY_URL_BASE,
 )
-from app.services.db import get_connection   # если у вас уже есть хелпер
 
-TOKEN_LEN = 32
+# --------------------------------------------------------------------- #
+# 1) Утилиты и проверки                                                 #
+# --------------------------------------------------------------------- #
+TOKEN_TTL_MINUTES = 30              # токен живёт 30 минут
 
-def _random_token(n: int = TOKEN_LEN) -> str:
-    return ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(n))
 
-# ───────── БД ──────────────────────────────────────────────────────────
-def upsert_telegram_user(tg_id: int, email: str, token: str):
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO telegram_users (tg_id, email, token, verified, added_at)
-            VALUES (?, ?, ?, 0, ?)
-            ON CONFLICT(tg_id) DO UPDATE SET email=excluded.email, token=excluded.token, verified=0
-        """, (tg_id, email, token, datetime.utcnow().isoformat()))
-        conn.commit()
+def random_token(nbytes: int = 16) -> str:
+    """URL-friendly токен для ссылок."""
+    return secrets.token_urlsafe(nbytes)
 
-def mark_verified(token: str) -> tuple[bool, int]:
-    """Вернуть (успех, tg_id)"""
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT tg_id FROM telegram_users WHERE token=? AND verified=0", (token,))
-        row = cur.fetchone()
-        if not row:
-            return False, 0
-        tg_id = row["tg_id"]
-        cur.execute("UPDATE telegram_users SET verified=1 WHERE tg_id=?", (tg_id,))
-        conn.commit()
-        return True, tg_id
 
-def email_exists(email: str) -> bool:
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT 1 FROM email_users WHERE email=?", (email,))
-        return cur.fetchone() is not None
+async def email_exists_for_enterprise(email: str, enterprise_id: int) -> bool:
+    """Есть ли такой e-mail в email_users именно для данного предприятия?"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            """
+            SELECT 1
+              FROM email_users
+             WHERE email = ?
+               AND enterprise_id = ?
+            """,
+            (email, enterprise_id),
+        ) as cur:
+            return await cur.fetchone() is not None
 
-def email_already_linked(email: str, bot_token: str) -> bool:
-    """Не позволяем привязать e-mail к другому боту"""
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT e.bot_token
-            FROM telegram_users tu
-            JOIN enterprises e ON e.number = substr(tu.email,1,4)  -- ваша логика связи, поправьте
-            WHERE tu.email=? AND tu.verified=1
-        """, (email,))
-        row = cur.fetchone()
-        return row and row["bot_token"] != bot_token
 
-# ───────── Письмо ──────────────────────────────────────────────────────
-def send_verification_email(email: str, token: str):
-    link = f"https://bot.vochi.by:8001/verify-email/{token}"
+async def email_already_linked_to_another_bot(
+    email: str, enterprise_id: int
+) -> bool:
+    """
+    True, если e-mail уже verified в telegram_users
+    и enterprise_id там другой.
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            """
+            SELECT enterprise_id
+              FROM telegram_users
+             WHERE email = ?
+               AND verified = 1
+            """,
+            (email,),
+        ) as cur:
+            row = await cur.fetchone()
+            return row is not None and row["enterprise_id"] != enterprise_id
 
-    msg = EmailMessage()
-    msg["Subject"] = "Подтверждение подключения к боту"
-    msg["From"]    = EMAIL_FROM
-    msg["To"]      = email
-    msg.set_content(
-        f"Здравствуйте!\n\nНажмите на ссылку ниже, чтобы закончить подключение:\n{link}\n\n"
-        "Если это письмо попало к вам случайно — просто игнорируйте его."
-    )
 
-    context = ssl.create_default_context()
-    with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as smtp:
-        if EMAIL_USE_TLS:
-            smtp.starttls(context=context)
-        smtp.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
-        smtp.send_message(msg)
+async def upsert_telegram_user(
+    telegram_id: int,
+    enterprise_id: int,
+    email: str,
+    token: str,
+) -> None:
+    """Вставляем или обновляем запись о Telegram-пользователе."""
+    now = dt.datetime.utcnow().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """
+            INSERT INTO telegram_users (telegram_id,
+                                        enterprise_id,
+                                        email,
+                                        token,
+                                        verified,
+                                        updated_at)
+                 VALUES (?, ?, ?, ?, 0, ?)
+            ON CONFLICT(email) DO UPDATE
+                  SET telegram_id  = excluded.telegram_id,
+                      enterprise_id= excluded.enterprise_id,
+                      token        = excluded.token,
+                      verified     = 0,
+                      updated_at   = excluded.updated_at
+            """,
+            (telegram_id, enterprise_id, email, token, now),
+        )
+        await db.commit()
+
+
+# --------------------------------------------------------------------- #
+# 2) Отправка письма с ссылкой                                          #
+# --------------------------------------------------------------------- #
+async def send_verification_email(email: str, token: str) -> None:
+    """
+    Формирует ссылку VERIFY_URL_BASE?token=... и шлёт письмо.
+    SMTP-отправка выполняется в thread-pool, чтобы не блокировать asyncio.
+    """
+
+    def _send_sync() -> None:
+        link = f"{VERIFY_URL_BASE}?token={token}"
+
+        msg = EmailMessage()
+        msg["Subject"] = "Подтверждение доступа к Telegram-боту"
+        msg["From"] = SMTP_USER
+        msg["To"] = email
+        msg.set_content(
+            f"Здравствуйте!\n\n"
+            f"Для подтверждения доступа к корпоративному Telegram-боту "
+            f"перейдите по ссылке:\n\n{link}\n\n"
+            f"Ссылка действительна {TOKEN_TTL_MINUTES} минут."
+        )
+
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as smtp:
+            smtp.login(SMTP_USER, SMTP_PASS)
+            smtp.send_message(msg)
+
+    await asyncio.to_thread(_send_sync)
+
+
+# --------------------------------------------------------------------- #
+# 3) Подтверждение токена                                               #
+# --------------------------------------------------------------------- #
+async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
+    """
+    Проверяем токен: если валиден и не устарел — ставим verified=1,
+    обнуляем token, возвращаем (True, telegram_id).
+    При ошибке возвращаем (False, None).
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+
+        async with db.execute(
+            """
+            SELECT id, telegram_id, updated_at, verified
+              FROM telegram_users
+             WHERE token = ?
+            """,
+            (token,),
+        ) as cur:
+            row = await cur.fetchone()
+
+        # токен не найден
+        if row is None:
+            return False, None
+
+        # уже подтверждён раньше
+        if row["verified"]:
+            return True, row["telegram_id"]
+
+        # проверяем TTL
+        updated_at = dt.datetime.fromisoformat(row["updated_at"])
+        if dt.datetime.utcnow() - updated_at > dt.timedelta(minutes=TOKEN_TTL_MINUTES):
+            return False, None
+
+        # всё хорошо – отмечаем verified
+        await db.execute(
+            """
+            UPDATE telegram_users
+               SET verified = 1,
+                   token    = NULL
+             WHERE id = ?
+            """,
+            (row["id"],),
+        )
+        await db.commit()
+
+    return True, row["telegram_id"]
