@@ -9,18 +9,14 @@ import asyncio
 import logging
 
 from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
 
-# ────────── Конфигурация ──────────
+# ───────── Конфигурация ─────────
 TELEGRAM_BOT_TOKEN = "7383270877:AAEbWRGgDIIccsFozcdxwxn4vxBI3f19VeA"
 TELEGRAM_CHAT_ID   = "374573193"
 
 app = FastAPI()
-
-# ─── монтируем статику для админки (css, js, иконки) ───
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # ─── Jinja2 для рендеринга шаблонов ───
 templates = Jinja2Templates(directory="app/templates")
@@ -69,7 +65,7 @@ async def startup_tasks():
         )
     )
 
-    # 3) А вот polling-бот запускаем отдельно:
+    # 3) Telegram-бот polling запускаем отдельно:
     #    python3 -m app.telegram.bot
 
 # ─── вебхук для Asterisk-событий ──────────────────
