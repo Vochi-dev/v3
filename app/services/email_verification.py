@@ -111,7 +111,7 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
         except ValueError:
             try:
                 added_at = dt.datetime.fromisoformat(added_at_str)
-        except Exception:
+            except Exception:
                 return False, None
 
         if dt.datetime.utcnow() - added_at > dt.timedelta(minutes=TOKEN_TTL_MINUTES):
@@ -126,8 +126,8 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
     # привязка к enterprise
     enterprise_number = await get_enterprise_number_by_bot_token(row["bot_token"])
     if enterprise_number:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
+        async with aiosqlite.connect(DB_PATH) as db2:
+            await db2.execute(
                 """
                 INSERT INTO enterprise_users
                   (enterprise_id, telegram_id, username, requested_at, status)
@@ -135,6 +135,6 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
                 """,
                 (enterprise_number, row["tg_id"]),
             )
-            await db.commit()
+            await db2.commit()
 
     return True, row["tg_id"]
