@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from fastapi import (
     APIRouter, Request, status, HTTPException,
-    UploadFile, File, Form
+    UploadFile, File
 )
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -13,9 +13,9 @@ import aiosqlite
 
 from aiogram import Bot as AiogramBot
 
-from app.config import DB_PATH
+from app.config import DB_PATH, TELEGRAM_BOT_TOKEN
 from app.routers.admin import require_login
-from app.services.db import get_connection, get_enterprise_number_by_bot_token
+from app.services.db import get_connection
 from app.services.user_sync import sync_users_from_csv
 
 router = APIRouter(prefix="/admin/email-users", tags=["admin"])
@@ -60,8 +60,7 @@ async def list_email_users(request: Request):
 @router.post("/upload", response_class=RedirectResponse)
 async def upload_email_users(
     request: Request,
-    file: UploadFile = File(...),
-    bot_token: str = Form(...)
+    file: UploadFile = File(...)
 ):
     require_login(request)
     if not file.filename.lower().endswith(".csv"):
@@ -99,8 +98,8 @@ async def upload_email_users(
     finally:
         await db.close()
 
-    # синхронизируем недостающих пользователей
-    await sync_users_from_csv(content, bot_token)
+    # после обновления email_users — синхронизируем:
+    await sync_users_from_csv(content, TELEGRAM_BOT_TOKEN)
 
     return RedirectResponse(
         url="/admin/email-users",
@@ -110,14 +109,9 @@ async def upload_email_users(
 
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
-    """
-    POST /admin/email-users/delete/{tg_id}
-    Удаляет пользователя из telegram_users и enterprise_users,
-    и уведомляет его через его бот, что доступ отозван.
-    """
     require_login(request)
 
-    # находим bot_token для этого пользователя
+    # находим bot_token через enterprise_users → enterprises
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
