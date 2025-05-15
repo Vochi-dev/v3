@@ -27,6 +27,7 @@ async def list_email_users(request: Request):
     require_login(request)
     db = await get_connection()
     try:
+        # Показываем только тех, у кого есть tg_id и не отозван доступ
         cur = await db.execute(
             """
             SELECT
@@ -37,13 +38,10 @@ async def list_email_users(request: Request):
               eu.right_1,
               eu.right_2,
               ent.name           AS enterprise_name
-            FROM email_users eu
-            LEFT JOIN telegram_users tu
-              ON eu.email = tu.email
-            LEFT JOIN enterprise_users uut
-              ON uut.telegram_id = tu.tg_id
-            LEFT JOIN enterprises ent
-              ON uut.enterprise_id = ent.number
+            FROM telegram_users tu
+            JOIN email_users eu ON eu.email = tu.email
+            JOIN enterprise_users uut ON uut.telegram_id = tu.tg_id
+            JOIN enterprises ent ON uut.enterprise_id = ent.number
             ORDER BY eu.email
             """
         )
@@ -68,10 +66,10 @@ async def upload_email_users(
         raise HTTPException(status_code=400, detail="Файл должен быть в формате CSV")
 
     content = await file.read()
-    text = content.decode("utf-8")
+    text = content.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
 
-    # Обновляем таблицу email_users
+    # 1) Обновляем справочник email_users
     db = await get_connection()
     try:
         for row in reader:
@@ -100,7 +98,7 @@ async def upload_email_users(
     finally:
         await db.close()
 
-    # Синхронизируем подписки по всему CSV
+    # 2) Синхронизируем подписки — удаляем отозванных пользователей
     await sync_users_from_csv(content)
 
     return RedirectResponse(
@@ -111,9 +109,13 @@ async def upload_email_users(
 
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
+    """
+    Удаляет пользователя из telegram_users и enterprise_users
+    и уведомляет его ботом, что доступ отозван.
+    """
     require_login(request)
 
-    # Находим bot_token для данного tg_id
+    # 1) Найдём bot_token для этого пользователя
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -130,16 +132,16 @@ async def delete_user(tg_id: int, request: Request):
         if row:
             bot_token = row["bot_token"]
 
-    # Удаляем из БД
+    # 2) Удаляем из БД
     db = await get_connection()
     try:
-        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
         await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
+        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
         await db.commit()
     finally:
         await db.close()
 
-    # Уведомляем пользователя через бот
+    # 3) Уведомляем пользователя
     if bot_token:
         try:
             bot = AiogramBot(token=bot_token)
