@@ -1,17 +1,20 @@
 # app/services/user_sync.py
+
 import csv
 import io
 from typing import Dict, Set
 
 import aiosqlite
 from telegram import Bot
+from telegram.error import TelegramError
 
 from app.config import DB_PATH
+
 
 async def sync_users_from_csv(file_bytes: bytes) -> None:
     """
     Синхронизирует подписки всех предприятий по единому CSV:
-    CSV должен содержать колонку 'number' (enterprise number) и 'email'.
+    CSV должен содержать колонки 'number' (enterprise number) и 'email'.
     Логика:
     1) Парсим CSV → mapping: number -> set(email).
     2) Из БД читаем все предприятия (number, bot_token).
@@ -39,11 +42,11 @@ async def sync_users_from_csv(file_bytes: bytes) -> None:
 
     # 3) Для каждого предприятия — синхронизируем
     for ent in ent_rows:
-        number   = ent["number"]
+        number    = ent["number"]
         bot_token = ent["bot_token"]
         allowed_emails = csv_map.get(number, set())
 
-        # a) получаем подписавшихся пользователей
+        # a) получаем текущих подписавшихся пользователей
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
@@ -58,7 +61,11 @@ async def sync_users_from_csv(file_bytes: bytes) -> None:
                 subs = await cur.fetchall()
 
         # b) кто лишний?
-        to_remove = [(r["tg_id"], r["email"]) for r in subs if r["email"].lower() not in allowed_emails]
+        to_remove = [
+            (r["tg_id"], r["email"])
+            for r in subs
+            if r["email"].strip().lower() not in allowed_emails
+        ]
         if not to_remove:
             continue
 
@@ -71,20 +78,22 @@ async def sync_users_from_csv(file_bytes: bytes) -> None:
                     "DELETE FROM enterprise_users WHERE telegram_id = ? AND enterprise_id = ?",
                     (tg_id, number),
                 )
-                # удаляем из telegram_users
+                # удаляем из telegram_users (вообще, если больше нигде не привязан)
                 await db.execute(
                     "DELETE FROM telegram_users WHERE tg_id = ?",
                     (tg_id,),
                 )
-                # уведомляем
+                # уведомляем пользователя
                 try:
                     await bot.send_message(
                         chat_id=tg_id,
                         text=(
-                            f"🚫 Ваш доступ к предприятию {number} ({ent['number']}) отозван — "
+                            f"🚫 Ваш доступ к предприятию {number} был отозван — "
                             "ваш e-mail больше не значится в актуальном CSV."
                         )
                     )
-                except Exception:
+                except TelegramError:
+                    # молча пропускаем, если не доставилось
                     pass
+
             await db.commit()
