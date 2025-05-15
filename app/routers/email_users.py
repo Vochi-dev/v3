@@ -3,8 +3,9 @@
 import csv
 import io
 import base64
-import aiosqlite
+from typing import List, Dict
 
+import aiosqlite
 from fastapi import (
     APIRouter, Request, status, HTTPException,
     UploadFile, File, Form
@@ -59,16 +60,20 @@ async def list_email_users(request: Request):
 
 
 @router.post("/upload", response_class=HTMLResponse)
-async def upload_email_users(request: Request, file: UploadFile = File(...)):
+async def upload_email_users(
+    request: Request,
+    file: UploadFile = File(...)
+):
     require_login(request)
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Файл должен быть в формате CSV")
 
+    # 1) читаем CSV-контент
     content = await file.read()  # bytes
     text = content.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
 
-    # 1) обновляем таблицу email_users
+    # 2) обновляем таблицу email_users
     db = await get_connection()
     try:
         for row in reader:
@@ -97,18 +102,18 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
     finally:
         await db.close()
 
-    # 2) готовим список на удаление
-    to_remove = await find_users_to_remove(content)
+    # 3) собираем список пользователей, которых CSV больше не содержит
+    to_remove: List[Dict] = await find_users_to_remove(content)
 
     if not to_remove:
-        # если ничего не надо удалять — выполняем сразу синхронизацию
+        # если удалять некого — выполняем удаление сразу (оно ничего не сделает) и уходим
         await perform_sync(content)
         return RedirectResponse(
             url="/admin/email-users",
             status_code=status.HTTP_303_SEE_OTHER
         )
 
-    # 3) иначе рендерим страницу подтверждения
+    # 4) иначе показываем страницу подтверждения
     csv_b64 = base64.b64encode(content).decode()
     return templates.TemplateResponse(
         "confirm_sync.html",
@@ -120,20 +125,28 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
     )
 
 
-@router.post("/upload/confirm", response_class=RedirectResponse)
+@router.post("/upload/confirm", response_class=HTMLResponse)
 async def confirm_upload(
     request: Request,
-    csv_b64: str = Form(...)
+    csv_b64: str = Form(...),
+    confirm: str = Form(...)
 ):
     require_login(request)
+
+    # если админ отменил — просто возвращаемся к списку
+    if confirm != "yes":
+        return RedirectResponse(
+            url="/admin/email-users",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    # декодируем CSV и выполняем удаление + уведомление
     try:
         content = base64.b64decode(csv_b64)
     except Exception:
         raise HTTPException(status_code=400, detail="Неверные данные CSV")
 
-    # выполняем синхронизацию (она удалит и уведомит)
     await perform_sync(content)
-
     return RedirectResponse(
         url="/admin/email-users",
         status_code=status.HTTP_303_SEE_OTHER
@@ -143,8 +156,44 @@ async def confirm_upload(
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
-    # ... оставляем вашу логику удаления по одному пользователю ...
-    # (код без изменений)
+
+    # находим bot_token для этого пользователя
+    bot_token = None
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            """
+            SELECT e.bot_token
+            FROM enterprise_users u
+            JOIN enterprises e ON u.enterprise_id = e.number
+            WHERE u.telegram_id = ?
+            """,
+            (tg_id,),
+        )
+        row = await cur.fetchone()
+        if row:
+            bot_token = row["bot_token"]
+
+    # удаляем из БД
+    db = await get_connection()
+    try:
+        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
+        await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
+        await db.commit()
+    finally:
+        await db.close()
+
+    # уведомляем через бот
+    if bot_token:
+        try:
+            bot = AiogramBot(token=bot_token)
+            await bot.send_message(
+                chat_id=tg_id,
+                text="❌ Ваш доступ к боту был отозван администратором."
+            )
+        except Exception:
+            pass
+
     return RedirectResponse(
         url="/admin/email-users",
         status_code=status.HTTP_303_SEE_OTHER
