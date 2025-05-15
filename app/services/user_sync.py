@@ -1,9 +1,7 @@
 # app/services/user_sync.py
-
 import csv
 import io
-from typing import Dict, Set
-
+from typing import Dict, List, Set
 import aiosqlite
 from telegram import Bot
 from telegram.error import TelegramError
@@ -11,42 +9,42 @@ from telegram.error import TelegramError
 from app.config import DB_PATH
 
 
-async def sync_users_from_csv(file_bytes: bytes) -> None:
+async def find_users_to_remove(file_bytes: bytes) -> List[Dict]:
     """
-    Синхронизирует подписки всех предприятий по единому CSV:
-    CSV должен содержать колонки 'number' (enterprise number) и 'email'.
-    Логика:
-    1) Парсим CSV → mapping: number -> set(email).
-    2) Из БД читаем все предприятия (number, bot_token).
-    3) Для каждого предприятия:
-       a) Получаем подписанных пользователей (telegram_id + email).
-       b) Если чей-то email не входит в set для этого number — удаляем его
-          из enterprise_users и telegram_users и уведомляем через бот.
+    Разбирает CSV и возвращает список пользователей, которых
+    следует удалить (для показа администратору).
+    Каждый элемент списка:
+      {
+        "tg_id": int,
+        "email": str,
+        "enterprise_name": str
+      }
     """
-    # 1) Парсим CSV
+    # 1) Парсим CSV → mapping: number -> set(emails)
     text = file_bytes.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
     csv_map: Dict[str, Set[str]] = {}
     for row in reader:
         number = (row.get("number") or "").strip()
         email  = (row.get("email")  or "").strip().lower()
-        if not number or not email:
-            continue
-        csv_map.setdefault(number, set()).add(email)
+        if number and email:
+            csv_map.setdefault(number, set()).add(email)
 
-    # 2) Читаем все предприятия из БД
+    to_remove: List[Dict] = []
+
+    # 2) Получаем список предприятий (number, bot_token, name)
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT number, bot_token FROM enterprises") as cur:
-            ent_rows = await cur.fetchall()
+        async with db.execute("SELECT number, bot_token, name FROM enterprises") as cur:
+            enterprises = await cur.fetchall()
 
-    # 3) Для каждого предприятия — синхронизируем
-    for ent in ent_rows:
-        number    = ent["number"]
-        bot_token = ent["bot_token"]
+    # 3) Для каждого предприятия проверяем подписки
+    for ent in enterprises:
+        number       = ent["number"]
+        enterprise_name = ent["name"]
         allowed_emails = csv_map.get(number, set())
 
-        # a) получаем текущих подписавшихся пользователей
+        # 3a) получаем подписанных пользователей этого предприятия
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
@@ -60,40 +58,69 @@ async def sync_users_from_csv(file_bytes: bytes) -> None:
             ) as cur:
                 subs = await cur.fetchall()
 
-        # b) кто лишний?
-        to_remove = [
-            (r["tg_id"], r["email"])
-            for r in subs
-            if r["email"].strip().lower() not in allowed_emails
-        ]
-        if not to_remove:
-            continue
+        # 3b) кого нет в CSV — в to_remove
+        for r in subs:
+            if r["email"].strip().lower() not in allowed_emails:
+                to_remove.append({
+                    "tg_id": r["tg_id"],
+                    "email": r["email"],
+                    "enterprise_name": enterprise_name,
+                })
 
-        # c) удаляем и уведомляем
-        bot = Bot(token=bot_token)
-        async with aiosqlite.connect(DB_PATH) as db:
-            for tg_id, email in to_remove:
-                # удаляем из enterprise_users
-                await db.execute(
-                    "DELETE FROM enterprise_users WHERE telegram_id = ? AND enterprise_id = ?",
-                    (tg_id, number),
-                )
-                # удаляем из telegram_users (вообще, если больше нигде не привязан)
-                await db.execute(
-                    "DELETE FROM telegram_users WHERE tg_id = ?",
-                    (tg_id,),
-                )
-                # уведомляем пользователя
+    return to_remove
+
+
+async def perform_sync(file_bytes: bytes) -> None:
+    """
+    Удаляет из БД и уведомляет всех пользователей,
+    которых определил find_users_to_remove().
+    """
+    users = await find_users_to_remove(file_bytes)
+    if not users:
+        return
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+
+        for u in users:
+            tg_id = u["tg_id"]
+            email = u["email"]
+
+            # 1) Находим bot_token для этого tg_id
+            async with db.execute(
+                """
+                SELECT e.bot_token
+                FROM enterprise_users u
+                JOIN enterprises e ON u.enterprise_id = e.number
+                WHERE u.telegram_id = ?
+                """,
+                (tg_id,),
+            ) as cur:
+                row = await cur.fetchone()
+            bot_token = row["bot_token"] if row else None
+
+            # 2) Удаляем из enterprise_users и telegram_users
+            await db.execute(
+                "DELETE FROM enterprise_users WHERE telegram_id = ?",
+                (tg_id,),
+            )
+            await db.execute(
+                "DELETE FROM telegram_users WHERE tg_id = ?",
+                (tg_id,),
+            )
+
+            # 3) Уведомляем пользователя через его бот
+            if bot_token:
                 try:
+                    bot = Bot(token=bot_token)
                     await bot.send_message(
                         chat_id=tg_id,
                         text=(
-                            f"🚫 Ваш доступ к предприятию {number} был отозван — "
+                            "🚫 Ваш доступ отозван — "
                             "ваш e-mail больше не значится в актуальном CSV."
                         )
                     )
                 except TelegramError:
-                    # молча пропускаем, если не доставилось
                     pass
 
-            await db.commit()
+        await db.commit()
