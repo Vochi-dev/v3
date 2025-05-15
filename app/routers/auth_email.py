@@ -14,43 +14,31 @@ router = APIRouter()
 async def verify_email(token: str):
     ok, tg_id = await mark_verified(token)
     if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Токен не найден или устарел"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Токен не найден или устарел")
 
-    # Определяем bot_token по связке enterprise_users → enterprises
+    # получаем bot_token из telegram_users
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
-            """
-            SELECT e.bot_token
-            FROM enterprise_users u
-            JOIN enterprises e ON u.enterprise_id = e.number
-            WHERE u.telegram_id = ?
-            """,
-            (tg_id,),
+            "SELECT bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,)
         )
         row = await cur.fetchone()
         if row:
             bot_token = row["bot_token"]
 
     if not bot_token:
-        # Если не удалось, возвращаем ошибку
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Не удалось определить бот для уведомления"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Не удалось определить бот для уведомления")
 
-    # Отправляем сообщение через правильный бот
     bot = AiogramBot(token=bot_token)
     try:
         await bot.send_message(
             chat_id=tg_id,
             text="🎉 Почта подтверждена! Бот полностью готов к работе."
         )
-    except Exception:
+    except:
         pass
 
     return """

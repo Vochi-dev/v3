@@ -1,10 +1,5 @@
 # app/telegram/handlers/onboarding.py
 # -*- coding: utf-8 -*-
-"""
-Хэндлеры /start и приёма e-mail без проверки предприятия,
-с логированием ошибок отправки письма.
-"""
-
 import logging
 from aiogram import Router
 from aiogram.filters import CommandStart
@@ -36,39 +31,32 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 @router.message(Signup.waiting_email)
 async def receive_email(message: Message, state: FSMContext) -> None:
     email = message.text.strip().lower()
-
-    # формат
     if "@" not in email or "." not in email:
         await message.answer("Это не похоже на e-mail. Попробуйте ещё раз:")
         return
 
-    # 1) e-mail есть в базе?
     if not await email_exists(email):
         await message.answer("⛔️ Такой e-mail не найден. Обратитесь к администратору.")
         await state.clear()
         return
 
-    # 2) не подтверждён ли уже?
     if await email_already_verified(email):
         await message.answer("⛔️ Этот e-mail уже подтверждён в другом боте.")
         await state.clear()
         return
 
-    # 3) всё ок — генерируем токен, сохраняем (с указанием bot_token), шлём письмо
     token = random_token()
-    # сохраняем вместе с токеном и текущим bot_token
+    # сохраняем также токен текущего бота:
     await upsert_telegram_user(
         message.from_user.id,
         email,
         token,
-        message.bot.token  # передаём токен именно этого бота
+        message.bot.token
     )
 
     try:
         await send_verification_email(email, token)
-        await message.answer(
-            "✅ Письмо отправлено! Проверьте почту и перейдите по ссылке."
-        )
+        await message.answer("✅ Письмо отправлено! Проверьте почту и перейдите по ссылке.")
     except Exception:
         logging.exception("Error sending verification email to %s", email)
         await message.answer("⚠️ Не удалось отправить письмо. Попробуйте позже.")
