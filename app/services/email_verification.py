@@ -121,6 +121,7 @@ async def send_verification_email(email: str, token: str) -> None:
         except Exception as e:
             status, error = "error", str(e)
 
+        # Логируем попытку независимо от результата
         conn = sqlite3.connect(DB_PATH)
         conn.execute(
             "INSERT INTO email_logs (email, token, status, error_msg) VALUES (?, ?, ?, ?)",
@@ -130,9 +131,11 @@ async def send_verification_email(email: str, token: str) -> None:
         conn.close()
 
         if status == "error":
-            raise RuntimeError(f"Email send error: {error}")
+            # пробрасываем, чтобы хэндлер увидел и выдал "Не удалось отправить письмо"
+            raise RuntimeError(error)
 
-    asyncio.run(asyncio.to_thread(_send_sync))
+    # Выполняем в пуле потоков
+    await asyncio.to_thread(_send_sync)
 
 
 async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
@@ -170,6 +173,7 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
         )
         await db.commit()
 
+    # Привязка к enterprise
     enterprise_number = await get_enterprise_number_by_bot_token(row["bot_token"])
     if enterprise_number:
         async with aiosqlite.connect(DB_PATH) as db:
