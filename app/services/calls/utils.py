@@ -2,15 +2,29 @@
 
 import asyncio
 import logging
+from datetime import datetime
+from collections import defaultdict
+import re
+import phonenumbers
 from telegram.error import BadRequest
+
 from app.services.events import save_telegram_message
 
+# ───────── In-memory stores ─────────
+dial_cache       = {}
+bridge_store     = {}
+active_bridges   = {}
+
+# для историй
+call_pair_message_map = {}
+hangup_message_map    = defaultdict(list)
+
+
+# ───────── Утилиты для номеров ─────────
 def is_internal_number(number: str) -> bool:
-    import re
     return bool(number and re.fullmatch(r"\d{3,4}", number))
 
 def format_phone_number(phone: str) -> str:
-    import phonenumbers
     if not phone:
         return phone
     if is_internal_number(phone):
@@ -26,29 +40,70 @@ def format_phone_number(phone: str) -> str:
     except Exception:
         return phone
 
+
+# ───────── Обновление истории ─────────
 def update_call_pair_message(caller, callee, message_id, is_internal=False):
-    # ... (ваша реализация) ...
-    pass
+    if is_internal:
+        key = tuple(sorted([caller, callee]))
+    else:
+        key = (caller,)
+    call_pair_message_map[key] = message_id
+    return key
 
 def update_hangup_message_map(caller, callee, message_id,
                               is_internal=False,
                               call_status=-1, call_type=-1,
                               extensions=None):
-    # ... (ваша реализация) ...
-    pass
+    rec = {
+        'message_id': message_id,
+        'caller':      caller,
+        'callee':      callee,
+        'timestamp':   datetime.now().isoformat(),
+        'call_status': call_status,
+        'call_type':   call_type,
+        'extensions':  extensions or []
+    }
+    hangup_message_map[caller].append(rec)
+    if is_internal:
+        hangup_message_map[callee].append(rec)
+    # оставляем не более 5
+    hangup_message_map[caller]   = hangup_message_map[caller][-5:]
+    if is_internal:
+        hangup_message_map[callee] = hangup_message_map[callee][-5:]
+
 
 def get_relevant_hangup_message_id(caller, callee, is_internal=False):
-    # ... (ваша реализация) ...
-    pass
+    if is_internal:
+        hist = hangup_message_map.get(caller, []) + hangup_message_map.get(callee, [])
+    else:
+        hist = hangup_message_map.get(caller, [])
+    if not hist:
+        return None
+    hist.sort(key=lambda x: x['timestamp'], reverse=True)
+    return hist[0]['message_id']
+
 
 def get_last_call_info(external_number: str) -> str:
-    # ... (ваша реализация) ...
-    return ""
+    hist = hangup_message_map.get(external_number, [])
+    if not hist:
+        return ""
+    last = sorted(hist, key=lambda x: x['timestamp'], reverse=True)[0]
+    ts   = datetime.fromisoformat(last['timestamp'])
+    ts   = ts.replace(hour=(ts.hour + 3) % 24)  # GMT+3
+    when = ts.strftime("%d.%m.%Y %H:%M")
+    status = last['call_status']
+    ctype  = last['call_type']
+    icon   = "✅" if status == 2 else "❌"
+    if ctype == 0:  # входящий
+        return f"🛎️ Последний: {when}\n{icon}"
+    else:
+        return f"⬆️ Последний: {when}\n{icon}"
+
 
 async def create_resend_loop(dial_cache_arg, bridge_store_arg, active_bridges_arg,
                              bot, chat_id: int):
     """
-    Переотправляет «bridge» каждые 10 секунд, чтобы держать чат в актуальном состоянии.
+    Переотправляет незакрытые bridge-сообщения каждые 10 сек.
     """
     while True:
         await asyncio.sleep(10)
