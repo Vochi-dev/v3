@@ -72,7 +72,7 @@ active_bridges = {}
 @app.on_event("startup")
 async def startup_tasks():
     logger.debug("Startup: init DB tables and load hangup history")
-    # 1) создаём таблицы
+    # 1) создаём таблицы, если нужно
     await init_database_tables()
     # 2) загружаем историю hangup
     await load_hangup_message_history()

@@ -1,5 +1,7 @@
 # app/services/events.py
+
 import aiosqlite
+import sqlite3
 import logging
 import json
 from datetime import datetime
@@ -109,3 +111,42 @@ async def load_hangup_message_history(limit: int = 100):
         hangup_message_map[key] = hm[key][:5]
     logging.info("Loaded hangup history")
     return hangup_message_map
+
+def save_telegram_message(
+    message_id: int,
+    event_type: str,
+    token: str,
+    caller: str,
+    callee: str,
+    is_internal: bool,
+    call_status: int = -1,
+    call_type: int = -1,
+    extensions=None
+):
+    """
+    Синхронно сохраняет сообщение Telegram в таблицу telegram_messages.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    ts = datetime.utcnow().isoformat()
+    exts = json.dumps(extensions or [])
+    cursor.execute(
+        "INSERT INTO telegram_messages "
+        "(message_id, event_type, token, caller, callee, is_internal, timestamp, call_status, call_type, extensions) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            message_id,
+            event_type,
+            token,
+            caller,
+            callee,
+            1 if is_internal else 0,
+            ts,
+            call_status,
+            call_type,
+            exts,
+        )
+    )
+    conn.commit()
+    conn.close()
+    logging.info(f"Saved Telegram message ID={message_id}")
