@@ -31,7 +31,7 @@
   <table>
     <thead>
       <tr>
-        <th>ID</th>
+        <th>ID telegram</th>
         <th>e-mail</th>
         <th>Имя</th>
         <th>Все права</th>
@@ -44,16 +44,15 @@
     <tbody>
       {% for u in email_users %}
       <tr>
-        <td>{{ u.tg_id if u.tg_id is not none else '' }}</td>
+        <td>{{ u.tg_id or "" }}</td>
         <td>{{ u.email }}</td>
         <td>{{ u.name }}</td>
         <td>{{ u.right_all }}</td>
         <td>{{ u.right_1 }}</td>
         <td>{{ u.right_2 }}</td>
-        <td>{{ u.enterprise_name or '' }}</td>
+        <td>{{ u.enterprise_name or "" }}</td>
         <td>
-          {# Только если tg_id не None #}
-          {% if u.tg_id is not none %}
+          {% if u.tg_id %}
           <form class="inline" action="/admin/email-users/delete/{{ u.tg_id }}" method="post">
             <button type="submit" class="delete">Delete</button>
           </form>
