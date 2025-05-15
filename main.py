@@ -53,6 +53,14 @@ logger.addHandler(file_handler)
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
+# ───────── middleware для логирования всех запросов ─────────
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    body = await request.body()
+    logger.debug(f"Incoming request: {request.method} {request.url} — Body: {body.decode('utf-8', errors='ignore')}")
+    response = await call_next(request)
+    return response
+
 notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 # ───────── routers ─────────
@@ -72,7 +80,7 @@ active_bridges = {}
 @app.on_event("startup")
 async def startup_tasks():
     logger.debug("Startup: init DB tables and load hangup history")
-    # 1) создаём таблицы, если нужно
+    # 1) создаём таблицы
     await init_database_tables()
     # 2) загружаем историю hangup
     await load_hangup_message_history()
