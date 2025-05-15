@@ -15,26 +15,35 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
+
+from app.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DB_PATH
 import aiosqlite
 
-from app.config import DB_PATH
 from app.services.events import (
-    init_database_tables, load_hangup_message_history, save_asterisk_event
+    init_database_tables,
+    load_hangup_message_history,
+    save_asterisk_event,
 )
 from app.services.calls import (
-    process_start, process_dial, process_bridge, process_hangup, create_resend_loop
+    process_start,
+    process_dial,
+    process_bridge,
+    process_hangup,
+    create_resend_loop,
 )
 
 # ───────── настройка логирования ─────────
 logger = logging.getLogger()  # корневой логгер
 logger.setLevel(logging.DEBUG)
 
+# консольный хэндлер
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.DEBUG)
 console_fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 console_handler.setFormatter(console_fmt)
 logger.addHandler(console_handler)
 
+# файловый хэндлер для событий Asterisk
 file_handler = logging.FileHandler("asterisk_events.log")
 file_handler.setLevel(logging.INFO)
 file_fmt = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
@@ -45,6 +54,9 @@ logger.addHandler(file_handler)
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
+# создаём бота для внутренних уведомлений и лупа
+notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
+
 # ───────── health ─────────
 @app.get("/health")
 async def health():
@@ -53,6 +65,7 @@ async def health():
 
 # ───────── подключаем роутеры ─────────
 from app.routers import admin, enterprise, user_requests, auth_email, email_users  # noqa: E402
+
 app.include_router(admin.router)
 app.include_router(enterprise.router)
 app.include_router(user_requests.router)
@@ -60,42 +73,47 @@ app.include_router(email_users.router)
 app.include_router(auth_email.router)
 
 # ───────── состояние мостов ─────────
-dial_cache, bridge_store, active_bridges = {}, {}, {}
+dial_cache = {}
+bridge_store = {}
+active_bridges = {}
 
 @app.on_event("startup")
 async def startup_tasks():
-    logger.debug("Startup: init DB and history")
+    logger.debug("Startup: init DB tables and load hangup history")
     init_database_tables()
     load_hangup_message_history()
+
     # запускаем loop для переотправки bridge
+    logger.debug("Starting background resend loop")
     asyncio.create_task(
         create_resend_loop(
-            dial_cache, bridge_store, active_bridges,
-            # для этого loop мы временно передаем пустой бот/chat_id,
-            # но он будет корректно брать их из save_telegram_message
-            Bot(token=""), ""
+            dial_cache,
+            bridge_store,
+            active_bridges,
+            notify_bot,
+            TELEGRAM_CHAT_ID,
         )
     )
-    logger.debug("Background bridge loop started")
 
 # ───────── вебхуки Asterisk ─────────
 @app.post("/events/{event_type}")
 async def receive_event(event_type: str, request: Request):
     data = await request.json()
     logger.debug(f"Received Asterisk event: {event_type} — {data}")
+
     et    = event_type.lower()
     uid   = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # Сохраняем в БД (не зависит от отправки)
+    # сохраняем в БД (всегда)
     save_asterisk_event(et, uid, token, data)
 
-    # находим предприятие по token
+    # ищем предприятие по токену
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT bot_token, chat_id FROM enterprises WHERE bot_token = ?",
-            (token,)
+            (token,),
         ) as cur:
             ent = await cur.fetchone()
 
@@ -107,7 +125,7 @@ async def receive_event(event_type: str, request: Request):
     chat_id   = ent["chat_id"]
     bot       = Bot(token=bot_token)
 
-    # выбираем нужный обработчик
+    # выбор обработчика
     handlers = {
         "start":  process_start,
         "dial":   process_dial,
