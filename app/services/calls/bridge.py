@@ -1,5 +1,3 @@
-# app/services/calls/bridge.py
-
 import logging
 from telegram import Bot
 from telegram.error import BadRequest
@@ -11,29 +9,25 @@ from .utils import (
     get_last_call_info,
     update_call_pair_message,
     update_hangup_message_map,
+    dial_cache,
+    bridge_store,
+    active_bridges,
 )
-from .start import bridge_store
-from .dial import dial_cache
-
-# Для сбора незавершённых мостов
-from .utils import hangup_message_map
-from collections import OrderedDict
 
 async def process_bridge(bot: Bot, chat_id: int, data: dict):
     """
     Обрабатывает Asterisk-событие 'bridge':
-    — удаляем связанный dial (если есть),
-    — формируем текст для внутреннего или внешнего разговора,
-    — сохраняем в active_bridges для повторной отправки,
-    — отправляем и сохраняем историю.
+    — удаляет связанный dial (если есть),
+    — формирует текст,
+    — сохраняет в active_bridges для повторной отправки,
+    — отправляет и сохраняет историю.
     """
     uid       = data.get("UniqueId", "")
     caller    = data.get("CallerIDNum", "")
     connected = data.get("ConnectedLineNum", "")
-    is_int    = format_phone_number(caller) == caller and caller.isdigit() and len(caller) <= 4 \
-                and connected.isdigit() and len(connected) <= 4
+    is_int    = caller.isdigit() and len(caller) <= 4 and connected.isdigit() and len(connected) <= 4
 
-    # Удаляем «dial», чтобы не было старого сообщения
+    # Удаляем dial-сообщение, чтобы не дублировать
     if uid in dial_cache:
         dial_cache.pop(uid)
         try:
@@ -70,16 +64,12 @@ async def process_bridge(bot: Bot, chat_id: int, data: dict):
     update_hangup_message_map(caller, connected, sent.message_id, is_int)
 
     # Трекер незакрытых мостов для resend-loop
-    from . import calls  # если нужен доступ к active_bridges
-    try:
-        calls.active_bridges[uid] = {
-            "text": safe_text,
-            "cli":  caller,
-            "op":   connected,
-            "token": data.get("Token", "")
-        }
-    except:
-        pass
+    active_bridges[uid] = {
+        "text": safe_text,
+        "cli":  caller,
+        "op":   connected,
+        "token": data.get("Token", "")
+    }
 
     # Сохраняем в БД
     save_telegram_message(

@@ -1,5 +1,3 @@
-# app/services/calls/start.py
-
 import logging
 from telegram import Bot
 from telegram.error import BadRequest
@@ -11,20 +9,8 @@ from .utils import (
     get_last_call_info,
     update_call_pair_message,
     update_hangup_message_map,
-    hangup_message_map,
+    bridge_store,
 )
-
-# Нам нужно локально хранить bridge_store для start
-from . import utils  # чтобы обратиться к utils.hangup_message_map
-from . import utils as _utils
-
-# Вспомогательная точка хранения bridge_store
-try:
-    bridge_store = _utils.bridge_store
-except AttributeError:
-    # Если bridge_store ещё не определён
-    bridge_store = {}
-    _utils.bridge_store = bridge_store  # создаём в utils
 
 async def process_start(bot: Bot, chat_id: int, data: dict):
     """
@@ -51,11 +37,9 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
         if last:
             text += f"\n\n{last}"
 
-    # Экранирование
     safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
     logging.debug(f"[process_start] => chat={chat_id}, text={safe_text!r}")
 
-    # Отправляем, возможно reply_to
     try:
         reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_int)
         if reply_id:
@@ -70,7 +54,7 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
         logging.error(f"[process_start] send_message failed: {e}. text={safe_text!r}")
         return {"status": "error", "error": str(e)}
 
-    # Сохраняем в-memory и историю
+    # Сохраняем в памяти и истории
     bridge_store[uid] = sent.message_id
     update_call_pair_message(raw_phone, callee, sent.message_id, is_int)
     update_hangup_message_map(raw_phone, callee, sent.message_id, is_int)

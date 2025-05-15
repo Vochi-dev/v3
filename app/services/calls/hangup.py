@@ -1,5 +1,3 @@
-# app/services/calls/hangup.py
-
 import logging
 from telegram import Bot
 from telegram.error import BadRequest
@@ -9,17 +7,16 @@ from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
     update_call_pair_message,
-    update_hangup_message_map
+    update_hangup_message_map,
+    dial_cache,
+    bridge_store,
+    active_bridges,
 )
-from .start import bridge_store
-from .dial import dial_cache
-from .bridge import bridge_store as bridge_msg_store, dial_cache as bridge_dial_cache
-from . import utils
 
 async def process_hangup(bot: Bot, chat_id: int, data: dict):
     """
     Обрабатывает Asterisk-событие 'hangup':
-    — удаляет все сообщения по UID,
+    — удаляет все по UID,
     — рассчитывает длительность,
     — формирует итоговый текст,
     — отправляет (возможно reply_to),
@@ -32,20 +29,20 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
     is_int    = bool(exts and exts[0].isdigit() and len(exts[0]) <= 4)
     callee    = exts[0] if exts else connected
 
-    # Удаляем start/dial/bridge по UID
-    for store in (bridge_store, dial_cache, bridge_msg_store):
-        store.pop(uid, None)
-    # и из active_bridges
-    utils.active_bridges.pop(uid, None)
+    # Чистим память
+    bridge_store.pop(uid, None)
+    dial_cache.pop(uid, None)
+    active_bridges.pop(uid, None)
 
     # Рассчитываем duration
     dur = ""
     try:
-        start = data.get("StartTime")
-        end   = data.get("EndTime")
         from datetime import datetime
-        secs  = int((datetime.fromisoformat(end) - datetime.fromisoformat(start)).total_seconds())
-        dur   = f"{secs//60:02}:{secs%60:02}"
+        secs = int((
+            datetime.fromisoformat(data.get("EndTime", "")) -
+            datetime.fromisoformat(data.get("StartTime", ""))
+        ).total_seconds())
+        dur = f"{secs//60:02}:{secs%60:02}"
     except:
         pass
 
@@ -55,7 +52,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
     cs = int(data.get("CallStatus", -1))
     ct = int(data.get("CallType", -1))
 
-    # Формируем итоговый текст
+    # Итоговый текст
     if is_int:
         m = ("✅ Успешный внутренний звонок\n" if cs == 2 else "❌ Абонент не ответил\n")
         m += f"{caller} ➡️ {callee}\n⌛ {dur}"
@@ -70,12 +67,12 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
     safe_text = m.replace("<", "&lt;").replace(">", "&gt;")
     logging.debug(f"[process_hangup] => chat={chat_id}, text={safe_text!r}")
 
-    # Ищем reply_to: сначала hangup-history, потом pair-map
+    # Выбираем reply_to
     reply_id = get_relevant_hangup_message_id(caller, callee, is_int)
     if not reply_id:
-        reply_id = call_pair_message_map.get((caller,)) or call_pair_message_map.get(tuple(sorted([caller, callee])))
+        # fallback на pair-map, если нужно
+        pass
 
-    # Отправляем
     try:
         if reply_id:
             sent = await bot.send_message(
