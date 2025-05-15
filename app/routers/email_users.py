@@ -10,19 +10,16 @@ from fastapi.templating import Jinja2Templates
 import csv
 import io
 import aiosqlite
-import logging
 
 from aiogram import Bot as AiogramBot
 
-from app.config import DB_PATH, TELEGRAM_BOT_TOKEN
+from app.config import DB_PATH
 from app.routers.admin import require_login
 from app.services.db import get_connection
 from app.services.user_sync import sync_users_from_csv
 
 router = APIRouter(prefix="/admin/email-users", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
-
-logger = logging.getLogger(__name__)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -74,7 +71,7 @@ async def upload_email_users(
     text = content.decode("utf-8")
     reader = csv.DictReader(io.StringIO(text))
 
-    # Обновляем таблицу email_users
+    # 1) обновляем таблицу email_users
     db = await get_connection()
     try:
         for row in reader:
@@ -103,8 +100,8 @@ async def upload_email_users(
     finally:
         await db.close()
 
-    # Синхронизируем: удаляем пользователей бота, чьи email больше нет в CSV
-    await sync_users_from_csv(content, TELEGRAM_BOT_TOKEN)
+    # 2) синхронизируем пользователей во всех ботах
+    await sync_users_from_csv(content)
 
     return RedirectResponse(
         url="/admin/email-users",
@@ -115,9 +112,6 @@ async def upload_email_users(
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
-
-    # Логируем попытку удаления
-    logger.info(f"DELETE_REQUEST: tg_id={tg_id!r}, path={request.url.path}")
 
     # 1) находим bot_token через enterprise_users → enterprises
     bot_token = None
@@ -136,22 +130,16 @@ async def delete_user(tg_id: int, request: Request):
         if row:
             bot_token = row["bot_token"]
 
-    # 2) удаляем пользователя из таблиц
+    # 2) удаляем пользователя из баз
     db = await get_connection()
     try:
-        await db.execute(
-            "DELETE FROM telegram_users WHERE tg_id = ?",
-            (tg_id,),
-        )
-        await db.execute(
-            "DELETE FROM enterprise_users WHERE telegram_id = ?",
-            (tg_id,),
-        )
+        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
+        await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
         await db.commit()
     finally:
         await db.close()
 
-    # 3) уведомляем через найденный бот (если есть)
+    # 3) уведомляем пользователя в его боте
     if bot_token:
         try:
             bot = AiogramBot(token=bot_token)
@@ -159,8 +147,8 @@ async def delete_user(tg_id: int, request: Request):
                 chat_id=tg_id,
                 text="❌ Ваш доступ к боту был отозван администратором."
             )
-        except Exception as e:
-            logger.exception("Error notifying user %s via bot %s", tg_id, bot_token)
+        except Exception:
+            pass
 
     return RedirectResponse(
         url="/admin/email-users",
