@@ -1,60 +1,47 @@
 # app/telegram/bot.py
-# -*- coding: utf-8 -*-
-"""
-Telegram-бот (aiogram v3.20+):
-— создаём global bot и dp
-— функция setup_bot для инициализации (сброс webhook,
-  определение enterprise, регистрация хэндлеров)
-— main для standalone запуска
-"""
-
 import asyncio
 import logging
-
 from aiogram import Bot, Dispatcher
-from aiogram.client.bot import DefaultBotProperties
-from aiogram.fsm.storage.memory import MemoryStorage
-
-from app.config import TELEGRAM_BOT_TOKEN
-from app.services.db import get_enterprise_number_by_bot_token
+from aiogram.client.bot import DefaultBotCommands
+from aiogram.exceptions import TelegramNotFound
 from app.telegram.handlers.onboarding import router as onboarding_router
 
 logging.basicConfig(level=logging.INFO)
-
-# глобальные объекты
-bot = Bot(
-    token=TELEGRAM_BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode="HTML"),
-)
-dp = Dispatcher(storage=MemoryStorage())
+logger = logging.getLogger(__name__)
 
 
-async def setup_bot() -> None:
-    """
-    Сброс webhook → определение enterprise_number → регистрация роутеров
-    """
-    # 1) switch to long-polling
-    await bot.delete_webhook(drop_pending_updates=True)
-    logging.info("Webhook removed, switched to long-polling")
+async def setup_bot():
+    # Создаём Bot по токену из окружения
+    bot = Bot(token=TELEGRAM_BOT_TOKEN)
+    dp = Dispatcher()
 
-    # 2) fetch enterprise_number
-    enterprise_number = await get_enterprise_number_by_bot_token(
-        TELEGRAM_BOT_TOKEN
-    )
-    if enterprise_number is None:
-        raise RuntimeError("bot_token not found in enterprises table")
+    # Попытка удалить webhook, если он есть
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Webhook removed, switched to long-polling")
+    except TelegramNotFound:
+        logger.info("No webhook to delete, continuing with long-polling")
+    except Exception as e:
+        logger.warning("Error deleting webhook: %s", e)
 
-    # храним как атрибут бота
-    setattr(bot, "enterprise_number", enterprise_number)
-    logging.info("Bot started for enterprise %s", enterprise_number)
+    # Регистрируем команды по умолчанию (опционально)
+    await bot.set_my_commands(DefaultBotCommands(descriptors=[
+        ("start", "Начать регистрацию"),
+    ]))
 
-    # 3) register handlers
+    # Подключаем маршруты
     dp.include_router(onboarding_router)
 
+    # Сохраняем номер предприятия в контексте (если нужно)
+    enterprise_number = await get_enterprise_number_by_bot_token(bot.token)
+    logger.info("Bot started for enterprise %s", enterprise_number)
 
-async def main() -> None:
-    """Stand-alone entrypoint."""
-    await setup_bot()
+    return bot, dp
+
+
+async def main():
+    bot, dp = await setup_bot()
+    # Стартуем polling
     await dp.start_polling(bot)
 
 
