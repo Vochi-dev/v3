@@ -2,104 +2,78 @@
 import csv
 import io
 from typing import Dict, List, Set
+
 import aiosqlite
 from telegram import Bot
 from telegram.error import TelegramError
 
 from app.config import DB_PATH
 
-
 async def find_users_to_remove(file_bytes: bytes) -> List[Dict]:
     """
-    Разбирает CSV и возвращает список пользователей, которых
-    следует удалить (для показа администратору).
-    Каждый элемент списка:
+    Возвращает список пользователей, чьи email есть в таблице telegram_users (и verified=1),
+    но отсутствуют в загружаемом CSV (глобально).
+    Элемент списка:
       {
         "tg_id": int,
         "email": str,
-        "enterprise_name": str
+        "bot_token": Optional[str]
       }
     """
-    # 1) Парсим CSV → mapping: number -> set(emails)
+    # Парсим CSV → множество email
     text = file_bytes.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
-    csv_map: Dict[str, Set[str]] = {}
-    for row in reader:
-        number = (row.get("number") or "").strip()
-        email  = (row.get("email")  or "").strip().lower()
-        if number and email:
-            csv_map.setdefault(number, set()).add(email)
+    csv_emails: Set[str] = {
+        row.get("email", "").strip().lower()
+        for row in reader
+        if row.get("email")
+    }
 
     to_remove: List[Dict] = []
 
-    # 2) Получаем список предприятий (number, bot_token, name)
+    # Извлекаем всех подтверждённых телеграм-пользователей и их bot_token
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT number, bot_token, name FROM enterprises") as cur:
-            enterprises = await cur.fetchall()
+        async with db.execute(
+            """
+            SELECT
+              tu.tg_id,
+              tu.email,
+              e.bot_token
+            FROM telegram_users tu
+            LEFT JOIN enterprise_users eu ON eu.telegram_id = tu.tg_id
+            LEFT JOIN enterprises e    ON eu.enterprise_id = e.number
+            WHERE tu.verified = 1
+            """
+        ) as cur:
+            rows = await cur.fetchall()
 
-    # 3) Для каждого предприятия проверяем подписки
-    for ent in enterprises:
-        number       = ent["number"]
-        enterprise_name = ent["name"]
-        allowed_emails = csv_map.get(number, set())
-
-        # 3a) получаем подписанных пользователей этого предприятия
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute(
-                """
-                SELECT u.telegram_id AS tg_id, tu.email
-                FROM enterprise_users u
-                JOIN telegram_users tu ON u.telegram_id = tu.tg_id
-                WHERE u.enterprise_id = ?
-                """,
-                (number,),
-            ) as cur:
-                subs = await cur.fetchall()
-
-        # 3b) кого нет в CSV — в to_remove
-        for r in subs:
-            if r["email"].strip().lower() not in allowed_emails:
+        for r in rows:
+            email = r["email"].strip().lower()
+            if email and email not in csv_emails:
                 to_remove.append({
-                    "tg_id": r["tg_id"],
-                    "email": r["email"],
-                    "enterprise_name": enterprise_name,
+                    "tg_id":     r["tg_id"],
+                    "email":     r["email"],
+                    "bot_token": r["bot_token"],
                 })
 
     return to_remove
 
-
 async def perform_sync(file_bytes: bytes) -> None:
     """
-    Удаляет из БД и уведомляет всех пользователей,
-    которых определил find_users_to_remove().
+    Удаляет всех пользователей из telegram_users/enterprise_users,
+    которых вернул find_users_to_remove, и шлёт им уведомления.
     """
     users = await find_users_to_remove(file_bytes)
     if not users:
         return
 
     async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-
         for u in users:
-            tg_id = u["tg_id"]
-            email = u["email"]
+            tg_id     = u["tg_id"]
+            bot_token = u.get("bot_token")
 
-            # 1) Находим bot_token для этого tg_id
-            async with db.execute(
-                """
-                SELECT e.bot_token
-                FROM enterprise_users u
-                JOIN enterprises e ON u.enterprise_id = e.number
-                WHERE u.telegram_id = ?
-                """,
-                (tg_id,),
-            ) as cur:
-                row = await cur.fetchone()
-            bot_token = row["bot_token"] if row else None
-
-            # 2) Удаляем из enterprise_users и telegram_users
+            # Удаляем из enterprise_users и telegram_users
             await db.execute(
                 "DELETE FROM enterprise_users WHERE telegram_id = ?",
                 (tg_id,),
@@ -109,18 +83,16 @@ async def perform_sync(file_bytes: bytes) -> None:
                 (tg_id,),
             )
 
-            # 3) Уведомляем пользователя через его бот
+            # Отправляем уведомление через соответствующий бот
             if bot_token:
                 try:
                     bot = Bot(token=bot_token)
                     await bot.send_message(
                         chat_id=tg_id,
-                        text=(
-                            "🚫 Ваш доступ отозван — "
-                            "ваш e-mail больше не значится в актуальном CSV."
-                        )
+                        text="🚫 Ваш доступ отозван — ваш e-mail больше не найден в новом CSV."
                     )
                 except TelegramError:
+                    # Если не удалось доставить — молча пропускаем
                     pass
 
         await db.commit()

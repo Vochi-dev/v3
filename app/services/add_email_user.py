@@ -29,12 +29,12 @@ USAGE = (
 
 async def main() -> None:
     if len(sys.argv) < 3:
-        print(USAGE)
+        print(USAGE, file=sys.stderr)
         sys.exit(1)
 
     number = sys.argv[1]
-    email = sys.argv[2].lower().strip()
-    name = sys.argv[3] if len(sys.argv) > 3 else ""
+    email  = sys.argv[2].lower().strip()
+    name   = sys.argv[3] if len(sys.argv) > 3 else ""
 
     async with aiosqlite.connect(DB_PATH) as db:
         # проверяем, что предприятие существует
@@ -42,22 +42,23 @@ async def main() -> None:
             "SELECT 1 FROM enterprises WHERE number = ?", (number,)
         )
         if await cur.fetchone() is None:
-            print(f"⛔️ Предприятие {number} не найдено в таблице enterprises.")
+            print(f"⛔️ Предприятие {number} не найдено.", file=sys.stderr)
             sys.exit(1)
 
-        # вставляем e-mail
+        # вставляем e-mail с дефолтными правами (0)
         await db.execute(
             """
-            INSERT INTO email_users (number, email, name)
-                 VALUES (?, ?, ?)
+            INSERT INTO email_users (
+                number, email, name, right_all, right_1, right_2
+            )
+            VALUES (?, ?, ?, 0, 0, 0)
             ON CONFLICT(email) DO NOTHING
             """,
             (number, email, name),
         )
         await db.commit()
 
-    print(f"✅ Добавлено: {email} → enterprise {number}")
-
+    print(f"✅ E-mail {email} добавлен для предприятия {number}.")
 
 if __name__ == "__main__":
     asyncio.run(main())
