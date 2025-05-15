@@ -18,8 +18,8 @@ templates = Jinja2Templates(directory="app/templates")
 async def list_email_users(request: Request):
     """
     GET /admin/email-users
-    Показывает форму загрузки CSV и таблицу пользователей:
-    tg_id, e-mail, имя, права, Unit (предприятие), Delete.
+    Таблица пользователей с колонками:
+    tg_id | e-mail | имя | права… | Unit | Delete
     """
     require_login(request)
     db = await get_connection()
@@ -27,18 +27,18 @@ async def list_email_users(request: Request):
         cur = await db.execute(
             """
             SELECT
-              tu.telegram_id   AS tg_id,
+              tu.tg_id           AS tg_id,          -- исправлено здесь
               eu.email,
               eu.name,
               eu.right_all,
               eu.right_1,
               eu.right_2,
-              ent.name         AS enterprise_name
+              ent.name           AS enterprise_name
             FROM email_users eu
             LEFT JOIN telegram_users tu
               ON eu.email = tu.email
             LEFT JOIN enterprise_users uut
-              ON tu.telegram_id = uut.telegram_id
+              ON uut.telegram_id = tu.tg_id         -- и здесь
             LEFT JOIN enterprises ent
               ON uut.enterprise_id = ent.number
             ORDER BY eu.email
@@ -61,8 +61,7 @@ async def upload_email_users(
 ):
     """
     POST /admin/email-users/upload
-    Принимает CSV с колонками number,email,name,right_all,right_1,right_2
-    и делает upsert в таблицу email_users.
+    Импорт/обновление из CSV (number,email,name,right_all,right_1,right_2).
     """
     require_login(request)
 
@@ -111,13 +110,13 @@ async def upload_email_users(
 async def delete_user(tg_id: int, request: Request):
     """
     POST /admin/email-users/delete/{tg_id}
-    Удаляет пользователя из telegram_users и enterprise_users.
+    Полное удаление пользователя из telegram_users и enterprise_users.
     """
     require_login(request)
     db = await get_connection()
     try:
         await db.execute(
-            "DELETE FROM telegram_users WHERE telegram_id = ?",
+            "DELETE FROM telegram_users WHERE tg_id = ?",
             (tg_id,),
         )
         await db.execute(
