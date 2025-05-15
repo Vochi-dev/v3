@@ -103,7 +103,7 @@ async def health():
     logger.debug("GET /health")
     return {"status": "ok"}
 
-# Общий обработчик
+# Общий обработчик для событий
 async def handle_event(event_type: str, request: Request):
     data = await request.json()
     logger.debug(f"Received Asterisk event: {event_type} — {data}")
@@ -112,14 +112,14 @@ async def handle_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # сохраняем в БД
+    # сохраняем само событие
     await save_asterisk_event(et, uid, token, data)
 
-    # ищем предприятие
+    # ищем запись предприятия по Asterisk-токену (name2)
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
-            "SELECT bot_token, chat_id FROM enterprises WHERE name2 = ?",
+            "SELECT bot_token FROM enterprises WHERE name2 = ?",
             (token,),
         )
         ent = await cur.fetchone()
@@ -129,28 +129,46 @@ async def handle_event(event_type: str, request: Request):
         return {"status": "no_such_bot"}
 
     bot_token = ent["bot_token"]
-    chat_id_raw = ent["chat_id"]
-    logger.debug(f"Enterprise matched: bot_token={bot_token!r}, chat_id_raw={chat_id_raw!r}")
-    try:
-        chat_id = int(chat_id_raw)
-    except ValueError:
-        logger.error(f"Invalid chat_id in DB: {chat_id_raw!r}")
-        return {"status": "error", "error": "invalid_chat_id"}
+    logger.debug(f"Enterprise matched: bot_token={bot_token!r}")
+
+    # собираем всех верифицированных пользователей этого бота
+    async with aiosqlite.connect(DB_PATH) as db2:
+        db2.row_factory = aiosqlite.Row
+        cur2 = await db2.execute(
+            "SELECT tg_id FROM telegram_users WHERE bot_token = ? AND verified = 1",
+            (bot_token,),
+        )
+        users = await cur2.fetchall()
+
+    if not users:
+        logger.warning("No verified telegram_users for bot_token %r", bot_token)
+        return {"status": "no_subscribers"}
 
     bot = Bot(token=bot_token)
-
     handlers = {
-        "start": process_start,
-        "dial": process_dial,
+        "start":  process_start,
+        "dial":   process_dial,
         "bridge": process_bridge,
         "hangup": process_hangup,
     }
-    if handler := handlers.get(et):
-        return await handler(bot, chat_id, data)
+    handler = handlers.get(et)
+    if not handler:
+        return {"status": "ignored"}
 
-    return {"status": "ignored"}
+    results = []
+    # шлём каждому подписчику
+    for row in users:
+        tg_id = int(row["tg_id"])
+        try:
+            res = await handler(bot, tg_id, data)
+            results.append({"tg_id": tg_id, "status": res.get("status")})
+        except Exception as e:
+            logger.error(f"Error sending to {tg_id}: {e}")
+            results.append({"tg_id": tg_id, "status": "error", "error": str(e)})
 
-# Два пути для событий
+    return {"status": "sent", "details": results}
+
+# два POST-маршрута: с префиксом и без
 @app.post("/events/{event_type}")
 async def receive_event_prefixed(event_type: str, request: Request):
     return await handle_event(event_type, request)
