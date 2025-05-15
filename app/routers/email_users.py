@@ -119,7 +119,7 @@ async def upload_email_users(
         {
             "request":   request,
             "to_remove": to_remove,
-            "csv":       b64,
+            "csv_b64":   b64,
         }
     )
 
@@ -127,7 +127,7 @@ async def upload_email_users(
 @router.post("/upload/confirm", response_class=RedirectResponse)
 async def confirm_upload(
     request: Request,
-    csv: str = Form(...),
+    csv_b64: str  = Form(...),
     confirm: str = Form(...)
 ):
     require_login(request)
@@ -140,12 +140,14 @@ async def confirm_upload(
         )
 
     # 2) Раскодируем CSV
-    content = base64.b64decode(csv.encode())
-    text = content.decode("utf-8-sig")
-    reader = csv.DictReader(io.StringIO(text))
+    content = base64.b64decode(csv_b64.encode())
+    text    = content.decode("utf-8-sig")
+
+    # 3) Собираем новый набор e-mail
+    reader     = csv.DictReader(io.StringIO(text))
     new_emails = {row.get("email", "").strip().lower() for row in reader if row.get("email")}
 
-    # 3) Удаляем из email_users тех, кто не в new_emails
+    # 4) Удаляем из email_users тех, кто не в new_emails
     db = await get_connection()
     try:
         # собираем список к удалению
@@ -159,7 +161,7 @@ async def confirm_upload(
     finally:
         await db.close()
 
-    # 4) Синхронизируем бот-пользователей (enterprise_users и telegram_users)
+    # 5) Синхронизируем бот-пользователей
     #    удалит их из ботов, если e-mail больше не в CSV
     await sync_users_from_csv(content)
 
