@@ -39,7 +39,7 @@ async def verify_email(token: str):
                 chat_id=tg_id,
                 text="🎉 Почта подтверждена! Бот полностью готов к работе.",
             )
-        except Exception:
+        except Exception:d
             pass
 
     return HTMLResponse(
