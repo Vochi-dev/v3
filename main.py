@@ -125,7 +125,7 @@ async def handle_event(event_type: str, request: Request):
         return {"status": "no_such_bot"}
 
     bot = Bot(token=ent["bot_token"])
-    chat_id = ent["chat_id"]
+    chat_id = int(ent["chat_id"])  # Приведение к int
 
     handlers = {
         "start":  process_start,
@@ -146,3 +146,4 @@ async def receive_event_prefixed(event_type: str, request: Request):
 @app.post("/{event_type}")
 async def receive_event_root(event_type: str, request: Request):
     return await handle_event(event_type, request)
+
