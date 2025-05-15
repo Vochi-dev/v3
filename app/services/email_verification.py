@@ -111,7 +111,7 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
         except ValueError:
             try:
                 added_at = dt.datetime.fromisoformat(added_at_str)
-            except Exception:
+        except Exception:
                 return False, None
 
         if dt.datetime.utcnow() - added_at > dt.timedelta(minutes=TOKEN_TTL_MINUTES):

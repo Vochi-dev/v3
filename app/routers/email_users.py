@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from fastapi import (
     APIRouter, Request, status, HTTPException,
-    UploadFile, File
+    UploadFile, File, Form
 )
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -15,7 +15,8 @@ from aiogram import Bot as AiogramBot
 
 from app.config import DB_PATH
 from app.routers.admin import require_login
-from app.services.db import get_connection
+from app.services.db import get_connection, get_enterprise_number_by_bot_token
+from app.services.user_sync import sync_users_from_csv
 
 router = APIRouter(prefix="/admin/email-users", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -59,7 +60,8 @@ async def list_email_users(request: Request):
 @router.post("/upload", response_class=RedirectResponse)
 async def upload_email_users(
     request: Request,
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    bot_token: str = Form(...)
 ):
     require_login(request)
     if not file.filename.lower().endswith(".csv"):
@@ -73,7 +75,7 @@ async def upload_email_users(
     try:
         for row in reader:
             number    = row.get("number")
-            email     = row.get("email", "").strip()
+            email     = row.get("email", "").strip().lower()
             name      = row.get("name", "").strip()
             right_all = int(row.get("right_all", 0))
             right_1   = int(row.get("right_1", 0))
@@ -97,6 +99,9 @@ async def upload_email_users(
     finally:
         await db.close()
 
+    # синхронизируем недостающих пользователей
+    await sync_users_from_csv(content, bot_token)
+
     return RedirectResponse(
         url="/admin/email-users",
         status_code=status.HTTP_303_SEE_OTHER
@@ -112,7 +117,7 @@ async def delete_user(tg_id: int, request: Request):
     """
     require_login(request)
 
-    # 1) находим бот-token через enterprise_users → enterprises
+    # находим bot_token для этого пользователя
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -129,22 +134,16 @@ async def delete_user(tg_id: int, request: Request):
         if row:
             bot_token = row["bot_token"]
 
-    # 2) удаляем пользователя из таблиц
+    # удаляем из БД
     db = await get_connection()
     try:
-        await db.execute(
-            "DELETE FROM telegram_users WHERE tg_id = ?",
-            (tg_id,),
-        )
-        await db.execute(
-            "DELETE FROM enterprise_users WHERE telegram_id = ?",
-            (tg_id,),
-        )
+        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
+        await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
         await db.commit()
     finally:
         await db.close()
 
-    # 3) уведомляем через найденный бот (если есть)
+    # уведомляем пользователя
     if bot_token:
         try:
             bot = AiogramBot(token=bot_token)
