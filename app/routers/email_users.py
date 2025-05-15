@@ -9,17 +9,16 @@ from fastapi.templating import Jinja2Templates
 
 import csv
 import io
+import aiosqlite
 
-from telegram import Bot
-from app.config import TELEGRAM_BOT_TOKEN
+from aiogram import Bot as AiogramBot
+
+from app.config import DB_PATH
 from app.routers.admin import require_login
 from app.services.db import get_connection
 
 router = APIRouter(prefix="/admin/email-users", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
-
-# Общий экземпляр бота для админ-уведомлений пользователю
-notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -109,27 +108,52 @@ async def delete_user(tg_id: int, request: Request):
     """
     POST /admin/email-users/delete/{tg_id}
     Удаляет пользователя из telegram_users и enterprise_users,
-    и уведомляет его в Telegram, что доступ отозван.
+    и уведомляет его через его бот, что доступ отозван.
     """
     require_login(request)
+
+    # 1) находим бот-token через enterprise_users → enterprises
+    bot_token = None
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            """
+            SELECT e.bot_token
+            FROM enterprise_users u
+            JOIN enterprises e ON u.enterprise_id = e.number
+            WHERE u.telegram_id = ?
+            """,
+            (tg_id,),
+        )
+        row = await cur.fetchone()
+        if row:
+            bot_token = row["bot_token"]
+
+    # 2) удаляем пользователя из таблиц
     db = await get_connection()
     try:
-        # удаляем из таблиц
-        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
-        await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
+        await db.execute(
+            "DELETE FROM telegram_users WHERE tg_id = ?",
+            (tg_id,),
+        )
+        await db.execute(
+            "DELETE FROM enterprise_users WHERE telegram_id = ?",
+            (tg_id,),
+        )
         await db.commit()
     finally:
         await db.close()
 
-    # уведомляем пользователя (если бот ещё может писать)
-    try:
-        await notify_bot.send_message(
-            chat_id=tg_id,
-            text="❌ Ваш доступ к боту был отозван администратором."
-        )
-    except Exception:
-        # если не получилось — молчим
-        pass
+    # 3) уведомляем через найденный бот (если есть)
+    if bot_token:
+        try:
+            bot = AiogramBot(token=bot_token)
+            await bot.send_message(
+                chat_id=tg_id,
+                text="❌ Ваш доступ к боту был отозван администратором."
+            )
+        except Exception:
+            pass
 
     return RedirectResponse(
         url="/admin/email-users",
