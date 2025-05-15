@@ -4,7 +4,7 @@
 Упрощённая логика подтверждения e-mail:
 • генерация токена
 • проверка наличия e-mail
-• upsert в telegram_users
+• upsert в telegram_users (с сохранением bot_token)
 • отправка письма через STARTTLS
 • mark_verified — подтверждение токена + запись в enterprise_users
 """
@@ -52,20 +52,25 @@ async def email_already_verified(email: str) -> bool:
             return await cur.fetchone() is not None
 
 
-async def upsert_telegram_user(tg_id: int, email: str, token: str) -> None:
+async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: str) -> None:
+    """
+    Добавляет или обновляет запись в telegram_users:
+    • tg_id, email, token, verified=0, added_at=CURRENT_TIMESTAMP, bot_token
+    """
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """
             INSERT INTO telegram_users (
-                tg_id, email, token, verified, added_at
-            ) VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)
+                tg_id, email, token, verified, added_at, bot_token
+            ) VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP, ?)
             ON CONFLICT(email) DO UPDATE SET
-                tg_id    = excluded.tg_id,
-                token    = excluded.token,
-                verified = 0,
-                added_at = CURRENT_TIMESTAMP
+                tg_id     = excluded.tg_id,
+                token     = excluded.token,
+                verified  = 0,
+                added_at  = CURRENT_TIMESTAMP,
+                bot_token = excluded.bot_token
             """,
-            (tg_id, email, token),
+            (tg_id, email, token, bot_token),
         )
         await db.commit()
 
@@ -88,7 +93,6 @@ async def send_verification_email(email: str, token: str) -> None:
             f"Ссылка действует {TOKEN_TTL_MINUTES} минут."
         )
 
-        # SMTP + STARTTLS на порту EMAIL_PORT
         with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as smtp:
             smtp.ehlo()
             smtp.starttls()
@@ -96,7 +100,6 @@ async def send_verification_email(email: str, token: str) -> None:
             smtp.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
             smtp.send_message(msg)
 
-    # Запускаем отправку в пуле потоков
     await asyncio.to_thread(_send_sync)
 
 
@@ -104,7 +107,7 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT tg_id, email, added_at, verified FROM telegram_users WHERE token = ?",
+            "SELECT tg_id, email, added_at, verified, bot_token FROM telegram_users WHERE token = ?",
             (token,),
         ) as cur:
             row = await cur.fetchone()

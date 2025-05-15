@@ -54,9 +54,15 @@ async def receive_email(message: Message, state: FSMContext) -> None:
         await state.clear()
         return
 
-    # 3) всё ок — генерируем токен, сохраняем, шлём письмо
+    # 3) всё ок — генерируем токен, сохраняем (с указанием bot_token), шлём письмо
     token = random_token()
-    await upsert_telegram_user(message.from_user.id, email, token)
+    # сохраняем вместе с токеном и текущим bot_token
+    await upsert_telegram_user(
+        message.from_user.id,
+        email,
+        token,
+        message.bot.token  # передаём токен именно этого бота
+    )
 
     try:
         await send_verification_email(email, token)
