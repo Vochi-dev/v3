@@ -22,7 +22,6 @@ import aiosqlite
 from app.services.events import (
     init_database_tables,
     load_hangup_message_history,
-    save_asterisk_event,
 )
 from app.services.calls import (
     process_start,
@@ -57,13 +56,7 @@ templates = Jinja2Templates(directory="app/templates")
 # создаём бота для внутренних уведомлений и лупа
 notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# ───────── health ─────────
-@app.get("/health")
-async def health():
-    logger.debug("GET /health")
-    return {"status": "ok"}
-
-# ───────── подключаем роутеры ─────────
+# ───────── routers ─────────
 from app.routers import admin, enterprise, user_requests, auth_email, email_users  # noqa: E402
 
 app.include_router(admin.router)
@@ -80,10 +73,12 @@ active_bridges = {}
 @app.on_event("startup")
 async def startup_tasks():
     logger.debug("Startup: init DB tables and load hangup history")
-    init_database_tables()
-    load_hangup_message_history()
-
-    # запускаем loop для переотправки bridge
+    # создаём таблицы, если нужно
+    await init_database_tables()
+    # загружаем историю hangup в память (для reply_to)
+    hangup_map = await load_hangup_message_history()
+    # при необходимости сохраняем hangup_map в глобал (внутри events или calls)
+    # запустим фоновые задачи
     logger.debug("Starting background resend loop")
     asyncio.create_task(
         create_resend_loop(
@@ -95,7 +90,11 @@ async def startup_tasks():
         )
     )
 
-# ───────── вебхуки Asterisk ─────────
+@app.get("/health")
+async def health():
+    logger.debug("GET /health")
+    return {"status": "ok"}
+
 @app.post("/events/{event_type}")
 async def receive_event(event_type: str, request: Request):
     data = await request.json()
@@ -106,16 +105,17 @@ async def receive_event(event_type: str, request: Request):
     token = data.get("Token", "")
 
     # сохраняем в БД (всегда)
-    save_asterisk_event(et, uid, token, data)
+    from app.services.events import save_asterisk_event
+    await save_asterisk_event(et, uid, token, data)
 
-    # ищем предприятие по токену
+    # ищем предприятие по Asterisk-токену (колонка name2)
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT bot_token, chat_id FROM enterprises WHERE bot_token = ?",
+        cur = await db.execute(
+            "SELECT bot_token, chat_id FROM enterprises WHERE name2 = ?",
             (token,),
-        ) as cur:
-            ent = await cur.fetchone()
+        )
+        ent = await cur.fetchone()
 
     if not ent:
         logger.warning("No enterprise found for token %r", token)
