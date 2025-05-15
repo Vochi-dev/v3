@@ -5,7 +5,32 @@
   <title>Панель администратора</title>
   <style>
     body { font-family: sans-serif; padding: 2rem; }
-    .button { padding: 0.5rem 1rem; margin-right: 0.5rem; background: #007bff; color: #fff; border: none; cursor: pointer; border-radius: 4px; text-decoration: none; }
+
+    /* общий стиль кнопок */
+    .button {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      margin: 0.5rem 0.5rem 0 0;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    /* делаем nav списки в ряд */
+    nav ul {
+      list-style: none;
+      padding: 0;
+      margin: 1.5rem 0;
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    nav li {
+      margin: 0;
+    }
   </style>
 </head>
 <body>
@@ -16,7 +41,7 @@
   <nav>
     <ul>
       <li><a href="/admin/enterprises" class="button">Управление предприятиями</a></li>
-      <li><a href="/admin/requests" class="button">Заявки на подключение</a></li>
+      <li><a href="/admin/requests"    class="button">Заявки на подключение</a></li>
       <li><a href="/admin/email-users" class="button">Таблица пользователей</a></li>
     </ul>
   </nav>
