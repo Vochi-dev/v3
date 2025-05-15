@@ -19,9 +19,11 @@ from telegram import Bot
 from app.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DB_PATH
 import aiosqlite
 
+# Импорт асинхронных сервисов
 from app.services.events import (
     init_database_tables,
     load_hangup_message_history,
+    save_asterisk_event,
 )
 from app.services.calls import (
     process_start,
@@ -32,17 +34,15 @@ from app.services.calls import (
 )
 
 # ───────── настройка логирования ─────────
-logger = logging.getLogger()  # корневой логгер
+logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-# консольный хэндлер
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.DEBUG)
 console_fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 console_handler.setFormatter(console_fmt)
 logger.addHandler(console_handler)
 
-# файловый хэндлер для событий Asterisk
 file_handler = logging.FileHandler("asterisk_events.log")
 file_handler.setLevel(logging.INFO)
 file_fmt = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
@@ -53,7 +53,6 @@ logger.addHandler(file_handler)
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
-# создаём бота для внутренних уведомлений и лупа
 notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 # ───────── routers ─────────
@@ -73,12 +72,11 @@ active_bridges = {}
 @app.on_event("startup")
 async def startup_tasks():
     logger.debug("Startup: init DB tables and load hangup history")
-    # создаём таблицы, если нужно
+    # 1) создаём таблицы
     await init_database_tables()
-    # загружаем историю hangup в память (для reply_to)
-    hangup_map = await load_hangup_message_history()
-    # при необходимости сохраняем hangup_map в глобал (внутри events или calls)
-    # запустим фоновые задачи
+    # 2) загружаем историю hangup
+    await load_hangup_message_history()
+    # 3) запускаем loop для переотправки bridge
     logger.debug("Starting background resend loop")
     asyncio.create_task(
         create_resend_loop(
@@ -104,8 +102,7 @@ async def receive_event(event_type: str, request: Request):
     uid   = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # сохраняем в БД (всегда)
-    from app.services.events import save_asterisk_event
+    # сохраняем в БД
     await save_asterisk_event(et, uid, token, data)
 
     # ищем предприятие по Asterisk-токену (колонка name2)
@@ -121,11 +118,9 @@ async def receive_event(event_type: str, request: Request):
         logger.warning("No enterprise found for token %r", token)
         return {"status": "no_such_bot"}
 
-    bot_token = ent["bot_token"]
-    chat_id   = ent["chat_id"]
-    bot       = Bot(token=bot_token)
+    bot = Bot(token=ent["bot_token"])
+    chat_id = ent["chat_id"]
 
-    # выбор обработчика
     handlers = {
         "start":  process_start,
         "dial":   process_dial,

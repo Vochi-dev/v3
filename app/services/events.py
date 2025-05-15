@@ -1,103 +1,111 @@
-import sqlite3
+# app/services/events.py
+import aiosqlite
 import logging
 import json
 from datetime import datetime
-from config import DB_PATH
+from collections import defaultdict
 
-def init_database_tables():
-    """
-    Создаёт таблицы events и telegram_messages, если их нет, и добавляет поле token в events.
-    """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    # Проверяем поле token в events
-    cursor.execute("PRAGMA table_info(events)")
-    cols = [row[1] for row in cursor.fetchall()]
-    if 'token' not in cols:
-        cursor.execute("ALTER TABLE events ADD COLUMN token TEXT")
-        logging.info("Added 'token' column to 'events' table")
-    # Таблица telegram_messages
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS telegram_messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            message_id INTEGER NOT NULL,
-            event_type TEXT NOT NULL,
-            token TEXT,
-            caller TEXT NOT NULL,
-            callee TEXT,
-            is_internal INTEGER NOT NULL,
-            timestamp TEXT NOT NULL,
-            call_status INTEGER DEFAULT -1,
-            call_type INTEGER DEFAULT -1,
-            extensions TEXT DEFAULT '[]'
-        )
-    ''')
-    conn.commit()
-    conn.close()
+from app.config import DB_PATH
 
-def save_asterisk_event(event_type, unique_id, token, event_data):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    ts = datetime.now().isoformat()
+# Глобальная карта для хранения истории hangup
+hangup_message_map = defaultdict(list)
+
+async def init_database_tables():
+    """
+    Асинхронно создаёт таблицы events и telegram_messages, если их нет,
+    и добавляет индексы для быстрого поиска по token.
+    """
+    async with aiosqlite.connect(DB_PATH) as conn:
+        # таблица для сырых событий
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                unique_id TEXT NOT NULL,
+                raw_json TEXT NOT NULL,
+                token TEXT
+            )
+        """)
+        # индекс для быстрого поиска по token в events
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_events_token
+            ON events(token)
+        """)
+        # таблица для сообщений Telegram
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS telegram_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                token TEXT,
+                caller TEXT NOT NULL,
+                callee TEXT,
+                is_internal INTEGER NOT NULL,
+                timestamp TEXT NOT NULL,
+                call_status INTEGER DEFAULT -1,
+                call_type INTEGER DEFAULT -1,
+                extensions TEXT DEFAULT '[]'
+            )
+        """)
+        # индекс для быстрого поиска по token в telegram_messages
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_tgmsg_token
+            ON telegram_messages(token)
+        """)
+        await conn.commit()
+    logging.info("Initialized database tables")
+
+async def save_asterisk_event(event_type: str, unique_id: str, token: str, event_data: dict):
+    """
+    Асинхронно сохраняет событие Asterisk в таблицу events.
+    """
+    ts = datetime.utcnow().isoformat()
     raw = json.dumps(event_data)
-    cursor.execute(
-        "INSERT INTO events (timestamp, event_type, unique_id, raw_json, token) VALUES (?, ?, ?, ?, ?)",
-        (ts, event_type, unique_id, raw, token)
-    )
-    conn.commit()
-    conn.close()
+    async with aiosqlite.connect(DB_PATH) as conn:
+        await conn.execute(
+            "INSERT INTO events (timestamp, event_type, unique_id, raw_json, token) VALUES (?, ?, ?, ?, ?)",
+            (ts, event_type, unique_id, raw, token)
+        )
+        await conn.commit()
     logging.info(f"Saved Asterisk event {event_type} UID={unique_id}")
 
-def save_telegram_message(message_id, event_type, token, caller, callee, is_internal, call_status=-1, call_type=-1, extensions=None):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    ts = datetime.now().isoformat()
-    exts = json.dumps(extensions or [])
-    cursor.execute(
-        "INSERT INTO telegram_messages (message_id, event_type, token, caller, callee, is_internal, timestamp, call_status, call_type, extensions) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?)",
-        (message_id, event_type, token, caller, callee, 1 if is_internal else 0, ts, call_status, call_type, exts)
-    )
-    conn.commit()
-    conn.close()
-    logging.info(f"Saved Telegram message ID={message_id}")
-
-def load_hangup_message_history():
+async def load_hangup_message_history(limit: int = 100):
     """
-    Загружает из БД последние hangup-сообщения, чтобы восстановить историю для reply_to.
+    Асинхронно загружает из БД последние hangup-сообщения для reply_to.
     """
-    from collections import defaultdict
-    hangup_map = defaultdict(list)
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT message_id, caller, callee, is_internal, timestamp, call_status, call_type, extensions
-        FROM telegram_messages
-        WHERE event_type = 'hangup'
-        ORDER BY timestamp DESC
-        LIMIT 100
-    ''')
-    rows = cursor.fetchall()
-    conn.close()
+    hm = defaultdict(list)
+    async with aiosqlite.connect(DB_PATH) as conn:
+        conn.row_factory = aiosqlite.Row
+        cur = await conn.execute("""
+            SELECT message_id, caller, callee, is_internal, timestamp, 
+                   call_status, call_type, extensions
+              FROM telegram_messages
+             WHERE event_type = 'hangup'
+             ORDER BY timestamp DESC
+             LIMIT ?
+        """, (limit,))
+        rows = await cur.fetchall()
 
     for row in rows:
-        message_id, caller, callee, is_internal, ts, status, ctype, exts = row
         rec = {
-            'message_id': message_id,
-            'caller': caller,
-            'callee': callee,
-            'timestamp': ts,
-            'call_status': status,
-            'call_type': ctype,
-            'extensions': json.loads(exts)
+            'message_id': row['message_id'],
+            'caller': row['caller'],
+            'callee': row['callee'],
+            'timestamp': row['timestamp'],
+            'call_status': row['call_status'],
+            'call_type': row['call_type'],
+            'extensions': json.loads(row['extensions']),
         }
-        if is_internal:
-            hangup_map[caller].append(rec)
-            if callee:
-                hangup_map[callee].append(rec)
+        if row['is_internal']:
+            hm[row['caller']].append(rec)
+            if row['callee']:
+                hm[row['callee']].append(rec)
         else:
-            hangup_map[caller].append(rec)
-    # Оставляем только 5 последних для каждого
-    for k in hangup_map:
-        hangup_map[k] = hangup_map[k][:5]
-    return hangup_map
+            hm[row['caller']].append(rec)
+
+    # обрезаем до 5 записей на ключ
+    for key in hm:
+        hangup_message_map[key] = hm[key][:5]
+    logging.info("Loaded hangup history")
+    return hangup_message_map
