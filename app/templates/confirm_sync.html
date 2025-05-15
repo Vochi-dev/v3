@@ -29,15 +29,15 @@
       </tbody>
     </table>
     <form action="/admin/email-users/upload/confirm" method="post">
-      <!-- пересылаем CSV обратно в скрытом поле -->
-      <input type="hidden" name="csv" value="{{ csv|b64encode }}">
+      <!-- передаём заранее закодированный в Base64 CSV -->
+      <input type="hidden" name="csv" value="{{ csv }}">
       <button name="confirm" value="yes">Подтвердить удаление</button>
       <button name="confirm" value="no">Отменить</button>
     </form>
   {% else %}
     <p>Никто не будет удалён. Продолжаем синхронизацию.</p>
     <form action="/admin/email-users/upload/confirm" method="post">
-      <input type="hidden" name="csv" value="{{ csv|b64encode }}">
+      <input type="hidden" name="csv" value="{{ csv }}">
       <input type="hidden" name="confirm" value="yes">
       <button>OK</button>
     </form>
