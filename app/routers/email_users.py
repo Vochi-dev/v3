@@ -1,25 +1,28 @@
 # app/routers/email_users.py
 # -*- coding: utf-8 -*-
-import csv
-import io
-import base64
-from typing import List, Dict
-
 from fastapi import (
     APIRouter, Request, status, HTTPException,
-    UploadFile, File, Form
+    UploadFile, File
 )
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-import aiosqlite
 
-from app.config import DB_PATH
+import csv
+import io
+import aiosqlite
+import logging
+
+from aiogram import Bot as AiogramBot
+
+from app.config import DB_PATH, TELEGRAM_BOT_TOKEN
 from app.routers.admin import require_login
 from app.services.db import get_connection
 from app.services.user_sync import sync_users_from_csv
 
 router = APIRouter(prefix="/admin/email-users", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
+
+logger = logging.getLogger(__name__)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -30,12 +33,12 @@ async def list_email_users(request: Request):
         cur = await db.execute(
             """
             SELECT
+              tu.tg_id           AS tg_id,
               eu.email,
               eu.name,
               eu.right_all,
               eu.right_1,
               eu.right_2,
-              tu.tg_id           AS tg_id,
               ent.name           AS enterprise_name
             FROM email_users eu
             LEFT JOIN telegram_users tu
@@ -57,7 +60,7 @@ async def list_email_users(request: Request):
     )
 
 
-@router.post("/upload", response_class=HTMLResponse)
+@router.post("/upload", response_class=RedirectResponse)
 async def upload_email_users(
     request: Request,
     file: UploadFile = File(...)
@@ -68,24 +71,20 @@ async def upload_email_users(
         raise HTTPException(status_code=400, detail="Файл должен быть в формате CSV")
 
     content = await file.read()
-    text = content.decode("utf-8-sig")
+    text = content.decode("utf-8")
     reader = csv.DictReader(io.StringIO(text))
 
-    # 1) Новый набор e-mail из CSV
-    new_emails = {row.get("email", "").strip().lower() for row in reader if row.get("email")}
-    if not new_emails:
-        raise HTTPException(status_code=400, detail="В файле нет ни одного e-mail")
-
-    # 2) Обновляем/добавляем записи в email_users
+    # Обновляем таблицу email_users
     db = await get_connection()
     try:
-        for row in csv.DictReader(io.StringIO(text)):
+        for row in reader:
             number    = row.get("number")
             email     = row.get("email", "").strip().lower()
             name      = row.get("name", "").strip()
             right_all = int(row.get("right_all", 0))
             right_1   = int(row.get("right_1", 0))
             right_2   = int(row.get("right_2", 0))
+
             await db.execute(
                 """
                 INSERT INTO email_users
@@ -101,102 +100,11 @@ async def upload_email_users(
                 (number, email, name, right_all, right_1, right_2),
             )
         await db.commit()
-
-        # 3) Собираем все e-mail из базы после обновления
-        cur = await db.execute("SELECT email FROM email_users")
-        all_emails = {row[0] for row in await cur.fetchall()}
     finally:
         await db.close()
 
-    # 4) Определяем e-mail, которых нет в новом файле
-    to_remove_emails = all_emails - new_emails
-    if not to_remove_emails:
-        # ничего удалять не нужно — сразу синхроним ботов и возвращаемся
-        await sync_users_from_csv(content)
-        return RedirectResponse(
-            url="/admin/email-users",
-            status_code=status.HTTP_303_SEE_OTHER
-        )
-
-    # 5) Для каждого e-mail из to_remove_emails получаем tg_id и enterprise_name
-    remove_list: List[Dict] = []
-    async with aiosqlite.connect(DB_PATH) as db2:
-        db2.row_factory = aiosqlite.Row
-        placeholders = ",".join("?" for _ in to_remove_emails)
-        query = f"""
-            SELECT
-              tu.tg_id           AS tg_id,
-              eu.email           AS email,
-              ent.name           AS enterprise_name
-            FROM email_users eu
-            LEFT JOIN telegram_users tu
-              ON eu.email = tu.email
-            LEFT JOIN enterprise_users uut
-              ON uut.telegram_id = tu.tg_id
-            LEFT JOIN enterprises ent
-              ON uut.enterprise_id = ent.number
-            WHERE eu.email IN ({placeholders})
-        """
-        cur = await db2.execute(query, tuple(to_remove_emails))
-        rows = await cur.fetchall()
-        for row in rows:
-            remove_list.append({
-                "tg_id": row["tg_id"],
-                "email": row["email"],
-                "enterprise_name": row["enterprise_name"] or ""
-            })
-
-    # 6) Кодируем оригинальный CSV для передачи скрытым полем
-    b64 = base64.b64encode(content).decode()
-
-    # 7) Рендерим шаблон подтверждения
-    return templates.TemplateResponse(
-        "confirm_sync.html",
-        {
-            "request":   request,
-            "to_remove": remove_list,
-            "csv_b64":   b64,
-        }
-    )
-
-
-@router.post("/upload/confirm", response_class=RedirectResponse)
-async def confirm_upload(
-    request: Request,
-    csv_b64: str  = Form(...),
-    confirm: str = Form(...)
-):
-    require_login(request)
-
-    # отмена админом
-    if confirm != "yes":
-        return RedirectResponse(
-            url="/admin/email-users",
-            status_code=status.HTTP_303_SEE_OTHER
-        )
-
-    # раскодируем CSV и удаляем из email_users e-mail вне файла
-    content = base64.b64decode(csv_b64.encode())
-    text    = content.decode("utf-8-sig")
-    new_emails = {
-        row.get("email", "").strip().lower()
-        for row in csv.DictReader(io.StringIO(text))
-        if row.get("email")
-    }
-
-    db = await get_connection()
-    try:
-        cur = await db.execute("SELECT email FROM email_users")
-        all_emails = {row[0] for row in await cur.fetchall()}
-        to_delete = all_emails - new_emails
-        for email in to_delete:
-            await db.execute("DELETE FROM email_users WHERE email = ?", (email,))
-        await db.commit()
-    finally:
-        await db.close()
-
-    # синхронизируем ботов
-    await sync_users_from_csv(content)
+    # Синхронизируем: удаляем пользователей бота, чьи email больше нет в CSV
+    await sync_users_from_csv(content, TELEGRAM_BOT_TOKEN)
 
     return RedirectResponse(
         url="/admin/email-users",
@@ -208,4 +116,53 @@ async def confirm_upload(
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
-    # ... остальной код без изменений ...
+    # Логируем попытку удаления
+    logger.info(f"DELETE_REQUEST: tg_id={tg_id!r}, path={request.url.path}")
+
+    # 1) находим bot_token через enterprise_users → enterprises
+    bot_token = None
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            """
+            SELECT e.bot_token
+            FROM enterprise_users u
+            JOIN enterprises e ON u.enterprise_id = e.number
+            WHERE u.telegram_id = ?
+            """,
+            (tg_id,),
+        )
+        row = await cur.fetchone()
+        if row:
+            bot_token = row["bot_token"]
+
+    # 2) удаляем пользователя из таблиц
+    db = await get_connection()
+    try:
+        await db.execute(
+            "DELETE FROM telegram_users WHERE tg_id = ?",
+            (tg_id,),
+        )
+        await db.execute(
+            "DELETE FROM enterprise_users WHERE telegram_id = ?",
+            (tg_id,),
+        )
+        await db.commit()
+    finally:
+        await db.close()
+
+    # 3) уведомляем через найденный бот (если есть)
+    if bot_token:
+        try:
+            bot = AiogramBot(token=bot_token)
+            await bot.send_message(
+                chat_id=tg_id,
+                text="❌ Ваш доступ к боту был отозван администратором."
+            )
+        except Exception as e:
+            logger.exception("Error notifying user %s via bot %s", tg_id, bot_token)
+
+    return RedirectResponse(
+        url="/admin/email-users",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
