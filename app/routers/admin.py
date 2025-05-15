@@ -19,7 +19,7 @@ from app.services.db import get_connection
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
 
-# Настройка логирования (если ещё не настроено где-то сверху)
+# Настройка логирования
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -154,7 +154,9 @@ async def service_stop(request: Request):
 async def service_start(request: Request):
     require_login(request)
     logger.info("Admin requested service start")
+    # остановим текущий процесс
     await service_stop(request)
+    # и запустим новый
     proc = await asyncio.create_subprocess_shell(
         'nohup uvicorn main:app --host 0.0.0.0 --port 8001 >/dev/null 2>&1 &',
         stdout=asyncio.subprocess.DEVNULL,
