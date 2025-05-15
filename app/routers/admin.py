@@ -1,12 +1,16 @@
 # app/routers/admin.py
 # -*- coding: utf-8 -*-
+
+import asyncio
+import aiosqlite
+
 from fastapi import (
     APIRouter, Request, Form, status, HTTPException
 )
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 
-from app.config import ADMIN_PASSWORD
+from app.config import ADMIN_PASSWORD, DB_PATH
 from app.services.db import get_connection
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -64,9 +68,7 @@ async def dashboard(request: Request):
     require_login(request)
     db = await get_connection()
     try:
-        cur = await db.execute(
-            "SELECT COUNT(*) AS cnt FROM enterprises"
-        )
+        cur = await db.execute("SELECT COUNT(*) AS cnt FROM enterprises")
         row = await cur.fetchone()
     finally:
         await db.close()
@@ -94,3 +96,60 @@ async def list_enterprises(request: Request):
         "enterprises.html",
         {"request": request, "enterprises": rows}
     )
+
+
+# ───── Контроль сервисов и ботов ─────
+@router.post("/service/stop")
+async def service_stop(request: Request):
+    require_login(request)
+    # убиваем все uvicorn-процессы main:app
+    proc = await asyncio.create_subprocess_shell(
+        'pkill -f "uvicorn main:app"',
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL
+    )
+    await proc.wait()
+    return PlainTextResponse("Service stopped")
+
+
+@router.post("/service/start")
+async def service_start(request: Request):
+    require_login(request)
+    # сначала останавливаем, потом запускаем в фоне
+    await service_stop(request)
+    proc = await asyncio.create_subprocess_shell(
+        'nohup uvicorn main:app --host 0.0.0.0 --port 8001 >/dev/null 2>&1 &',
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL
+    )
+    await proc.wait()
+    return PlainTextResponse("Service started")
+
+
+@router.post("/bots/stop")
+async def bots_stop(request: Request):
+    require_login(request)
+    # убиваем все процессы polling-бота
+    proc = await asyncio.create_subprocess_shell(
+        'pkill -f "python3 -m app.telegram.bot"',
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL
+    )
+    await proc.wait()
+    return PlainTextResponse("All bots stopped")
+
+
+@router.post("/bots/start")
+async def bots_start(request: Request):
+    require_login(request)
+    # читаем все bot_token из enterprises и запускаем их polling’ом
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT bot_token FROM enterprises") as cur:
+            rows = await cur.fetchall()
+    for (token,) in rows:
+        cmd = (
+            f'export TELEGRAM_BOT_TOKEN="{token}" '
+            f'&& nohup python3 -m app.telegram.bot >/dev/null 2>&1 &'
+        )
+        await asyncio.create_subprocess_shell(cmd)
+    return PlainTextResponse("All bots started")
