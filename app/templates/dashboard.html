@@ -1,15 +1,26 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head><meta charset="UTF-8"><title>Админка</title></head>
+<head>
+  <meta charset="UTF-8">
+  <title>Панель администратора</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    .button { padding: 0.5rem 1rem; margin-right: 0.5rem; background: #007bff; color: #fff; border: none; cursor: pointer; border-radius: 4px; text-decoration: none; }
+  </style>
+</head>
 <body>
   <h1>Добро пожаловать!</h1>
-  <p>Здесь будет ваша админ-панель.</p>
+
+  {% include 'control_buttons.html' %}
+
   <nav>
     <ul>
-      <li><a href="/admin/enterprises">Управление предприятиями</a></li>
-      <li><a href="/admin/requests">Заявки на подключение</a></li>
-      <li><a href="/admin/email-users">Таблица пользователей</a></li>
+      <li><a href="/admin/enterprises" class="button">Управление предприятиями</a></li>
+      <li><a href="/admin/requests" class="button">Заявки на подключение</a></li>
+      <li><a href="/admin/email-users" class="button">Таблица пользователей</a></li>
     </ul>
   </nav>
+
+  <p>Общее количество предприятий: <strong>{{ enterprise_count }}</strong></p>
 </body>
 </html>
