@@ -1,17 +1,16 @@
 # app/routers/email_users.py
 # -*- coding: utf-8 -*-
+import csv
+import io
+import base64
+
 from fastapi import (
     APIRouter, Request, status, HTTPException,
-    UploadFile, File
+    UploadFile, File, Form
 )
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-
-import csv
-import io
 import aiosqlite
-
-from aiogram import Bot as AiogramBot
 
 from app.config import DB_PATH
 from app.routers.admin import require_login
@@ -27,7 +26,6 @@ async def list_email_users(request: Request):
     require_login(request)
     db = await get_connection()
     try:
-        # Берём всех из email_users и левыми джоинами подставляем данные о подписке
         cur = await db.execute(
             """
             SELECT
@@ -58,11 +56,15 @@ async def list_email_users(request: Request):
     )
 
 
-@router.post("/upload", response_class=RedirectResponse)
+@router.post("/upload", response_class=HTMLResponse)
 async def upload_email_users(
     request: Request,
     file: UploadFile = File(...)
 ):
+    """
+    Первый шаг: читаем CSV, обновляем справочник email_users,
+    вычисляем список to_remove и показываем страницу подтверждения.
+    """
     require_login(request)
 
     if not file.filename.lower().endswith(".csv"):
@@ -72,7 +74,7 @@ async def upload_email_users(
     text = content.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
 
-    # Обновляем справочник email_users
+    # 1) Обновляем справочник email_users
     db = await get_connection()
     try:
         for row in reader:
@@ -101,61 +103,73 @@ async def upload_email_users(
     finally:
         await db.close()
 
-    # Синхронизируем подписки по всему CSV
+    # 2) вычисляем to_remove без фактического удаления
+    #    sync_users_from_csv умеет удалять — мы повторим логику тут, но без удаления
+    text = content.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text))
+    # собираем mapping number->emails из CSV
+    csv_map = {}
+    for row in reader:
+        num = (row.get("number") or "").strip()
+        em  = (row.get("email")  or "").strip().lower()
+        if num and em:
+            csv_map.setdefault(num, set()).add(em)
+
+    to_remove = []
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        # пробег по enterprise_users
+        async with db.execute(
+            """
+            SELECT u.telegram_id AS tg_id,
+                   tu.email,
+                   u.enterprise_id AS number
+            FROM enterprise_users u
+            JOIN telegram_users tu ON u.telegram_id = tu.tg_id
+            """
+        ) as cur:
+            for r in await cur.fetchall():
+                num   = r["number"]
+                email = r["email"].lower()
+                if email not in csv_map.get(num, set()):
+                    to_remove.append(dict(tg_id=r["tg_id"], email=email, number=num))
+
+    # 3) Рендерим страницу подтверждения
+    # кодируем CSV в base64, чтобы вернуть дальше
+    b64 = base64.b64encode(content).decode()
+    return templates.TemplateResponse(
+        "confirm_sync.html",
+        {
+            "request": request,
+            "to_remove": to_remove,
+            "csv": b64,
+        }
+    )
+
+
+@router.post("/upload/confirm", response_class=RedirectResponse)
+async def confirm_upload(
+    request: Request,
+    csv: str = Form(...),
+    confirm: str = Form(...)
+):
+    require_login(request)
+
+    # если админ отменил — сразу редирект
+    if confirm != "yes":
+        return RedirectResponse(url="/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
+
+    # иначе раскодируем CSV и запускаем финальный sync
+    content = base64.b64decode(csv.encode())
     await sync_users_from_csv(content)
 
-    return RedirectResponse(
-        url="/admin/email-users",
-        status_code=status.HTTP_303_SEE_OTHER
-    )
+    return RedirectResponse(url="/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
-    """
-    Удаляет пользователя из telegram_users и enterprise_users
-    и уведомляет его ботом, что доступ отозван.
-    """
+    """ Удаление через кнопку «Delete» в реестре. """
     require_login(request)
 
-    # 1) Найдём bot_token для этого пользователя
-    bot_token = None
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        cur = await db.execute(
-            """
-            SELECT e.bot_token
-            FROM enterprise_users u
-            JOIN enterprises e ON u.enterprise_id = e.number
-            WHERE u.telegram_id = ?
-            """,
-            (tg_id,),
-        )
-        row = await cur.fetchone()
-        if row:
-            bot_token = row["bot_token"]
-
-    # 2) Удаляем из БД
-    db = await get_connection()
-    try:
-        await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
-        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
-        await db.commit()
-    finally:
-        await db.close()
-
-    # 3) Уведомляем пользователя
-    if bot_token:
-        try:
-            bot = AiogramBot(token=bot_token)
-            await bot.send_message(
-                chat_id=tg_id,
-                text="❌ Ваш доступ к боту был отозван администратором."
-            )
-        except Exception:
-            pass
-
-    return RedirectResponse(
-        url="/admin/email-users",
-        status_code=status.HTTP_303_SEE_OTHER
-    )
+    # ... (всё как было ранее) ...
+    # убираем для краткости, оставьте ваш существующий код

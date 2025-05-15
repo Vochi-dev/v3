@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Подтвердите удаление пользователей</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background: #f0f0f0; }
+    button { margin-right: 1rem; padding: 0.5rem 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Будут удалены следующие пользователи:</h1>
+  {% if to_remove %}
+    <table>
+      <thead>
+        <tr><th>tg_id</th><th>e-mail</th><th>Предприятие</th></tr>
+      </thead>
+      <tbody>
+      {% for r in to_remove %}
+        <tr>
+          <td>{{ r.tg_id }}</td>
+          <td>{{ r.email }}</td>
+          <td>{{ r.number }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <form action="/admin/email-users/upload/confirm" method="post">
+      <!-- пересылаем CSV обратно в скрытом поле -->
+      <input type="hidden" name="csv" value="{{ csv|b64encode }}">
+      <button name="confirm" value="yes">Подтвердить удаление</button>
+      <button name="confirm" value="no">Отменить</button>
+    </form>
+  {% else %}
+    <p>Никто не будет удалён. Продолжаем синхронизацию.</p>
+    <form action="/admin/email-users/upload/confirm" method="post">
+      <input type="hidden" name="csv" value="{{ csv|b64encode }}">
+      <input type="hidden" name="confirm" value="yes">
+      <button>OK</button>
+    </form>
+  {% endif %}
+</body>
+</html>
