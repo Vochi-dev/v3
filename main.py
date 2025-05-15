@@ -4,7 +4,8 @@
 FastAPI-приложение:
 — /health
 — /admin/...        админ-панель
-— /events/...       вебхуки Asterisk (отдельно от /admin)
+— /events/...       вебхуки Asterisk
+— /{event_type}     вебхуки без префикса /events (для совместимости)
 Polling Telegram-бота запускается отдельно: python3 -m app.telegram.bot
 """
 
@@ -19,7 +20,6 @@ from telegram import Bot
 from app.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DB_PATH
 import aiosqlite
 
-# Импорт асинхронных сервисов
 from app.services.events import (
     init_database_tables,
     load_hangup_message_history,
@@ -39,14 +39,12 @@ logger.setLevel(logging.DEBUG)
 
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.DEBUG)
-console_fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-console_handler.setFormatter(console_fmt)
+console_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
 logger.addHandler(console_handler)
 
 file_handler = logging.FileHandler("asterisk_events.log")
 file_handler.setLevel(logging.INFO)
-file_fmt = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-file_handler.setFormatter(file_fmt)
+file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
 logger.addHandler(file_handler)
 
 # ───────── FastAPI & шаблоны ─────────
@@ -58,9 +56,9 @@ templates = Jinja2Templates(directory="app/templates")
 async def log_requests(request: Request, call_next):
     body = await request.body()
     logger.debug(f"Incoming request: {request.method} {request.url} — Body: {body.decode('utf-8', errors='ignore')}")
-    response = await call_next(request)
-    return response
+    return await call_next(request)
 
+# бот для фоновых уведомлений
 notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 # ───────── routers ─────────
@@ -80,11 +78,11 @@ active_bridges = {}
 @app.on_event("startup")
 async def startup_tasks():
     logger.debug("Startup: init DB tables and load hangup history")
-    # 1) создаём таблицы
+    # создаём таблицы и индексы, если нужно
     await init_database_tables()
-    # 2) загружаем историю hangup
+    # загружаем историю hangup в память
     await load_hangup_message_history()
-    # 3) запускаем loop для переотправки bridge
+    # запускаем loop для переотправки bridge-сообщений
     logger.debug("Starting background resend loop")
     asyncio.create_task(
         create_resend_loop(
@@ -101,8 +99,8 @@ async def health():
     logger.debug("GET /health")
     return {"status": "ok"}
 
-@app.post("/events/{event_type}")
-async def receive_event(event_type: str, request: Request):
+# Общий обработчик для обоих путей
+async def handle_event(event_type: str, request: Request):
     data = await request.json()
     logger.debug(f"Received Asterisk event: {event_type} — {data}")
 
@@ -110,10 +108,10 @@ async def receive_event(event_type: str, request: Request):
     uid   = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # сохраняем в БД
+    # Сохраняем в БД
     await save_asterisk_event(et, uid, token, data)
 
-    # ищем предприятие по Asterisk-токену (колонка name2)
+    # Ищем предприятие по Asterisk-токену (колонка name2)
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
@@ -139,3 +137,12 @@ async def receive_event(event_type: str, request: Request):
         return await handler(bot, chat_id, data)
 
     return {"status": "ignored"}
+
+# Дублируем два POST-маршрута
+@app.post("/events/{event_type}")
+async def receive_event_prefixed(event_type: str, request: Request):
+    return await handle_event(event_type, request)
+
+@app.post("/{event_type}")
+async def receive_event_root(event_type: str, request: Request):
+    return await handle_event(event_type, request)
