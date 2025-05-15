@@ -1,33 +1,36 @@
 # app/routers/email_users.py
 # -*- coding: utf-8 -*-
-from fastapi import APIRouter, Request, status, HTTPException, UploadFile, File
+from fastapi import (
+    APIRouter, Request, status, HTTPException,
+    UploadFile, File
+)
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 import csv
 import io
 
+from telegram import Bot
+from app.config import TELEGRAM_BOT_TOKEN
 from app.routers.admin import require_login
 from app.services.db import get_connection
 
 router = APIRouter(prefix="/admin/email-users", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
 
+# Общий экземпляр бота для админ-уведомлений пользователю
+notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
+
 
 @router.get("", response_class=HTMLResponse)
 async def list_email_users(request: Request):
-    """
-    GET /admin/email-users
-    Таблица пользователей с колонками:
-    tg_id | e-mail | имя | права… | Unit | Delete
-    """
     require_login(request)
     db = await get_connection()
     try:
         cur = await db.execute(
             """
             SELECT
-              tu.tg_id           AS tg_id,          -- исправлено здесь
+              tu.tg_id           AS tg_id,
               eu.email,
               eu.name,
               eu.right_all,
@@ -38,7 +41,7 @@ async def list_email_users(request: Request):
             LEFT JOIN telegram_users tu
               ON eu.email = tu.email
             LEFT JOIN enterprise_users uut
-              ON uut.telegram_id = tu.tg_id         -- и здесь
+              ON uut.telegram_id = tu.tg_id
             LEFT JOIN enterprises ent
               ON uut.enterprise_id = ent.number
             ORDER BY eu.email
@@ -59,12 +62,7 @@ async def upload_email_users(
     request: Request,
     file: UploadFile = File(...)
 ):
-    """
-    POST /admin/email-users/upload
-    Импорт/обновление из CSV (number,email,name,right_all,right_1,right_2).
-    """
     require_login(request)
-
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Файл должен быть в формате CSV")
 
@@ -110,22 +108,28 @@ async def upload_email_users(
 async def delete_user(tg_id: int, request: Request):
     """
     POST /admin/email-users/delete/{tg_id}
-    Полное удаление пользователя из telegram_users и enterprise_users.
+    Удаляет пользователя из telegram_users и enterprise_users,
+    и уведомляет его в Telegram, что доступ отозван.
     """
     require_login(request)
     db = await get_connection()
     try:
-        await db.execute(
-            "DELETE FROM telegram_users WHERE tg_id = ?",
-            (tg_id,),
-        )
-        await db.execute(
-            "DELETE FROM enterprise_users WHERE telegram_id = ?",
-            (tg_id,),
-        )
+        # удаляем из таблиц
+        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
+        await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
         await db.commit()
     finally:
         await db.close()
+
+    # уведомляем пользователя (если бот ещё может писать)
+    try:
+        await notify_bot.send_message(
+            chat_id=tg_id,
+            text="❌ Ваш доступ к боту был отозван администратором."
+        )
+    except Exception:
+        # если не получилось — молчим
+        pass
 
     return RedirectResponse(
         url="/admin/email-users",
