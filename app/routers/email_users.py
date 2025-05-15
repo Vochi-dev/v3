@@ -68,10 +68,10 @@ async def upload_email_users(
         raise HTTPException(status_code=400, detail="Файл должен быть в формате CSV")
 
     content = await file.read()
+
+    # 1) Обновляем таблицу email_users
     text = content.decode("utf-8")
     reader = csv.DictReader(io.StringIO(text))
-
-    # Обновляем таблицу email_users
     db = await get_connection()
     try:
         for row in reader:
@@ -100,7 +100,7 @@ async def upload_email_users(
     finally:
         await db.close()
 
-    # Синхронизируем: удаляем пользователей бота, чьи email больше нет в CSV
+    # 2) Синхронизируем: удаляем пользователей бота, чьи email больше нет в CSV
     await sync_users_from_csv(content, TELEGRAM_BOT_TOKEN)
 
     return RedirectResponse(
@@ -113,7 +113,7 @@ async def upload_email_users(
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
-    # Находим bot_token для данного tg_id
+    # находим bot_token по telegram_id
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -130,7 +130,7 @@ async def delete_user(tg_id: int, request: Request):
         if row:
             bot_token = row["bot_token"]
 
-    # Удаляем из БД
+    # удаляем
     db = await get_connection()
     try:
         await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
@@ -139,7 +139,7 @@ async def delete_user(tg_id: int, request: Request):
     finally:
         await db.close()
 
-    # Уведомляем пользователя через бот
+    # уведомляем пользователя
     if bot_token:
         try:
             bot = AiogramBot(token=bot_token)
