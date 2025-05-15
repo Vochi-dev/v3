@@ -3,6 +3,7 @@
 
 import asyncio
 import aiosqlite
+import logging
 
 from fastapi import (
     APIRouter, Request, Form, status, HTTPException
@@ -18,6 +19,13 @@ from app.services.db import get_connection
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
 
+# Настройка логирования (если ещё не настроено где-то сверху)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("admin")
+
 
 def require_login(request: Request) -> None:
     if request.cookies.get("auth") != "1":
@@ -29,7 +37,6 @@ def require_login(request: Request) -> None:
 
 @router.get("", response_class=HTMLResponse)
 async def root_redirect(request: Request):
-    # если уже залогинен — на дашборд, иначе — на форму логина
     if request.cookies.get("auth") == "1":
         return RedirectResponse(
             url="/admin/dashboard",
@@ -102,8 +109,10 @@ async def list_enterprises(request: Request):
 
 async def _broadcast(message: str) -> None:
     """
-    Рассылает message в chat_id каждого предприятия через его bot_token.
+    Рассылает message в chat_id каждого предприятия через его bot_token,
+    с детальным логированием.
     """
+    logger.debug("Broadcast start: %r", message)
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT bot_token, chat_id FROM enterprises") as cur:
@@ -112,44 +121,47 @@ async def _broadcast(message: str) -> None:
     for row in rows:
         token = row["bot_token"]
         chat_id = row["chat_id"]
-        if token and chat_id:
-            bot = Bot(token=token)
-            try:
-                await bot.send_message(chat_id=chat_id, text=message)
-            except TelegramError:
-                # если не доставилось — пропускаем
-                pass
+        logger.debug("Broadcast to enterprise: token=%s chat_id=%s", token, chat_id)
+        if not token or not chat_id:
+            logger.debug("  → skipped (missing token or chat_id)")
+            continue
+
+        bot = Bot(token=token)
+        try:
+            await bot.send_message(chat_id=chat_id, text=message)
+            logger.debug("  → sent successfully to %s", chat_id)
+        except TelegramError as e:
+            logger.error("  → failed to send to %s: %s", chat_id, e)
 
 
 # ───── Контроль сервисов и ботов ─────
 @router.post("/service/stop")
 async def service_stop(request: Request):
     require_login(request)
-    # уведомляем, что сервис деактивирован
+    logger.info("Admin requested service stop")
     await _broadcast("⚠️ Сервис деактивирован")
-    # убиваем FastAPI
     proc = await asyncio.create_subprocess_shell(
         'pkill -f "uvicorn main:app"',
         stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.DEVNULL
     )
     await proc.wait()
+    logger.info("Service processes killed")
     return PlainTextResponse("Service stopped")
 
 
 @router.post("/service/start")
 async def service_start(request: Request):
     require_login(request)
-    # сначала стопим, чтобы не накапливать процессы
+    logger.info("Admin requested service start")
     await service_stop(request)
-    # затем запускаем FastAPI
     proc = await asyncio.create_subprocess_shell(
         'nohup uvicorn main:app --host 0.0.0.0 --port 8001 >/dev/null 2>&1 &',
         stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.DEVNULL
     )
     await proc.wait()
-    # уведомляем, что сервис активен
+    logger.info("Service process started")
     await _broadcast("✅ Сервис активен")
     return PlainTextResponse("Service started")
 
@@ -157,33 +169,33 @@ async def service_start(request: Request):
 @router.post("/bots/stop")
 async def bots_stop(request: Request):
     require_login(request)
-    # уведомляем перед остановкой ботов
+    logger.info("Admin requested bots stop")
     await _broadcast("⚠️ Боты отключаются — сервис деактивирован")
-    # убиваем все polling-боты
     proc = await asyncio.create_subprocess_shell(
         'pkill -f "python3 -m app.telegram.bot"',
         stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.DEVNULL
     )
     await proc.wait()
+    logger.info("All bot processes killed")
     return PlainTextResponse("All bots stopped")
 
 
 @router.post("/bots/start")
 async def bots_start(request: Request):
     require_login(request)
-    # читаем все bot_token и запускаем polling для каждого
+    logger.info("Admin requested bots start")
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT bot_token FROM enterprises") as cur:
             rows = await cur.fetchall()
 
     for (token,) in rows:
+        logger.debug("Starting bot process for token=%s", token)
         cmd = (
             f'export TELEGRAM_BOT_TOKEN="{token}" '
             f'&& nohup python3 -m app.telegram.bot >/dev/null 2>&1 &'
         )
         await asyncio.create_subprocess_shell(cmd)
-
-    # уведомляем, что сервис активен
+    logger.info("All bot processes started")
     await _broadcast("✅ Сервис активен")
     return PlainTextResponse("All bots started")
