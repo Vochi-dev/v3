@@ -4,6 +4,7 @@ import asyncio
 import logging
 import json
 from datetime import datetime
+import html  # для экранирования
 
 from telegram import Bot
 from telegram.error import BadRequest
@@ -49,7 +50,7 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
     exts = data.get("Extensions", [])
     is_internal = data.get("CallType", 0) == 2
 
-    # Формируем текст сообщения
+    # Формируем текст
     if is_internal:
         callee = exts[0] if exts else ""
         text = f"🛎️ Внутренний звонок\n{raw_phone} ➡️ {callee}"
@@ -60,22 +61,24 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
         if last:
             text += f"\n\n{last}"
 
-    # Отправляем в Telegram с обработкой ошибок
+    # Экранируем угловые скобки
+    safe_text = text.replace('<', '&lt;').replace('>', '&gt;')
+
+    # Отправка
     try:
         reply_id = get_relevant_hangup_message_id(raw_phone, exts[0] if exts else "", is_internal)
         if reply_id:
-            sent = await bot.send_message(chat_id, text, reply_to_message_id=reply_id, parse_mode="HTML")
+            sent = await bot.send_message(chat_id, safe_text, reply_to_message_id=reply_id, parse_mode="HTML")
         else:
-            sent = await bot.send_message(chat_id, text, parse_mode="HTML")
+            sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
     except BadRequest as e:
-        logging.error(f"[process_start] Failed to send: {e.message}. Text: {text!r}")
+        logging.error(f"[process_start] send_message failed: {e.message}. Text: {safe_text!r}")
         return {"status": "error", "error": e.message}
 
-    # Сохраняем в памяти и БД
     bridge_store[uid] = sent.message_id
     save_telegram_message(
-        sent.message_id, "start", data.get("Token", ""),
-        raw_phone, exts[0] if exts else "", is_internal
+        sent.message_id, "start", data.get("Token", ""), raw_phone,
+        exts[0] if exts else "", is_internal
     )
     return {"status": "sent"}
 
@@ -88,14 +91,12 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     call_type = int(data.get("CallType", 0))
     is_internal = call_type == 2
 
-    # Удаляем старое «start»-сообщение
     if uid in bridge_store:
         try:
             await bot.delete_message(chat_id, bridge_store.pop(uid))
         except Exception:
             pass
 
-    # Формируем текст
     if is_internal:
         text = f"🛎️ Внутренний звонок\n{raw_phone} ➡️ {exts[0] if exts else ''}"
     else:
@@ -109,14 +110,14 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         if last:
             text += f"\n\n{last}"
 
-    # Отправляем и логируем ошибки
+    safe_text = text.replace('<', '&lt;').replace('>', '&gt;')
+
     try:
-        sent = await bot.send_message(chat_id, text, parse_mode="HTML")
+        sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
     except BadRequest as e:
-        logging.error(f"[process_dial] Failed to send dial: {e.message}. Text: {text!r}")
+        logging.error(f"[process_dial] send_message failed: {e.message}. Text: {safe_text!r}")
         return {"status": "error", "error": e.message}
 
-    # Сохраняем в памяти и БД
     dial_cache[uid] = {
         "caller": raw_phone,
         "extensions": exts,
@@ -124,38 +125,32 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         "token": data.get("Token", "")
     }
     save_telegram_message(
-        sent.message_id, "dial", data.get("Token", ""),
-        raw_phone, exts[0] if exts else "", is_internal
+        sent.message_id, "dial", data.get("Token", ""), raw_phone,
+        exts[0] if exts else "", is_internal
     )
     return {"status": "sent"}
 
 
 async def process_bridge(bot: Bot, chat_id: int, data: dict):
     uid = data.get("UniqueId", "")
-    # TODO: распарсить caller и connected из data
-    # raw parameters example:
-    # caller = ...
-    # connected = ...
-    # Удаление старой «dial»-ной метки
     if uid in dial_cache:
         try:
             await bot.delete_message(chat_id, dial_cache.pop(uid).get("message_id"))
         except Exception:
             pass
 
-    # Формируем текст «bridge» (пример)
     caller = data.get("CallerIDNum", "")
     connected = data.get("ConnectedLineNum", "")
     text = f"🔗 Соединение\n{caller} ➡️ {connected}"
 
-    # Отправляем и логируем ошибки
+    safe_text = text.replace('<', '&lt;').replace('>', '&gt;')
+
     try:
-        sent = await bot.send_message(chat_id, text, parse_mode="HTML")
+        sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
     except BadRequest as e:
-        logging.error(f"[process_bridge] Failed to send bridge: {e.message}. Text: {text!r}")
+        logging.error(f"[process_bridge] send_message failed: {e.message}. Text: {safe_text!r}")
         return {"status": "error", "error": e.message}
 
-    # Сохраняем в памяти и БД
     bridge_store[uid] = sent.message_id
     save_telegram_message(
         sent.message_id, "bridge", data.get("Token", ""),
@@ -166,14 +161,15 @@ async def process_bridge(bot: Bot, chat_id: int, data: dict):
 
 async def process_hangup(bot: Bot, chat_id: int, data: dict):
     uid = data.get("UniqueId", "")
-    # TODO: добавить логику удаления предыдущих сообщений
-    # и расчёт длительности
     caller = data.get("CallerIDNum", "")
     text = f"❌ Завершён звонок {caller}"
+
+    safe_text = text.replace('<', '&lt;').replace('>', '&gt;')
+
     try:
-        sent = await bot.send_message(chat_id, text, parse_mode="HTML")
+        sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
     except BadRequest as e:
-        logging.error(f"[process_hangup] Failed to send hangup: {e.message}. Text: {text!r}")
+        logging.error(f"[process_hangup] send_message failed: {e.message}. Text: {safe_text!r}")
         return {"status": "error", "error": e.message}
 
     save_telegram_message(
@@ -185,9 +181,6 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
 
 async def create_resend_loop(dial_cache_arg, bridge_store_arg, active_bridges_arg,
                              bot: Bot, chat_id: int):
-    """
-    Переотправляем сообщения «bridge» каждые 10 секунд.
-    """
     while True:
         await asyncio.sleep(10)
         for uid, info in list(active_bridges_arg.items()):
@@ -196,20 +189,24 @@ async def create_resend_loop(dial_cache_arg, bridge_store_arg, active_bridges_ar
             op = info.get("op")
             is_internal = is_internal_number(cli) and is_internal_number(op)
             reply_id = get_relevant_hangup_message_id(cli, op, is_internal)
+
+            safe_text = text.replace('<', '&lt;').replace('>', '&gt;')
+
             try:
                 if uid in bridge_store_arg:
                     await bot.delete_message(chat_id, bridge_store_arg[uid])
                 if reply_id:
-                    sent = await bot.send_message(chat_id, text,
-                                                  reply_to_message_id=reply_id,
-                                                  parse_mode="HTML")
+                    sent = await bot.send_message(
+                        chat_id, safe_text,
+                        reply_to_message_id=reply_id,
+                        parse_mode="HTML"
+                    )
                 else:
-                    sent = await bot.send_message(chat_id, text, parse_mode="HTML")
+                    sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
                 bridge_store_arg[uid] = sent.message_id
                 save_telegram_message(
                     sent.message_id, "bridge_resend", info.get("token", ""),
                     cli, op, is_internal
                 )
             except BadRequest as e:
-                logging.error(f"[resend_loop] Failed to resend for {uid}: {e.message}. Text: {text!r}")
-
+                logging.error(f"[resend_loop] send_message failed for {uid}: {e.message}. Text: {safe_text!r}")
