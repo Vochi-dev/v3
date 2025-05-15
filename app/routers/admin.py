@@ -109,29 +109,58 @@ async def list_enterprises(request: Request):
 
 async def _broadcast(message: str) -> None:
     """
-    Рассылает message в chat_id каждого предприятия через его bot_token,
-    с детальным логированием.
+    Рассылает message:
+      1) администраторам предприятий (chat_id из enterprises),
+      2) всем верифицированным пользователям ботов (telegram_users.verified = 1).
+    С подробным логированием.
     """
     logger.debug("Broadcast start: %r", message)
+
+    # Получаем список предприятий
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT bot_token, chat_id FROM enterprises") as cur:
-            rows = await cur.fetchall()
+            ent_rows = await cur.fetchall()
 
-    for row in rows:
-        token = row["bot_token"]
-        chat_id = row["chat_id"]
-        logger.debug("Broadcast to enterprise: token=%s chat_id=%s", token, chat_id)
+        # Получаем список всех верифицированных пользователей и их bot_token
+        async with db.execute(
+            "SELECT tg_id, bot_token FROM telegram_users WHERE verified = 1"
+        ) as cur2:
+            user_rows = await cur2.fetchall()
+
+    # 1) Рассылка администраторам предприятий
+    for ent in ent_rows:
+        token   = ent["bot_token"]
+        chat_id = ent["chat_id"]
+        logger.debug("Enterprise broadcast: token=%s chat_id=%s", token, chat_id)
+
         if not token or not chat_id:
-            logger.debug("  → skipped (missing token or chat_id)")
+            logger.debug("  → skipped enterprise (missing token or chat_id)")
             continue
 
         bot = Bot(token=token)
         try:
             await bot.send_message(chat_id=chat_id, text=message)
-            logger.debug("  → sent successfully to %s", chat_id)
+            logger.debug("  → sent to enterprise %s", chat_id)
         except TelegramError as e:
-            logger.error("  → failed to send to %s: %s", chat_id, e)
+            logger.error("  → failed to send to enterprise %s: %s", chat_id, e)
+
+    # 2) Рассылка всем верифицированным пользователям
+    for usr in user_rows:
+        tg_id    = usr["tg_id"]
+        token    = usr["bot_token"]
+        logger.debug("User broadcast: token=%s tg_id=%s", token, tg_id)
+
+        if not token or not tg_id:
+            logger.debug("  → skipped user (missing token or tg_id)")
+            continue
+
+        bot = Bot(token=token)
+        try:
+            await bot.send_message(chat_id=tg_id, text=message)
+            logger.debug("  → sent to user %s", tg_id)
+        except TelegramError as e:
+            logger.error("  → failed to send to user %s: %s", tg_id, e)
 
 
 # ───── Контроль сервисов и ботов ─────
@@ -154,9 +183,9 @@ async def service_stop(request: Request):
 async def service_start(request: Request):
     require_login(request)
     logger.info("Admin requested service start")
-    # остановим текущий процесс
+    # Останавливаем старый процесс
     await service_stop(request)
-    # и запустим новый
+    # Запускаем новый
     proc = await asyncio.create_subprocess_shell(
         'nohup uvicorn main:app --host 0.0.0.0 --port 8001 >/dev/null 2>&1 &',
         stdout=asyncio.subprocess.DEVNULL,
@@ -198,6 +227,7 @@ async def bots_start(request: Request):
             f'&& nohup python3 -m app.telegram.bot >/dev/null 2>&1 &'
         )
         await asyncio.create_subprocess_shell(cmd)
+
     logger.info("All bot processes started")
     await _broadcast("✅ Сервис активен")
     return PlainTextResponse("All bots started")
