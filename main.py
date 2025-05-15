@@ -39,12 +39,16 @@ logger.setLevel(logging.DEBUG)
 
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+console_handler.setFormatter(
+    logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+)
 logger.addHandler(console_handler)
 
 file_handler = logging.FileHandler("asterisk_events.log")
 file_handler.setLevel(logging.INFO)
-file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+)
 logger.addHandler(file_handler)
 
 # ───────── FastAPI & шаблоны ─────────
@@ -55,7 +59,10 @@ templates = Jinja2Templates(directory="app/templates")
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     body = await request.body()
-    logger.debug(f"Incoming request: {request.method} {request.url} — Body: {body.decode('utf-8', errors='ignore')}")
+    logger.debug(
+        f"Incoming request: {request.method} {request.url} — Body: "
+        f"{body.decode('utf-8', errors='ignore')}"
+    )
     return await call_next(request)
 
 # бот для фоновых уведомлений
@@ -78,11 +85,8 @@ active_bridges = {}
 @app.on_event("startup")
 async def startup_tasks():
     logger.debug("Startup: init DB tables and load hangup history")
-    # создаём таблицы и индексы, если нужно
     await init_database_tables()
-    # загружаем историю hangup в память
     await load_hangup_message_history()
-    # запускаем loop для переотправки bridge-сообщений
     logger.debug("Starting background resend loop")
     asyncio.create_task(
         create_resend_loop(
@@ -99,19 +103,19 @@ async def health():
     logger.debug("GET /health")
     return {"status": "ok"}
 
-# Общий обработчик для обоих путей
+# Общий обработчик
 async def handle_event(event_type: str, request: Request):
     data = await request.json()
     logger.debug(f"Received Asterisk event: {event_type} — {data}")
 
-    et    = event_type.lower()
-    uid   = data.get("UniqueId", "")
+    et = event_type.lower()
+    uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # Сохраняем в БД
+    # сохраняем в БД
     await save_asterisk_event(et, uid, token, data)
 
-    # Ищем предприятие по Asterisk-токену (колонка name2)
+    # ищем предприятие
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
@@ -124,12 +128,20 @@ async def handle_event(event_type: str, request: Request):
         logger.warning("No enterprise found for token %r", token)
         return {"status": "no_such_bot"}
 
-    bot = Bot(token=ent["bot_token"])
-    chat_id = int(ent["chat_id"])  # Приведение к int
+    bot_token = ent["bot_token"]
+    chat_id_raw = ent["chat_id"]
+    logger.debug(f"Enterprise matched: bot_token={bot_token!r}, chat_id_raw={chat_id_raw!r}")
+    try:
+        chat_id = int(chat_id_raw)
+    except ValueError:
+        logger.error(f"Invalid chat_id in DB: {chat_id_raw!r}")
+        return {"status": "error", "error": "invalid_chat_id"}
+
+    bot = Bot(token=bot_token)
 
     handlers = {
-        "start":  process_start,
-        "dial":   process_dial,
+        "start": process_start,
+        "dial": process_dial,
         "bridge": process_bridge,
         "hangup": process_hangup,
     }
@@ -138,7 +150,7 @@ async def handle_event(event_type: str, request: Request):
 
     return {"status": "ignored"}
 
-# Дублируем два POST-маршрута
+# Два пути для событий
 @app.post("/events/{event_type}")
 async def receive_event_prefixed(event_type: str, request: Request):
     return await handle_event(event_type, request)
@@ -146,4 +158,3 @@ async def receive_event_prefixed(event_type: str, request: Request):
 @app.post("/{event_type}")
 async def receive_event_root(event_type: str, request: Request):
     return await handle_event(event_type, request)
-
