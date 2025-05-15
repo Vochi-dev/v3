@@ -27,21 +27,24 @@ async def list_email_users(request: Request):
     require_login(request)
     db = await get_connection()
     try:
-        # Показываем только тех, у кого есть tg_id и не отозван доступ
+        # Берём всех из email_users и левыми джоинами подставляем данные о подписке
         cur = await db.execute(
             """
             SELECT
-              tu.tg_id           AS tg_id,
               eu.email,
               eu.name,
               eu.right_all,
               eu.right_1,
               eu.right_2,
+              tu.tg_id           AS tg_id,
               ent.name           AS enterprise_name
-            FROM telegram_users tu
-            JOIN email_users eu ON eu.email = tu.email
-            JOIN enterprise_users uut ON uut.telegram_id = tu.tg_id
-            JOIN enterprises ent ON uut.enterprise_id = ent.number
+            FROM email_users eu
+            LEFT JOIN telegram_users tu
+              ON eu.email = tu.email
+            LEFT JOIN enterprise_users uut
+              ON uut.telegram_id = tu.tg_id
+            LEFT JOIN enterprises ent
+              ON uut.enterprise_id = ent.number
             ORDER BY eu.email
             """
         )
@@ -69,7 +72,7 @@ async def upload_email_users(
     text = content.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
 
-    # 1) Обновляем справочник email_users
+    # Обновляем справочник email_users
     db = await get_connection()
     try:
         for row in reader:
@@ -98,7 +101,7 @@ async def upload_email_users(
     finally:
         await db.close()
 
-    # 2) Синхронизируем подписки — удаляем отозванных пользователей
+    # Синхронизируем подписки по всему CSV
     await sync_users_from_csv(content)
 
     return RedirectResponse(
