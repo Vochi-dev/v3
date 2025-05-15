@@ -3,6 +3,7 @@
 import csv
 import io
 import base64
+import logging
 from typing import List, Dict
 
 import aiosqlite
@@ -22,6 +23,10 @@ from app.services.user_sync import find_users_to_remove, perform_sync
 
 router = APIRouter(prefix="/admin/email-users", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
+
+# Настройка логирования
+logger = logging.getLogger("email_users")
+logger.setLevel(logging.DEBUG)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -105,8 +110,16 @@ async def upload_email_users(
     # 3) собираем список пользователей, которых CSV больше не содержит
     to_remove: List[Dict] = await find_users_to_remove(content)
 
+    # Логирование результата
+    logger.debug("=== sync preview ===")
+    logger.debug("Total candidates to remove: %d", len(to_remove))
+    for u in to_remove:
+        logger.debug("  will remove: tg_id=%s, email=%s, enterprise=%s",
+                     u.get("tg_id"), u.get("email"), u.get("enterprise_name"))
+    logger.debug("=====================")
+
     if not to_remove:
-        # если удалять некого — выполняем удаление сразу (оно ничего не сделает) и уходим
+        # если удалять некого — выполняем синхронизацию сразу (ничего не удалит)
         await perform_sync(content)
         return RedirectResponse(
             url="/admin/email-users",
