@@ -67,7 +67,7 @@ async def startup_tasks():
             notify_bot, TELEGRAM_CHAT_ID
         )
     )
-    # бот polling — отдельно
+    # polling Telegram-бота — убрано, запускаем отдельно
 
 # ───────── вебхуки Asterisk ─────────
 @app.post("/events/{event_type}")
