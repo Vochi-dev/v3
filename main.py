@@ -32,6 +32,12 @@ from app.services.calls import (
     process_hangup,
     create_resend_loop,
 )
+from app.services.calls.internal import (
+    process_internal_start,
+    process_internal_bridge,
+    process_internal_hangup,
+)
+from app.services.calls.utils import is_internal_number
 
 # ───────── настройка логирования ─────────
 logger = logging.getLogger()
@@ -108,8 +114,8 @@ async def handle_event(event_type: str, request: Request):
     data = await request.json()
     logger.debug(f"Received Asterisk event: {event_type} — {data}")
 
-    et = event_type.lower()
-    uid = data.get("UniqueId", "")
+    et    = event_type.lower()
+    uid   = data.get("UniqueId", "")
     token = data.get("Token", "")
 
     # сохраняем само событие
@@ -145,18 +151,32 @@ async def handle_event(event_type: str, request: Request):
         return {"status": "no_subscribers"}
 
     bot = Bot(token=bot_token)
-    handlers = {
-        "start":  process_start,
-        "dial":   process_dial,
-        "bridge": process_bridge,
-        "hangup": process_hangup,
-    }
-    handler = handlers.get(et)
-    if not handler:
+
+    # определяем, внутренний ли это звонок
+    raw_phone = data.get("Phone", "") or data.get("CallerIDNum", "") or ""
+    exts      = data.get("Extensions", [])
+    call_type = int(data.get("CallType", 0))
+    # внутренний, если CallType==2 или оба номера короткие
+    is_int = (
+        call_type == 2 or
+        (is_internal_number(raw_phone) and
+         len(exts) == 1 and
+         is_internal_number(exts[0]))
+    )
+
+    # выбираем нужный обработчик
+    if et == "start":
+        handler = process_internal_start if is_int else process_start
+    elif et == "dial":
+        handler = process_dial
+    elif et == "bridge":
+        handler = process_internal_bridge if is_int else process_bridge
+    elif et == "hangup":
+        handler = process_internal_hangup if is_int else process_hangup
+    else:
         return {"status": "ignored"}
 
     results = []
-    # шлём каждому подписчику
     for row in users:
         tg_id = int(row["tg_id"])
         try:
