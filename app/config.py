@@ -11,27 +11,27 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 🛡️ Пароль администратора (для /admin/login)
-ADMIN_PASSWORD = "SuperS3cret!"
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "SuperS3cret!")
 
 # ───────── SMTP / e-mail ─────────────────────────────────────────────
-EMAIL_HOST         = os.getenv("EMAIL_HOST", "mailbe04.hoster.by")
-EMAIL_PORT         = int(os.getenv("EMAIL_PORT", 587))
-EMAIL_HOST_USER    = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD= os.getenv("EMAIL_HOST_PASSWORD", "")
-EMAIL_USE_TLS      = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
-EMAIL_FROM         = os.getenv("EMAIL_FROM", EMAIL_HOST_USER)
+EMAIL_HOST          = os.getenv("EMAIL_HOST", "mailbe04.hoster.by")
+EMAIL_PORT          = int(os.getenv("EMAIL_PORT", 587))
+EMAIL_HOST_USER     = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS       = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+EMAIL_FROM          = os.getenv("EMAIL_FROM", EMAIL_HOST_USER)
 
-# ↓↓↓ переменные, которые импортирует email_verification.py ↓↓↓
+# для совместимости со старым кодом
 SMTP_HOST = EMAIL_HOST
 SMTP_PORT = EMAIL_PORT
 SMTP_USER = EMAIL_HOST_USER
 SMTP_PASS = EMAIL_HOST_PASSWORD
 
-# Базовый URL, куда приходит ссылка вида /auth_email/verify-email/<token>
-# Замените на реальный адрес вашего FastAPI-сервера.
+# ───────── VERIFY URL ─────────────────────────────────────────────────
+# Ссылка, которая вставляется в письмо: <VERIFY_URL_BASE>/<token>
 VERIFY_URL_BASE = os.getenv(
     "VERIFY_URL_BASE",
-    "https://your-api.example.com/auth_email/verify-email",
+    "https://bot.vochi.by/verify-email"
 )
 
 # ───────── База данных ───────────────────────────────────────────────
