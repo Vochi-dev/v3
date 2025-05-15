@@ -15,7 +15,7 @@ dial_cache = {}
 bridge_store = {}
 active_bridges = {}
 
-# Вспомогательные функции (заглушки — перенести логику)
+# Вспомогательные функции (заглушки — перенести реальную логику)
 def format_phone_number(phone: str) -> str:
     return phone
 
@@ -164,4 +164,50 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
     text = f"❌ Завершён звонок {caller}"
 
     safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
-    logging.debug(f"[process_hangup] Sending to chat_id]()
+    logging.debug(f"[process_hangup] Sending to chat_id={chat_id}: {safe_text!r}")
+
+    try:
+        sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+    except BadRequest as e:
+        logging.error(f"[process_hangup] send_message failed: {e.message}. Text: {safe_text!r}")
+        return {"status": "error", "error": e.message}
+
+    save_telegram_message(
+        sent.message_id, "hangup", data.get("Token", ""),
+        caller, "", False
+    )
+    return {"status": "sent"}
+
+
+async def create_resend_loop(dial_cache_arg, bridge_store_arg, active_bridges_arg,
+                             bot: Bot, chat_id: int):
+    while True:
+        await asyncio.sleep(10)
+        for uid, info in list(active_bridges_arg.items()):
+            text = info.get("text", "")
+            cli = info.get("cli")
+            op = info.get("op")
+            is_internal = is_internal_number(cli) and is_internal_number(op)
+            reply_id = get_relevant_hangup_message_id(cli, op, is_internal)
+
+            safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
+            logging.debug(f"[resend_loop] Sending to chat_id={chat_id}: {safe_text!r}")
+
+            try:
+                if uid in bridge_store_arg:
+                    await bot.delete_message(chat_id, bridge_store_arg[uid])
+                if reply_id:
+                    sent = await bot.send_message(
+                        chat_id, safe_text,
+                        reply_to_message_id=reply_id,
+                        parse_mode="HTML"
+                    )
+                else:
+                    sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+                bridge_store_arg[uid] = sent.message_id
+                save_telegram_message(
+                    sent.message_id, "bridge_resend", info.get("token", ""),
+                    cli, op, is_internal
+                )
+            except BadRequest as e:
+                logging.error(f"[resend_loop] send_message failed for {uid}: {e.message}. Text: {safe_text!r}")
