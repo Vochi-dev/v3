@@ -1,3 +1,4 @@
+<!-- app/templates/confirm_sync.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -38,7 +39,6 @@
     </table>
 
     <form action="/admin/email-users/upload/confirm" method="post">
-      <!-- скрытое поле с данными CSV -->
       <input type="hidden" name="csv_b64" value="{{ csv_b64 }}">
       <button type="submit" name="confirm" value="yes" class="safe">Подтвердить удаление</button>
       <button type="submit" name="confirm" value="no" class="danger">Отменить</button>
