@@ -4,7 +4,7 @@
 Логика подтверждения e-mail с учётом bot_token и логированием попыток отправки:
 • random_token
 • проверка email
-• upsert_telegram_user сохраняет bot_token
+• upsert_telegram_user сохраняет bot_token (ON CONFLICT по tg_id)
 • send_verification_email — отправка письма через STARTTLS + запись в email_logs
 • mark_verified — подтв. токена + запись в enterprise_users
 """
@@ -27,17 +27,14 @@ from app.config import (
 )
 from app.services.db import get_enterprise_number_by_bot_token
 
-# Время жизни токена в минутах
 TOKEN_TTL_MINUTES = 30
 
 
 def random_token(nbytes: int = 16) -> str:
-    """Генерирует URL-дружественный токен."""
     return secrets.token_urlsafe(nbytes)
 
 
 async def email_exists(email: str) -> bool:
-    """Проверяет, есть ли email в таблице email_users."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
             "SELECT 1 FROM email_users WHERE email = ?", (email,)
@@ -46,7 +43,6 @@ async def email_exists(email: str) -> bool:
 
 
 async def email_already_verified(email: str) -> bool:
-    """Проверяет, подтверждён ли email в telegram_users."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
             "SELECT 1 FROM telegram_users WHERE email = ? AND verified = 1", (email,)
@@ -58,21 +54,22 @@ async def upsert_telegram_user(
     tg_id: int, email: str, token: str, bot_token: str
 ) -> None:
     """
-    Вставляет или обновляет запись в telegram_users,
-    включая bot_token, с которым пользователь зарегистрировался.
+    Добавляет или обновляет запись в telegram_users по ключу tg_id:
+    • tg_id, email, token, verified=0, added_at=CURRENT_TIMESTAMP, bot_token
     """
     async with aiosqlite.connect(DB_PATH) as db:
+        # Используем ON CONFLICT по PRIMARY KEY (tg_id)
         await db.execute(
             """
             INSERT INTO telegram_users (
                 tg_id, email, token, verified, added_at, bot_token
             ) VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP, ?)
-            ON CONFLICT(email) DO UPDATE SET
-                tg_id     = excluded.tg_id,
-                token     = excluded.token,
-                verified  = 0,
-                added_at  = CURRENT_TIMESTAMP,
-                bot_token = excluded.bot_token
+            ON CONFLICT(tg_id) DO UPDATE SET
+                email      = excluded.email,
+                token      = excluded.token,
+                verified   = 0,
+                added_at   = CURRENT_TIMESTAMP,
+                bot_token  = excluded.bot_token
             """,
             (tg_id, email, token, bot_token),
         )
@@ -80,10 +77,6 @@ async def upsert_telegram_user(
 
 
 async def send_verification_email(email: str, token: str) -> None:
-    """
-    Формирует ссылку VERIFY_URL_BASE/<token>, отправляет письмо через STARTTLS
-    и логирует результат в таблице email_logs.
-    """
     link = f"{VERIFY_URL_BASE}/{token}"
 
     def _send_sync():
@@ -109,7 +102,7 @@ async def send_verification_email(email: str, token: str) -> None:
         except Exception as e:
             status, error = "error", str(e)
 
-        # логируем попытку
+        # Логируем попытку
         conn = sqlite3.connect(DB_PATH)
         conn.execute(
             "INSERT INTO email_logs (email, token, status, error_msg) VALUES (?, ?, ?, ?)",
@@ -121,18 +114,10 @@ async def send_verification_email(email: str, token: str) -> None:
         if status == "error":
             raise RuntimeError(f"Email send error: {error}")
 
-    # выполняем в пуле потоков
     await asyncio.to_thread(_send_sync)
 
 
 async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
-    """
-    Подтверждает токен:
-    • ищет запись в telegram_users по token (вместе с bot_token)
-    • проверяет TTL
-    • обновляет verified и очищает token
-    • записывает в enterprise_users на основании bot_token
-    """
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
@@ -146,12 +131,11 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
         if row["verified"] == 1:
             return True, row["tg_id"]
 
-        # проверяем срок жизни токена
+        # Проверяем TTL
         try:
             added_at = dt.datetime.strptime(row["added_at"], "%Y-%m-%d %H:%M:%S")
         except ValueError:
             added_at = dt.datetime.fromisoformat(row["added_at"])
-
         if dt.datetime.utcnow() - added_at > dt.timedelta(minutes=TOKEN_TTL_MINUTES):
             return False, None
 
@@ -161,7 +145,7 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
         )
         await db.commit()
 
-    # привязываем к enterprise по bot_token
+    # Привязка к enterprise
     enterprise_number = await get_enterprise_number_by_bot_token(row["bot_token"])
     if enterprise_number:
         async with aiosqlite.connect(DB_PATH) as db:
