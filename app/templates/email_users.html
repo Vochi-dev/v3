@@ -44,16 +44,16 @@
     <tbody>
       {% for u in email_users %}
       <tr>
-        <td>{{ u.tg_id or "" }}</td>
+        <td>{{ u.tg_id if u.tg_id is not none else '' }}</td>
         <td>{{ u.email }}</td>
         <td>{{ u.name }}</td>
         <td>{{ u.right_all }}</td>
         <td>{{ u.right_1 }}</td>
         <td>{{ u.right_2 }}</td>
-        <td>{{ u.enterprise_name or "" }}</td>
+        <td>{{ u.enterprise_name or '' }}</td>
         <td>
-          {# Показываем кнопку Delete только если tg_id не null #}
-          {% if u.tg_id %}
+          {# Только если tg_id не None #}
+          {% if u.tg_id is not none %}
           <form class="inline" action="/admin/email-users/delete/{{ u.tg_id }}" method="post">
             <button type="submit" class="delete">Delete</button>
           </form>
