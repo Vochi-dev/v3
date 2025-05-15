@@ -1,12 +1,12 @@
 # app/services/email_verification.py
 # -*- coding: utf-8 -*-
 """
-Логика подтверждения e-mail с учётом bot_token:
+Логика подтверждения e-mail с учётом bot_token и логированием попыток отправки:
 • random_token
 • проверка email
 • upsert_telegram_user сохраняет bot_token
-• send_verification_email
-• mark_verified подтв. токена и запись в enterprise_users
+• send_verification_email — отправка письма через STARTTLS + запись в email_logs
+• mark_verified — подтв. токена + запись в enterprise_users
 """
 
 import asyncio
@@ -17,6 +17,7 @@ from email.message import EmailMessage
 from typing import Optional, Tuple
 
 import aiosqlite
+import sqlite3
 
 from app.config import (
     DB_PATH,
@@ -26,14 +27,17 @@ from app.config import (
 )
 from app.services.db import get_enterprise_number_by_bot_token
 
+# Время жизни токена в минутах
 TOKEN_TTL_MINUTES = 30
 
 
 def random_token(nbytes: int = 16) -> str:
+    """Генерирует URL-дружественный токен."""
     return secrets.token_urlsafe(nbytes)
 
 
 async def email_exists(email: str) -> bool:
+    """Проверяет, есть ли email в таблице email_users."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
             "SELECT 1 FROM email_users WHERE email = ?", (email,)
@@ -42,6 +46,7 @@ async def email_exists(email: str) -> bool:
 
 
 async def email_already_verified(email: str) -> bool:
+    """Проверяет, подтверждён ли email в telegram_users."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
             "SELECT 1 FROM telegram_users WHERE email = ? AND verified = 1", (email,)
@@ -52,6 +57,10 @@ async def email_already_verified(email: str) -> bool:
 async def upsert_telegram_user(
     tg_id: int, email: str, token: str, bot_token: str
 ) -> None:
+    """
+    Вставляет или обновляет запись в telegram_users,
+    включая bot_token, с которым пользователь зарегистрировался.
+    """
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """
@@ -71,6 +80,10 @@ async def upsert_telegram_user(
 
 
 async def send_verification_email(email: str, token: str) -> None:
+    """
+    Формирует ссылку VERIFY_URL_BASE/<token>, отправляет письмо через STARTTLS
+    и логирует результат в таблице email_logs.
+    """
     link = f"{VERIFY_URL_BASE}/{token}"
 
     def _send_sync():
@@ -85,18 +98,41 @@ async def send_verification_email(email: str, token: str) -> None:
             f"Ссылка действует {TOKEN_TTL_MINUTES} минут."
         )
 
-        with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as smtp:
-            smtp.ehlo()
-            smtp.starttls()
-            smtp.ehlo()
-            smtp.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
-            smtp.send_message(msg)
+        try:
+            with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as smtp:
+                smtp.ehlo()
+                smtp.starttls()
+                smtp.ehlo()
+                smtp.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
+                smtp.send_message(msg)
+            status, error = "sent", None
+        except Exception as e:
+            status, error = "error", str(e)
 
+        # логируем попытку
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute(
+            "INSERT INTO email_logs (email, token, status, error_msg) VALUES (?, ?, ?, ?)",
+            (email, token, status, error),
+        )
+        conn.commit()
+        conn.close()
+
+        if status == "error":
+            raise RuntimeError(f"Email send error: {error}")
+
+    # выполняем в пуле потоков
     await asyncio.to_thread(_send_sync)
 
 
 async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
-    # находим строку в telegram_users вместе с bot_token
+    """
+    Подтверждает токен:
+    • ищет запись в telegram_users по token (вместе с bot_token)
+    • проверяет TTL
+    • обновляет verified и очищает token
+    • записывает в enterprise_users на основании bot_token
+    """
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
@@ -105,16 +141,17 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
         ) as cur:
             row = await cur.fetchone()
 
-        if not row:
+        if row is None:
             return False, None
         if row["verified"] == 1:
             return True, row["tg_id"]
 
-        # TTL
+        # проверяем срок жизни токена
         try:
             added_at = dt.datetime.strptime(row["added_at"], "%Y-%m-%d %H:%M:%S")
         except ValueError:
             added_at = dt.datetime.fromisoformat(row["added_at"])
+
         if dt.datetime.utcnow() - added_at > dt.timedelta(minutes=TOKEN_TTL_MINUTES):
             return False, None
 
@@ -124,7 +161,7 @@ async def mark_verified(token: str) -> Tuple[bool, Optional[int]]:
         )
         await db.commit()
 
-    # записываем в enterprise_users на основании bot_token → enterprise_number
+    # привязываем к enterprise по bot_token
     enterprise_number = await get_enterprise_number_by_bot_token(row["bot_token"])
     if enterprise_number:
         async with aiosqlite.connect(DB_PATH) as db:
