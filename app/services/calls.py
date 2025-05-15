@@ -36,8 +36,10 @@ def format_phone_number(phone: str) -> str:
         phone = "+" + phone
     try:
         parsed = phonenumbers.parse(phone, None)
-        return phonenumbers.format_number(parsed,
-                                          phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+        return phonenumbers.format_number(
+            parsed,
+            phonenumbers.PhoneNumberFormat.INTERNATIONAL
+        )
     except Exception:
         return phone
 
@@ -131,12 +133,13 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
     try:
         reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_int)
         if reply_id:
-            sent = await bot.send_message(chat_id, safe_text,
-                                          reply_to_message_id=reply_id,
-                                          parse_mode="HTML")
+            sent = await bot.send_message(
+                chat_id, safe_text,
+                reply_to_message_id=reply_id,
+                parse_mode="HTML"
+            )
         else:
-            sent = await bot.send_message(chat_id, safe_text,
-                                          parse_mode="HTML")
+            sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
     except BadRequest as e:
         logging.error(f"[process_start] send_message failed: {e}. text={safe_text!r}")
         return {"status": "error", "error": str(e)}
@@ -146,7 +149,7 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
     update_hangup_message_map(raw_phone, callee, sent.message_id, is_int)
 
     save_telegram_message(
-        sent.message_id, "start", data.get("Token",""),
+        sent.message_id, "start", data.get("Token", ""),
         raw_phone, callee, is_int
     )
     return {"status": "sent"}
@@ -163,8 +166,10 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
 
     # удаляем старое start
     if uid in bridge_store:
-        try:     await bot.delete_message(chat_id, bridge_store.pop(uid))
-        except: pass
+        try:
+            await bot.delete_message(chat_id, bridge_store.pop(uid))
+        except:
+            pass
 
     if is_int:
         text = f"🛎️ Внутренний звонок\n{raw_phone} ➡️ {callee}"
@@ -174,7 +179,7 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             text = f"⬆️ <b>Набираем номер</b>\n☎️ {', '.join(exts)} ➡️\n💰 {display}"
         else:
             lines = "\n".join(f"☎️ {e}" for e in exts)
-            text  = f"🛎️ <b>Входящий разговор</b>\n💰 {display} ➡️\n{lines}"
+            text = f"🛎️ <b>Входящий разговор</b>\n💰 {display} ➡️\n{lines}"
         last = get_last_call_info(raw_phone if call_type != 1 else callee)
         if last:
             text += f"\n\n{last}"
@@ -189,38 +194,41 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         return {"status": "error", "error": str(e)}
 
     dial_cache[uid] = {
-        "caller":    raw_phone,
-        "extensions":exts,
-        "call_type": call_type,
-        "token":     data.get("Token","")
+        "caller":     raw_phone,
+        "extensions": exts,
+        "call_type":  call_type,
+        "token":      data.get("Token", "")
     }
     update_call_pair_message(raw_phone, callee, sent.message_id, is_int)
     update_hangup_message_map(raw_phone, callee, sent.message_id, is_int)
 
     save_telegram_message(
-        sent.message_id, "dial", data.get("Token",""),
+        sent.message_id, "dial", data.get("Token", ""),
         raw_phone, callee, is_int
     )
     return {"status": "sent"}
 
 
 async def process_bridge(bot: Bot, chat_id: int, data: dict):
-    uid      = data.get("UniqueId", "")
-    caller   = data.get("CallerIDNum","")
-    connected= data.get("ConnectedLineNum","")
-    is_int   = is_internal_number(caller) and is_internal_number(connected)
+    uid       = data.get("UniqueId", "")
+    caller    = data.get("CallerIDNum", "")
+    connected = data.get("ConnectedLineNum", "")
+    is_int    = is_internal_number(caller) and is_internal_number(connected)
 
     # удаляем dial если есть
-    orig = dial_cache.pop(uid, None)
-    if orig:
-        try:     await bot.delete_message(chat_id, bridge_store.get(uid,0))
-        except: pass
+    if uid in dial_cache:
+        dial_cache.pop(uid)
+        try:
+            await bot.delete_message(chat_id, bridge_store.get(uid, 0))
+        except:
+            pass
 
     if is_int:
         text = f"⏱ Идет внутренний разговор\n{caller} ➡️ {connected}"
     else:
-        status = int(data.get("CallStatus",0))
-        pre    = "✅ Успешный разговор" if status==2 else "⬇️ 💬 <b>Входящий разговор</b>"
+        status = int(data.get("CallStatus", 0))
+        pre    = ("✅ Успешный разговор" if status == 2
+                  else "⬇️ 💬 <b>Входящий разговор</b>")
         cli_f  = format_phone_number(caller)
         cal_f  = format_phone_number(connected)
         text   = f"{pre}\n☎️ {cli_f} ➡️ 💰 {cal_f}"
@@ -228,85 +236,94 @@ async def process_bridge(bot: Bot, chat_id: int, data: dict):
         if last:
             text += f"\n\n{last}"
 
-    safe_text = text.replace("<","&lt;").replace(">","&gt;")
+    safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
     logging.debug(f"[process_bridge] => chat={chat_id}, text={safe_text!r}")
 
     try:
         sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
     except BadRequest as e:
         logging.error(f"[process_bridge] failed: {e}. text={safe_text!r}")
-        return {"status":"error","error": str(e)}
+        return {"status": "error", "error": str(e)}
 
     bridge_store[uid] = sent.message_id
     update_call_pair_message(caller, connected, sent.message_id, is_int)
     update_hangup_message_map(caller, connected, sent.message_id, is_int)
 
+    # начинаем трекать незакрытый мост
+    active_bridges[uid] = {
+        "text":  safe_text,
+        "cli":   caller,
+        "op":    connected,
+        "token": data.get("Token", "")
+    }
+
     save_telegram_message(
-        sent.message_id, "bridge", data.get("Token",""),
+        sent.message_id, "bridge", data.get("Token", ""),
         caller, connected, is_int
     )
-    return {"status":"sent"}
+    return {"status": "sent"}
 
 
 async def process_hangup(bot: Bot, chat_id: int, data: dict):
-    uid       = data.get("UniqueId","")
-    caller    = data.get("CallerIDNum","")
-    exts      = data.get("Extensions",[]) or []
-    connected = data.get("ConnectedLineNum","")
+    uid       = data.get("UniqueId", "")
+    caller    = data.get("CallerIDNum", "")
+    exts      = data.get("Extensions", []) or []
+    connected = data.get("ConnectedLineNum", "")
     is_int    = bool(exts and is_internal_number(exts[0]))
     callee    = exts[0] if exts else connected or ""
 
-    # удаляем все предыдущие
-    for store in (dial_cache, bridge_store):
-        store.pop(uid,None)
+    # удаляем все предыдущие упоминания о звонке
+    bridge_store.pop(uid, None)
+    dial_cache.pop(uid, None)
+    active_bridges.pop(uid, None)
 
     # расчёт длительности
     dur = ""
     try:
-        start = datetime.fromisoformat(data.get("StartTime",""))
-        end   = datetime.fromisoformat(data.get("EndTime",""))
-        secs  = int((end-start).total_seconds())
+        start = datetime.fromisoformat(data.get("StartTime", ""))
+        end   = datetime.fromisoformat(data.get("EndTime", ""))
+        secs  = int((end - start).total_seconds())
         dur   = f"{secs//60:02}:{secs%60:02}"
     except:
         pass
 
-    phone = format_phone_number(caller)
+    phone   = format_phone_number(caller)
     display = phone if not phone.startswith("+000") else "Номер не определен"
+    cs = int(data.get("CallStatus", 0))
+    ct = int(data.get("CallType", 0))
 
     if is_int:
-        m = ("✅ Успешный внутренний звонок\n" if data.get("CallStatus",0)==2
-             else "❌ Абонент не ответил\n")
+        m  = ("✅ Успешный внутренний звонок\n" if cs == 2
+              else "❌ Абонент не ответил\n")
         m += f"{caller} ➡️ {callee}\n⌛ {dur}"
     else:
-        cs = int(data.get("CallStatus",0))
-        ct = int(data.get("CallType",0))
-        if ct==1 and cs==0:
+        if ct == 1 and cs == 0:
             m = f"⬆️ ❌ Абонент не ответил\n💰 {display}"
-        elif cs==2:
+        elif cs == 2:
             m = f"✅ Завершённый звонок\n💰 {display}\n⌛ {dur}"
         else:
             m = f"❌ Завершённый звонок\n💰 {display}\n⌛ {dur}"
 
-    safe_text = m.replace("<","&lt;").replace(">","&gt;")
+    safe_text = m.replace("<", "&lt;").replace(">", "&gt;")
     logging.debug(f"[process_hangup] => chat={chat_id}, text={safe_text!r}")
 
     try:
         sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
     except BadRequest as e:
         logging.error(f"[process_hangup] failed: {e}. text={safe_text!r}")
-        return {"status":"error","error": str(e)}
+        return {"status": "error", "error": str(e)}
 
     update_call_pair_message(caller, callee, sent.message_id, is_int)
-    update_hangup_message_map(caller, callee, sent.message_id, is_int,
-                              int(data.get("CallStatus",0)),
-                              int(data.get("CallType",0)),
-                              exts)
+    update_hangup_message_map(
+        caller, callee, sent.message_id, is_int,
+        cs, ct, exts
+    )
 
     save_telegram_message(
-        sent.message_id, "hangup", data.get("Token",""),
+        sent.message_id, "hangup", data.get("Token", ""),
         caller, callee, is_int
     )
-    return {"status":"sent"}
+    return {"status": "sent"}
 
 
 async def create_resend_loop(dial_cache_arg, bridge_store_arg, active_bridges_arg,
@@ -314,13 +331,13 @@ async def create_resend_loop(dial_cache_arg, bridge_store_arg, active_bridges_ar
     while True:
         await asyncio.sleep(10)
         for uid, info in list(active_bridges_arg.items()):
-            text = info.get("text","")
-            cli  = info.get("cli")
-            op   = info.get("op")
-            is_int = is_internal_number(cli) and is_internal_number(op)
-            reply_id = get_relevant_hangup_message_id(cli, op, is_int)
+            text    = info.get("text", "")
+            cli     = info.get("cli")
+            op      = info.get("op")
+            is_int  = is_internal_number(cli) and is_internal_number(op)
+            reply_id= get_relevant_hangup_message_id(cli, op, is_int)
 
-            safe_text = text.replace("<","&lt;").replace(">","&gt;")
+            safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
             logging.debug(f"[resend_loop] => chat={chat_id}, text={safe_text!r}")
 
             try:
@@ -337,7 +354,8 @@ async def create_resend_loop(dial_cache_arg, bridge_store_arg, active_bridges_ar
                 bridge_store_arg[uid] = sent.message_id
                 update_hangup_message_map(cli, op, sent.message_id, is_int)
                 save_telegram_message(
-                    sent.message_id, "bridge_resend", info.get("token",""),
+                    sent.message_id, "bridge_resend",
+                    info.get("token", ""),
                     cli, op, is_int
                 )
             except BadRequest as e:
