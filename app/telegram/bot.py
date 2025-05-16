@@ -1,44 +1,51 @@
-# app/telegram/bot.py
 import asyncio
 import logging
-import sys
-
 from aiogram import Bot, Dispatcher
-from app.config import DB_PATH
-from app.telegram.handlers.onboarding import router as onboarding_router
+from aiogram.enums import ParseMode
 from app.services.database import get_enterprises_with_tokens
+from app.telegram.onboarding import router as onboarding_router
 
-# ───────── настройка логирования ─────────
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(
-    logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
-logger.addHandler(console_handler)
+logger = logging.getLogger(__name__)
 
-# База и файл логов для INFO
-file_handler = logging.FileHandler("telegram_bots.log")
-file_handler.setLevel(logging.INFO)
-file_handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-)
-logger.addHandler(file_handler)
+async def start_bot(enterprise_number: str, token: str):
+    bot = Bot(token=token, parse_mode=ParseMode.HTML)
+    dp = Dispatcher()
 
-logging.getLogger("aiogram").setLevel(logging.DEBUG)
+    dp.include_router(onboarding_router)
 
+    # Дополнительное логирование для 0201
+    if enterprise_number == "0201":
+        logger.setLevel(logging.DEBUG)
+        logging.getLogger("aiogram").setLevel(logging.DEBUG)
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        logger.debug("🔍 Подробное логирование включено для бота 0201")
+        logger.debug(f"Токен: {token}")
 
-async def start_enterprise_bots():
+    try:
+        me = await bot.get_me()
+        logger.info(f"✅ Бот {enterprise_number} запущен: @{me.username}")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при инициализации бота {enterprise_number}: {e}")
+        return
+
+    try:
+        await dp.start_polling(bot)
+    except Exception as e:
+        logger.exception(f"❌ Ошибка во время polling для бота {enterprise_number}: {e}")
+
+async def main():
     enterprises = await get_enterprises_with_tokens()
-    for ent in enterprises:
-        try:
-            token = ent["bot_token"]
-            bot = Bot(token=token)
-            dp = Dispatcher()
-            dp.include_router(onboarding_router)
-            asyncio.create_task(dp.start_polling(bot))
-            logger.info(f"✅ Бот {token[:8]}... запущен")
-        except Exception as e:
-            logger.exception(f"❌ Ошибка запуска бота {ent['number']}: {e}")
+    tasks = []
+    for enterprise in enterprises:
+        number = enterprise["number"]
+        token = enterprise["bot_token"]
+        if number == "0201":  # Запускаем только одного
+            tasks.append(start_bot(number, token))
+    await asyncio.gather(*tasks)
+
+if __name__ == "__main__":
+    asyncio.run(main())
