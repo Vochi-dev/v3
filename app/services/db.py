@@ -1,4 +1,5 @@
 import sqlite3
+import aiosqlite
 from config import DB_PATH
 
 def init_database_tables():
@@ -21,3 +22,9 @@ def init_database_tables():
     """)
     conn.commit()
     conn.close()
+
+async def get_connection():
+    """
+    Функция для получения асинхронного подключения к базе данных SQLite.
+    """
+    return await aiosqlite.connect(DB_PATH)
