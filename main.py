@@ -10,7 +10,7 @@ Polling Telegram-бота запускается отдельно: python3 -m ap
 """
 
 from dotenv import load_dotenv
-load_dotenv()  # <-- загружаем .env
+load_dotenv()
 
 import os
 import sys
@@ -148,13 +148,9 @@ async def startup_tasks():
         "✅ Сервис Asterisk-webhook запущен и готов к приёму событий."
     )
 
-    # 4) Запускаем цикл повторной отправки (только notify_bot)
+    # 4) Запускаем цикл повторной отправки
     logger.debug("Starting background resend loop")
-    asyncio.create_task(
-        create_resend_loop(
-            notify_bot=notify_bot
-        )
-    )
+    asyncio.create_task(create_resend_loop())
 
 
 @app.get("/health")
