@@ -46,6 +46,9 @@ file_handler.setFormatter(
 )
 logger.addHandler(file_handler)
 
+# Включить логи от aiogram
+logging.getLogger("aiogram").setLevel(logging.DEBUG)
+
 # ───────── FastAPI & шаблоны ─────────
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
@@ -60,7 +63,7 @@ async def log_requests(request: Request, call_next):
     )
     return await call_next(request)
 
-# бот для фоновых уведомлений
+# Бот для фоновых уведомлений
 notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 # ───────── routers ─────────
@@ -82,6 +85,7 @@ async def startup_tasks():
     logger.debug("Startup: init DB tables and load hangup history")
     await init_database_tables()
     await load_hangup_message_history()
+
     logger.debug("Starting background resend loop")
     asyncio.create_task(
         create_resend_loop(
@@ -92,6 +96,14 @@ async def startup_tasks():
             TELEGRAM_CHAT_ID,
         )
     )
+
+    # Инициализация Telegram-хендлеров
+    try:
+        from app.telegram.bot import start_enterprise_bots
+        asyncio.create_task(start_enterprise_bots())
+        logger.info("Telegram bots launched inside main.py")
+    except Exception as e:
+        logger.exception("Failed to start Telegram bots in main.py")
 
 @app.get("/health")
 async def health():
