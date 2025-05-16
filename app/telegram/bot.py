@@ -11,13 +11,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+bots_tasks = {}
+
 async def start_bot(enterprise_number: str, token: str):
     bot = Bot(token=token, parse_mode=ParseMode.HTML)
     dp = Dispatcher()
-
     dp.include_router(onboarding_router)
 
-    # Дополнительное логирование для 0201
     if enterprise_number == "0201":
         logger.setLevel(logging.DEBUG)
         logging.getLogger("aiogram").setLevel(logging.DEBUG)
@@ -37,15 +37,17 @@ async def start_bot(enterprise_number: str, token: str):
     except Exception as e:
         logger.exception(f"❌ Ошибка во время polling для бота {enterprise_number}: {e}")
 
-async def main():
+async def start_enterprise_bots():
     enterprises = await get_enterprises_with_tokens()
     tasks = []
     for enterprise in enterprises:
         number = enterprise["number"]
         token = enterprise["bot_token"]
-        if number == "0201":  # Запускаем только одного
-            tasks.append(start_bot(number, token))
+        task = asyncio.create_task(start_bot(number, token))
+        bots_tasks[number] = task
+        tasks.append(task)
     await asyncio.gather(*tasks)
 
+# для запуска вручную
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(start_enterprise_bots())
