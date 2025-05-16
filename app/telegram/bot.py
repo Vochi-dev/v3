@@ -39,7 +39,7 @@ async def start_bot(enterprise_number: str, token: str):
         logger.exception(f"❌ Ошибка во время polling для бота {enterprise_number}: {e}")
 
 async def start_enterprise_bots():
-    enterprises = get_enterprises_with_tokens()  # УБРАН await
+    enterprises = await get_enterprises_with_tokens()  # <-- исправлено
     tasks = []
     for enterprise in enterprises:
         number = enterprise["number"]
@@ -49,5 +49,6 @@ async def start_enterprise_bots():
         tasks.append(task)
     await asyncio.gather(*tasks)
 
+# для ручного запуска
 if __name__ == "__main__":
     asyncio.run(start_enterprise_bots())
