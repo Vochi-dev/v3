@@ -59,7 +59,7 @@ async def login(request: Request, password: str = Form(...)):
 async def dashboard(request: Request):
     require_login(request)
     db = await get_connection()
-    db.row_factory = aiosqlite.Row  # 👈 вот это нужно для доступа по row["cnt"]
+    db.row_factory = aiosqlite.Row
     cur = await db.execute("SELECT COUNT(*) AS cnt FROM enterprises")
     row = await cur.fetchone()
     await db.close()
@@ -105,6 +105,7 @@ async def list_enterprises(request: Request):
 async def toggle_enterprise(request: Request, number: str):
     require_login(request)
     db = await get_connection()
+    db.row_factory = aiosqlite.Row  # ← вот эта строка была нужна
     cur = await db.execute("SELECT active, bot_token FROM enterprises WHERE number = ?", (number,))
     row = await cur.fetchone()
 
@@ -126,7 +127,6 @@ async def toggle_enterprise(request: Request, number: str):
         logger.error("Notify-bot failed: %s", e)
 
     await db.close()
-
     return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
