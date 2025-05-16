@@ -5,13 +5,11 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "asterisk_events.db")
 
-# Админ-пароль для /admin
+# Админ-пароль для /admin (берётся из окружения или берём дефолт)
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "your_default_admin_password")
 
-# Telegram-токен берём из переменной окружения
+# Telegram-токен (опциональный, проверим при старте бота)
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-if not TELEGRAM_BOT_TOKEN:
-    raise RuntimeError("Переменная окружения TELEGRAM_BOT_TOKEN не задана")
 
-# Другие настройки, если нужны:
-# e.g. SMTP_HOST, SMTP_PORT, EMAIL_FROM и т.п., тоже обычно из os.environ
+# (Если у вас где-то использовался TELEGRAM_CHAT_ID, аналогично:)
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
