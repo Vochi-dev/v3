@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 bots_tasks = {}
 
-
 async def start_bot(enterprise_number: str, token: str):
     bot = Bot(token=token, parse_mode=ParseMode.HTML)
     dp = Dispatcher()
@@ -39,10 +38,8 @@ async def start_bot(enterprise_number: str, token: str):
     except Exception as e:
         logger.exception(f"❌ Ошибка во время polling для бота {enterprise_number}: {e}")
 
-
 async def start_enterprise_bots():
-    # ВАЖНО: эта функция НЕ асинхронная, её не нужно await'ить
-    enterprises = get_enterprises_with_tokens()
+    enterprises = get_enterprises_with_tokens()  # УБРАН await
     tasks = []
     for enterprise in enterprises:
         number = enterprise["number"]
@@ -51,7 +48,6 @@ async def start_enterprise_bots():
         bots_tasks[number] = task
         tasks.append(task)
     await asyncio.gather(*tasks)
-
 
 if __name__ == "__main__":
     asyncio.run(start_enterprise_bots())
