@@ -9,6 +9,10 @@ FastAPI-приложение:
 Polling Telegram-бота запускается отдельно: python3 -m app.telegram.bot
 """
 
+from dotenv import load_dotenv
+load_dotenv()  # <-- загружаем .env
+
+import os
 import sys
 import asyncio
 import logging
@@ -16,9 +20,8 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
-from telegram.error import TelegramError
 
-from app.config import TELEGRAM_BOT_TOKEN, DB_PATH
+from app.config import DB_PATH
 import aiosqlite
 
 from app.services.events import (
@@ -40,7 +43,11 @@ from app.services.calls.internal import (
 )
 from app.services.calls.utils import is_internal_number
 
-# ───────── настройка логирования ─────────
+# ───────── константы из окружения ─────────
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID   = int(os.getenv("TELEGRAM_CHAT_ID", "0"))
+
+# ───────── логирование ─────────
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler(sys.stdout)
@@ -60,7 +67,7 @@ logger.addHandler(file_handler)
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
-# ───────── middleware для логирования всех запросов ─────────
+# ───────── middleware логирования всех запросов ─────────
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     body = await request.body()
@@ -70,46 +77,72 @@ async def log_requests(request: Request, call_next):
     )
     return await call_next(request)
 
-# ───────── бот для фоновых уведомлений (startup) ─────────
+# ───────── уведомительный бот ─────────
 notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 
-async def broadcast_to_verified_subscribers(text: str):
-    """
-    Рассылает text всем telegram_users, у которых verified=1.
-    """
+async def broadcast_to_enterprises(text: str):
+    """Рассылка всем корпоративным чатам из таблицы enterprises."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("SELECT bot_token, chat_id FROM enterprises")
+        rows = await cur.fetchall()
+
+    for row in rows:
+        bot = Bot(token=row["bot_token"])
+        try:
+            await bot.send_message(chat_id=int(row["chat_id"]), text=text)
+            logger.debug(f"Enterprise broadcast to {row['chat_id']}: {text!r}")
+        except Exception as e:
+            logger.error(f"Failed enterprise broadcast to {row['chat_id']}: {e}")
+
+
+async def broadcast_to_subscribers(text: str):
+    """Рассылка всем верифицированным пользователям (telegram_users)."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
             "SELECT tg_id, bot_token FROM telegram_users WHERE verified = 1"
         )
         users = await cur.fetchall()
+
     for row in users:
         bot = Bot(token=row["bot_token"])
         try:
             await bot.send_message(chat_id=int(row["tg_id"]), text=text)
-            logger.debug(f"Broadcast to {row['tg_id']}: {text!r}")
-        except TelegramError as e:
-            logger.error(f"Failed to broadcast to {row['tg_id']}: {e}")
+            logger.debug(f"Subscriber broadcast to {row['tg_id']}: {text!r}")
+        except Exception as e:
+            logger.error(f"Failed subscriber broadcast to {row['tg_id']}: {e}")
 
 
 @app.on_event("startup")
 async def startup_tasks():
+    # 1) Инициализация БД
     logger.debug("Startup: init DB tables and load hangup history")
     await init_database_tables()
     await load_hangup_message_history()
 
-    # 1) уведомляем всех проверённых подписчиков о старте
-    logger.debug("Startup: broadcasting service start")
-    await broadcast_to_verified_subscribers("✅ Сервис Asterisk-webhook запущен и готов к приёму событий.")
+    # 2) Уведомляем нотификационного бота о старте
+    try:
+        await notify_bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID,
+            text="✅ Сервис Asterisk-webhook запущен и готов к приёму событий."
+        )
+        logger.debug("Notify-бот: стартовое сообщение отправлено")
+    except Exception as e:
+        logger.error(f"Notify-бот: не удалось отправить сообщение: {e}")
 
-    # 2) запускаем цикл пересылки
+    # 3) Уведомляем корпоративных ботов и подписчиков
+    await broadcast_to_enterprises("✅ Сервис Asterisk-webhook запущен и готов к приёму событий.")
+    await broadcast_to_subscribers("✅ Сервис Asterisk-webhook запущен и готов к приёму событий.")
+
+    # 4) Запускаем цикл повторной отправки
     logger.debug("Starting background resend loop")
     asyncio.create_task(
         create_resend_loop(
-            dial_cache={}, bridge_store={}, active_bridges={},  # если нужно — передайте ваши
+            dial_cache={}, bridge_store={}, active_bridges={}, 
             notify_bot=notify_bot,
-            telegram_chat_id=None  # устаревший параметр, если create_resend_loop его не ждёт, уберите
+            telegram_chat_id=TELEGRAM_CHAT_ID
         )
     )
 
@@ -128,10 +161,10 @@ async def handle_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # сохраняем само событие
+    # 1) сохраняем само событие
     await save_asterisk_event(et, uid, token, data)
 
-    # ищем предприятие по токену
+    # 2) ищем предприятие по токену
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
@@ -145,7 +178,7 @@ async def handle_event(event_type: str, request: Request):
 
     bot_token = ent["bot_token"]
 
-    # собираем проверённых подписчиков этого бота
+    # 3) выбираем пользователей этого бота
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
         cur2 = await db2.execute(
@@ -160,18 +193,18 @@ async def handle_event(event_type: str, request: Request):
 
     bot = Bot(token=bot_token)
 
-    # определяем, внутренний ли это звонок
+    # 4) определяем тип звонка
     raw_phone = data.get("Phone", "") or data.get("CallerIDNum", "") or ""
     exts = data.get("Extensions", [])
     call_type = int(data.get("CallType", 0))
     is_int = (
         call_type == 2 or
-        (is_internal_number(raw_phone) and
-         len(exts) == 1 and
-         is_internal_number(exts[0]))
+        (is_internal_number(raw_phone)
+         and len(exts) == 1
+         and is_internal_number(exts[0]))
     )
 
-    # выбираем нужный обработчик
+    # 5) выбираем обработчик
     if et == "start":
         handler = process_internal_start if is_int else process_start
     elif et == "dial":
@@ -183,6 +216,7 @@ async def handle_event(event_type: str, request: Request):
     else:
         return {"status": "ignored"}
 
+    # 6) отправляем каждому
     results = []
     for row in users:
         tg_id = int(row["tg_id"])
@@ -196,7 +230,6 @@ async def handle_event(event_type: str, request: Request):
     return {"status": "sent", "details": results}
 
 
-# два POST-маршрута: с префиксом и без
 @app.post("/events/{event_type}")
 async def receive_event_prefixed(event_type: str, request: Request):
     return await handle_event(event_type, request)
