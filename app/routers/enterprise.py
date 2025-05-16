@@ -1,11 +1,12 @@
 # app/routers/enterprise.py
 # -*- coding: utf-8 -*-
-from fastapi import APIRouter, Request, Form, status
+from fastapi import APIRouter, Request, Form, status, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.routers.admin import require_login
 from app.services.db import get_connection
+from app.services.enterprise import get_enterprise, update_enterprise
 import datetime as dt
 
 router = APIRouter(prefix="/admin/enterprises", tags=["admin"])
@@ -63,6 +64,40 @@ async def add_enterprise(
         await db.commit()
     finally:
         await db.close()
+    return RedirectResponse(
+        url="/admin/enterprises",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
+
+
+@router.get("/{number}/edit", response_class=HTMLResponse)
+async def edit_enterprise_page(request: Request, number: str):
+    require_login(request)
+    # читаем из сервиса
+    ent = get_enterprise(number)
+    if not ent:
+        raise HTTPException(status_code=404, detail="Enterprise not found")
+    return templates.TemplateResponse(
+        "edit_enterprise.html",
+        {"request": request, "e": ent}
+    )
+
+
+@router.post("/{number}/edit", response_class=RedirectResponse)
+async def edit_enterprise(
+    request: Request,
+    number: str,
+    name: str = Form(...),
+    name2: str = Form(""),
+    bot_token: str = Form(...),
+    chat_id: str = Form(...),
+    ip: str = Form(""),
+    secret: str = Form(""),
+    host: str = Form(""),
+):
+    require_login(request)
+    # вызываем сервис
+    update_enterprise(number, name, name2, bot_token, chat_id, ip, secret, host)
     return RedirectResponse(
         url="/admin/enterprises",
         status_code=status.HTTP_303_SEE_OTHER

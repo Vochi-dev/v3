@@ -33,6 +33,7 @@
         <th>Host</th>
         <th>Создано</th>
         <th>Доп. имя</th>
+        <th>Действия</th>
       </tr>
     </thead>
     <tbody>
@@ -47,10 +48,13 @@
         <td>{{ ent.host }}</td>
         <td>{{ ent.created_at }}</td>
         <td>{{ ent.name2 or '' }}</td>
+        <td>
+          <a href="/admin/enterprises/{{ ent.number }}/edit" class="button">Редактировать</a>
+        </td>
       </tr>
       {% else %}
       <tr>
-        <td colspan="9">Нет предприятий</td>
+        <td colspan="10">Нет предприятий</td>
       </tr>
       {% endfor %}
     </tbody>
