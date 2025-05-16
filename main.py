@@ -42,7 +42,7 @@ from app.services.calls.internal import (
 )
 from app.services.calls.utils import is_internal_number
 
-# подключаем админ-роутер (в самом router префикс "/admin")
+# подключаем админ-роутер
 from app.routers.admin import router as admin_router
 
 # ───────── константы из окружения ─────────
@@ -72,8 +72,7 @@ app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
 # ───────── подключаем админ-роутер ─────────
-# В admin.py: APIRouter(prefix="/admin")
-app.include_router(admin_router)
+app.include_router(admin_router, prefix="/admin")
 
 # ───────── middleware логирования всех запросов ─────────
 @app.middleware("http")
@@ -89,6 +88,7 @@ async def log_requests(request: Request, call_next):
 notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 async def broadcast_to_enterprises(text: str):
+    """Рассылка всем корпоративным чатам из таблицы enterprises."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute("SELECT bot_token, chat_id FROM enterprises")
@@ -102,6 +102,7 @@ async def broadcast_to_enterprises(text: str):
             logger.error(f"Failed enterprise broadcast to {row['chat_id']}: {e}")
 
 async def broadcast_to_subscribers(text: str):
+    """Рассылка всем верифицированным пользователям (telegram_users)."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
