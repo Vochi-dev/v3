@@ -19,10 +19,10 @@ templates = Jinja2Templates(directory="app/templates")
 async def list_enterprises(request: Request):
     require_login(request)
     db = await get_connection()
+    db.row_factory = lambda cursor, row: {
+        col[0]: row[idx] for idx, col in enumerate(cursor.description)
+    }
     try:
-        db.row_factory = lambda cursor, row: {
-            col[0]: row[idx] for idx, col in enumerate(cursor.description)
-        }
         cur = await db.execute(
             "SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2, active "
             "FROM enterprises ORDER BY created_at DESC"
@@ -108,10 +108,10 @@ async def edit_enterprise(
 async def toggle_enterprise(request: Request, number: str):
     require_login(request)
     db = await get_connection()
+    db.row_factory = lambda cursor, row: {
+        col[0]: row[idx] for idx, col in enumerate(cursor.description)
+    }
     try:
-        db.row_factory = lambda cursor, row: {
-            col[0]: row[idx] for idx, col in enumerate(cursor.description)
-        }
         cur = await db.execute(
             "SELECT active, bot_token, name FROM enterprises WHERE number = ?",
             (number,),
