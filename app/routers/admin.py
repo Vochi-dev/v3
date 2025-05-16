@@ -5,8 +5,8 @@ from datetime import datetime
 
 from fastapi import APIRouter, Request, Form, status, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
-from telegram import Bot
 from fastapi.templating import Jinja2Templates
+from telegram import Bot
 
 from app.config import (
     ADMIN_PASSWORD,
@@ -110,15 +110,12 @@ async def toggle_enterprise(request: Request, number: str):
 
     bot_token = row["bot_token"]
     chat_id = row["chat_id"]
-    text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
 
+    bot = Bot(token=bot_token)
+    text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
     try:
-        if chat_id and str(chat_id).isdigit():
-            bot = Bot(token=bot_token)
-            await bot.send_message(chat_id=int(chat_id), text=text)
-            logger.info("Sent toggle message to bot %s: %s", number, text)
-        else:
-            logger.warning("Cannot notify bot %s — invalid chat_id: %s", number, chat_id)
+        await bot.send_message(chat_id=int(chat_id), text=text)
+        logger.info("Sent toggle message to bot %s: %s", number, text)
     except Exception as e:
         logger.error("Toggle bot notification failed: %s", e)
 
@@ -170,6 +167,7 @@ async def add_enterprise(
 async def edit_enterprise_form(request: Request, number: str):
     require_login(request)
     db = await get_connection()
+    db.row_factory = aiosqlite.Row
     cur = await db.execute(
         """
         SELECT number, name, bot_token, active,
