@@ -150,7 +150,15 @@ async def startup_tasks():
 
     # 4) Запускаем цикл повторной отправки
     logger.debug("Starting background resend loop")
-    asyncio.create_task(create_resend_loop())
+    asyncio.create_task(
+        create_resend_loop(
+            {},                # dial_cache_arg
+            {},                # bridge_store_arg
+            {},                # active_bridges_arg
+            notify_bot,        # Bot instance
+            TELEGRAM_CHAT_ID   # chat_id для уведомлений
+        )
+    )
 
 
 @app.get("/health")
