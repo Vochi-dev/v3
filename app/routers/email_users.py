@@ -33,6 +33,7 @@ logger.setLevel(logging.DEBUG)
 async def list_email_users(request: Request):
     require_login(request)
     db = await get_connection()
+    db.row_factory = aiosqlite.Row  # ✅ ДОБАВЛЕНО — КРИТИЧЕСКОЕ ДЛЯ ОТОБРАЖЕНИЯ
     try:
         cur = await db.execute(
             """
@@ -73,12 +74,10 @@ async def upload_email_users(
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Файл должен быть в формате CSV")
 
-    # 1) читаем CSV-контент
-    content = await file.read()  # bytes
+    content = await file.read()
     text = content.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
 
-    # 2) обновляем таблицу email_users
     db = await get_connection()
     try:
         for row in reader:
@@ -107,10 +106,8 @@ async def upload_email_users(
     finally:
         await db.close()
 
-    # 3) собираем список пользователей, которых CSV больше не содержит
     to_remove: List[Dict] = await find_users_to_remove(content)
 
-    # Логирование результата
     logger.debug("=== sync preview ===")
     logger.debug("Total candidates to remove: %d", len(to_remove))
     for u in to_remove:
@@ -119,14 +116,12 @@ async def upload_email_users(
     logger.debug("=====================")
 
     if not to_remove:
-        # если удалять некого — выполняем синхронизацию сразу (ничего не удалит)
         await perform_sync(content)
         return RedirectResponse(
             url="/admin/email-users",
             status_code=status.HTTP_303_SEE_OTHER
         )
 
-    # 4) иначе показываем страницу подтверждения
     csv_b64 = base64.b64encode(content).decode()
     return templates.TemplateResponse(
         "confirm_sync.html",
@@ -146,14 +141,12 @@ async def confirm_upload(
 ):
     require_login(request)
 
-    # если админ отменил — просто возвращаемся к списку
     if confirm != "yes":
         return RedirectResponse(
             url="/admin/email-users",
             status_code=status.HTTP_303_SEE_OTHER
         )
 
-    # декодируем CSV и выполняем удаление + уведомление
     try:
         content = base64.b64decode(csv_b64)
     except Exception:
@@ -170,7 +163,6 @@ async def confirm_upload(
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
-    # находим bot_token для этого пользователя
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -187,7 +179,6 @@ async def delete_user(tg_id: int, request: Request):
         if row:
             bot_token = row["bot_token"]
 
-    # удаляем из БД
     db = await get_connection()
     try:
         await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
@@ -196,7 +187,6 @@ async def delete_user(tg_id: int, request: Request):
     finally:
         await db.close()
 
-    # уведомляем через бот
     if bot_token:
         try:
             bot = AiogramBot(token=bot_token)
