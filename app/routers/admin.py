@@ -16,7 +16,7 @@ from app.config import (
     NOTIFY_CHAT_ID
 )
 from app.services.db import get_connection
-from app.services.bot_status import check_bot_status  # 🔧 вот это добавлено
+from app.services.bot_status import check_bot_status  # импорт проверяющей функции
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -85,12 +85,12 @@ async def list_enterprises(request: Request):
     rows = await cur.fetchall()
     await db.close()
 
-    # Получаем состояние бота для каждого предприятия
+    # Преобразуем Row → dict, чтобы можно было добавлять ключи
     enterprises_with_status = []
-    for ent in rows:
+    for row in rows:
+        ent = dict(row)
         bot_token = ent["bot_token"]
-        bot_active = await check_bot_status(bot_token)
-        ent['bot_active'] = bot_active
+        ent["bot_active"] = await check_bot_status(bot_token)
         enterprises_with_status.append(ent)
 
     return templates.TemplateResponse(
