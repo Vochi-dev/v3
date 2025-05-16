@@ -32,6 +32,7 @@ from app.services.calls.utils import is_internal_number
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
+# Консоль
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.DEBUG)
 console_handler.setFormatter(
@@ -39,14 +40,15 @@ console_handler.setFormatter(
 )
 logger.addHandler(console_handler)
 
+# Файл
 file_handler = logging.FileHandler("asterisk_events.log")
-file_handler.setLevel(logging.INFO)
+file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(
     logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 )
 logger.addHandler(file_handler)
 
-# Включить логи от aiogram
+# aiogram
 logging.getLogger("aiogram").setLevel(logging.DEBUG)
 
 # ───────── FastAPI & шаблоны ─────────
