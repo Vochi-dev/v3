@@ -67,6 +67,7 @@ async def dashboard(request: Request):
 async def list_enterprises(request: Request):
     require_login(request)
     db = await get_connection()
+    # убрали created_at из выборки
     cur = await db.execute(
         "SELECT number, name, bot_token, chat_id, ip, secret, host, name2 "
         "FROM enterprises ORDER BY created_at DESC"
@@ -172,6 +173,7 @@ async def check_bot_status(request: Request, number: str):
     token = row["bot_token"]
     bot = Bot(token=token)
     try:
+        # get_me блокирующий, запускаем в executor
         await asyncio.get_event_loop().run_in_executor(None, bot.get_me)
         status_text = "Active"
     except TelegramError:
@@ -179,4 +181,4 @@ async def check_bot_status(request: Request, number: str):
     return {"status": status_text}
 
 
-# … остальной код без изменений
+# … остальные маршруты без изменений
