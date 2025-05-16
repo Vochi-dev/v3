@@ -1,6 +1,6 @@
 import sqlite3
 import aiosqlite
-from config import DB_PATH
+from app.config import DB_PATH
 
 def init_database_tables():
     """
@@ -28,3 +28,16 @@ async def get_connection():
     Функция для получения асинхронного подключения к базе данных SQLite.
     """
     return await aiosqlite.connect(DB_PATH)
+
+async def get_enterprise_number_by_bot_token(bot_token: str) -> str:
+    """
+    Получение номера предприятия по bot_token.
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT number FROM enterprises WHERE bot_token = ?", (bot_token,)
+        ) as cur:
+            row = await cur.fetchone()
+
+    return row["number"] if row else None
