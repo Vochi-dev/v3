@@ -29,7 +29,6 @@ async def list_enterprises(request: Request):
         )
         enterprises = await cur.fetchall()
 
-        # Проверка активности ботов
         for ent in enterprises:
             try:
                 bot = Bot(token=ent["bot_token"])
@@ -49,10 +48,7 @@ async def list_enterprises(request: Request):
 @router.get("/add", response_class=HTMLResponse)
 async def add_enterprise_page(request: Request):
     require_login(request)
-    return templates.TemplateResponse(
-        "add_enterprise.html",
-        {"request": request}
-    )
+    return templates.TemplateResponse("add_enterprise.html", {"request": request})
 
 
 @router.post("/add", response_class=RedirectResponse)
@@ -79,10 +75,7 @@ async def add_enterprise(
         await db.commit()
     finally:
         await db.close()
-    return RedirectResponse(
-        url="/admin/enterprises",
-        status_code=status.HTTP_303_SEE_OTHER
-    )
+    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/{number}/edit", response_class=HTMLResponse)
@@ -91,10 +84,7 @@ async def edit_enterprise_page(request: Request, number: str):
     ent = get_enterprise(number)
     if not ent:
         raise HTTPException(status_code=404, detail="Enterprise not found")
-    return templates.TemplateResponse(
-        "edit_enterprise.html",
-        {"request": request, "e": ent}
-    )
+    return templates.TemplateResponse("edit_enterprise.html", {"request": request, "e": ent})
 
 
 @router.post("/{number}/edit", response_class=RedirectResponse)
@@ -111,10 +101,7 @@ async def edit_enterprise(
 ):
     require_login(request)
     update_enterprise(number, name, name2, bot_token, chat_id, ip, secret, host)
-    return RedirectResponse(
-        url="/admin/enterprises",
-        status_code=status.HTTP_303_SEE_OTHER
-    )
+    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/{number}/toggle")
@@ -143,7 +130,6 @@ async def toggle_enterprise(request: Request, number: str):
     finally:
         await db.close()
 
-    # Уведомление через notify-бота
     try:
         text = (
             f'🟢 Бот *{row["name"]}* запущен ✅'
