@@ -5,12 +5,23 @@
   <title>Список предприятий</title>
   <style>
     body { font-family: sans-serif; padding: 2rem; }
+    .button {
+      display: inline-block;
+      padding: 0.3rem 0.6rem;
+      margin: 0 0.3rem;
+      background: #007bff;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
     table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem; vertical-align: middle; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; vertical-align: top; }
     th { background: #f0f0f0; }
-    .button { padding: 0.3rem 0.6rem; margin: 0; }
-    /* двухстрочный Bot Token */
-    .bot-token { white-space: pre-wrap; word-wrap: break-word; max-width: 200px; }
+    .status-active { color: green; font-weight: bold; }
+    .status-inactive { color: red; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -42,11 +53,19 @@
       <tr>
         <td>{{ ent.number }}</td>
         <td>{{ ent.name }}</td>
-        <td class="bot-token">{{ ent.bot_token[:ent.bot_token.find(':')+1] }}<br>{{ ent.bot_token[ent.bot_token.find(':')+1:] }}</td>
         <td>
-          <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle">
+          {% set parts = ent.bot_token.split(':', 1) %}
+          {{ parts[0] }}:<br>{{ parts[1] }}
+        </td>
+        <td>
+          {% if ent.active %}
+            <span class="status-active">Активен</span>
+          {% else %}
+            <span class="status-inactive">Неактивен</span>
+          {% endif %}
+          <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
             <button type="submit" class="button">
-              {{ 'Активен' if ent.active else 'Отключен' }}
+              {% if ent.active %}Отключить{% else %}Включить{% endif %}
             </button>
           </form>
         </td>
@@ -64,7 +83,9 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="10">Нет предприятий</td></tr>
+      <tr>
+        <td colspan="10">Нет предприятий</td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
