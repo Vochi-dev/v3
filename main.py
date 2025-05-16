@@ -43,6 +43,9 @@ from app.services.calls.internal import (
 )
 from app.services.calls.utils import is_internal_number
 
+# подключаем админ-роутер
+from app.routers.admin import router as admin_router
+
 # ───────── константы из окружения ─────────
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID   = int(os.getenv("TELEGRAM_CHAT_ID", "0"))
@@ -68,6 +71,9 @@ logger.addHandler(file_handler)
 # ───────── FastAPI & шаблоны ─────────
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
+
+# подключаем админ-роутер под префиксом "/admin"
+app.include_router(admin_router)
 
 # ───────── middleware логирования всех запросов ─────────
 @app.middleware("http")
