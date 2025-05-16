@@ -16,6 +16,7 @@ from app.config import (
     NOTIFY_CHAT_ID
 )
 from app.services.db import get_connection
+from app.services.bot_status import check_bot_status  # 🔧 вот это добавлено
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -73,7 +74,7 @@ async def dashboard(request: Request):
 async def list_enterprises(request: Request):
     require_login(request)
     db = await get_connection()
-    db.row_factory = aiosqlite.Row  # <--- добавлено!
+    db.row_factory = aiosqlite.Row
     cur = await db.execute("""
         SELECT
           number, name, bot_token, active,
@@ -88,7 +89,7 @@ async def list_enterprises(request: Request):
     enterprises_with_status = []
     for ent in rows:
         bot_token = ent["bot_token"]
-        bot_active = await check_bot_status(bot_token)  # Функция, которая проверяет активность бота
+        bot_active = await check_bot_status(bot_token)
         ent['bot_active'] = bot_active
         enterprises_with_status.append(ent)
 
