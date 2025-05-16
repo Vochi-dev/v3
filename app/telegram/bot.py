@@ -2,6 +2,7 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
+
 from app.services.database import get_enterprises_with_tokens
 from app.telegram.onboarding import router as onboarding_router
 
@@ -12,6 +13,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 bots_tasks = {}
+
 
 async def start_bot(enterprise_number: str, token: str):
     bot = Bot(token=token, parse_mode=ParseMode.HTML)
@@ -37,8 +39,10 @@ async def start_bot(enterprise_number: str, token: str):
     except Exception as e:
         logger.exception(f"❌ Ошибка во время polling для бота {enterprise_number}: {e}")
 
+
 async def start_enterprise_bots():
-    enterprises = await get_enterprises_with_tokens()
+    # ВАЖНО: эта функция НЕ асинхронная, её не нужно await'ить
+    enterprises = get_enterprises_with_tokens()
     tasks = []
     for enterprise in enterprises:
         number = enterprise["number"]
@@ -48,6 +52,6 @@ async def start_enterprise_bots():
         tasks.append(task)
     await asyncio.gather(*tasks)
 
-# Для ручного запуска
+
 if __name__ == "__main__":
     asyncio.run(start_enterprise_bots())
