@@ -1,4 +1,3 @@
-# app/services/email_verification.py
 # -*- coding: utf-8 -*-
 """
 Надёжная логика подтверждения e-mail:
@@ -54,20 +53,30 @@ async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: st
     иначе вставляем новую запись.
     """
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """
-            INSERT INTO telegram_users (
-                tg_id, email, token, verified, added_at, bot_token
-            ) VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP, ?)
-            ON CONFLICT(tg_id) DO UPDATE SET
-                email     = excluded.email,
-                token     = excluded.token,
-                verified  = 0,
-                added_at  = CURRENT_TIMESTAMP,
-                bot_token = excluded.bot_token
-            """,
-            (tg_id, email, token, bot_token),
-        )
+        # Проверка на существующую запись по tg_id
+        async with db.execute("SELECT 1 FROM telegram_users WHERE tg_id = ?", (tg_id,)) as cur:
+            existing_user = await cur.fetchone()
+
+        if existing_user:
+            # Если запись существует, обновляем данные
+            await db.execute(
+                """
+                UPDATE telegram_users
+                SET email = ?, token = ?, verified = 0, added_at = CURRENT_TIMESTAMP, bot_token = ?
+                WHERE tg_id = ?
+                """,
+                (email, token, bot_token, tg_id),
+            )
+        else:
+            # Если записи нет, вставляем новую
+            await db.execute(
+                """
+                INSERT INTO telegram_users (tg_id, email, token, verified, added_at, bot_token)
+                VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP, ?)
+                """,
+                (tg_id, email, token, bot_token),
+            )
+
         await db.commit()
 
 
