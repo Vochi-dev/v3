@@ -8,12 +8,20 @@
     table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
     th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
     th { background: #f0f0f0; }
-    .button { 
-      display: inline-block; margin-right: 1rem; padding: 0.3rem 0.6rem; 
-      background: #007bff; color: white; text-decoration: none; border-radius: 4px; 
+    .button {
+      display: inline-block;
+      margin-right: 0.5rem;
+      padding: 0.3rem 0.6rem;
+      background: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
       font-size: 0.9rem;
     }
-    .status-btn { margin-right: 0.5rem; }
+    .status-btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.8rem;
+    }
   </style>
 </head>
 <body>
@@ -23,7 +31,7 @@
 
   <div>
     <a href="/admin/enterprises/add" class="button">Добавить предприятие</a>
-    <a href="/admin" class="button">Назад</a>
+    <a href="/admin/dashboard" class="button">Назад</a>
   </div>
 
   <table>
@@ -78,18 +86,16 @@
         .catch(() => alert('Ошибка копирования'));
     }
 
-    // Проверка статуса по AJAX
+    // Проверка статуса бота
     document.querySelectorAll('.status-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const num = btn.getAttribute('data-number');
+        const statusEl = document.getElementById(`status-${num}`);
+        statusEl.textContent = '...';
         fetch(`/admin/enterprises/${num}/status`, { method: 'POST' })
           .then(res => res.json())
-          .then(data => {
-            document.getElementById(`status-${num}`).textContent = data.status;
-          })
-          .catch(() => {
-            document.getElementById(`status-${num}`).textContent = 'Error';
-          });
+          .then(data => { statusEl.textContent = data.status; })
+          .catch(() => { statusEl.textContent = 'Error'; });
       });
     });
   </script>

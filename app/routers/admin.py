@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Form, status, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
 from telegram.error import TelegramError
@@ -25,7 +25,7 @@ def require_login(request: Request) -> None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
 
-# Авторизация
+# ─────── Авторизация ───────
 @router.get("", response_class=HTMLResponse)
 async def root_redirect(request: Request):
     if request.cookies.get("auth") == "1":
@@ -51,7 +51,7 @@ async def login(request: Request, password: str = Form(...)):
     return resp
 
 
-# Дашборд
+# ─────── Дашборд ───────
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     require_login(request)
@@ -65,7 +65,7 @@ async def dashboard(request: Request):
     )
 
 
-# Список предприятий
+# ─────── Список предприятий ───────
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     require_login(request)
@@ -82,7 +82,7 @@ async def list_enterprises(request: Request):
     )
 
 
-# Форма добавления
+# ─────── Форма добавления нового предприятия ───────
 @router.get("/enterprises/add", response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
     require_login(request)
@@ -119,7 +119,7 @@ async def add_enterprise(
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
-# Форма редактирования
+# ─────── Форма редактирования существующего предприятия ───────
 @router.get("/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
     require_login(request)
@@ -164,24 +164,27 @@ async def edit_enterprise(
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
-# AJAX: проверка статуса бота
-@router.post("/enterprises/{number}/status", response_class=JSONResponse)
+# ─────── AJAX: проверка статуса бота ───────
+@router.post("/enterprises/{number}/status")
 async def check_bot_status(request: Request, number: str):
     require_login(request)
     db = await get_connection()
-    cur = await db.execute("SELECT bot_token FROM enterprises WHERE number = ?", (number,))
+    cur = await db.execute("SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
     row = await cur.fetchone()
     await db.close()
     if not row:
         raise HTTPException(status_code=404, detail="Enterprise not found")
     token = row["bot_token"]
-    bot = Bot(token=token)
+    chat_id = int(row["chat_id"])
     try:
-        await asyncio.get_event_loop().run_in_executor(None, bot.get_me)
-        status_text = "Active"
+        bot = Bot(token=token)
+        # простая проверка: получить информацию о чате
+        bot.get_chat(chat_id)
+        status = "Активен"
     except TelegramError:
-        status_text = "Inactive"
-    return {"status": status_text}
+        status = "Не отвечает"
+    return {"status": status}
 
 
-# … остальные маршруты без изменений
+# ─────── Прочие маршруты (email-users, service control и т.д.) — без изменений ───────
+# … (оставьте остальную часть файла без изменений)
