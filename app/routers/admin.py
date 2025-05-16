@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Form, status, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
 from telegram.error import TelegramError
@@ -70,8 +70,9 @@ async def dashboard(request: Request):
 async def list_enterprises(request: Request):
     require_login(request)
     db = await get_connection()
+    # добавляем колонку active
     cur = await db.execute(
-        "SELECT number, name, bot_token, chat_id, ip, secret, host, name2 "
+        "SELECT number, name, bot_token, chat_id, ip, secret, host, name2, active "
         "FROM enterprises ORDER BY created_at DESC"
     )
     rows = await cur.fetchall()
@@ -102,15 +103,15 @@ async def add_enterprise(
     ip: str = Form(...),
     secret: str = Form(...),
     host: str = Form(...),
-    name2: str = Form("")
+    name2: str = Form(""),
 ):
     require_login(request)
     created_at = datetime.utcnow().isoformat()
     db = await get_connection()
     try:
         await db.execute(
-            "INSERT INTO enterprises(number, name, bot_token, chat_id, ip, secret, host, created_at, name2) "
-            "VALUES(?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO enterprises(number, name, bot_token, chat_id, ip, secret, host, created_at, name2, active) "
+            "VALUES(?,?,?,?,?,?,?,?,?,1)",
             (number, name, bot_token, chat_id, ip, secret, host, created_at, name2)
         )
         await db.commit()
@@ -125,7 +126,7 @@ async def edit_enterprise_form(request: Request, number: str):
     require_login(request)
     db = await get_connection()
     cur = await db.execute(
-        "SELECT number, name, bot_token, chat_id, ip, secret, host, name2 "
+        "SELECT number, name, bot_token, chat_id, ip, secret, host, name2, active "
         "FROM enterprises WHERE number = ?", (number,)
     )
     ent = await cur.fetchone()
@@ -148,15 +149,16 @@ async def edit_enterprise(
     ip: str = Form(...),
     secret: str = Form(...),
     host: str = Form(...),
-    name2: str = Form("")
+    name2: str = Form(""),
+    active: int = Form(1),
 ):
     require_login(request)
     db = await get_connection()
     try:
         await db.execute(
-            "UPDATE enterprises SET name=?, bot_token=?, chat_id=?, ip=?, secret=?, host=?, name2=? "
+            "UPDATE enterprises SET name=?, bot_token=?, chat_id=?, ip=?, secret=?, host=?, name2=?, active=? "
             "WHERE number=?",
-            (name, bot_token, chat_id, ip, secret, host, name2, number)
+            (name, bot_token, chat_id, ip, secret, host, name2, active, number)
         )
         await db.commit()
     finally:
@@ -164,27 +166,32 @@ async def edit_enterprise(
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
-# ─────── AJAX: проверка статуса бота ───────
-@router.post("/enterprises/{number}/status")
-async def check_bot_status(request: Request, number: str):
+# ─────── AJAX: переключить статус бота ───────
+@router.post("/enterprises/{number}/toggle", response_class=JSONResponse)
+async def toggle_bot(request: Request, number: str):
     require_login(request)
     db = await get_connection()
-    cur = await db.execute("SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
-    row = await cur.fetchone()
-    await db.close()
-    if not row:
+    cur = await db.execute("SELECT active, bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
+    ent = await cur.fetchone()
+    if not ent:
+        await db.close()
         raise HTTPException(status_code=404, detail="Enterprise not found")
-    token = row["bot_token"]
-    chat_id = int(row["chat_id"])
+    new_active = 0 if ent["active"] else 1
+    await db.execute("UPDATE enterprises SET active=? WHERE number=?", (new_active, number))
+    await db.commit()
+    await db.close()
+
+    # уведомляем сам корпоративный бот
+    bot = Bot(token=ent["bot_token"])
+    chat_id = int(ent["chat_id"])
+    text = "✅ Сервис активирован" if new_active else "⚠️ Сервис деактивирован"
     try:
-        bot = Bot(token=token)
-        # простая проверка: получить информацию о чате
-        bot.get_chat(chat_id)
-        status = "Активен"
-    except TelegramError:
-        status = "Не отвечает"
-    return {"status": status}
+        bot.send_message(chat_id, text)
+    except TelegramError as e:
+        logger.error(f"Не удалось отправить уведомление в бот {number}: {e}")
+
+    return {"active": new_active}
 
 
-# ─────── Прочие маршруты (email-users, service control и т.д.) — без изменений ───────
-# … (оставьте остальную часть файла без изменений)
+# ─────── Прочие маршруты … ───────
+# (остальной код без изменений)
