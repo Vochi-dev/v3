@@ -46,19 +46,17 @@ async def receive_email(message: Message, state: FSMContext) -> None:
         return
 
     token = random_token()
-    # сохраняем также токен текущего бота:
-    await upsert_telegram_user(
-        message.from_user.id,
-        email,
-        token,
-        message.bot.token
-    )
-
     try:
+        await upsert_telegram_user(
+            message.from_user.id,
+            email,
+            token,
+            message.bot.token
+        )
         await send_verification_email(email, token)
         await message.answer("✅ Письмо отправлено! Проверьте почту и перейдите по ссылке.")
     except Exception:
-        logging.exception("Error sending verification email to %s", email)
+        logging.exception("Ошибка при отправке письма на %s", email)
         await message.answer("⚠️ Не удалось отправить письмо. Попробуйте позже.")
 
     await state.clear()
