@@ -48,6 +48,6 @@ async def start_enterprise_bots():
         tasks.append(task)
     await asyncio.gather(*tasks)
 
-# для запуска вручную
+# Для ручного запуска
 if __name__ == "__main__":
     asyncio.run(start_enterprise_bots())

@@ -1,26 +1,18 @@
-import logging
-import sqlite3
-from contextlib import contextmanager
-from typing import Callable, List, Optional, Tuple
+# app/services/database.py
 
-logger = logging.getLogger(__name__)
+import aiosqlite
+from app.config import DB_PATH
 
-DATABASE_FILE = "/root/asterisk-webhook/asterisk_events.db"
 
-@contextmanager
-def connect() -> Callable:
-    conn = sqlite3.connect(DATABASE_FILE)
-    try:
-        yield conn
-    finally:
-        conn.close()
+async def get_enterprises_with_tokens():
+    query = """
+        SELECT number, name, bot_token, chat_id, ip, secret, host, name2
+        FROM enterprises
+        WHERE bot_token IS NOT NULL AND bot_token != ''
+    """
 
-def get_enterprises_with_tokens() -> List[Tuple[str, str, str, str]]:
-    with connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT number, name, bot_token, chat_id
-              FROM enterprises
-             WHERE LENGTH(bot_token) > 0
-        """)
-        return cursor.fetchall()
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(query) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
