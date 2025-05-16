@@ -1,19 +1,15 @@
 # -*- coding: utf-8 -*-
-
 import aiosqlite
 import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Form, status, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from telegram import Bot
 
 from app.config import (
     ADMIN_PASSWORD,
-    DB_PATH,
-    NOTIFY_BOT_TOKEN,
-    NOTIFY_CHAT_ID
+    DB_PATH
 )
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
@@ -27,8 +23,6 @@ def require_login(request: Request):
     if request.cookies.get("auth") != "1":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
-
-# ─────── Root / Login / Dashboard ───────
 
 @router.get("", response_class=HTMLResponse)
 async def root_redirect(request: Request):
@@ -69,8 +63,6 @@ async def dashboard(request: Request):
     )
 
 
-# ─────── Список предприятий ───────
-
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     require_login(request)
@@ -99,14 +91,12 @@ async def list_enterprises(request: Request):
     )
 
 
-# ─────── Переключение статуса (включить/выключить) ───────
-
 @router.post("/enterprises/{number}/toggle", response_class=RedirectResponse)
 async def toggle_enterprise(request: Request, number: str):
     require_login(request)
     db = await get_connection()
-    db.row_factory = aiosqlite.Row  # ← вот эта строка была нужна
-    cur = await db.execute("SELECT active, bot_token FROM enterprises WHERE number = ?", (number,))
+    db.row_factory = aiosqlite.Row
+    cur = await db.execute("SELECT active, bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
     row = await cur.fetchone()
 
     if not row:
@@ -117,20 +107,21 @@ async def toggle_enterprise(request: Request, number: str):
     await db.execute("UPDATE enterprises SET active = ? WHERE number = ?", (new_status, number))
     await db.commit()
 
+    # 👇 используем токен и chat_id самого предприятия
     bot_token = row["bot_token"]
-    bot = Bot(token=NOTIFY_BOT_TOKEN)
-    text = f"Предприятие {number} {'активировано' if new_status else 'деактивировано'}"
+    chat_id = row["chat_id"]
+
+    bot = Bot(token=bot_token)
+    text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
     try:
-        await bot.send_message(chat_id=int(NOTIFY_CHAT_ID), text=text)
-        logger.info("Notify-bot: %s", text)
+        await bot.send_message(chat_id=int(chat_id), text=text)
+        logger.info("Sent toggle message to bot %s: %s", number, text)
     except Exception as e:
-        logger.error("Notify-bot failed: %s", e)
+        logger.error("Toggle bot notification failed: %s", e)
 
     await db.close()
     return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
-
-# ─────── Добавление нового предприятия ───────
 
 @router.get("/enterprises/add", response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
@@ -171,8 +162,6 @@ async def add_enterprise(
         await db.close()
     return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
-
-# ─────── Редактирование предприятия ───────
 
 @router.get("/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
