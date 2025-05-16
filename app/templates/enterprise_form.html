@@ -1,18 +1,76 @@
 <!doctype html>
 <html lang="ru">
-<head><meta charset="utf-8"><title>Новое предприятие</title></head>
+<head>
+  <meta charset="utf-8">
+  <title>{{ 'Редактировать предприятие' if action == 'edit' else 'Добавить предприятие' }}</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    form p { margin: 0.5rem 0; }
+    input[readonly] { background: #f0f0f0; }
+    button { margin-top: 1rem; padding: 0.5rem 1rem; }
+  </style>
+</head>
 <body>
-<a href="/admin/enterprises">← список</a>
-<h1>Добавить предприятие</h1>
+  <a href="/admin/enterprises">← Список предприятий</a>
+  <h1>{{ 'Редактировать предприятие' if action == 'edit' else 'Добавить предприятие' }}</h1>
 
-<form method="post">
-  <p>ID / Number:     <input name="number" required></p>
-  <p>Название:        <input name="name" required></p>
-  <p>Bot Token:       <input name="bot_token" required></p>
-  <p>Chat ID:         <input name="chat_id" required></p>
-  <p>IP:              <input name="ip" required></p>
-  <p>Secret:          <input name="secret" required></p>
-  <p>Host:            <input name="host" required></p>
-  <button type="submit">Сохранить</button>
-</form>
-</body></html>
+  <form method="post">
+    <p>
+      <label>ID / Number:
+        <input name="number"
+               value="{{ enterprise.number or '' }}"
+               {% if action == 'edit' %}readonly{% else %}required{% endif %}>
+      </label>
+    </p>
+    <p>
+      <label>Название:
+        <input name="name"
+               value="{{ enterprise.name or '' }}"
+               required>
+      </label>
+    </p>
+    <p>
+      <label>Bot Token:
+        <input name="bot_token"
+               value="{{ enterprise.bot_token or '' }}"
+               required>
+      </label>
+    </p>
+    <p>
+      <label>Chat ID:
+        <input name="chat_id"
+               value="{{ enterprise.chat_id or '' }}"
+               required>
+      </label>
+    </p>
+    <p>
+      <label>IP:
+        <input name="ip"
+               value="{{ enterprise.ip or '' }}"
+               required>
+      </label>
+    </p>
+    <p>
+      <label>Secret:
+        <input name="secret"
+               value="{{ enterprise.secret or '' }}"
+               required>
+      </label>
+    </p>
+    <p>
+      <label>Host:
+        <input name="host"
+               value="{{ enterprise.host or '' }}"
+               required>
+      </label>
+    </p>
+    <p>
+      <label>Доп. имя:
+        <input name="name2"
+               value="{{ enterprise.name2 or '' }}">
+      </label>
+    </p>
+    <button type="submit">Сохранить</button>
+  </form>
+</body>
+</html>
