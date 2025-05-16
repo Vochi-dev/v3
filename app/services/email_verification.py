@@ -48,14 +48,19 @@ async def email_already_verified(email: str) -> bool:
 
 
 async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: str) -> None:
+    """
+    Вставка или обновление данных о пользователе в базе данных.
+    Если пользователь с таким tg_id существует, обновляем данные,
+    иначе вставляем новую запись.
+    """
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """
             INSERT INTO telegram_users (
                 tg_id, email, token, verified, added_at, bot_token
             ) VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP, ?)
-            ON CONFLICT(email) DO UPDATE SET
-                tg_id     = excluded.tg_id,
+            ON CONFLICT(tg_id) DO UPDATE SET
+                email     = excluded.email,
                 token     = excluded.token,
                 verified  = 0,
                 added_at  = CURRENT_TIMESTAMP,
