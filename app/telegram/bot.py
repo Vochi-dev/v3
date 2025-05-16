@@ -4,6 +4,7 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from aiogram.exceptions import TelegramNotFound
+from aiogram.fsm.storage.memory import MemoryStorage  # ← добавлено
 
 from app.config import TELEGRAM_BOT_TOKEN
 from app.services.db import get_enterprise_number_by_bot_token
@@ -15,7 +16,9 @@ logger = logging.getLogger(__name__)
 
 async def setup_bot():
     bot = Bot(token=TELEGRAM_BOT_TOKEN)
-    dp = Dispatcher()
+    # Используем in-memory хранилище для FSM
+    storage = MemoryStorage()  # ← добавлено
+    dp = Dispatcher(storage=storage)  # ← изменено: передаём storage
 
     # Удаляем webhook, если он есть
     try:
