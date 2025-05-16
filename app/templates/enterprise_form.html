@@ -17,9 +17,10 @@
   <form method="post">
     {% if action == 'edit' %}
       <p>Номер: <strong>{{ enterprise.number }}</strong></p>
-      <input type="hidden" name="active" value="{{ enterprise.active }}">
+      <input type="hidden" name="active" value="{{ enterprise.active or 0 }}">
     {% else %}
       <p>Номер: <input name="number" required value="{{ enterprise.number or '' }}"></p>
+      <input type="hidden" name="active" value="1">
     {% endif %}
     <p>Название: <input name="name" required value="{{ enterprise.name or '' }}"></p>
     <p>Bot Token: <input name="bot_token" required value="{{ enterprise.bot_token or '' }}"></p>
