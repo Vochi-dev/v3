@@ -7,7 +7,9 @@ from fastapi.templating import Jinja2Templates
 from app.routers.admin import require_login
 from app.services.db import get_connection
 from app.services.enterprise import get_enterprise, update_enterprise
+from app.config import NOTIFY_BOT_TOKEN, NOTIFY_CHAT_ID
 import datetime as dt
+from telegram import Bot
 
 router = APIRouter(prefix="/admin/enterprises", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -19,7 +21,7 @@ async def list_enterprises(request: Request):
     db = await get_connection()
     try:
         cur = await db.execute(
-            "SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2 "
+            "SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2, active "
             "FROM enterprises ORDER BY created_at DESC"
         )
         rows = await cur.fetchall()
@@ -73,7 +75,6 @@ async def add_enterprise(
 @router.get("/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_page(request: Request, number: str):
     require_login(request)
-    # читаем из сервиса
     ent = get_enterprise(number)
     if not ent:
         raise HTTPException(status_code=404, detail="Enterprise not found")
@@ -96,9 +97,49 @@ async def edit_enterprise(
     host: str = Form(""),
 ):
     require_login(request)
-    # вызываем сервис
     update_enterprise(number, name, name2, bot_token, chat_id, ip, secret, host)
     return RedirectResponse(
         url="/admin/enterprises",
         status_code=status.HTTP_303_SEE_OTHER
     )
+
+
+@router.post("/{number}/toggle")
+async def toggle_enterprise(request: Request, number: str):
+    require_login(request)
+    db = await get_connection()
+    try:
+        db.row_factory = lambda cursor, row: {
+            col[0]: row[idx] for idx, col in enumerate(cursor.description)
+        }
+        cur = await db.execute(
+            "SELECT active, bot_token, name FROM enterprises WHERE number = ?",
+            (number,),
+        )
+        row = await cur.fetchone()
+
+        if not row:
+            return RedirectResponse("/admin/enterprises", status_code=status.HTTP_302_FOUND)
+
+        new_status = 0 if row["active"] else 1
+        await db.execute(
+            "UPDATE enterprises SET active = ? WHERE number = ?",
+            (new_status, number),
+        )
+        await db.commit()
+    finally:
+        await db.close()
+
+    # Уведомление
+    try:
+        text = (
+            f'🟢 Бот *{row["name"]}* запущен ✅'
+            if new_status
+            else f'🔴 Бот *{row["name"]}* остановлен ⛔️'
+        )
+        bot = Bot(token=NOTIFY_BOT_TOKEN)
+        await bot.send_message(chat_id=NOTIFY_CHAT_ID, text=text, parse_mode="Markdown")
+    except Exception as e:
+        print(f"Ошибка при уведомлении notify-ботом: {e}")
+
+    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_302_FOUND)
