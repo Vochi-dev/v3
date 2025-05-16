@@ -16,10 +16,11 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
+from telegram.error import TelegramError
 
-from app.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DB_PATH
 import aiosqlite
 
+from app.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DB_PATH
 from app.services.events import (
     init_database_tables,
     load_hangup_message_history,
@@ -61,6 +62,25 @@ logger.addHandler(file_handler)
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
+# функция для рассылки уведомлений всем корпоративным ботам
+async def broadcast_to_enterprises(text: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT bot_token, chat_id FROM enterprises") as cur:
+            rows = await cur.fetchall()
+
+    for row in rows:
+        token = row["bot_token"]
+        chat_id = row["chat_id"]
+        if not token or not chat_id:
+            continue
+        bot = Bot(token=token)
+        try:
+            await bot.send_message(chat_id=chat_id, text=text)
+            logger.debug(f"Broadcast to {chat_id}: {text}")
+        except TelegramError as e:
+            logger.error(f"Failed to broadcast to {chat_id}: {e}")
+
 # ───────── middleware для логирования всех запросов ─────────
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -70,9 +90,6 @@ async def log_requests(request: Request, call_next):
         f"{body.decode('utf-8', errors='ignore')}"
     )
     return await call_next(request)
-
-# бот для фоновых уведомлений
-notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 # ───────── routers ─────────
 from app.routers import admin, enterprise, user_requests, auth_email, email_users  # noqa: E402
@@ -99,17 +116,26 @@ async def startup_tasks():
             dial_cache,
             bridge_store,
             active_bridges,
-            notify_bot,
+            Bot(token=TELEGRAM_BOT_TOKEN) if TELEGRAM_BOT_TOKEN else None,
             TELEGRAM_CHAT_ID,
         )
     )
+    logger.info("Сервис Asterisk-webhook запущен")
+    # рассылаем уведомление всем корпоративным ботам
+    await broadcast_to_enterprises("✅ Сервис Asterisk-webhook активен и готов к приёму событий.")
+
+@app.on_event("shutdown")
+async def shutdown_tasks():
+    logger.info("Сервис Asterisk-webhook останавливается")
+    # рассылаем всем корпоративным ботам
+    await broadcast_to_enterprises("⚠️ Сервис Asterisk-webhook деактивирован. Боты временно недоступны.")
 
 @app.get("/health")
 async def health():
     logger.debug("GET /health")
     return {"status": "ok"}
 
-# Общий обработчик для событий
+# Общий обработчик для Asterisk-событий
 async def handle_event(event_type: str, request: Request):
     data = await request.json()
     logger.debug(f"Received Asterisk event: {event_type} — {data}")
@@ -121,7 +147,7 @@ async def handle_event(event_type: str, request: Request):
     # сохраняем само событие
     await save_asterisk_event(et, uid, token, data)
 
-    # ищем запись предприятия по Asterisk-токену (name2)
+    # ищем enterprise по токену
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
@@ -137,7 +163,7 @@ async def handle_event(event_type: str, request: Request):
     bot_token = ent["bot_token"]
     logger.debug(f"Enterprise matched: bot_token={bot_token!r}")
 
-    # собираем всех верифицированных пользователей этого бота
+    # собираем всех верифицированных пользователей
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
         cur2 = await db2.execute(
@@ -152,11 +178,10 @@ async def handle_event(event_type: str, request: Request):
 
     bot = Bot(token=bot_token)
 
-    # определяем, внутренний ли это звонок
+    # определяем внутренний вызов
     raw_phone = data.get("Phone", "") or data.get("CallerIDNum", "") or ""
     exts      = data.get("Extensions", [])
     call_type = int(data.get("CallType", 0))
-    # внутренний, если CallType==2 или оба номера короткие
     is_int = (
         call_type == 2 or
         (is_internal_number(raw_phone) and
@@ -164,7 +189,7 @@ async def handle_event(event_type: str, request: Request):
          is_internal_number(exts[0]))
     )
 
-    # выбираем нужный обработчик
+    # выбираем обработчик
     if et == "start":
         handler = process_internal_start if is_int else process_start
     elif et == "dial":
