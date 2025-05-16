@@ -1,3 +1,4 @@
+<!-- app/templates/enterprises.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,9 +7,9 @@
   <style>
     body { font-family: sans-serif; padding: 2rem; }
     table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; }
     th { background: #f0f0f0; }
-    .button { display: inline-block; margin-right: 0.5rem; padding: 0.3rem 0.6rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9rem; }
+    .button { padding: 0.3rem 0.6rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9rem; }
     .small { font-size: 0.85rem; }
     .status-active { color: green; font-weight: bold; }
     .status-inactive { color: red; font-weight: bold; }
@@ -55,9 +56,7 @@
         </td>
         <td>{{ ent.chat_id }}</td>
         <td>{{ ent.ip }}</td>
-        <td>
-          <span class="copy-btn" data-secret="{{ ent.secret }}">Копировать</span>
-        </td>
+        <td><span class="copy-btn" data-secret="{{ ent.secret }}">Копировать</span></td>
         <td>{{ ent.host }}</td>
         <td>{{ ent.name2 or '' }}</td>
         <td>
@@ -73,40 +72,33 @@
   </table>
 
   <script>
-    // переключение статуса
+    // Toggle active/inactive
     document.querySelectorAll('.toggle-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const tr = btn.closest('tr');
         const num = tr.dataset.number;
-        fetch(`/admin/enterprises/${num}/toggle`, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'}
-        })
-        .then(r=>r.json())
-        .then(data => {
-          // обновляем строку
-          const statusEl = tr.querySelector('td:nth-child(4) span');
-          const toggleBtn = tr.querySelector('.toggle-btn');
-          if(data.active) {
-            statusEl.textContent = 'Активен';
-            statusEl.className = 'status-active';
-            toggleBtn.textContent = 'Выключить';
-          } else {
-            statusEl.textContent = 'Деактивирован';
-            statusEl.className = 'status-inactive';
-            toggleBtn.textContent = 'Включить';
-          }
-        });
+        fetch(`/admin/enterprises/${num}/toggle`, { method: 'POST' })
+          .then(r=>r.json())
+          .then(data => {
+            const span = tr.querySelector('td:nth-child(4) span');
+            if (data.active) {
+              span.textContent = 'Активен';
+              span.className = 'status-active';
+              btn.textContent = 'Выключить';
+            } else {
+              span.textContent = 'Деактивирован';
+              span.className = 'status-inactive';
+              btn.textContent = 'Включить';
+            }
+          });
       });
     });
-
-    // копирование secret
+    // Copy secret to clipboard
     document.querySelectorAll('.copy-btn').forEach(el => {
       el.addEventListener('click', () => {
-        const txt = el.dataset.secret;
-        navigator.clipboard.writeText(txt);
+        navigator.clipboard.writeText(el.dataset.secret);
         el.textContent = 'Скопировано!';
-        setTimeout(()=>el.textContent='Копировать', 1500);
+        setTimeout(()=> el.textContent='Копировать',1500);
       });
     });
   </script>
