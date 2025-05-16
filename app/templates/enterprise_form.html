@@ -16,8 +16,8 @@
 
   <form method="post">
     {% if action == 'edit' %}
-      <!-- номер в edit неизменяем -->
       <p>Номер: <strong>{{ enterprise.number }}</strong></p>
+      <input type="hidden" name="active" value="{{ enterprise.active }}">
     {% else %}
       <p>Номер: <input name="number" required value="{{ enterprise.number or '' }}"></p>
     {% endif %}
