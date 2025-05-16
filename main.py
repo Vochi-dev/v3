@@ -6,7 +6,6 @@ FastAPI-приложение:
 — /admin/...        админ-панель
 — /events/...       вебхуки Asterisk
 — /{event_type}     вебхуки без префикса /events (для совместимости)
-Polling Telegram-бота запускается отдельно: python3 -m app.telegram.bot
 """
 
 from dotenv import load_dotenv
@@ -20,6 +19,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
+
 import aiosqlite
 
 from app.config import DB_PATH
@@ -42,7 +42,7 @@ from app.services.calls.internal import (
 )
 from app.services.calls.utils import is_internal_number
 
-# подключаем админ-маршруты
+# подключаем админ-роутер
 from app.routers.admin import router as admin_router
 
 # ───────── константы из окружения ─────────
@@ -52,116 +52,154 @@ TELEGRAM_CHAT_ID   = int(os.getenv("TELEGRAM_CHAT_ID", "0"))
 # ───────── логирование ─────────
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-console = logging.StreamHandler(sys.stdout)
-console.setLevel(logging.DEBUG)
-console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
-logger.addHandler(console)
-fileh = logging.FileHandler("asterisk_events.log")
-fileh.setLevel(logging.INFO)
-fileh.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
-logger.addHandler(fileh)
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.DEBUG)
+console_handler.setFormatter(
+    logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+)
+logger.addHandler(console_handler)
+file_handler = logging.FileHandler("asterisk_events.log")
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+)
+logger.addHandler(file_handler)
 
 # ───────── FastAPI & шаблоны ─────────
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
-# ───────── подключаем админ-роутер под /admin ─────────
-app.include_router(admin_router, prefix="/admin")
+# ───────── подключаем админ-роутер ─────────
+# Важно: в admin.py уже стоит prefix="/admin", здесь добавляем **без** дополнительного префикса
+app.include_router(admin_router)
 
-# ───────── middleware логирования ─────────
+# ───────── middleware логирования всех запросов ─────────
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     body = await request.body()
-    logger.debug(f"Incoming request: {request.method} {request.url} — Body: {body!r}")
+    logger.debug(
+        f"Incoming request: {request.method} {request.url} — Body: "
+        f"{body.decode('utf-8', errors='ignore')}"
+    )
     return await call_next(request)
 
 # ───────── уведомительный бот ─────────
 notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-
 async def broadcast_to_enterprises(text: str):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        rows = await (await db.execute("SELECT bot_token, chat_id FROM enterprises")).fetchall()
+        cur = await db.execute("SELECT bot_token, chat_id FROM enterprises")
+        rows = await cur.fetchall()
     for row in rows:
         bot = Bot(token=row["bot_token"])
         try:
             await bot.send_message(chat_id=int(row["chat_id"]), text=text)
+            logger.debug(f"Enterprise broadcast to {row['chat_id']}: {text!r}")
         except Exception as e:
-            logger.error(f"Enterprise broadcast failed to {row['chat_id']}: {e}")
-
+            logger.error(f"Failed enterprise broadcast to {row['chat_id']}: {e}")
 
 async def broadcast_to_subscribers(text: str):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        rows = await (await db.execute(
+        cur = await db.execute(
             "SELECT tg_id, bot_token FROM telegram_users WHERE verified = 1"
-        )).fetchall()
-    for row in rows:
+        )
+        users = await cur.fetchall()
+    for row in users:
         bot = Bot(token=row["bot_token"])
         try:
             await bot.send_message(chat_id=int(row["tg_id"]), text=text)
+            logger.debug(f"Subscriber broadcast to {row['tg_id']}: {text!r}")
         except Exception as e:
-            logger.error(f"Subscriber broadcast failed to {row['tg_id']}: {e}")
-
+            logger.error(f"Failed subscriber broadcast to {row['tg_id']}: {e}")
 
 @app.on_event("startup")
 async def startup_tasks():
-    logger.debug("Startup: init DB & load history")
+    # 1) Инициализация БД
+    logger.debug("Startup: init DB tables and load hangup history")
     await init_database_tables()
     await load_hangup_message_history()
 
+    # 2) Уведомляем нотификационного бота о старте
     try:
-        await notify_bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="✅ Сервис запущен и готов к приёму событий.")
+        await notify_bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID,
+            text="✅ Сервис Asterisk-webhook запущен и готов к приёму событий."
+        )
         logger.debug("Notify-бот: стартовое сообщение отправлено")
     except Exception as e:
-        logger.error(f"Notify-бот: {e}")
+        logger.error(f"Notify-бот: не удалось отправить сообщение: {e}")
 
-    await broadcast_to_enterprises("✅ Сервис запущен и готов к приёму событий.")
-    await broadcast_to_subscribers("✅ Сервис запущен и готов к приёму событий.")
+    # 3) Уведомляем корпоративных ботов и подписчиков
+    await broadcast_to_enterprises("✅ Сервис Asterisk-webhook запущен и готов к приёму событий.")
+    await broadcast_to_subscribers("✅ Сервис Asterisk-webhook запущен и готов к приёму событий.")
 
-    logger.debug("Starting resend loop")
-    asyncio.create_task(create_resend_loop({}, {}, {}, notify_bot, TELEGRAM_CHAT_ID))
-
+    # 4) Запускаем цикл повторной отправки
+    logger.debug("Starting background resend loop")
+    asyncio.create_task(create_resend_loop(
+        {},                # dial_cache_arg
+        {},                # bridge_store_arg
+        {},                # active_bridges_arg
+        notify_bot,        # Bot instance для внутренних уведомлений
+        TELEGRAM_CHAT_ID   # chat_id для fallback-уведомлений
+    ))
 
 @app.get("/health")
 async def health():
+    logger.debug("GET /health")
     return {"status": "ok"}
-
 
 async def handle_event(event_type: str, request: Request):
     data = await request.json()
+    logger.debug(f"Received Asterisk event: {event_type} — {data}")
+
     et = event_type.lower()
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
+    # сохраняем событие
     await save_asterisk_event(et, uid, token, data)
 
-    # ищем bot_token
+    # ищем предприятие
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        ent = await (await db.execute(
+        cur = await db.execute(
             "SELECT bot_token FROM enterprises WHERE name2 = ?", (token,)
-        )).fetchone()
+        )
+        ent = await cur.fetchone()
     if not ent:
+        logger.warning("No enterprise found for token %r", token)
         return {"status": "no_such_bot"}
 
     bot_token = ent["bot_token"]
+
+    # подписчики
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
-        users = await (await db2.execute(
+        cur2 = await db2.execute(
             "SELECT tg_id FROM telegram_users WHERE bot_token = ? AND verified = 1",
-            (bot_token,)
-        )).fetchall()
+            (bot_token,),
+        )
+        users = await cur2.fetchall()
     if not users:
+        logger.warning("No verified telegram_users for bot_token %r", bot_token)
         return {"status": "no_subscribers"}
 
     bot = Bot(token=bot_token)
-    raw = data.get("Phone", "") or data.get("CallerIDNum", "") or ""
-    exts = data.get("Extensions", [])
-    ctype = int(data.get("CallType", 0))
-    is_int = ctype == 2 or (is_internal_number(raw) and len(exts) == 1 and is_internal_number(exts[0]))
 
+    # внутренний звонок?
+    raw_phone = data.get("Phone", "") or data.get("CallerIDNum", "") or ""
+    exts = data.get("Extensions", [])
+    call_type = int(data.get("CallType", 0))
+    is_int = (
+        call_type == 2 or
+        (is_internal_number(raw_phone)
+         and len(exts) == 1
+         and is_internal_number(exts[0]))
+    )
+
+    # выбираем handler
     if et == "start":
         handler = process_internal_start if is_int else process_start
     elif et == "dial":
@@ -173,22 +211,21 @@ async def handle_event(event_type: str, request: Request):
     else:
         return {"status": "ignored"}
 
+    # рассылаем
     results = []
     for row in users:
-        tg = int(row["tg_id"])
+        tg_id = int(row["tg_id"])
         try:
-            r = await handler(bot, tg, data)
-            results.append({"tg_id": tg, "status": r.get("status")})
+            res = await handler(bot, tg_id, data)
+            results.append({"tg_id": tg_id, "status": res.get("status")})
         except Exception as e:
-            logger.error(f"send to {tg}: {e}")
-            results.append({"tg_id": tg, "status": "error"})
+            logger.error(f"Error sending to {tg_id}: {e}")
+            results.append({"tg_id": tg_id, "status": "error", "error": str(e)})
     return {"status": "sent", "details": results}
-
 
 @app.post("/events/{event_type}")
 async def receive_event_prefixed(event_type: str, request: Request):
     return await handle_event(event_type, request)
-
 
 @app.post("/{event_type}")
 async def receive_event_root(event_type: str, request: Request):
