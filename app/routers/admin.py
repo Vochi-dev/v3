@@ -5,9 +5,7 @@ import asyncio
 import aiosqlite
 import logging
 
-from fastapi import (
-    APIRouter, Request, Form, status, HTTPException
-)
+from fastapi import APIRouter, Request, Form, status, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
@@ -89,39 +87,39 @@ async def email_users(request: Request):
     """
     Список всех e-mail пользователей.
     Шаблону нужны поля tg_id, email, name, right_all, right_1, right_2, enterprise_name.
-    Подстраиваем SELECT под реальную схему таблицы email_users.
+    Код автоматически подбирает, какие колонки есть в email_users.
     """
     require_login(request)
     db = await get_connection()
 
-    # Получаем список колонок таблицы
+    # Узнаём схему таблицы
     pragma = await db.execute("PRAGMA table_info(email_users)")
     info = await pragma.fetchall()
     col_names = {row["name"] for row in info}
     await pragma.close()
 
-    # Вспомогательная функция для выбора выражения по имени колонки
-    def choose(col: str, alias: str = None, default: str = "''"):
+    # Помощник: если колонка есть, выбираем её, иначе даём пустую строку под нужным alias
+    def choose(col: str, alias: str = None):
         alias = alias or col
         if col in col_names:
             return f"{col} AS {alias}"
-        return f"{default} AS {alias}"
+        return f"'' AS {alias}"
 
     select_parts = [
-        # tg_id: пробуем несколько вариантов имен
-        choose("tg_id") if "tg_id" in col_names else
-        choose("telegram_id", "tg_id") if "telegram_id" in col_names else
-        choose("id", "tg_id"),
+        # tg_id может называться number
+        choose("tg_id") if "tg_id" in col_names else choose("number", "tg_id"),
         choose("email"),
         choose("name"),
         choose("right_all"),
         choose("right_1"),
         choose("right_2"),
+        # enterprise_name может не существовать в этой таблице
         choose("enterprise_name"),
     ]
 
     query = "SELECT\n    " + ",\n    ".join(select_parts) + "\nFROM email_users"
-    # Добавляем ORDER BY, если есть соответствующая колонка
+
+    # Ещё сортировка, если есть дата создания
     if "created_at" in col_names:
         query += "\nORDER BY created_at DESC"
 
@@ -181,4 +179,4 @@ async def service_stop(request: Request):
     logger.info("Service processes killed")
     return PlainTextResponse("Service stopped")
 
-# Далее маршруты service/start, bots/stop, bots/start без изменений...
+# маршруты service/start, bots/stop, bots/start оставляем без изменений
