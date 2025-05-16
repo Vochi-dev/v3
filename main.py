@@ -78,6 +78,7 @@ async def log_requests(request: Request, call_next):
 # ───────── уведомительный бот ─────────
 notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
+
 async def broadcast_to_enterprises(text: str):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -88,6 +89,7 @@ async def broadcast_to_enterprises(text: str):
             await bot.send_message(chat_id=int(row["chat_id"]), text=text)
         except Exception as e:
             logger.error(f"Enterprise broadcast failed to {row['chat_id']}: {e}")
+
 
 async def broadcast_to_subscribers(text: str):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -102,18 +104,16 @@ async def broadcast_to_subscribers(text: str):
         except Exception as e:
             logger.error(f"Subscriber broadcast failed to {row['tg_id']}: {e}")
 
+
 @app.on_event("startup")
 async def startup_tasks():
     logger.debug("Startup: init DB & load history")
     await init_database_tables()
     await load_hangup_message_history()
 
-    # уведомление об старте
     try:
-        await notify_bot.send_message(
-            chat_id=TELEGRAM_CHAT_ID,
-            text="✅ Сервис запущен и готов к приёму событий."
-        )
+        await notify_bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="✅ Сервис запущен и готов к приёму событий.")
+        logger.debug("Notify-бот: стартовое сообщение отправлено")
     except Exception as e:
         logger.error(f"Notify-бот: {e}")
 
@@ -123,9 +123,11 @@ async def startup_tasks():
     logger.debug("Starting resend loop")
     asyncio.create_task(create_resend_loop({}, {}, {}, notify_bot, TELEGRAM_CHAT_ID))
 
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
 
 async def handle_event(event_type: str, request: Request):
     data = await request.json()
@@ -135,7 +137,7 @@ async def handle_event(event_type: str, request: Request):
 
     await save_asterisk_event(et, uid, token, data)
 
-    # найти bot_token
+    # ищем bot_token
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         ent = await (await db.execute(
@@ -148,7 +150,8 @@ async def handle_event(event_type: str, request: Request):
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
         users = await (await db2.execute(
-            "SELECT tg_id FROM telegram_users WHERE bot_token = ? AND verified = 1", (bot_token,)
+            "SELECT tg_id FROM telegram_users WHERE bot_token = ? AND verified = 1",
+            (bot_token,)
         )).fetchall()
     if not users:
         return {"status": "no_subscribers"}
@@ -157,7 +160,7 @@ async def handle_event(event_type: str, request: Request):
     raw = data.get("Phone", "") or data.get("CallerIDNum", "") or ""
     exts = data.get("Extensions", [])
     ctype = int(data.get("CallType", 0))
-    is_int = ctype == 2 or (is_internal_number(raw) and len(exts)==1 and is_internal_number(exts[0]))
+    is_int = ctype == 2 or (is_internal_number(raw) and len(exts) == 1 and is_internal_number(exts[0]))
 
     if et == "start":
         handler = process_internal_start if is_int else process_start
@@ -181,9 +184,11 @@ async def handle_event(event_type: str, request: Request):
             results.append({"tg_id": tg, "status": "error"})
     return {"status": "sent", "details": results}
 
+
 @app.post("/events/{event_type}")
 async def receive_event_prefixed(event_type: str, request: Request):
     return await handle_event(event_type, request)
+
 
 @app.post("/{event_type}")
 async def receive_event_root(event_type: str, request: Request):
