@@ -1,5 +1,3 @@
-# app/services/events.py
-
 import aiosqlite
 import logging
 import json
@@ -112,17 +110,20 @@ async def load_hangup_message_history(limit: int = 100):
     hangup_message_map.clear()
     for r in rows:
         rec = {
-            'message_id': r['message_id'],
-            'caller':      r['caller'],
-            'callee':      r['callee'],
-            'timestamp':   r['timestamp'],
-            'call_status': r['call_status'],
-            'call_type':   r['call_type'],
-            'extensions':  json.loads(r['extensions'] or "[]")
+            'message_id':  r['message_id'],
+            'caller':       r['caller'],
+            'callee':       r['callee'],
+            'is_internal':  bool(r['is_internal']),
+            'timestamp':    r['timestamp'],
+            'call_status':  r['call_status'],
+            'call_type':    r['call_type'],
+            'extensions':   json.loads(r['extensions'] or "[]")
         }
+        # для внешних — по caller, для внутренних — по обоим
         hangup_message_map[rec['caller']].append(rec)
         if rec['is_internal']:
             hangup_message_map[rec['callee']].append(rec)
+
     logging.info("Loaded hangup history: %d records", len(rows))
 
 # ───────── Сохранение Telegram-сообщения ─────────
@@ -150,7 +151,11 @@ async def save_telegram_message(
                timestamp, call_status, call_type, extensions)
             VALUES(?,?,?,?,?,?,?,?,?,?)
             """,
-            (message_id, event_type, token, caller, callee,
-             1 if is_internal else 0, ts, call_status, call_type, exts)
+            (
+                message_id, event_type, token,
+                caller, callee,
+                1 if is_internal else 0,
+                ts, call_status, call_type, exts
+            )
         )
         await conn.commit()
