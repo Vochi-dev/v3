@@ -1,4 +1,3 @@
-<!-- app/templates/enterprises.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -7,13 +6,11 @@
   <style>
     body { font-family: sans-serif; padding: 2rem; }
     table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; vertical-align: middle; }
     th { background: #f0f0f0; }
-    .button { padding: 0.3rem 0.6rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9rem; }
-    .small { font-size: 0.85rem; }
-    .status-active { color: green; font-weight: bold; }
-    .status-inactive { color: red; font-weight: bold; }
-    .copy-btn { cursor: pointer; color: #007bff; text-decoration: underline; }
+    .button { padding: 0.3rem 0.6rem; margin: 0; }
+    /* двухстрочный Bot Token */
+    .bot-token { white-space: pre-wrap; word-wrap: break-word; max-width: 200px; }
   </style>
 </head>
 <body>
@@ -42,65 +39,34 @@
     </thead>
     <tbody>
       {% for ent in enterprises %}
-      <tr data-number="{{ ent.number }}">
+      <tr>
         <td>{{ ent.number }}</td>
         <td>{{ ent.name }}</td>
-        <td class="small">{{ ent.bot_token }}</td>
+        <td class="bot-token">{{ ent.bot_token[:ent.bot_token.find(':')+1] }}<br>{{ ent.bot_token[ent.bot_token.find(':')+1:] }}</td>
         <td>
-          <span class="status-{{ 'active' if ent.active else 'inactive' }}">
-            {{ 'Активен' if ent.active else 'Деактивирован' }}
-          </span>
-          <button class="button toggle-btn small">
-            {{ 'Выключить' if ent.active else 'Включить' }}
-          </button>
+          <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle">
+            <button type="submit" class="button">
+              {{ 'Активен' if ent.active else 'Отключен' }}
+            </button>
+          </form>
         </td>
         <td>{{ ent.chat_id }}</td>
         <td>{{ ent.ip }}</td>
-        <td><span class="copy-btn" data-secret="{{ ent.secret }}">Копировать</span></td>
+        <td>
+          <button class="button" onclick="navigator.clipboard.writeText('{{ ent.secret }}')">
+            Копировать
+          </button>
+        </td>
         <td>{{ ent.host }}</td>
         <td>{{ ent.name2 or '' }}</td>
         <td>
-          <a href="/admin/enterprises/{{ ent.number }}/edit" class="button small">Редактировать</a>
+          <a href="/admin/enterprises/{{ ent.number }}/edit" class="button">Редактировать</a>
         </td>
       </tr>
       {% else %}
-      <tr>
-        <td colspan="10">Нет предприятий</td>
-      </tr>
+      <tr><td colspan="10">Нет предприятий</td></tr>
       {% endfor %}
     </tbody>
   </table>
-
-  <script>
-    // Toggle active/inactive
-    document.querySelectorAll('.toggle-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tr = btn.closest('tr');
-        const num = tr.dataset.number;
-        fetch(`/admin/enterprises/${num}/toggle`, { method: 'POST' })
-          .then(r=>r.json())
-          .then(data => {
-            const span = tr.querySelector('td:nth-child(4) span');
-            if (data.active) {
-              span.textContent = 'Активен';
-              span.className = 'status-active';
-              btn.textContent = 'Выключить';
-            } else {
-              span.textContent = 'Деактивирован';
-              span.className = 'status-inactive';
-              btn.textContent = 'Включить';
-            }
-          });
-      });
-    });
-    // Copy secret to clipboard
-    document.querySelectorAll('.copy-btn').forEach(el => {
-      el.addEventListener('click', () => {
-        navigator.clipboard.writeText(el.dataset.secret);
-        el.textContent = 'Скопировано!';
-        setTimeout(()=> el.textContent='Копировать',1500);
-      });
-    });
-  </script>
 </body>
 </html>
