@@ -1,12 +1,12 @@
 # app/telegram/bot.py
-import sys
-import logging
 import asyncio
+import logging
+import sys
 
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 
-from app.config import TELEGRAM_BOT_TOKEN
+from app.services.database import get_enterprises_with_tokens
 from app.telegram.handlers import onboarding
 
 # ───────── настройка логирования ─────────
@@ -20,24 +20,30 @@ console_handler.setFormatter(
 )
 logger.addHandler(console_handler)
 
-file_handler = logging.FileHandler("telegram_bot.log")
+file_handler = logging.FileHandler("client_bots.log")
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(
     logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 )
 logger.addHandler(file_handler)
 
-# ───────── запуск бота ─────────
-async def main():
-    logger.info("Initializing bot...")
-    bot = Bot(token=TELEGRAM_BOT_TOKEN, parse_mode=ParseMode.HTML)
+async def run_bot(token: str):
+    bot = Bot(token=token, parse_mode=ParseMode.HTML)
     dp = Dispatcher()
     dp.include_router(onboarding.router)
 
-    logger.info(f"Bot started for enterprise unknown")
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info(f"Webhook removed, switched to long-polling")
+        logger.info(f"Bot started for enterprise unknown")
+        await dp.start_polling(bot)
+    except Exception as e:
+        logger.exception(f"Ошибка запуска бота с токеном {token}: {e}")
 
+async def main():
+    enterprises = await get_enterprises_with_tokens()
+    tasks = [run_bot(e["bot_token"]) for e in enterprises if e["bot_token"]]
+    await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
     asyncio.run(main())
