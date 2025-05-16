@@ -50,12 +50,14 @@ TELEGRAM_CHAT_ID   = int(os.getenv("TELEGRAM_CHAT_ID", "0"))
 # ───────── логирование ─────────
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
+
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.DEBUG)
 console_handler.setFormatter(
     logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 )
 logger.addHandler(console_handler)
+
 file_handler = logging.FileHandler("asterisk_events.log")
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(
@@ -91,7 +93,10 @@ async def broadcast_to_enterprises(text: str):
     for row in rows:
         bot = Bot(token=row["bot_token"])
         try:
-            await bot.send_message(chat_id=int(row["chat_id"]), text=text)
+            await bot.send_message(
+                chat_id=int(row["chat_id"]),
+                text=text
+            )
             logger.debug(f"Enterprise broadcast to {row['chat_id']}: {text!r}")
         except Exception as e:
             logger.error(f"Failed enterprise broadcast to {row['chat_id']}: {e}")
@@ -109,7 +114,10 @@ async def broadcast_to_subscribers(text: str):
     for row in users:
         bot = Bot(token=row["bot_token"])
         try:
-            await bot.send_message(chat_id=int(row["tg_id"]), text=text)
+            await bot.send_message(
+                chat_id=int(row["tg_id"]),
+                text=text
+            )
             logger.debug(f"Subscriber broadcast to {row['tg_id']}: {text!r}")
         except Exception as e:
             logger.error(f"Failed subscriber broadcast to {row['tg_id']}: {e}")
@@ -133,16 +141,18 @@ async def startup_tasks():
         logger.error(f"Notify-бот: не удалось отправить сообщение: {e}")
 
     # 3) Уведомляем корпоративных ботов и подписчиков
-    await broadcast_to_enterprises("✅ Сервис Asterisk-webhook запущен и готов к приёму событий.")
-    await broadcast_to_subscribers("✅ Сервис Asterisk-webhook запущен и готов к приёму событий.")
+    await broadcast_to_enterprises(
+        "✅ Сервис Asterisk-webhook запущен и готов к приёму событий."
+    )
+    await broadcast_to_subscribers(
+        "✅ Сервис Asterisk-webhook запущен и готов к приёму событий."
+    )
 
-    # 4) Запускаем цикл повторной отправки
+    # 4) Запускаем цикл повторной отправки (только notify_bot)
     logger.debug("Starting background resend loop")
     asyncio.create_task(
         create_resend_loop(
-            dial_cache={}, bridge_store={}, active_bridges={}, 
-            notify_bot=notify_bot,
-            telegram_chat_id=TELEGRAM_CHAT_ID
+            notify_bot=notify_bot
         )
     )
 
