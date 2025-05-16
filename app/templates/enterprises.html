@@ -58,14 +58,14 @@
           {{ parts[0] }}:<br>{{ parts[1] }}
         </td>
         <td>
-          {% if ent.bot_status %}
+          {% if ent.bot_active %}
             <span class="status-active">Активен</span>
           {% else %}
             <span class="status-inactive">Неактивен</span>
           {% endif %}
           <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
             <button type="submit" class="button">
-              {% if ent.bot_status %}Отключить{% else %}Включить{% endif %}
+              {% if ent.bot_active %}Отключить{% else %}Включить{% endif %}
             </button>
           </form>
         </td>
