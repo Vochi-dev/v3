@@ -19,25 +19,25 @@ from app.services.db import get_connection
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
 
-# Настройка логирования
 logger = logging.getLogger("admin")
 
 def require_login(request: Request) -> None:
     if request.cookies.get("auth") != "1":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized"
+        )
 
-
+# ─────── Авторизация ───────
 @router.get("", response_class=HTMLResponse)
 async def root_redirect(request: Request):
     if request.cookies.get("auth") == "1":
         return RedirectResponse(url="/admin/dashboard", status_code=status.HTTP_302_FOUND)
     return RedirectResponse(url="/admin/login", status_code=status.HTTP_302_FOUND)
 
-
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request, "error": None})
-
 
 @router.post("/login", response_class=HTMLResponse)
 async def login(request: Request, password: str = Form(...)):
@@ -51,7 +51,7 @@ async def login(request: Request, password: str = Form(...)):
     resp.set_cookie("auth", "1", httponly=True)
     return resp
 
-
+# ─────── Дашборд ───────
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     require_login(request)
@@ -64,7 +64,7 @@ async def dashboard(request: Request):
         {"request": request, "enterprise_count": row["cnt"]}
     )
 
-
+# ─────── Список предприятий ───────
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     require_login(request)
@@ -80,13 +80,12 @@ async def list_enterprises(request: Request):
         {"request": request, "enterprises": rows}
     )
 
-
-# ← Исправленный маршрут для email-users
+# ─────── Список e-mail пользователей ───────
 @router.get("/email-users", response_class=HTMLResponse)
 async def email_users(request: Request):
     """
     Список всех пользователей для e-mail-рассылки.
-    Делаем выборку ровно тех полей, что есть в шаблоне.
+    Подбираем ровно те поля, что есть в шаблоне.
     """
     require_login(request)
     db = await get_connection()
@@ -111,15 +110,48 @@ async def email_users(request: Request):
         {"request": request, "email_users": rows}
     )
 
+# ─────── Вспомогательная рассылка ───────
+async def _broadcast(message: str) -> None:
+    logger.debug("Broadcast start: %r", message)
 
-# остальной код без изменений...
+    # администраторы
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT bot_token, chat_id FROM enterprises") as cur:
+            ent_rows = await cur.fetchall()
+        async with db.execute(
+            "SELECT tg_id, bot_token FROM telegram_users WHERE verified = 1"
+        ) as cur2:
+            user_rows = await cur2.fetchall()
+
+    for ent in ent_rows:
+        token, chat_id = ent["bot_token"], ent["chat_id"]
+        if not token or not chat_id:
+            continue
+        bot = Bot(token=token)
+        try:
+            await bot.send_message(chat_id=chat_id, text=message)
+        except TelegramError:
+            logger.exception("Failed to send to enterprise %s", chat_id)
+
+    for usr in user_rows:
+        tg_id, token = usr["tg_id"], usr["bot_token"]
+        if not token or not tg_id:
+            continue
+        bot = Bot(token=token)
+        try:
+            await bot.send_message(chat_id=tg_id, text=message)
+        except TelegramError:
+            logger.exception("Failed to send to user %s", tg_id)
+
+# ─────── Контроль сервисов и ботов ───────
 @router.post("/service/stop")
 async def service_stop(request: Request):
     require_login(request)
     logger.info("Admin requested service stop")
     await _broadcast("⚠️ Сервис деактивирован")
     proc = await asyncio.create_subprocess_shell(
-        'pkill -f "uvicorn main:app"',
+        'pkill -f "uvicorn app.main:app"',
         stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.DEVNULL
     )
@@ -127,4 +159,4 @@ async def service_stop(request: Request):
     logger.info("Service processes killed")
     return PlainTextResponse("Service stopped")
 
-# ... и т.д. для остальных маршрутов
+# … и аналогично остальные маршруты (service/start, bots/stop, bots/start) …
