@@ -25,6 +25,7 @@ def require_login(request: Request) -> None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
 
+# Авторизация
 @router.get("", response_class=HTMLResponse)
 async def root_redirect(request: Request):
     if request.cookies.get("auth") == "1":
@@ -50,6 +51,7 @@ async def login(request: Request, password: str = Form(...)):
     return resp
 
 
+# Дашборд
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     require_login(request)
@@ -63,11 +65,11 @@ async def dashboard(request: Request):
     )
 
 
+# Список предприятий
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     require_login(request)
     db = await get_connection()
-    # убрали created_at из выборки
     cur = await db.execute(
         "SELECT number, name, bot_token, chat_id, ip, secret, host, name2 "
         "FROM enterprises ORDER BY created_at DESC"
@@ -80,6 +82,7 @@ async def list_enterprises(request: Request):
     )
 
 
+# Форма добавления
 @router.get("/enterprises/add", response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
     require_login(request)
@@ -116,6 +119,7 @@ async def add_enterprise(
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
+# Форма редактирования
 @router.get("/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
     require_login(request)
@@ -160,9 +164,9 @@ async def edit_enterprise(
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
+# AJAX: проверка статуса бота
 @router.post("/enterprises/{number}/status", response_class=JSONResponse)
 async def check_bot_status(request: Request, number: str):
-    """Проверка статуса Telegram-бота по bot_token."""
     require_login(request)
     db = await get_connection()
     cur = await db.execute("SELECT bot_token FROM enterprises WHERE number = ?", (number,))
@@ -173,7 +177,6 @@ async def check_bot_status(request: Request, number: str):
     token = row["bot_token"]
     bot = Bot(token=token)
     try:
-        # get_me блокирующий, запускаем в executor
         await asyncio.get_event_loop().run_in_executor(None, bot.get_me)
         status_text = "Active"
     except TelegramError:

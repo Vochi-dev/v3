@@ -1,99 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <title>Список предприятий</title>
-  <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem; }
-    th { background: #f0f0f0; }
-    td { vertical-align: middle; }
-    .button { padding: 0.3rem 0.6rem; background: #007bff; color: #fff; text-decoration: none; border-radius: 3px; font-size: 0.9rem; }
-    .copy-btn { cursor: pointer; padding: 0.2rem 0.4rem; background: #6c757d; color: #fff; border-radius: 3px; font-size: 0.8rem; }
-    .status { cursor: pointer; text-decoration: underline; color: #007bff; }
-    .token { white-space: pre-wrap; word-break: break-all; }
-  </style>
-</head>
+<head><meta charset="utf-8"><title>Новое предприятие</title></head>
 <body>
-  <h1>Список предприятий</h1>
-  {% include 'control_buttons.html' %}
+<a href="/admin/enterprises">← список</a>
+<h1>Добавить предприятие</h1>
 
-  <div style="margin-bottom:1rem;">
-    <a href="/admin/enterprises/add" class="button">Добавить предприятие</a>
-    <a href="/admin" class="button">Назад</a>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Номер</th>
-        <th>Название</th>
-        <th>Bot Token</th>
-        <th>Chat ID</th>
-        <th>IP</th>
-        <th>Secret</th>
-        <th>Host</th>
-        <th>Доп. имя</th>
-        <th>Статус бота</th>
-        <th>Действия</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for ent in enterprises %}
-      <tr data-number="{{ ent.number }}">
-        <td>{{ ent.number }}</td>
-        <td>{{ ent.name }}</td>
-        <td class="token">{{ ent.bot_token[:ent.bot_token.find(':')] }}:<br>{{ ent.bot_token[ent.bot_token.find(':')+1:] }}</td>
-        <td>{{ ent.chat_id }}</td>
-        <td>{{ ent.ip }}</td>
-        <td>
-          <span class="secret-text">{{ ent.secret }}</span>
-          <button class="copy-btn" onclick="copySecret(this)">Copy</button>
-        </td>
-        <td>{{ ent.host }}</td>
-        <td>{{ ent.name2 or '' }}</td>
-        <td><span class="status" onclick="refreshStatus(this)">Loading...</span></td>
-        <td>
-          <a href="/admin/enterprises/{{ ent.number }}/edit" class="button">Редактировать</a>
-        </td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="10">Нет предприятий</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-<script>
-  // Копирование секрета
-  function copySecret(btn) {
-    const txt = btn.parentElement.querySelector('.secret-text').textContent;
-    navigator.clipboard.writeText(txt).then(() => {
-      btn.textContent = 'Copied';
-      setTimeout(()=> btn.textContent='Copy', 2000);
-    });
-  }
-
-  // Обновление статуса поля
-  function refreshStatus(el) {
-    const row = el.closest('tr');
-    const num = row.getAttribute('data-number');
-    el.textContent = '...';
-    fetch(`/admin/enterprises/${num}/status`, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json' }
-    })
-    .then(r=>r.json())
-    .then(js=> el.textContent = js.status === 'Active' ? '✅ Active' : '❌ Inactive')
-    .catch(_=> el.textContent = '⚠️ Error');
-  }
-
-  // При загрузке – сразу проверяем все статусы
-  window.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.status').forEach(el => refreshStatus(el));
-  });
-</script>
-</body>
-</html>
+<form method="post">
+  <p>ID / Number:     <input name="number" required></p>
+  <p>Название:        <input name="name" required></p>
+  <p>Bot Token:       <input name="bot_token" required></p>
+  <p>Chat ID:         <input name="chat_id" required></p>
+  <p>IP:              <input name="ip" required></p>
+  <p>Secret:          <input name="secret" required></p>
+  <p>Host:            <input name="host" required></p>
+  <button type="submit">Сохранить</button>
+</form>
+</body></html>

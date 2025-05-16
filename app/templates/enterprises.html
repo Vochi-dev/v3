@@ -8,7 +8,12 @@
     table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
     th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
     th { background: #f0f0f0; }
-    .button { display: inline-block; margin-right: 1rem; padding: 0.5rem 1rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+    .button { 
+      display: inline-block; margin-right: 1rem; padding: 0.3rem 0.6rem; 
+      background: #007bff; color: white; text-decoration: none; border-radius: 4px; 
+      font-size: 0.9rem;
+    }
+    .status-btn { margin-right: 0.5rem; }
   </style>
 </head>
 <body>
@@ -27,11 +32,11 @@
         <th>Номер</th>
         <th>Название</th>
         <th>Bot Token</th>
+        <th>Статус</th>
         <th>Chat ID</th>
         <th>IP</th>
         <th>Secret</th>
         <th>Host</th>
-        <th>Создано</th>
         <th>Доп. имя</th>
         <th>Действия</th>
       </tr>
@@ -41,12 +46,17 @@
       <tr>
         <td>{{ ent.number }}</td>
         <td>{{ ent.name }}</td>
-        <td>{{ ent.bot_token }}</td>
+        <td style="white-space: pre-line;">{{ ent.bot_token.replace(':', ':\n') }}</td>
+        <td>
+          <button class="status-btn" data-number="{{ ent.number }}">Проверить</button>
+          <span class="status-text" id="status-{{ ent.number }}"></span>
+        </td>
         <td>{{ ent.chat_id }}</td>
         <td>{{ ent.ip }}</td>
-        <td>{{ ent.secret }}</td>
+        <td>
+          <button onclick="copyToClipboard('{{ ent.secret }}')">Копировать</button>
+        </td>
         <td>{{ ent.host }}</td>
-        <td>{{ ent.created_at }}</td>
         <td>{{ ent.name2 or '' }}</td>
         <td>
           <a href="/admin/enterprises/{{ ent.number }}/edit" class="button">Редактировать</a>
@@ -59,5 +69,29 @@
       {% endfor %}
     </tbody>
   </table>
+
+  <script>
+    // Копирование secret
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text)
+        .then(() => alert('Секрет скопирован в буфер'))
+        .catch(() => alert('Ошибка копирования'));
+    }
+
+    // Проверка статуса по AJAX
+    document.querySelectorAll('.status-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const num = btn.getAttribute('data-number');
+        fetch(`/admin/enterprises/${num}/status`, { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            document.getElementById(`status-${num}`).textContent = data.status;
+          })
+          .catch(() => {
+            document.getElementById(`status-${num}`).textContent = 'Error';
+          });
+      });
+    });
+  </script>
 </body>
 </html>
