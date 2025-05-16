@@ -73,6 +73,7 @@ async def dashboard(request: Request):
 async def list_enterprises(request: Request):
     require_login(request)
     db = await get_connection()
+    db.row_factory = aiosqlite.Row  # <--- добавлено!
     cur = await db.execute("""
         SELECT
           number, name, bot_token, active,
@@ -103,7 +104,6 @@ async def list_enterprises(request: Request):
 async def toggle_enterprise(request: Request, number: str):
     require_login(request)
     db = await get_connection()
-    # Получаем текущий статус активности предприятия
     cur = await db.execute("SELECT active, bot_token FROM enterprises WHERE number = ?", (number,))
     row = await cur.fetchone()
 
@@ -112,11 +112,9 @@ async def toggle_enterprise(request: Request, number: str):
         raise HTTPException(status_code=404, detail="Enterprise not found")
 
     new_status = 0 if row["active"] else 1
-    # Обновляем активность предприятия в базе
     await db.execute("UPDATE enterprises SET active = ? WHERE number = ?", (new_status, number))
     await db.commit()
 
-    # Уведомляем notify-бота
     bot_token = row["bot_token"]
     bot = Bot(token=NOTIFY_BOT_TOKEN)
     text = f"Предприятие {number} {'активировано' if new_status else 'деактивировано'}"
@@ -227,7 +225,3 @@ async def edit_enterprise(
     finally:
         await db.close()
     return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-
-# ─────── Прочие маршруты (email-users, service control и т.д.) ───────
-# остались без изменений
