@@ -39,7 +39,8 @@
         <th>Номер</th>
         <th>Название</th>
         <th>Bot Token</th>
-        <th>Статус</th>
+        <th>Отправка</th>
+        <th>Доступ</th>
         <th>Chat ID</th>
         <th>IP</th>
         <th>Secret</th>
@@ -58,16 +59,23 @@
           {{ parts[0] }}:<br>{{ parts[1] }}
         </td>
         <td>
-          {% if ent.bot_active %}
-            <span class="status-active">Активен</span>
+          {% if ent.active %}
+            <span class="status-active">Включена</span>
           {% else %}
-            <span class="status-inactive">Неактивен</span>
+            <span class="status-inactive">Отключена</span>
           {% endif %}
           <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
             <button type="submit" class="button">
-              {% if ent.bot_active %}Отключить{% else %}Включить{% endif %}
+              {% if ent.active %}Отключить{% else %}Включить{% endif %}
             </button>
           </form>
+        </td>
+        <td>
+          {% if ent.bot_available %}
+            <span class="status-active">Доступен</span>
+          {% else %}
+            <span class="status-inactive">Ошибка</span>
+          {% endif %}
         </td>
         <td>{{ ent.chat_id }}</td>
         <td>{{ ent.ip }}</td>
@@ -84,7 +92,7 @@
       </tr>
       {% else %}
       <tr>
-        <td colspan="10">Нет предприятий</td>
+        <td colspan="11">Нет предприятий</td>
       </tr>
       {% endfor %}
     </tbody>

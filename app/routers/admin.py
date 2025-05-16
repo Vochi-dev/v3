@@ -8,10 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
 
-from app.config import (
-    ADMIN_PASSWORD,
-    DB_PATH
-)
+from app.config import ADMIN_PASSWORD, DB_PATH
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
 
@@ -83,7 +80,11 @@ async def list_enterprises(request: Request):
     for row in rows:
         ent = dict(row)
         bot_token = ent["bot_token"]
-        ent["bot_active"] = await check_bot_status(bot_token)
+        try:
+            ent["bot_available"] = await check_bot_status(bot_token)
+        except Exception as e:
+            logger.warning("Failed to check bot status: %s", e)
+            ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
     return templates.TemplateResponse(
