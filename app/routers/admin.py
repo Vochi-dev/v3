@@ -91,27 +91,49 @@ async def list_enterprises(request: Request):
 @router.get("/email-users", response_class=HTMLResponse)
 async def email_users(request: Request):
     """
-    Список всех e-mail пользователей. 
-    Для шаблона email_users.html нужны поля:
+    Список всех e-mail пользователей.
+    Шаблону нужны поля:
       tg_id, email, name, right_all, right_1, right_2, enterprise_name
-    Столбец telegram_id в БД приводим к tg_id.
+    Подстраиваем SELECT под реальную схему таблицы.
     """
     require_login(request)
     db = await get_connection()
-    cur = await db.execute("""
+
+    # Узнаём, какие колонки есть в таблице email_users
+    pragma = await db.execute("PRAGMA table_info(email_users)")
+    info = await pragma.fetchall()
+    col_names = {row["name"] for row in info}
+
+    # Для каждого нужного поля подготавливаем выражение
+    def col_expr(col: str, alias: str = None):
+        alias = alias or col
+        if col in col_names:
+            return f"{col} AS {alias}"
+        # если поля нет — возвращаем пустую строку
+        return f"'' AS {alias}"
+
+    select_list = [
+        # идентификатор Telegram-пользователя
+        col_expr("tg_id") or col_expr("telegram_id", "tg_id") or col_expr("id", "tg_id"),
+        col_expr("email"),
+        col_expr("name"),
+        col_expr("right_all"),
+        col_expr("right_1"),
+        col_expr("right_2"),
+        col_expr("enterprise_name"),
+    ]
+    select_sql = ",\n        ".join(select_list)
+
+    query = f"""
         SELECT
-            telegram_id   AS tg_id,
-            email,
-            name,
-            right_all,
-            right_1,
-            right_2,
-            enterprise_name
+        {select_sql}
         FROM email_users
         ORDER BY created_at DESC
-    """)
+    """
+    cur = await db.execute(query)
     rows = await cur.fetchall()
     await db.close()
+
     return templates.TemplateResponse(
         "email_users.html",
         {"request": request, "email_users": rows}
@@ -167,4 +189,4 @@ async def service_stop(request: Request):
     logger.info("Service processes killed")
     return PlainTextResponse("Service stopped")
 
-# здесь далее — остальные маршруты service/start, bots/stop, bots/start без изменений
+# (далее остальные маршруты service/start, bots/stop, bots/start — без изменений)
