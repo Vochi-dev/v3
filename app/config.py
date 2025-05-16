@@ -1,42 +1,17 @@
 # app/config.py
-# -*- coding: utf-8 -*-
-"""
-Единые настройки проекта. Добавлены SMTP_* и VERIFY_URL_BASE,
-которые требуются модулю email_verification.py.
-"""
-
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+# Путь к файлу базы данных
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, "asterisk_events.db")
 
-# 🛡️ Пароль администратора (для /admin/login)
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "SuperS3cret!")
+# Админ-пароль для /admin
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "your_default_admin_password")
 
-# ───────── SMTP / e-mail ─────────────────────────────────────────────
-EMAIL_HOST          = os.getenv("EMAIL_HOST", "mailbe04.hoster.by")
-EMAIL_PORT          = int(os.getenv("EMAIL_PORT", 587))
-EMAIL_HOST_USER     = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
-EMAIL_USE_TLS       = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
-EMAIL_FROM          = os.getenv("EMAIL_FROM", EMAIL_HOST_USER)
+# Telegram-токен берём из переменной окружения
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+if not TELEGRAM_BOT_TOKEN:
+    raise RuntimeError("Переменная окружения TELEGRAM_BOT_TOKEN не задана")
 
-# для совместимости со старым кодом
-SMTP_HOST = EMAIL_HOST
-SMTP_PORT = EMAIL_PORT
-SMTP_USER = EMAIL_HOST_USER
-SMTP_PASS = EMAIL_HOST_PASSWORD
-
-# ───────── VERIFY URL ─────────────────────────────────────────────────
-# Ссылка, которая вставляется в письмо: <VERIFY_URL_BASE>/<token>
-VERIFY_URL_BASE = os.getenv(
-    "VERIFY_URL_BASE",
-    "https://bot.vochi.by/verify-email"
-)
-
-# ───────── База данных ───────────────────────────────────────────────
-DB_PATH = os.getenv("DB_PATH", "/root/asterisk-webhook/asterisk_events.db")
-
-# ───────── Telegram ─────────────────────────────────────────────────
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "")
+# Другие настройки, если нужны:
+# e.g. SMTP_HOST, SMTP_PORT, EMAIL_FROM и т.п., тоже обычно из os.environ
