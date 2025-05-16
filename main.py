@@ -48,17 +48,19 @@ from app.routers.admin import router as admin_router
 
 # ───────── константы из окружения ─────────
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = int(os.getenv("TELEGRAM_CHAT_ID", "0"))
+TELEGRAM_CHAT_ID   = int(os.getenv("TELEGRAM_CHAT_ID", "0"))
 
 # ───────── логирование ─────────
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
+
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.DEBUG)
 console_handler.setFormatter(
     logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 )
 logger.addHandler(console_handler)
+
 file_handler = logging.FileHandler("asterisk_events.log")
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(
@@ -70,7 +72,7 @@ logger.addHandler(file_handler)
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
-# ───────── подключаем админ-роутер ─────────
+# ───────── подключаем админ-роутер под /admin ─────────
 app.include_router(admin_router, prefix="/admin")
 
 # ───────── middleware логирования всех запросов ─────────
@@ -101,7 +103,7 @@ async def broadcast_to_enterprises(text: str):
             logger.error(f"Failed enterprise broadcast to {row['chat_id']}: {e}")
 
 async def broadcast_to_subscribers(text: str):
-    """Рассылка всем верифицированным пользователям (telegram_users)."""
+    """Рассылка всем верифицированным пользователям."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
@@ -123,7 +125,7 @@ async def startup_tasks():
     await init_database_tables()
     await load_hangup_message_history()
 
-    # 2) Уведомляем нотификационного бота о старте
+    # 2) Стартовое уведомление fallback-боту
     try:
         await notify_bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
@@ -133,18 +135,18 @@ async def startup_tasks():
     except Exception as e:
         logger.error(f"Notify-бот: не удалось отправить сообщение: {e}")
 
-    # 3) Уведомляем корпоративных ботов и подписчиков
+    # 3) Уведомляем все корпоративные чаты и подписчиков
     await broadcast_to_enterprises("✅ Сервис Asterisk-webhook запущен и готов к приёму событий.")
     await broadcast_to_subscribers("✅ Сервис Asterisk-webhook запущен и готов к приёму событий.")
 
-    # 4) Запускаем цикл повторной отправки
+    # 4) Запускаем цикл повторной отправки аварийных уведомлений
     logger.debug("Starting background resend loop")
     asyncio.create_task(create_resend_loop(
         {},                # dial_cache_arg
         {},                # bridge_store_arg
         {},                # active_bridges_arg
         notify_bot,        # Bot instance для внутренних уведомлений
-        TELEGRAM_CHAT_ID   # chat_id для fallback-уведомлений
+        TELEGRAM_CHAT_ID   # chat_id для fallback
     ))
 
 @app.get("/health")
@@ -160,7 +162,7 @@ async def handle_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # сохраняем событие
+    # сохраняем событие в БД
     await save_asterisk_event(et, uid, token, data)
 
     # ищем предприятие по токену
@@ -190,7 +192,7 @@ async def handle_event(event_type: str, request: Request):
 
     bot = Bot(token=bot_token)
 
-    # определяем внутренний звонок
+    # определяем, internal-звонок или внешний
     raw_phone = data.get("Phone", "") or data.get("CallerIDNum", "") or ""
     exts = data.get("Extensions", [])
     call_type = int(data.get("CallType", 0))
@@ -201,7 +203,7 @@ async def handle_event(event_type: str, request: Request):
          and is_internal_number(exts[0]))
     )
 
-    # выбираем обработчик
+    # выбираем нужный обработчик
     if et == "start":
         handler = process_internal_start if is_int else process_start
     elif et == "dial":
@@ -213,7 +215,7 @@ async def handle_event(event_type: str, request: Request):
     else:
         return {"status": "ignored"}
 
-    # рассылаем уведомления
+    # посылаем уведомления каждому подписчику
     results = []
     for row in users:
         tg_id = int(row["tg_id"])
