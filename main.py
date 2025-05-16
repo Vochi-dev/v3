@@ -15,7 +15,8 @@ import logging
 
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
-from telegram import Bot, TelegramError
+from telegram import Bot
+from telegram.error import TelegramError
 
 from app.config import TELEGRAM_BOT_TOKEN, DB_PATH
 import aiosqlite
@@ -105,7 +106,11 @@ async def startup_tasks():
     # 2) запускаем цикл пересылки
     logger.debug("Starting background resend loop")
     asyncio.create_task(
-        create_resend_loop(notify_bot, DB_PATH)
+        create_resend_loop(
+            dial_cache={}, bridge_store={}, active_bridges={},  # если нужно — передайте ваши
+            notify_bot=notify_bot,
+            telegram_chat_id=None  # устаревший параметр, если create_resend_loop его не ждёт, уберите
+        )
     )
 
 
