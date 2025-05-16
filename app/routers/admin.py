@@ -18,16 +18,12 @@ from app.services.db import get_connection
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
-
 logger = logging.getLogger("admin")
 
 
 def require_login(request: Request) -> None:
     if request.cookies.get("auth") != "1":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
 
 # ─────── Авторизация ───────
@@ -92,44 +88,43 @@ async def list_enterprises(request: Request):
 async def email_users(request: Request):
     """
     Список всех e-mail пользователей.
-    Шаблону нужны поля:
-      tg_id, email, name, right_all, right_1, right_2, enterprise_name
-    Подстраиваем SELECT под реальную схему таблицы.
+    Шаблону нужны поля tg_id, email, name, right_all, right_1, right_2, enterprise_name.
+    Подстраиваем SELECT под реальную схему таблицы email_users.
     """
     require_login(request)
     db = await get_connection()
 
-    # Узнаём, какие колонки есть в таблице email_users
+    # Получаем список колонок таблицы
     pragma = await db.execute("PRAGMA table_info(email_users)")
     info = await pragma.fetchall()
     col_names = {row["name"] for row in info}
+    await pragma.close()
 
-    # Для каждого нужного поля подготавливаем выражение
-    def col_expr(col: str, alias: str = None):
+    # Вспомогательная функция для выбора выражения по имени колонки
+    def choose(col: str, alias: str = None, default: str = "''"):
         alias = alias or col
         if col in col_names:
             return f"{col} AS {alias}"
-        # если поля нет — возвращаем пустую строку
-        return f"'' AS {alias}"
+        return f"{default} AS {alias}"
 
-    select_list = [
-        # идентификатор Telegram-пользователя
-        col_expr("tg_id") or col_expr("telegram_id", "tg_id") or col_expr("id", "tg_id"),
-        col_expr("email"),
-        col_expr("name"),
-        col_expr("right_all"),
-        col_expr("right_1"),
-        col_expr("right_2"),
-        col_expr("enterprise_name"),
+    select_parts = [
+        # tg_id: пробуем несколько вариантов имен
+        choose("tg_id") if "tg_id" in col_names else
+        choose("telegram_id", "tg_id") if "telegram_id" in col_names else
+        choose("id", "tg_id"),
+        choose("email"),
+        choose("name"),
+        choose("right_all"),
+        choose("right_1"),
+        choose("right_2"),
+        choose("enterprise_name"),
     ]
-    select_sql = ",\n        ".join(select_list)
 
-    query = f"""
-        SELECT
-        {select_sql}
-        FROM email_users
-        ORDER BY created_at DESC
-    """
+    query = "SELECT\n    " + ",\n    ".join(select_parts) + "\nFROM email_users"
+    # Добавляем ORDER BY, если есть соответствующая колонка
+    if "created_at" in col_names:
+        query += "\nORDER BY created_at DESC"
+
     cur = await db.execute(query)
     rows = await cur.fetchall()
     await db.close()
@@ -143,13 +138,10 @@ async def email_users(request: Request):
 # ─────── Вспомогательная рассылка ───────
 async def _broadcast(message: str) -> None:
     logger.debug("Broadcast start: %r", message)
-
-    # 1) Администраторы предприятий
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT bot_token, chat_id FROM enterprises") as cur:
             ent_rows = await cur.fetchall()
-        # 2) Все верифицированные telegram-пользователи
         async with db.execute(
             "SELECT tg_id, bot_token FROM telegram_users WHERE verified = 1"
         ) as cur2:
@@ -189,4 +181,4 @@ async def service_stop(request: Request):
     logger.info("Service processes killed")
     return PlainTextResponse("Service stopped")
 
-# (далее остальные маршруты service/start, bots/stop, bots/start — без изменений)
+# Далее маршруты service/start, bots/stop, bots/start без изменений...
