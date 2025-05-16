@@ -117,9 +117,28 @@ active_bridges = {}
 
 @app.on_event("startup")
 async def startup_tasks():
-    logger.debug("Startup: init DB tables and load hangup history")
+    logger.debug("Startup: begin")
+
+    # init DB and load history
     await init_database_tables()
     await load_hangup_message_history()
+
+    # сначала уведомляем админов через notify-бота
+    logger.debug("Notify-бот: отправляем стартовое сообщение")
+    try:
+        await notify_bot.send_message(
+            chat_id=notify_chat_id,
+            text="✅ Сервис Asterisk-webhook запущен"
+        )
+        logger.info("Notify-бот: сообщение о старте отправлено")
+    except TelegramError as e:
+        logger.error(f"Notify-бот: не удалось отправить сообщение: {e}")
+
+    # затем массовая рассылка корпоративным ботам
+    logger.debug("Broadcast: отправляем корпоративным ботам сообщение о старте")
+    await broadcast_to_enterprises("✅ Сервис Asterisk-webhook активен и готов к приёму событий.")
+
+    # после всех уведомлений запускаем фоновую задачу
     logger.debug("Starting background resend loop")
     asyncio.create_task(
         create_resend_loop(
@@ -130,35 +149,25 @@ async def startup_tasks():
             TELEGRAM_CHAT_ID,
         )
     )
-
     logger.info("Сервис Asterisk-webhook запущен")
-
-    # сначала уведомляем админов через notify-бота
-    try:
-        await notify_bot.send_message(
-            chat_id=notify_chat_id,
-            text="✅ Сервис Asterisk-webhook запущен"
-        )
-    except TelegramError as e:
-        logger.error(f"Notify-бот: не удалось отправить сообщение: {e}")
-
-    # затем массовая рассылка корпоративным ботам
-    await broadcast_to_enterprises("✅ Сервис Asterisk-webhook активен и готов к приёму событий.")
 
 @app.on_event("shutdown")
 async def shutdown_tasks():
     logger.info("Сервис Asterisk-webhook останавливается")
 
     # уведомляем админов через notify-бота
+    logger.debug("Notify-бот: отправляем сообщение об остановке")
     try:
         await notify_bot.send_message(
             chat_id=notify_chat_id,
             text="⚠️ Сервис Asterisk-webhook остановлен"
         )
+        logger.info("Notify-бот: сообщение об остановке отправлено")
     except TelegramError as e:
         logger.error(f"Notify-бот: не удалось отправить сообщение: {e}")
 
     # массовая рассылка корпоративным ботам
+    logger.debug("Broadcast: отправляем корпоративным ботам сообщение об остановке")
     await broadcast_to_enterprises("⚠️ Сервис Asterisk-webhook деактивирован. Боты временно недоступны.")
 
 @app.get("/health")
