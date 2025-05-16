@@ -16,7 +16,7 @@ from app.config import (
     NOTIFY_CHAT_ID
 )
 from app.services.db import get_connection
-from app.services.bot_status import check_bot_status  # импорт проверяющей функции
+from app.services.bot_status import check_bot_status
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -59,6 +59,7 @@ async def login(request: Request, password: str = Form(...)):
 async def dashboard(request: Request):
     require_login(request)
     db = await get_connection()
+    db.row_factory = aiosqlite.Row  # 👈 вот это нужно для доступа по row["cnt"]
     cur = await db.execute("SELECT COUNT(*) AS cnt FROM enterprises")
     row = await cur.fetchone()
     await db.close()
@@ -85,7 +86,6 @@ async def list_enterprises(request: Request):
     rows = await cur.fetchall()
     await db.close()
 
-    # Преобразуем Row → dict, чтобы можно было добавлять ключи
     enterprises_with_status = []
     for row in rows:
         ent = dict(row)
