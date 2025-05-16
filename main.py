@@ -20,7 +20,6 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
-
 import aiosqlite
 
 from app.config import DB_PATH
@@ -43,7 +42,7 @@ from app.services.calls.internal import (
 )
 from app.services.calls.utils import is_internal_number
 
-# подключаем админ-роутер
+# подключаем админ-роутер (в самом router префикс "/admin")
 from app.routers.admin import router as admin_router
 
 # ───────── константы из окружения ─────────
@@ -72,8 +71,9 @@ logger.addHandler(file_handler)
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
-# ───────── подключаем админ-роутер под /admin ─────────
-app.include_router(admin_router, prefix="/admin")
+# ───────── подключаем админ-роутер ─────────
+# В admin.py: APIRouter(prefix="/admin")
+app.include_router(admin_router)
 
 # ───────── middleware логирования всех запросов ─────────
 @app.middleware("http")
@@ -89,7 +89,6 @@ async def log_requests(request: Request, call_next):
 notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 async def broadcast_to_enterprises(text: str):
-    """Рассылка всем корпоративным чатам из таблицы enterprises."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute("SELECT bot_token, chat_id FROM enterprises")
@@ -103,7 +102,6 @@ async def broadcast_to_enterprises(text: str):
             logger.error(f"Failed enterprise broadcast to {row['chat_id']}: {e}")
 
 async def broadcast_to_subscribers(text: str):
-    """Рассылка всем верифицированным пользователям."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
@@ -125,7 +123,7 @@ async def startup_tasks():
     await init_database_tables()
     await load_hangup_message_history()
 
-    # 2) Стартовое уведомление fallback-боту
+    # 2) Уведомляем нотификационного бота о старте
     try:
         await notify_bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
@@ -135,18 +133,18 @@ async def startup_tasks():
     except Exception as e:
         logger.error(f"Notify-бот: не удалось отправить сообщение: {e}")
 
-    # 3) Уведомляем все корпоративные чаты и подписчиков
+    # 3) Уведомляем корпоративных ботов и подписчиков
     await broadcast_to_enterprises("✅ Сервис Asterisk-webhook запущен и готов к приёму событий.")
     await broadcast_to_subscribers("✅ Сервис Asterisk-webhook запущен и готов к приёму событий.")
 
-    # 4) Запускаем цикл повторной отправки аварийных уведомлений
+    # 4) Запускаем цикл повторной отправки
     logger.debug("Starting background resend loop")
     asyncio.create_task(create_resend_loop(
         {},                # dial_cache_arg
         {},                # bridge_store_arg
         {},                # active_bridges_arg
         notify_bot,        # Bot instance для внутренних уведомлений
-        TELEGRAM_CHAT_ID   # chat_id для fallback
+        TELEGRAM_CHAT_ID   # chat_id для fallback-уведомлений
     ))
 
 @app.get("/health")
@@ -162,7 +160,7 @@ async def handle_event(event_type: str, request: Request):
     uid = data.get("UniqueId", "")
     token = data.get("Token", "")
 
-    # сохраняем событие в БД
+    # сохраняем событие
     await save_asterisk_event(et, uid, token, data)
 
     # ищем предприятие по токену
@@ -192,7 +190,7 @@ async def handle_event(event_type: str, request: Request):
 
     bot = Bot(token=bot_token)
 
-    # определяем, internal-звонок или внешний
+    # определяем внутренний звонок
     raw_phone = data.get("Phone", "") or data.get("CallerIDNum", "") or ""
     exts = data.get("Extensions", [])
     call_type = int(data.get("CallType", 0))
@@ -203,7 +201,7 @@ async def handle_event(event_type: str, request: Request):
          and is_internal_number(exts[0]))
     )
 
-    # выбираем нужный обработчик
+    # выбираем обработчик
     if et == "start":
         handler = process_internal_start if is_int else process_start
     elif et == "dial":
@@ -215,7 +213,7 @@ async def handle_event(event_type: str, request: Request):
     else:
         return {"status": "ignored"}
 
-    # посылаем уведомления каждому подписчику
+    # рассылаем уведомления
     results = []
     for row in users:
         tg_id = int(row["tg_id"])
