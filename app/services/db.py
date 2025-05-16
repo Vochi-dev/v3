@@ -1,35 +1,23 @@
-# app/services/db.py
-# -*- coding: utf-8 -*-
-"""
-Обёртки вокруг SQLite — под фактическую схему (enterprises.number) и утилиты для роутеров.
-"""
+import sqlite3
+from config import DB_PATH
 
-import aiosqlite
-from typing import Optional
-
-from app.config import DB_PATH
-
-
-async def get_enterprise_number_by_bot_token(bot_token: str) -> Optional[str]:
+def init_database_tables():
     """
-    Возвращает номер (enterprises.number) для данного bot_token
-    или None, если не нашли.
+    Create the required tables in the SQLite database.
     """
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT number FROM enterprises WHERE bot_token = ?",
-            (bot_token,),
-        ) as cur:
-            row = await cur.fetchone()
-            return row[0] if row else None
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
 
-
-async def get_connection() -> aiosqlite.Connection:
-    """
-    Возвращает асинхронное соединение к базе данных.
-    Используется в роутерах для общих операций.
-    """
-    conn = await aiosqlite.connect(DB_PATH)
-    # чтобы получать строки как dict-подобные объекты
-    conn.row_factory = aiosqlite.Row
-    return conn
+    # Создаем таблицу email_users
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS email_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            right_all BOOLEAN DEFAULT 0,
+            right_1 BOOLEAN DEFAULT 0,
+            right_2 BOOLEAN DEFAULT 0
+        );
+    """)
+    conn.commit()
+    conn.close()

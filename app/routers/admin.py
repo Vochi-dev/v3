@@ -82,9 +82,18 @@ async def list_enterprises(request: Request):
     """)
     rows = await cur.fetchall()
     await db.close()
+
+    # Получаем состояние бота для каждого предприятия
+    enterprises_with_status = []
+    for ent in rows:
+        bot_token = ent["bot_token"]
+        bot_active = await check_bot_status(bot_token)  # Функция, которая проверяет активность бота
+        ent['bot_active'] = bot_active
+        enterprises_with_status.append(ent)
+
     return templates.TemplateResponse(
         "enterprises.html",
-        {"request": request, "enterprises": rows}
+        {"request": request, "enterprises": enterprises_with_status}
     )
 
 
@@ -94,22 +103,21 @@ async def list_enterprises(request: Request):
 async def toggle_enterprise(request: Request, number: str):
     require_login(request)
     db = await get_connection()
-    cur = await db.execute(
-        "SELECT active FROM enterprises WHERE number = ?", (number,)
-    )
+    # Получаем текущий статус активности предприятия
+    cur = await db.execute("SELECT active, bot_token FROM enterprises WHERE number = ?", (number,))
     row = await cur.fetchone()
+
     if not row:
         await db.close()
         raise HTTPException(status_code=404, detail="Enterprise not found")
-    new_status = 0 if row["active"] else 1
-    await db.execute(
-        "UPDATE enterprises SET active = ? WHERE number = ?",
-        (new_status, number)
-    )
-    await db.commit()
-    await db.close()
 
-    # уведомляем notify-бота
+    new_status = 0 if row["active"] else 1
+    # Обновляем активность предприятия в базе
+    await db.execute("UPDATE enterprises SET active = ? WHERE number = ?", (new_status, number))
+    await db.commit()
+
+    # Уведомляем notify-бота
+    bot_token = row["bot_token"]
     bot = Bot(token=NOTIFY_BOT_TOKEN)
     text = f"Предприятие {number} {'активировано' if new_status else 'деактивировано'}"
     try:
@@ -117,6 +125,8 @@ async def toggle_enterprise(request: Request, number: str):
         logger.info("Notify-bot: %s", text)
     except Exception as e:
         logger.error("Notify-bot failed: %s", e)
+
+    await db.close()
 
     return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
