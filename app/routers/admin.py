@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Form, status, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
 from telegram.error import TelegramError
@@ -25,7 +25,6 @@ def require_login(request: Request) -> None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
 
-# ─────── Авторизация ───────
 @router.get("", response_class=HTMLResponse)
 async def root_redirect(request: Request):
     if request.cookies.get("auth") == "1":
@@ -51,7 +50,6 @@ async def login(request: Request, password: str = Form(...)):
     return resp
 
 
-# ─────── Дашборд ───────
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     require_login(request)
@@ -65,13 +63,12 @@ async def dashboard(request: Request):
     )
 
 
-# ─────── Список предприятий ───────
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     require_login(request)
     db = await get_connection()
     cur = await db.execute(
-        "SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2 "
+        "SELECT number, name, bot_token, chat_id, ip, secret, host, name2 "
         "FROM enterprises ORDER BY created_at DESC"
     )
     rows = await cur.fetchall()
@@ -82,7 +79,6 @@ async def list_enterprises(request: Request):
     )
 
 
-# ─────── Форма добавления нового предприятия ───────
 @router.get("/enterprises/add", response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
     require_login(request)
@@ -119,13 +115,12 @@ async def add_enterprise(
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
-# ─────── Форма редактирования существующего предприятия ───────
 @router.get("/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
     require_login(request)
     db = await get_connection()
     cur = await db.execute(
-        "SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2 "
+        "SELECT number, name, bot_token, chat_id, ip, secret, host, name2 "
         "FROM enterprises WHERE number = ?", (number,)
     )
     ent = await cur.fetchone()
@@ -164,5 +159,24 @@ async def edit_enterprise(
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
-# ─────── Прочие маршруты (email-users, service control и т.д.) — без изменений ───────
-# …
+@router.post("/enterprises/{number}/status", response_class=JSONResponse)
+async def check_bot_status(request: Request, number: str):
+    """Проверка статуса Telegram-бота по bot_token."""
+    require_login(request)
+    db = await get_connection()
+    cur = await db.execute("SELECT bot_token FROM enterprises WHERE number = ?", (number,))
+    row = await cur.fetchone()
+    await db.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Enterprise not found")
+    token = row["bot_token"]
+    bot = Bot(token=token)
+    try:
+        await asyncio.get_event_loop().run_in_executor(None, bot.get_me)
+        status_text = "Active"
+    except TelegramError:
+        status_text = "Inactive"
+    return {"status": status_text}
+
+
+# … остальной код без изменений
