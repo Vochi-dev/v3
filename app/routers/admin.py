@@ -6,6 +6,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request, Form, status, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from telegram import Bot
+from fastapi.templating import Jinja2Templates
 
 from app.config import (
     ADMIN_PASSWORD,
@@ -107,15 +108,17 @@ async def toggle_enterprise(request: Request, number: str):
     await db.execute("UPDATE enterprises SET active = ? WHERE number = ?", (new_status, number))
     await db.commit()
 
-    # 👇 используем токен и chat_id самого предприятия
     bot_token = row["bot_token"]
     chat_id = row["chat_id"]
-
-    bot = Bot(token=bot_token)
     text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
+
     try:
-        await bot.send_message(chat_id=int(chat_id), text=text)
-        logger.info("Sent toggle message to bot %s: %s", number, text)
+        if chat_id and str(chat_id).isdigit():
+            bot = Bot(token=bot_token)
+            await bot.send_message(chat_id=int(chat_id), text=text)
+            logger.info("Sent toggle message to bot %s: %s", number, text)
+        else:
+            logger.warning("Cannot notify bot %s — invalid chat_id: %s", number, chat_id)
     except Exception as e:
         logger.error("Toggle bot notification failed: %s", e)
 
