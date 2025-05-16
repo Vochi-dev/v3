@@ -20,16 +20,29 @@ async def list_enterprises(request: Request):
     require_login(request)
     db = await get_connection()
     try:
+        db.row_factory = lambda cursor, row: {
+            col[0]: row[idx] for idx, col in enumerate(cursor.description)
+        }
         cur = await db.execute(
             "SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2, active "
             "FROM enterprises ORDER BY created_at DESC"
         )
-        rows = await cur.fetchall()
+        enterprises = await cur.fetchall()
+
+        # Проверка активности ботов
+        for ent in enterprises:
+            try:
+                bot = Bot(token=ent["bot_token"])
+                await bot.get_me()
+                ent["bot_active"] = True
+            except Exception:
+                ent["bot_active"] = False
     finally:
         await db.close()
+
     return templates.TemplateResponse(
         "enterprises.html",
-        {"request": request, "enterprises": rows}
+        {"request": request, "enterprises": enterprises}
     )
 
 
@@ -130,7 +143,7 @@ async def toggle_enterprise(request: Request, number: str):
     finally:
         await db.close()
 
-    # Уведомление
+    # Уведомление через notify-бота
     try:
         text = (
             f'🟢 Бот *{row["name"]}* запущен ✅'
