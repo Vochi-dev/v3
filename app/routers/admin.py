@@ -105,7 +105,7 @@ async def list_enterprises(request: Request):
     )
 
 
-# Вот исправленный маршрут, где префикс /admin/enterprises/add включён в путь
+# Здесь добавлен GET-обработчик по пути /admin/enterprises/add для формы добавления
 @router.get("/enterprises/add", response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
     require_login(request)
