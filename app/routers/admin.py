@@ -1,16 +1,19 @@
+# app/routers/admin.py
 # -*- coding: utf-8 -*-
-import aiosqlite
+
 import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Form, status, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
+from telegram.error import TelegramError
 
-from app.config import ADMIN_PASSWORD, DB_PATH
+from app.config import ADMIN_PASSWORD
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
+from app.services.enterprise import send_message_to_bot  # добавлено
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -51,13 +54,13 @@ async def login(request: Request, password: str = Form(...)):
 async def dashboard(request: Request):
     require_login(request)
     db = await get_connection()
-    db.row_factory = aiosqlite.Row
+    db.row_factory = None
     cur = await db.execute("SELECT COUNT(*) AS cnt FROM enterprises")
     row = await cur.fetchone()
     await db.close()
     return templates.TemplateResponse(
         "dashboard.html",
-        {"request": request, "enterprise_count": row["cnt"]}
+        {"request": request, "enterprise_count": row[0]}
     )
 
 
@@ -65,7 +68,7 @@ async def dashboard(request: Request):
 async def list_enterprises(request: Request):
     require_login(request)
     db = await get_connection()
-    db.row_factory = aiosqlite.Row
+    db.row_factory = None
     cur = await db.execute("""
         SELECT
           number, name, bot_token, active,
@@ -78,7 +81,17 @@ async def list_enterprises(request: Request):
 
     enterprises_with_status = []
     for row in rows:
-        ent = dict(row)
+        ent = {
+            "number": row[0],
+            "name": row[1],
+            "bot_token": row[2],
+            "active": row[3],
+            "chat_id": row[4],
+            "ip": row[5],
+            "secret": row[6],
+            "host": row[7],
+            "name2": row[8],
+        }
         bot_token = ent["bot_token"]
         try:
             ent["bot_available"] = await check_bot_status(bot_token)
@@ -97,7 +110,7 @@ async def list_enterprises(request: Request):
 async def toggle_enterprise(request: Request, number: str):
     require_login(request)
     db = await get_connection()
-    db.row_factory = aiosqlite.Row
+    db.row_factory = None
     cur = await db.execute("SELECT active, bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
     row = await cur.fetchone()
 
@@ -105,19 +118,19 @@ async def toggle_enterprise(request: Request, number: str):
         await db.close()
         raise HTTPException(status_code=404, detail="Enterprise not found")
 
-    new_status = 0 if row["active"] else 1
+    new_status = 0 if row[0] else 1
     await db.execute("UPDATE enterprises SET active = ? WHERE number = ?", (new_status, number))
     await db.commit()
 
-    bot_token = row["bot_token"]
-    chat_id = row["chat_id"]
+    bot_token = row[1]
+    chat_id = row[2]
 
     bot = Bot(token=bot_token)
     text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
     try:
         await bot.send_message(chat_id=int(chat_id), text=text)
         logger.info("Sent toggle message to bot %s: %s", number, text)
-    except Exception as e:
+    except TelegramError as e:
         logger.error("Toggle bot notification failed: %s", e)
 
     await db.close()
@@ -168,7 +181,7 @@ async def add_enterprise(
 async def edit_enterprise_form(request: Request, number: str):
     require_login(request)
     db = await get_connection()
-    db.row_factory = aiosqlite.Row
+    db.row_factory = None
     cur = await db.execute(
         """
         SELECT number, name, bot_token, active,
@@ -182,9 +195,20 @@ async def edit_enterprise_form(request: Request, number: str):
     await db.close()
     if not ent:
         raise HTTPException(status_code=404, detail="Enterprise not found")
+    ent_dict = {
+        "number": ent[0],
+        "name": ent[1],
+        "bot_token": ent[2],
+        "active": ent[3],
+        "chat_id": ent[4],
+        "ip": ent[5],
+        "secret": ent[6],
+        "host": ent[7],
+        "name2": ent[8],
+    }
     return templates.TemplateResponse(
         "enterprise_form.html",
-        {"request": request, "action": "edit", "enterprise": dict(ent)}
+        {"request": request, "action": "edit", "enterprise": ent_dict}
     )
 
 
@@ -217,3 +241,35 @@ async def edit_enterprise(
     finally:
         await db.close()
     return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.delete("/enterprises/{number}", response_class=JSONResponse)
+async def delete_enterprise(number: str, request: Request):
+    require_login(request)
+    db = await get_connection()
+    await db.execute("DELETE FROM enterprises WHERE number = ?", (number,))
+    await db.commit()
+    await db.close()
+    return JSONResponse({"detail": "Enterprise deleted"})
+
+
+@router.post("/enterprises/{number}/send_message", response_class=JSONResponse)
+async def send_message(number: str, request: Request):
+    require_login(request)
+    data = await request.json()
+    message = data.get("message")
+    if not message:
+        return JSONResponse({"detail": "Message is required"}, status_code=400)
+
+    db = await get_connection()
+    db.row_factory = None
+    cur = await db.execute("SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
+    row = await cur.fetchone()
+    await db.close()
+
+    if not row:
+        return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
+
+    bot_token, chat_id = row
+    try:
+        await send_message_to_bot(bot_token, chat_id,
