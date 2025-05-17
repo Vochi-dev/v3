@@ -1,29 +1,23 @@
 import asyncio
 import logging
 
-from aiogram import Bot, Dispatcher
-from aiogram.types import ParseMode
+from aiogram import Bot, Dispatcher, types
+from aiogram.utils import executor
 from aiogram.dispatcher.filters import Command
-from aiogram.types import Message
-from aiogram.dispatcher.router import Router
 
 from app.services.database import get_enterprises_with_tokens
 
 logger = logging.getLogger(__name__)
 
-# Создаем роутер один раз
-onboarding_router = Router()
-
-@onboarding_router.message(Command("start"))
-async def start_handler(message: Message):
+async def start_handler(message: types.Message):
     await message.answer("Привет! Я ваш бот.")
 
 async def start_bot(enterprise_number: str, token: str):
-    bot = Bot(token=token, default=ParseMode.HTML)
-    dp = Dispatcher(bot)  # Обязательно привязываем к боту!
+    bot = Bot(token=token, parse_mode=types.ParseMode.HTML)
+    dp = Dispatcher(bot)
 
-    # Подключаем роутер к диспетчеру (делаем это единожды)
-    dp.include_router(onboarding_router)
+    # Регистрируем хендлеры (aiogram 2.x)
+    dp.register_message_handler(start_handler, commands=["start"])
 
     if enterprise_number == "0201":
         logger.setLevel(logging.DEBUG)
@@ -40,6 +34,9 @@ async def start_bot(enterprise_number: str, token: str):
         return
 
     try:
+        # Запуск polling (в синхронном виде через executor)
+        # Чтобы запустить несколько ботов параллельно, надо использовать create_task, 
+        # но в aiogram 2.x лучше делать это по-другому — для простоты оставим так:
         await dp.start_polling()
     except Exception as e:
         logger.exception(f"❌ Ошибка во время polling для бота {enterprise_number}: {e}")
@@ -50,7 +47,8 @@ async def start_enterprise_bots():
     for ent in enterprises:
         number = ent["number"]
         token = ent["bot_token"]
-        tasks.append(start_bot(number, token))
+        # Запускаем боты параллельно
+        tasks.append(asyncio.create_task(start_bot(number, token)))
     await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
