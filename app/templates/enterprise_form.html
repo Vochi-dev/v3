@@ -79,28 +79,28 @@
 
   <form method="post" action="{% if action == 'add' %}/admin/enterprises/new{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}">
     <label for="number">Номер</label>
-    <input id="number" type="text" name="number" required {% if action == 'edit' %}value="{{ enterprise.number }}" readonly{% else %}value="{{ enterprise.number or '' }}"{% endif %}>
+    <input id="number" placeholder="Уникальный номер" type="text" name="number" required {% if action == 'edit' %}value="{{ enterprise.number }}" readonly{% else %}value="{{ enterprise.number or '' }}"{% endif %}>
 
     <label for="name">Название</label>
-    <input id="name" type="text" name="name" required value="{{ enterprise.name or '' }}">
+    <input id="name" placeholder="Название предприятия" type="text" name="name" required value="{{ enterprise.name or '' }}">
 
     <label for="secret">Secret</label>
-    <input id="secret" type="text" name="secret" required value="{{ enterprise.secret or '' }}">
+    <input id="secret" placeholder="Секретный ключ" type="text" name="secret" required value="{{ enterprise.secret or '' }}">
 
     <label for="bot_token">Bot Token</label>
-    <input id="bot_token" type="text" name="bot_token" value="{{ enterprise.bot_token or '' }}">
+    <input id="bot_token" placeholder="Токен Telegram бота (необязательно)" type="text" name="bot_token" value="{{ enterprise.bot_token or '' }}">
 
     <label for="chat_id">Chat ID</label>
-    <input id="chat_id" type="text" name="chat_id" value="{{ enterprise.chat_id or '' }}">
+    <input id="chat_id" placeholder="ID чата Telegram бота (необязательно)" type="text" name="chat_id" value="{{ enterprise.chat_id or '' }}">
 
     <label for="ip">IP</label>
-    <input id="ip" type="text" name="ip" required value="{{ enterprise.ip or '' }}">
+    <input id="ip" placeholder="IP адрес предприятия" type="text" name="ip" required value="{{ enterprise.ip or '' }}">
 
     <label for="host">Host</label>
-    <input id="host" type="text" name="host" required value="{{ enterprise.host or '' }}">
+    <input id="host" placeholder="Хост предприятия" type="text" name="host" required value="{{ enterprise.host or '' }}">
 
     <label for="name2">Доп. имя (name2)</label>
-    <input id="name2" type="text" name="name2" value="{{ enterprise.name2 or '' }}">
+    <input id="name2" placeholder="Дополнительное имя предприятия" type="text" name="name2" value="{{ enterprise.name2 or '' }}">
 
     <button class="button" type="submit">{% if action == 'add' %}Добавить{% else %}Сохранить{% endif %}</button>
   </form>
