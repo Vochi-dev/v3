@@ -4,26 +4,70 @@
   <meta charset="UTF-8" />
   <title>{% if action == 'add' %}Добавить предприятие{% else %}Редактировать предприятие{% endif %}</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    label { display: block; margin-top: 1rem; font-weight: bold; }
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    form {
+      max-width: 600px;
+      background: white;
+      padding: 2rem;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: 600;
+    }
     input[type="text"], input[type="password"] {
-      width: 100%; padding: 0.5rem; margin-top: 0.3rem; border: 1px solid #ccc; border-radius: 4px;
-      font-size: 1rem; box-sizing: border-box;
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.3rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 1rem;
     }
-    input[readonly] { background-color: #eee; cursor: not-allowed; }
-    button {
-      margin-top: 2rem; padding: 0.75rem 1.5rem; font-size: 1.1rem; border: none; border-radius: 4px;
-      background-color: #007bff; color: white; cursor: pointer;
+    input[readonly] {
+      background-color: #eee;
+      cursor: not-allowed;
     }
-    button:hover { background-color: #0056b3; }
+    .button {
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 1.1rem;
+      cursor: pointer;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+    .button:hover {
+      background-color: #0056b3;
+    }
     .error {
-      color: #d9534f; margin-top: 1rem; font-weight: bold; background-color: #f8d7da;
-      padding: 0.5rem 1rem; border-radius: 4px; border: 1px solid #f5c6cb;
+      color: #d9534f;
+      margin-top: 1rem;
+      font-weight: bold;
+      background-color: #f8d7da;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      border: 1px solid #f5c6cb;
     }
     a.back-link {
-      display: inline-block; margin-top: 1.5rem; color: #007bff; text-decoration: none; font-weight: 600;
+      display: inline-block;
+      margin-top: 1.5rem;
+      text-decoration: none;
+      color: #007bff;
+      font-weight: 600;
     }
-    a.back-link:hover { text-decoration: underline; }
+    a.back-link:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -33,9 +77,9 @@
     <div class="error">{{ error }}</div>
   {% endif %}
 
-  <form method="post" action="{% if action == 'add' %}/admin/enterprises/new{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}">
+  <form method="post" action="{% if action == 'add' %}/admin/enterprises/add{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}">
     <label for="number">Номер</label>
-    <input id="number" type="text" name="number" required {% if action == 'edit' %}value="{{ enterprise.number }}" readonly{% endif %}>
+    <input id="number" type="text" name="number" required {% if action == 'edit' %}value="{{ enterprise.number }}" readonly{% else %}value="{{ enterprise.number or '' }}"{% endif %}>
 
     <label for="name">Название</label>
     <input id="name" type="text" name="name" required value="{{ enterprise.name or '' }}">
@@ -43,11 +87,11 @@
     <label for="secret">Secret</label>
     <input id="secret" type="text" name="secret" required value="{{ enterprise.secret or '' }}">
 
-    <label for="bot_token">Bot Token (необязательно)</label>
-    <input id="bot_token" type="text" name="bot_token" value="{{ enterprise.bot_token or '' }}">
+    <label for="bot_token">Bot Token</label>
+    <input id="bot_token" type="text" name="bot_token" value="{{ enterprise.bot_token or '' }}" placeholder="необязательно">
 
-    <label for="chat_id">Chat ID (необязательно)</label>
-    <input id="chat_id" type="text" name="chat_id" value="{{ enterprise.chat_id or '' }}">
+    <label for="chat_id">Chat ID</label>
+    <input id="chat_id" type="text" name="chat_id" value="{{ enterprise.chat_id or '' }}" placeholder="необязательно">
 
     <label for="ip">IP</label>
     <input id="ip" type="text" name="ip" required value="{{ enterprise.ip or '' }}">
@@ -58,7 +102,7 @@
     <label for="name2">Доп. имя (name2)</label>
     <input id="name2" type="text" name="name2" value="{{ enterprise.name2 or '' }}">
 
-    <button type="submit">{% if action == 'add' %}Добавить{% else %}Сохранить{% endif %}</button>
+    <button class="button" type="submit">{% if action == 'add' %}Добавить{% else %}Сохранить{% endif %}</button>
   </form>
 
   <a href="/admin/enterprises" class="back-link">← Назад к списку предприятий</a>
