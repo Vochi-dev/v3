@@ -14,7 +14,10 @@ from app.services.database import (
     delete_enterprise,
 )
 from app.services.enterprise import send_message_to_bot
-from app.services.bot_status import check_bot_status  # импорт для проверки статуса
+from app.services.bot_status import check_bot_status
+
+from telegram import Bot
+from telegram.error import TelegramError
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,7 +41,7 @@ async def root(request: Request):
 async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     enterprises_rows = await get_enterprises_with_tokens()
-    enterprises = [dict(ent) for ent in enterprises_rows]  # преобразование в dict
+    enterprises = [dict(ent) for ent in enterprises_rows]
 
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
 
@@ -151,23 +154,25 @@ async def toggle_enterprise(request: Request, number: str):
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
-    new_status = 0 if enterprise.get("active", 0) else 1
+    current_active = enterprise["active"] if "active" in enterprise else 0
+    new_status = 0 if current_active else 1
 
-    await update_enterprise(number, 
-                            enterprise.get("name", ""),
-                            enterprise.get("bot_token", ""),
-                            enterprise.get("chat_id", ""),
-                            enterprise.get("ip", ""),
-                            enterprise.get("secret", ""),
-                            enterprise.get("host", ""),
-                            enterprise.get("name2", ""),
-                            active=new_status)
+    # Вызов update_enterprise с параметром active
+    await update_enterprise(
+        number,
+        enterprise.get("name", ""),
+        enterprise.get("bot_token", ""),
+        enterprise.get("chat_id", ""),
+        enterprise.get("ip", ""),
+        enterprise.get("secret", ""),
+        enterprise.get("host", ""),
+        enterprise.get("name2", ""),
+        active=new_status
+    )
 
-    # Отправляем сообщение в Telegram
+    # Отправка уведомления в Telegram
     bot_token = enterprise.get("bot_token", "")
     chat_id = enterprise.get("chat_id", "")
-    from telegram import Bot
-    from telegram.error import TelegramError
     bot = Bot(token=bot_token)
     text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
     try:
