@@ -52,3 +52,10 @@ async def add_enterprise(number: str, name: str, bot_token: str, chat_id: str, i
         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
     """
     await execute(sql, (number, name, bot_token, chat_id, ip, secret, host, name2))
+
+async def delete_enterprise(number: str):
+    sql = """
+        DELETE FROM enterprises
+        WHERE number = ?
+    """
+    await execute(sql, (number,))
