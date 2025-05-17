@@ -41,6 +41,7 @@ async def root(request: Request):
 async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     enterprises_rows = await get_enterprises_with_tokens()
+    # Преобразуем sqlite3.Row в dict для удобства
     enterprises = [dict(ent) for ent in enterprises_rows]
 
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
@@ -154,7 +155,11 @@ async def toggle_enterprise(request: Request, number: str):
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
-    current_active = enterprise["active"] if "active" in enterprise else 0
+    # Приводим к dict, если ещё не dict
+    if not isinstance(enterprise, dict):
+        enterprise = dict(enterprise)
+
+    current_active = enterprise.get("active", 0)
     new_status = 0 if current_active else 1
 
     # Вызов update_enterprise с параметром active
