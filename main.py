@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
 from app.services.database import (
-    get_enterprises_with_tokens,
+    get_all_enterprises,  # Заменено здесь
     get_enterprise_by_number,
     add_enterprise,
     update_enterprise,
@@ -36,7 +36,7 @@ async def root(request: Request):
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
-    enterprises_rows = await get_enterprises_with_tokens()
+    enterprises_rows = await get_all_enterprises()  # Используем get_all_enterprises()
     enterprises = [dict(ent) for ent in enterprises_rows]
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
 
@@ -79,7 +79,7 @@ async def create_enterprise(
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    enterprises = await get_enterprises_with_tokens()
+    enterprises = await get_all_enterprises()  # Аналогично здесь
     for ent in enterprises:
         if ent['number'] == number:
             error = f"Предприятие с номером {number} уже существует"
@@ -87,8 +87,7 @@ async def create_enterprise(
         if ent['name'].strip().lower() == name.strip().lower():
             error = f"Предприятие с названием '{name}' уже существует"
             break
-        # ent['name2'] может быть None, поэтому защитимся
-        existing_name2 = ent['name2'] if ent['name2'] is not None else ""
+        existing_name2 = ent['name2'] if ent['name2'] else ""
         if existing_name2.strip().lower() == name2.strip().lower() and name2.strip() != "":
             error = f"Предприятие с дополнительным именем '{name2}' уже существует"
             break
@@ -146,13 +145,13 @@ async def update_enterprise_post(
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    enterprises = await get_enterprises_with_tokens()
+    enterprises = await get_all_enterprises()
     for ent in enterprises:
         if ent['number'] != number:
             if ent['name'].strip().lower() == name.strip().lower():
                 error = f"Предприятие с названием '{name}' уже существует"
                 break
-            existing_name2 = ent['name2'] if ent['name2'] is not None else ""
+            existing_name2 = ent['name2'] if ent['name2'] else ""
             if existing_name2.strip().lower() == name2.strip().lower() and name2.strip() != "":
                 error = f"Предприятие с дополнительным именем '{name2}' уже существует"
                 break
