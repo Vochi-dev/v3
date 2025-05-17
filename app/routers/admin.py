@@ -69,7 +69,6 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
-    # Сделать row_factory словарём для удобства работы
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
@@ -105,7 +104,7 @@ async def list_enterprises(request: Request):
     )
 
 
-# Здесь добавлен GET-обработчик по пути /admin/enterprises/add для формы добавления
+# Добавлен GET-обработчик для формы добавления предприятия по пути /admin/enterprises/add
 @router.get("/enterprises/add", response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
     require_login(request)
