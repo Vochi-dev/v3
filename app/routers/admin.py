@@ -272,4 +272,9 @@ async def send_message(number: str, request: Request):
 
     bot_token, chat_id = row
     try:
-        await send_message_to_bot(bot_token, chat_id,
+        await send_message_to_bot(bot_token, chat_id, message)
+    except Exception as e:
+        logger.error(f"Failed to send message to bot {number}: {e}")
+        return JSONResponse({"detail": "Failed to send message"}, status_code=500)
+
+    return JSONResponse({"detail": "Message sent"})
