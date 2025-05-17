@@ -1,3 +1,4 @@
+# main.py
 import logging
 import asyncio
 
@@ -43,7 +44,6 @@ async def root(request: Request):
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     enterprises = await get_enterprises_with_tokens()
-    # Сортируем предприятия по возрастанию номера (строковое или числовое? Предполагаем числовое)
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
     return templates.TemplateResponse(
         "enterprises.html",
@@ -135,10 +135,6 @@ async def admin_root():
     return RedirectResponse(url="/admin/enterprises")
 
 
-# Можно добавить другие страницы, если в проекте предусмотрены
-
-
-# Для теста или отладки
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8001, log_level="debug", reload=True)
