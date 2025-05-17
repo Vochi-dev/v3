@@ -14,10 +14,8 @@ from app.services.database import (
     delete_enterprise
 )
 from app.services.enterprise import send_message_to_bot
+from app.services.bot_status import check_bot_status  # добавил импорт проверки статуса
 from app.routers import admin, enterprise, user_requests, auth_email, email_users
-
-# Убрали импорт Telegram-бота
-# from app.telegram.bot import start_enterprise_bots, stop_enterprise_bots
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,23 +35,6 @@ app.include_router(user_requests.router, prefix="/requests")
 app.include_router(auth_email.router, prefix="/auth")
 app.include_router(email_users.router, prefix="/email_users")
 
-# Убрали запуск бота на старте и остановку
-# bot_task = None
-
-# @app.on_event("startup")
-# async def startup_event():
-#     global bot_task
-#     bot_task = asyncio.create_task(start_enterprise_bots())
-#     logger.info("Telegram bots started")
-
-# @app.on_event("shutdown")
-# async def shutdown_event():
-#     global bot_task
-#     if bot_task:
-#         bot_task.cancel()
-#     await stop_enterprise_bots()
-#     logger.info("Telegram bots stopped")
-
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
@@ -62,8 +43,19 @@ async def root(request: Request):
 
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
+    logger.info("list_enterprises called")
     enterprises = await get_enterprises_with_tokens()
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
+
+    # Проверка статуса ботов с логированием
+    for ent in enterprises_sorted:
+        try:
+            ent["bot_available"] = await check_bot_status(ent["bot_token"])
+            logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
+        except Exception as e:
+            logger.error(f"Error checking bot status for #{ent['number']}: {e}")
+            ent["bot_available"] = False
+
     return templates.TemplateResponse(
         "enterprises.html",
         {"request": request, "enterprises": enterprises_sorted}
