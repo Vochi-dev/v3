@@ -13,7 +13,7 @@ from telegram.error import TelegramError
 from app.config import ADMIN_PASSWORD
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
-from app.services.enterprise import send_message_to_bot  # добавлено
+from app.services.enterprise import send_message_to_bot
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -74,7 +74,7 @@ async def list_enterprises(request: Request):
           number, name, bot_token, active,
           chat_id, ip, secret, host, name2
         FROM enterprises
-        ORDER BY created_at DESC
+        ORDER BY CAST(number AS INTEGER) ASC
     """)
     rows = await cur.fetchall()
     await db.close()
@@ -92,11 +92,10 @@ async def list_enterprises(request: Request):
             "host": row[7],
             "name2": row[8],
         }
-        bot_token = ent["bot_token"]
         try:
-            ent["bot_available"] = await check_bot_status(bot_token)
+            ent["bot_available"] = await check_bot_status(ent["bot_token"])
         except Exception as e:
-            logger.warning("Failed to check bot status: %s", e)
+            logger.warning(f"Failed to check bot status for {ent['number']}: {e}")
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
@@ -113,7 +112,6 @@ async def toggle_enterprise(request: Request, number: str):
     db.row_factory = None
     cur = await db.execute("SELECT active, bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
     row = await cur.fetchone()
-
     if not row:
         await db.close()
         raise HTTPException(status_code=404, detail="Enterprise not found")
@@ -129,128 +127,12 @@ async def toggle_enterprise(request: Request, number: str):
     text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
     try:
         await bot.send_message(chat_id=int(chat_id), text=text)
-        logger.info("Sent toggle message to bot %s: %s", number, text)
+        logger.info(f"Sent toggle message to bot {number}: {text}")
     except TelegramError as e:
-        logger.error("Toggle bot notification failed: %s", e)
+        logger.error(f"Toggle bot notification failed for {number}: {e}")
 
     await db.close()
     return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.get("/enterprises/add", response_class=HTMLResponse)
-async def add_enterprise_form(request: Request):
-    require_login(request)
-    return templates.TemplateResponse(
-        "enterprise_form.html",
-        {"request": request, "action": "add", "enterprise": {}}
-    )
-
-
-@router.post("/enterprises/add", response_class=RedirectResponse)
-async def add_enterprise(
-    request: Request,
-    number: str = Form(...),
-    name: str = Form(...),
-    bot_token: str = Form(...),
-    chat_id: str = Form(...),
-    ip: str = Form(...),
-    secret: str = Form(...),
-    host: str = Form(...),
-    name2: str = Form("")
-):
-    require_login(request)
-    created_at = datetime.utcnow().isoformat()
-    db = await get_connection()
-    try:
-        await db.execute(
-            """
-            INSERT INTO enterprises(
-              number, name, bot_token, chat_id,
-              ip, secret, host, created_at, name2
-            ) VALUES (?,?,?,?,?,?,?,?,?)
-            """,
-            (number, name, bot_token, chat_id, ip, secret, host, created_at, name2)
-        )
-        await db.commit()
-    finally:
-        await db.close()
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.get("/enterprises/{number}/edit", response_class=HTMLResponse)
-async def edit_enterprise_form(request: Request, number: str):
-    require_login(request)
-    db = await get_connection()
-    db.row_factory = None
-    cur = await db.execute(
-        """
-        SELECT number, name, bot_token, active,
-               chat_id, ip, secret, host, name2
-          FROM enterprises
-         WHERE number = ?
-        """,
-        (number,)
-    )
-    ent = await cur.fetchone()
-    await db.close()
-    if not ent:
-        raise HTTPException(status_code=404, detail="Enterprise not found")
-    ent_dict = {
-        "number": ent[0],
-        "name": ent[1],
-        "bot_token": ent[2],
-        "active": ent[3],
-        "chat_id": ent[4],
-        "ip": ent[5],
-        "secret": ent[6],
-        "host": ent[7],
-        "name2": ent[8],
-    }
-    return templates.TemplateResponse(
-        "enterprise_form.html",
-        {"request": request, "action": "edit", "enterprise": ent_dict}
-    )
-
-
-@router.post("/enterprises/{number}/edit", response_class=RedirectResponse)
-async def edit_enterprise(
-    request: Request,
-    number: str,
-    name: str = Form(...),
-    bot_token: str = Form(...),
-    active: int = Form(...),
-    chat_id: str = Form(...),
-    ip: str = Form(...),
-    secret: str = Form(...),
-    host: str = Form(...),
-    name2: str = Form("")
-):
-    require_login(request)
-    db = await get_connection()
-    try:
-        await db.execute(
-            """
-            UPDATE enterprises
-               SET name=?, bot_token=?, active=?,
-                   chat_id=?, ip=?, secret=?, host=?, name2=?
-             WHERE number=?
-            """,
-            (name, bot_token, active, chat_id, ip, secret, host, name2, number)
-        )
-        await db.commit()
-    finally:
-        await db.close()
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.delete("/enterprises/{number}", response_class=JSONResponse)
-async def delete_enterprise(number: str, request: Request):
-    require_login(request)
-    db = await get_connection()
-    await db.execute("DELETE FROM enterprises WHERE number = ?", (number,))
-    await db.commit()
-    await db.close()
-    return JSONResponse({"detail": "Enterprise deleted"})
 
 
 @router.post("/enterprises/{number}/send_message", response_class=JSONResponse)
@@ -278,3 +160,13 @@ async def send_message(number: str, request: Request):
         return JSONResponse({"detail": "Failed to send message"}, status_code=500)
 
     return JSONResponse({"detail": "Message sent"})
+
+
+@router.delete("/enterprises/{number}", response_class=JSONResponse)
+async def delete_enterprise(number: str, request: Request):
+    require_login(request)
+    db = await get_connection()
+    await db.execute("DELETE FROM enterprises WHERE number = ?", (number,))
+    await db.commit()
+    await db.close()
+    return JSONResponse({"detail": "Enterprise deleted"})
