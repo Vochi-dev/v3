@@ -24,7 +24,7 @@ async def fetchone(sql, params=()):
 
 async def get_enterprises_with_tokens():
     sql = """
-        SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2
+        SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2, active
         FROM enterprises
         WHERE bot_token IS NOT NULL AND bot_token != ''
         ORDER BY CAST(number AS INTEGER) ASC
@@ -33,20 +33,30 @@ async def get_enterprises_with_tokens():
 
 async def get_enterprise_by_number(number: str):
     sql = """
-        SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2
+        SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2, active
         FROM enterprises
         WHERE number = ?
         LIMIT 1
     """
     return await fetchone(sql, (number,))
 
-async def update_enterprise(number: str, name: str, bot_token: str, chat_id: str, ip: str, secret: str, host: str, name2: str = ''):
-    sql = """
-        UPDATE enterprises
-        SET name = ?, bot_token = ?, chat_id = ?, ip = ?, secret = ?, host = ?, name2 = ?
-        WHERE number = ?
-    """
-    await execute(sql, (name, bot_token, chat_id, ip, secret, host, name2, number))
+async def update_enterprise(number: str, name: str, bot_token: str, chat_id: str, ip: str, secret: str, host: str, name2: str = '', active: int = None):
+    if active is None:
+        # Обновляем без изменения active
+        sql = """
+            UPDATE enterprises
+            SET name = ?, bot_token = ?, chat_id = ?, ip = ?, secret = ?, host = ?, name2 = ?
+            WHERE number = ?
+        """
+        await execute(sql, (name, bot_token, chat_id, ip, secret, host, name2, number))
+    else:
+        # Обновляем с active
+        sql = """
+            UPDATE enterprises
+            SET name = ?, bot_token = ?, chat_id = ?, ip = ?, secret = ?, host = ?, name2 = ?, active = ?
+            WHERE number = ?
+        """
+        await execute(sql, (name, bot_token, chat_id, ip, secret, host, name2, active, number))
 
 async def add_enterprise(number: str, name: str, bot_token: str, chat_id: str, ip: str, secret: str, host: str, name2: str = ''):
     sql = """
