@@ -14,7 +14,7 @@ from app.services.database import (
     delete_enterprise
 )
 from app.services.enterprise import send_message_to_bot
-from app.services.bot_status import check_bot_status  # добавил импорт проверки статуса
+from app.services.bot_status import check_bot_status  # импорт для проверки статуса
 from app.routers import admin, enterprise, user_requests, auth_email, email_users
 
 logging.basicConfig(
@@ -44,10 +44,11 @@ async def root(request: Request):
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
-    enterprises = await get_enterprises_with_tokens()
+    enterprises_rows = await get_enterprises_with_tokens()
+    enterprises = [dict(ent) for ent in enterprises_rows]  # преобразование в dict
+
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
 
-    # Проверка статуса ботов с логированием
     for ent in enterprises_sorted:
         try:
             ent["bot_available"] = await check_bot_status(ent["bot_token"])
