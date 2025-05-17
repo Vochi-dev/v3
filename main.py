@@ -59,7 +59,6 @@ async def list_enterprises(request: Request):
     )
 
 
-# Вот правильный GET-обработчик формы добавления предприятия (новый путь /admin/enterprises/new)
 @app.get("/admin/enterprises/new", response_class=HTMLResponse)
 async def new_enterprise_form(request: Request):
     return templates.TemplateResponse(
@@ -68,7 +67,6 @@ async def new_enterprise_form(request: Request):
     )
 
 
-# POST-обработчик на тот же путь для добавления
 @app.post("/admin/enterprises/new")
 async def create_enterprise(
     request: Request,
