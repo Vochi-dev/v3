@@ -92,16 +92,15 @@ async def list_enterprises(request: Request):
             "host": row[7],
             "name2": row[8],
         }
-        bot_token = ent["bot_token"]
         try:
-            ent["bot_available"] = await check_bot_status(bot_token)
-            logger.debug(f"Bot status for #{ent['number']} (token {bot_token}): {ent['bot_available']}")
+            ent["bot_available"] = await check_bot_status(ent["bot_token"])
+            logger.debug(f"Bot status for #{ent['number']}: {ent['bot_available']}")
         except Exception as e:
-            logger.error(f"Error checking bot status for #{ent['number']} (token {bot_token}): {e}")
+            logger.error(f"Error checking bot status for #{ent['number']}: {e}")
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
-    # Заглушки для кнопок управления сервисом и ботами (нужно интегрировать логику реального статуса)
+    # Заглушки для кнопок управления сервисом и ботами (в дальнейшем нужно интегрировать реальный статус)
     service_running = True
     bots_running = True
 
