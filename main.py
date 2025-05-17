@@ -20,7 +20,7 @@ from app.routers import admin, enterprise, user_requests, auth_email, email_user
 # from app.telegram.bot import start_enterprise_bots, stop_enterprise_bots
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
@@ -163,4 +163,4 @@ async def admin_root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, log_level="debug", reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, log_level="info", reload=True)
