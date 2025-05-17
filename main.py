@@ -257,16 +257,16 @@ async def toggle_enterprise(request: Request, number: str):
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
+# --- Новые эндпоинты для управления сервисами ---
+
 @app.post("/service/restart_main")
 async def restart_main_service():
     """
     Перезапускает только основной сервис main.py
     """
     try:
-        # убиваем процесс main.py
         subprocess.run(["pkill", "-f", "uvicorn main:app"], check=False)
-        await asyncio.sleep(1)  # немного подождать
-        # запускаем заново main.py с нужными параметрами
+        await asyncio.sleep(1)
         subprocess.Popen(["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--log-level", "debug", "--reload"])
         return {"detail": "Основной сервис перезапущен"}
     except Exception as e:
@@ -280,10 +280,8 @@ async def restart_all_services():
     Полная перезагрузка всех python процессов (main и ботов)
     """
     try:
-        # убиваем все python процессы
         subprocess.run(["pkill", "-f", "python"], check=False)
-        await asyncio.sleep(2)  # чуть больше подождать, чтобы процессы остановились
-        # запускаем скрипт start_all.sh
+        await asyncio.sleep(2)
         subprocess.Popen(["./start_all.sh"])
         return {"detail": "Все сервисы перезапущены"}
     except Exception as e:
@@ -297,10 +295,8 @@ async def restart_bots_service():
     Перезапускает только ботов
     """
     try:
-        # убиваем процессы ботов (например, по имени bot.py)
         subprocess.run(["pkill", "-f", "bot.py"], check=False)
-        await asyncio.sleep(1)  # подождать
-        # запускаем боты заново
+        await asyncio.sleep(1)
         subprocess.Popen(["./start_bots.sh"])
         return {"detail": "Сервисы ботов перезапущены"}
     except Exception as e:
@@ -319,6 +315,30 @@ async def stop_bots_service():
     except Exception as e:
         logger.error(f"Ошибка при остановке ботов: {e}")
         raise HTTPException(status_code=500, detail="Не удалось остановить сервисы ботов")
+
+
+@app.post("/service/toggle_bots")
+async def toggle_bots_service():
+    """
+    Включить или выключить сервис ботов в зависимости от текущего состояния
+    """
+    try:
+        # Проверяем, работают ли боты
+        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
+        running = bool(result.stdout.strip())
+        if running:
+            # Останавливаем
+            subprocess.run(["pkill", "-f", "bot.py"], check=False)
+            await asyncio.sleep(1)
+            detail = "Сервисы ботов остановлены"
+        else:
+            # Запускаем
+            subprocess.Popen(["./start_bots.sh"])
+            detail = "Сервисы ботов запущены"
+        return {"detail": detail, "running": not running}
+    except Exception as e:
+        logger.error(f"Ошибка при переключении ботов: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось переключить сервисы ботов")
 
 
 @app.get("/service/bots_status")
