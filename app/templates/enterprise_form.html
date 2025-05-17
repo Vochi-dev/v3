@@ -2,43 +2,73 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>{% if is_new %}Добавить предприятие{% else %}Редактировать предприятие{% endif %}</title>
+  <title>{% if action == 'add' %}Добавить предприятие{% else %}Редактировать предприятие{% endif %}</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    label { display: block; margin-top: 0.5rem; }
+    body { font-family: sans-serif; padding: 2rem; max-width: 600px; margin: auto; }
+    label { display: block; margin-top: 1rem; font-weight: bold; }
     input[type="text"], input[type="password"] {
       width: 100%;
-      padding: 0.4rem;
+      padding: 0.3rem;
+      font-size: 1rem;
       margin-top: 0.2rem;
       box-sizing: border-box;
     }
-    button {
+    .error {
+      background-color: #f8d7da;
+      color: #842029;
+      border: 1px solid #f5c2c7;
+      padding: 0.6rem;
       margin-top: 1rem;
+      border-radius: 4px;
+    }
+    .buttons {
+      margin-top: 1.5rem;
+    }
+    button {
       padding: 0.5rem 1rem;
       font-size: 1rem;
+      margin-right: 1rem;
+      cursor: pointer;
     }
-    .error {
-      color: red;
-      margin-top: 1rem;
-      font-weight: bold;
+    .btn-primary {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
     }
-    a { margin-left: 1rem; }
+    .btn-secondary {
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
-  <h1>{% if is_new %}Добавить предприятие{% else %}Редактировать предприятие{% endif %}</h1>
+  <h1>{% if action == 'add' %}Добавить предприятие{% else %}Редактировать предприятие{% endif %}</h1>
 
   {% if error %}
-    <div class="error">{{ error }}</div>
+  <div class="error">{{ error }}</div>
   {% endif %}
 
-  <form method="post" action="{% if is_new %}/admin/enterprises/new{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}">
-    
-    <label for="number">Номер *</label>
-    <input type="text" id="number" name="number" value="{{ enterprise.number or '' }}" {% if not is_new %}readonly{% endif %} required />
+  <form method="post" action="{% if action == 'add' %}/admin/enterprises/add{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}">
+    <label for="number">Номер предприятия *</label>
+    <input type="text" id="number" name="number" required
+      {% if action == 'edit' %}
+        value="{{ enterprise.number }}" readonly
+      {% else %}
+        value="{{ enterprise.number or '' }}"
+      {% endif %}
+    />
 
-    <label for="name">Название *</label>
-    <input type="text" id="name" name="name" value="{{ enterprise.name or '' }}" required />
+    <label for="name">Название предприятия *</label>
+    <input type="text" id="name" name="name" required value="{{ enterprise.name or '' }}" />
+
+    <label for="secret">Secret *</label>
+    <input type="password" id="secret" name="secret" required value="{{ enterprise.secret or '' }}" />
 
     <label for="bot_token">Bot Token</label>
     <input type="text" id="bot_token" name="bot_token" value="{{ enterprise.bot_token or '' }}" />
@@ -47,27 +77,18 @@
     <input type="text" id="chat_id" name="chat_id" value="{{ enterprise.chat_id or '' }}" />
 
     <label for="ip">IP *</label>
-    <input type="text" id="ip" name="ip" value="{{ enterprise.ip or '' }}" required />
-
-    <label for="secret">Secret *</label>
-    <input type="password" id="secret" name="secret" value="{{ enterprise.secret or '' }}" required />
+    <input type="text" id="ip" name="ip" required value="{{ enterprise.ip or '' }}" />
 
     <label for="host">Host *</label>
-    <input type="text" id="host" name="host" value="{{ enterprise.host or '' }}" required />
+    <input type="text" id="host" name="host" required value="{{ enterprise.host or '' }}" />
 
     <label for="name2">Доп. имя</label>
     <input type="text" id="name2" name="name2" value="{{ enterprise.name2 or '' }}" />
 
-    {% if not is_new %}
-      <label for="active">Активность</label>
-      <select id="active" name="active">
-        <option value="1" {% if enterprise.active == 1 %}selected{% endif %}>Активен</option>
-        <option value="0" {% if enterprise.active == 0 %}selected{% endif %}>Неактивен</option>
-      </select>
-    {% endif %}
-
-    <button type="submit">{% if is_new %}Добавить{% else %}Сохранить{% endif %}</button>
-    <a href="/admin/enterprises">Отмена</a>
+    <div class="buttons">
+      <button type="submit" class="btn-primary">{% if action == 'add' %}Добавить{% else %}Сохранить{% endif %}</button>
+      <a href="/admin/enterprises" class="btn-secondary">Отмена</a>
+    </div>
   </form>
 </body>
 </html>
