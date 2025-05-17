@@ -38,7 +38,9 @@ async def root():
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
-    enterprises_rows = await get_enterprises_with_tokens()
+    # Здесь нужно получить все предприятия, без фильтрации по bot_token
+    # Для этого в database.py сделать отдельную функцию (ниже будет)
+    enterprises_rows = await get_all_enterprises()
     enterprises = [dict(ent) for ent in enterprises_rows]
 
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
@@ -77,8 +79,9 @@ async def add_enterprise_post(
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    # Проверка дубликатов
-    enterprises = await get_enterprises_with_tokens()
+    # Проверка дубликатов среди всех предприятий (получаем всех, а не только с bot_token)
+    enterprises = await get_all_enterprises()
+    error = None
     for ent in enterprises:
         if ent['number'] == number:
             error = "Предприятие с таким номером уже существует"
@@ -92,11 +95,8 @@ async def add_enterprise_post(
         if ent['ip'] == ip:
             error = "Предприятие с таким IP уже существует"
             break
-    else:
-        error = None
 
     if error:
-        # Возврат формы с ошибкой и заполненными данными
         return templates.TemplateResponse(
             "enterprise_form.html",
             {
