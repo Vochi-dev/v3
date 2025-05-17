@@ -77,7 +77,7 @@
     <div class="error">{{ error }}</div>
   {% endif %}
 
-  <form method="post" action="{% if action == 'add' %}/admin/enterprises/add{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}">
+  <form method="post" action="{% if action == 'add' %}/admin/enterprises/new{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}">
     <label for="number">Номер</label>
     <input id="number" type="text" name="number" required {% if action == 'edit' %}value="{{ enterprise.number }}" readonly{% else %}value="{{ enterprise.number or '' }}"{% endif %}>
 
@@ -88,10 +88,10 @@
     <input id="secret" type="text" name="secret" required value="{{ enterprise.secret or '' }}">
 
     <label for="bot_token">Bot Token</label>
-    <input id="bot_token" type="text" name="bot_token" value="{{ enterprise.bot_token or '' }}" placeholder="необязательно">
+    <input id="bot_token" type="text" name="bot_token" value="{{ enterprise.bot_token or '' }}">
 
     <label for="chat_id">Chat ID</label>
-    <input id="chat_id" type="text" name="chat_id" value="{{ enterprise.chat_id or '' }}" placeholder="необязательно">
+    <input id="chat_id" type="text" name="chat_id" value="{{ enterprise.chat_id or '' }}">
 
     <label for="ip">IP</label>
     <input id="ip" type="text" name="ip" required value="{{ enterprise.ip or '' }}">

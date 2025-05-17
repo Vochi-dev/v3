@@ -1,16 +1,14 @@
 import logging
-from datetime import datetime
-
-from fastapi import FastAPI, Request, Form, status, HTTPException
+from fastapi import FastAPI, Request, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
 from app.services.database import (
-    get_all_enterprises,
+    get_enterprises_with_tokens,
     get_enterprise_by_number,
-    update_enterprise,
     add_enterprise,
+    update_enterprise,
     delete_enterprise,
 )
 from app.services.enterprise import send_message_to_bot
@@ -30,22 +28,22 @@ templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
-@app.get("/", response_class=RedirectResponse)
-async def root():
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
     return RedirectResponse(url="/admin/enterprises")
 
 
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
-    enterprises_rows = await get_all_enterprises()
+    enterprises_rows = await get_enterprises_with_tokens()
     enterprises = [dict(ent) for ent in enterprises_rows]
 
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
 
     for ent in enterprises_sorted:
         try:
-            ent["bot_available"] = await check_bot_status(ent.get("bot_token") or "")
+            ent["bot_available"] = await check_bot_status(ent.get("bot_token", ""))
             logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
         except Exception as e:
             logger.error(f"Error checking bot status for #{ent['number']}: {e}")
@@ -57,16 +55,16 @@ async def list_enterprises(request: Request):
     )
 
 
-@app.get("/admin/enterprises/add", response_class=HTMLResponse)
-async def add_enterprise_form(request: Request):
+@app.get("/admin/enterprises/new", response_class=HTMLResponse)
+async def new_enterprise_form(request: Request):
     return templates.TemplateResponse(
         "enterprise_form.html",
-        {"request": request, "action": "add", "enterprise": {}, "error": None}
+        {"request": request, "enterprise": {}, "action": "add", "error": None}
     )
 
 
-@app.post("/admin/enterprises/add", response_class=HTMLResponse)
-async def add_enterprise_post(
+@app.post("/admin/enterprises/new", response_class=HTMLResponse)
+async def create_enterprise(
     request: Request,
     number: str = Form(...),
     name: str = Form(...),
@@ -77,28 +75,29 @@ async def add_enterprise_post(
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    enterprises = await get_all_enterprises()
-    error = None
+    # Проверка дублирования по number, name, name2, ip
+    enterprises = await get_enterprises_with_tokens()
     for ent in enterprises:
         if ent['number'] == number:
-            error = "Предприятие с таким номером уже существует"
+            error = f"Предприятие с номером {number} уже существует"
             break
-        if ent['name'] == name:
-            error = "Предприятие с таким именем уже существует"
+        if ent['name'].strip().lower() == name.strip().lower():
+            error = f"Предприятие с названием '{name}' уже существует"
             break
-        if ent.get('name2', '') == name2 and name2 != '':
-            error = "Предприятие с таким дополнительным именем уже существует"
+        if ent.get('name2', '').strip().lower() == name2.strip().lower() and name2.strip() != "":
+            error = f"Предприятие с дополнительным именем '{name2}' уже существует"
             break
         if ent['ip'] == ip:
-            error = "Предприятие с таким IP уже существует"
+            error = f"Предприятие с IP {ip} уже существует"
             break
+    else:
+        error = None
 
     if error:
         return templates.TemplateResponse(
             "enterprise_form.html",
             {
                 "request": request,
-                "action": "add",
                 "enterprise": {
                     "number": number,
                     "name": name,
@@ -109,9 +108,10 @@ async def add_enterprise_post(
                     "host": host,
                     "name2": name2,
                 },
-                "error": error
+                "action": "add",
+                "error": error,
             },
-            status_code=status.HTTP_400_BAD_REQUEST
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
 
     await add_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
@@ -125,11 +125,11 @@ async def edit_enterprise_form(request: Request, number: str):
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
     return templates.TemplateResponse(
         "enterprise_form.html",
-        {"request": request, "enterprise": dict(enterprise), "action": "edit", "error": None}
+        {"request": request, "enterprise": enterprise, "action": "edit", "error": None}
     )
 
 
-@app.post("/admin/enterprises/{number}/edit", response_class=RedirectResponse)
+@app.post("/admin/enterprises/{number}/edit", response_class=HTMLResponse)
 async def update_enterprise_post(
     request: Request,
     number: str,
@@ -141,6 +141,44 @@ async def update_enterprise_post(
     host: str = Form(...),
     name2: str = Form(""),
 ):
+    # Аналогичная проверка дубликатов при редактировании (исключая саму запись)
+    enterprises = await get_enterprises_with_tokens()
+    for ent in enterprises:
+        if ent['number'] != number:
+            if ent['name'].strip().lower() == name.strip().lower():
+                error = f"Предприятие с названием '{name}' уже существует"
+                break
+            if ent.get('name2', '').strip().lower() == name2.strip().lower() and name2.strip() != "":
+                error = f"Предприятие с дополнительным именем '{name2}' уже существует"
+                break
+            if ent['ip'] == ip:
+                error = f"Предприятие с IP {ip} уже существует"
+                break
+    else:
+        error = None
+
+    if error:
+        enterprise = {
+            "number": number,
+            "name": name,
+            "secret": secret,
+            "bot_token": bot_token,
+            "chat_id": chat_id,
+            "ip": ip,
+            "host": host,
+            "name2": name2,
+        }
+        return templates.TemplateResponse(
+            "enterprise_form.html",
+            {
+                "request": request,
+                "enterprise": enterprise,
+                "action": "edit",
+                "error": error,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
     await update_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -148,7 +186,7 @@ async def update_enterprise_post(
 @app.delete("/admin/enterprises/{number}")
 async def delete_enterprise_api(number: str):
     await delete_enterprise(number)
-    return JSONResponse({"detail": "Предприятие удалено"})
+    return {"detail": "Предприятие удалено"}
 
 
 @app.post("/admin/enterprises/{number}/send_message")
@@ -160,13 +198,13 @@ async def send_message_api(number: str, request: Request):
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
-    bot_token = enterprise['bot_token']
-    chat_id = enterprise['chat_id']
+    bot_token = enterprise.get('bot_token', "")
+    chat_id = enterprise.get('chat_id', "")
 
     success = await send_message_to_bot(bot_token, chat_id, message)
     if not success:
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
-    return JSONResponse({"detail": "Сообщение отправлено"})
+    return {"detail": "Сообщение отправлено"}
 
 
 @app.post("/admin/enterprises/{number}/toggle")
@@ -209,8 +247,3 @@ async def toggle_enterprise(request: Request, number: str):
 @app.get("/admin")
 async def admin_root():
     return RedirectResponse(url="/admin/enterprises")
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, log_level="info", reload=True)
