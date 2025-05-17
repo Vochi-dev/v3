@@ -30,6 +30,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
+    # Redirect root to enterprises list
     return RedirectResponse(url="/admin/enterprises")
 
 
@@ -39,6 +40,7 @@ async def list_enterprises(request: Request):
     enterprises_rows = await get_enterprises_with_tokens()
     enterprises = [dict(ent) for ent in enterprises_rows]
 
+    # Sort by number numerically
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
 
     for ent in enterprises_sorted:
@@ -58,6 +60,7 @@ async def list_enterprises(request: Request):
 
 @app.get("/admin/enterprises/new", response_class=HTMLResponse)
 async def new_enterprise_form(request: Request):
+    # Render empty form for adding enterprise
     return templates.TemplateResponse(
         "enterprise_form.html",
         {"request": request, "enterprise": {}, "action": "add", "error": None}
@@ -76,7 +79,7 @@ async def create_enterprise(
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    # Проверка дубликатов по ключевым полям
+    # Check for duplicates by number, name, name2, ip
     enterprises = await get_enterprises_with_tokens()
     for ent in enterprises:
         if ent['number'] == number:
@@ -142,7 +145,7 @@ async def update_enterprise_post(
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    # Проверка дубликатов при редактировании (исключая саму запись)
+    # Check duplicates excluding current enterprise
     enterprises = await get_enterprises_with_tokens()
     for ent in enterprises:
         if ent['number'] != number:
