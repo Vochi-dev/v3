@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
 from app.services.database import (
-    get_enterprises_with_tokens,
+    get_all_enterprises,
     get_enterprise_by_number,
     update_enterprise,
     add_enterprise,
@@ -38,8 +38,6 @@ async def root():
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
-    # Здесь нужно получить все предприятия, без фильтрации по bot_token
-    # Для этого в database.py сделать отдельную функцию (ниже будет)
     enterprises_rows = await get_all_enterprises()
     enterprises = [dict(ent) for ent in enterprises_rows]
 
@@ -79,7 +77,6 @@ async def add_enterprise_post(
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    # Проверка дубликатов среди всех предприятий (получаем всех, а не только с bot_token)
     enterprises = await get_all_enterprises()
     error = None
     for ent in enterprises:
