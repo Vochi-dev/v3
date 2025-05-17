@@ -16,6 +16,9 @@ from app.services.database import (
 from app.services.enterprise import send_message_to_bot
 from app.routers import admin, enterprise, user_requests, auth_email, email_users
 
+# Импорт функции запуска ботов из app.telegram.bot
+from app.telegram.bot import start_enterprise_bots, stop_enterprise_bots
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -34,6 +37,24 @@ app.include_router(user_requests.router, prefix="/requests")
 app.include_router(auth_email.router, prefix="/auth")
 app.include_router(email_users.router, prefix="/email_users")
 
+bot_task = None  # переменная для хранения задачи запуска ботов
+
+
+@app.on_event("startup")
+async def startup_event():
+    global bot_task
+    bot_task = asyncio.create_task(start_enterprise_bots())
+    logger.info("Telegram bots started")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global bot_task
+    if bot_task:
+        bot_task.cancel()
+    await stop_enterprise_bots()
+    logger.info("Telegram bots stopped")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
@@ -43,7 +64,6 @@ async def root(request: Request):
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     enterprises = await get_enterprises_with_tokens()
-    # Сортируем предприятия по возрастанию номера (предполагаем числовое)
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
     return templates.TemplateResponse(
         "enterprises.html",
@@ -107,7 +127,7 @@ async def update_enterprise_post(
     chat_id: str = Form(...),
     ip: str = Form(...),
     host: str = Form(...),
-    name2: str = Form(""),  # добавлен параметр name2
+    name2: str = Form(""),
 ):
     await update_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
@@ -125,7 +145,6 @@ async def send_message_api(number: str, request: Request):
     message = data.get("message")
     if not message:
         raise HTTPException(status_code=400, detail="Сообщение не может быть пустым")
-    # Получаем данные предприятия
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
