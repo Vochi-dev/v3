@@ -8,7 +8,7 @@
     .button {
       display: inline-block;
       padding: 0.3rem 0.6rem;
-      margin: 0 0.3rem;
+      margin: 0 0.3rem 1rem 0;
       background: #007bff;
       color: #fff;
       text-decoration: none;
@@ -35,10 +35,22 @@
     .action-icon:hover {
       color: #0056b3;
     }
+    /* Дополнительные стили для шапки кнопок */
+    #service-buttons {
+      margin-bottom: 1rem;
+    }
   </style>
 </head>
 <body>
   <h1>Список предприятий</h1>
+
+  <!-- Добавленные кнопки управления сервисами -->
+  <div id="service-buttons">
+    <button class="button" onclick="serviceAction('/service/restart_main', 'Основной сервис перезапущен')">🔄 Перезапустить сервис</button>
+    <button class="button" onclick="serviceAction('/service/restart_all', 'Все сервисы перезапущены')">🔁 Полная перезагрузка</button>
+    <button class="button" onclick="serviceAction('/service/restart_bots', 'Сервисы ботов перезапущены')">🤖 Перезапустить ботов</button>
+    <button class="button" onclick="toggleBots()">⚙️ Включить/Выключить ботов</button>
+  </div>
 
   <div>
     <a href="/admin/enterprises/new" class="button">Добавить предприятие</a>
@@ -144,6 +156,39 @@
           }
         })
         .catch(() => alert('Ошибка соединения при отправке сообщения'));
+      }
+    }
+
+    async function serviceAction(url, successMsg) {
+      try {
+        const response = await fetch(url, { method: 'POST' });
+        const data = await response.json();
+        if (response.ok) {
+          alert(successMsg);
+          location.reload();
+        } else {
+          alert("Ошибка: " + (data.detail || "Неизвестная ошибка"));
+        }
+      } catch (e) {
+        alert("Ошибка при выполнении запроса: " + e.message);
+      }
+    }
+
+    async function toggleBots() {
+      try {
+        let response = await fetch('/service/bots_status');
+        let data = await response.json();
+        if (!response.ok) {
+          alert("Не удалось получить статус ботов");
+          return;
+        }
+        if (data.running) {
+          await serviceAction('/service/stop_bots', 'Сервисы ботов остановлены');
+        } else {
+          await serviceAction('/service/restart_bots', 'Сервисы ботов запущены');
+        }
+      } catch (e) {
+        alert("Ошибка при переключении ботов: " + e.message);
       }
     }
   </script>
