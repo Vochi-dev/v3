@@ -69,7 +69,7 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
-    # Сделать row_factory словарём для удобства работы
+    # Здесь главное: сделать row_factory словарём, чтобы можно было дописывать в ent
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
@@ -82,7 +82,8 @@ async def list_enterprises(request: Request):
     await db.close()
 
     enterprises_with_status = []
-    for ent in rows:
+    for row in rows:
+        ent = dict(row)
         try:
             ent["bot_available"] = await check_bot_status(ent["bot_token"])
             logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
@@ -109,28 +110,28 @@ async def list_enterprises(request: Request):
 async def toggle_enterprise(request: Request, number: str):
     require_login(request)
     db = await get_connection()
-    db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
+    db.row_factory = None
     cur = await db.execute("SELECT active, bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
-    enterprise = await cur.fetchone()
+    row = await cur.fetchone()
 
-    if not enterprise:
+    if not row:
         await db.close()
         raise HTTPException(status_code=404, detail="Enterprise not found")
 
-    new_status = 0 if enterprise["active"] else 1
+    new_status = 0 if row[0] else 1
     await db.execute("UPDATE enterprises SET active = ? WHERE number = ?", (new_status, number))
     await db.commit()
 
-    bot_token = enterprise["bot_token"]
-    chat_id = enterprise["chat_id"]
+    bot_token = row[1]
+    chat_id = row[2]
 
     bot = Bot(token=bot_token)
     text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
     try:
         await bot.send_message(chat_id=int(chat_id), text=text)
-        logger.info(f"Sent toggle message to bot {number}: {text}")
+        logger.info("Sent toggle message to bot %s: %s", number, text)
     except TelegramError as e:
-        logger.error(f"Toggle bot notification failed: {e}")
+        logger.error("Toggle bot notification failed: %s", e)
 
     await db.close()
     return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
