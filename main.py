@@ -11,11 +11,10 @@ from app.services.database import (
     get_enterprise_by_number,
     update_enterprise,
     add_enterprise,
-    delete_enterprise
+    delete_enterprise,
 )
 from app.services.enterprise import send_message_to_bot
 from app.services.bot_status import check_bot_status  # импорт для проверки статуса
-from app.routers import admin, enterprise, user_requests, auth_email, email_users
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,12 +27,6 @@ app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-app.include_router(admin.router, prefix="/admin")
-app.include_router(enterprise.router, prefix="/enterprise")
-app.include_router(user_requests.router, prefix="/requests")
-app.include_router(auth_email.router, prefix="/auth")
-app.include_router(email_users.router, prefix="/email_users")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -147,6 +140,43 @@ async def send_message_api(number: str, request: Request):
     if not success:
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
     return {"detail": "Сообщение отправлено"}
+
+
+@app.post("/admin/enterprises/{number}/toggle")
+async def toggle_enterprise(request: Request, number: str):
+    """
+    Переключение активности предприятия (active 0/1) и уведомление бота
+    """
+    enterprise = await get_enterprise_by_number(number)
+    if not enterprise:
+        raise HTTPException(status_code=404, detail="Предприятие не найдено")
+
+    new_status = 0 if enterprise.get("active", 0) else 1
+
+    await update_enterprise(number, 
+                            enterprise.get("name", ""),
+                            enterprise.get("bot_token", ""),
+                            enterprise.get("chat_id", ""),
+                            enterprise.get("ip", ""),
+                            enterprise.get("secret", ""),
+                            enterprise.get("host", ""),
+                            enterprise.get("name2", ""),
+                            active=new_status)
+
+    # Отправляем сообщение в Telegram
+    bot_token = enterprise.get("bot_token", "")
+    chat_id = enterprise.get("chat_id", "")
+    from telegram import Bot
+    from telegram.error import TelegramError
+    bot = Bot(token=bot_token)
+    text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
+    try:
+        await bot.send_message(chat_id=int(chat_id), text=text)
+        logger.info(f"Sent toggle message to bot {number}: {text}")
+    except TelegramError as e:
+        logger.error(f"Toggle bot notification failed: {e}")
+
+    return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.get("/admin")
