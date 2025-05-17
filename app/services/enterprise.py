@@ -68,7 +68,6 @@ def delete_enterprise(number: str):
     conn.commit()
     conn.close()
 
-
 async def send_message_to_bot(bot_token: str, chat_id: str, message: str):
     """
     Асинхронно отправляет сообщение в Telegram-бота по bot_token и chat_id.
