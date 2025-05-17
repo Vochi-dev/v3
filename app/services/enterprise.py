@@ -3,41 +3,30 @@
 
 import sqlite3
 from datetime import datetime
+import asyncio
+from telegram import Bot
+from telegram.error import TelegramError
 
 from app.config import DB_PATH
 
 def list_enterprises():
-    """
-    Возвращает все предприятия, отсортированные по номеру.
-    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    cur = conn.execute(
-        "SELECT * FROM enterprises ORDER BY number"
-    )
+    cur = conn.execute("SELECT * FROM enterprises ORDER BY number")
     rows = cur.fetchall()
     conn.close()
     return rows
 
 def get_enterprise(number: str):
-    """
-    Возвращает одно предприятие по его number, или None.
-    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    cur = conn.execute(
-        "SELECT * FROM enterprises WHERE number = ?",
-        (number,)
-    )
+    cur = conn.execute("SELECT * FROM enterprises WHERE number = ?", (number,))
     row = cur.fetchone()
     conn.close()
     return row
 
 def create_enterprise(number: str, name: str, name2: str, bot_token: str,
                       chat_id: str, ip: str, secret: str, host: str):
-    """
-    Добавляет новое предприятие.
-    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute(
@@ -53,9 +42,6 @@ def create_enterprise(number: str, name: str, name2: str, bot_token: str,
 
 def update_enterprise(number: str, name: str, name2: str, bot_token: str,
                       chat_id: str, ip: str, secret: str, host: str):
-    """
-    Обновляет поля существующего предприятия.
-    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute(
@@ -76,14 +62,20 @@ def update_enterprise(number: str, name: str, name2: str, bot_token: str,
     conn.close()
 
 def delete_enterprise(number: str):
-    """
-    Удаляет предприятие по его number.
-    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    conn.execute(
-        "DELETE FROM enterprises WHERE number = ?",
-        (number,)
-    )
+    conn.execute("DELETE FROM enterprises WHERE number = ?", (number,))
     conn.commit()
     conn.close()
+
+
+async def send_message_to_bot(bot_token: str, chat_id: str, message: str):
+    """
+    Асинхронно отправляет сообщение в Telegram-бота по bot_token и chat_id.
+    """
+    bot = Bot(token=bot_token)
+    try:
+        await bot.send_message(chat_id=int(chat_id), text=message)
+    except TelegramError as e:
+        # Логирование ошибки или проброс исключения по желанию
+        raise e
