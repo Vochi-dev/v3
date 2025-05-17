@@ -100,14 +100,17 @@ async def list_enterprises(request: Request):
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
+    # Заглушки для кнопок управления сервисом и ботами (нужно интегрировать логику реального статуса)
+    service_running = True
+    bots_running = True
+
     return templates.TemplateResponse(
         "enterprises.html",
         {
             "request": request,
             "enterprises": enterprises_with_status,
-            # Добавим флаги для кнопок управления сервисом
-            "service_running": True,  # Здесь можно подставить реальную проверку
-            "bots_running": True      # Аналогично для состояния ботов
+            "service_running": service_running,
+            "bots_running": bots_running,
         }
     )
 
@@ -281,4 +284,6 @@ async def send_message(number: str, request: Request):
         await send_message_to_bot(bot_token, chat_id, message)
     except Exception as e:
         logger.error(f"Failed to send message to bot {number}: {e}")
-       
+        return JSONResponse({"detail": "Failed to send message"}, status_code=500)
+
+    return JSONResponse({"detail": "Message sent"})
