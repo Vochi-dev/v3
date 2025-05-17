@@ -78,5 +78,5 @@ async def send_message_to_bot(bot_token: str, chat_id: str, message: str):
         await bot.send_message(chat_id=int(chat_id), text=message)
         return True
     except TelegramError as e:
-        # Можно логировать ошибку
+        # Можно добавить логирование ошибки здесь
         return False
