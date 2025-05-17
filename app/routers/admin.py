@@ -69,7 +69,7 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
-    # Возвращаем словари, чтобы можно было добавлять ключи
+    # Здесь главное: сделать row_factory словарём, чтобы можно было дописывать в ent
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
