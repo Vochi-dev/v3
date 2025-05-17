@@ -1,0 +1,52 @@
+<!-- app/templates/confirm_sync.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Подтверждение синхронизации e-mail</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background: #f0f0f0; }
+    form { margin-top: 1rem; }
+    button { padding: 0.5rem 1rem; margin-right: 0.5rem; }
+    .danger { background: #dc3545; color: white; border: none; }
+    .safe   { background: #28a745; color: white; border: none; }
+  </style>
+</head>
+<body>
+  <h1>Будут удалены следующие пользователи:</h1>
+
+  {% if to_remove %}
+    <table>
+      <thead>
+        <tr>
+          <th>tg_id</th>
+          <th>e-mail</th>
+          <th>Предприятие</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in to_remove %}
+          <tr>
+            <td>{{ u.tg_id }}</td>
+            <td>{{ u.email }}</td>
+            <td>{{ u.enterprise_name }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <form action="/admin/email-users/upload/confirm" method="post">
+      <input type="hidden" name="csv_b64" value="{{ csv_b64 }}">
+      <button type="submit" name="confirm" value="yes" class="safe">Подтвердить удаление</button>
+      <button type="submit" name="confirm" value="no" class="danger">Отменить</button>
+    </form>
+
+  {% else %}
+    <p>Никаких пользователей удалять не нужно.</p>
+    <a href="/admin/email-users">Вернуться назад</a>
+  {% endif %}
+</body>
+</html>

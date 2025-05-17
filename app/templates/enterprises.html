@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Список предприятий</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    .button {
+      display: inline-block;
+      padding: 0.3rem 0.6rem;
+      margin: 0 0.3rem;
+      background: #007bff;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; vertical-align: top; }
+    th { background: #f0f0f0; }
+    .status-active { color: green; font-weight: bold; }
+    .status-inactive { color: red; font-weight: bold; }
+    .action-icon {
+      margin-right: 8px;
+      cursor: pointer;
+      font-size: 1.2rem;
+      vertical-align: middle;
+      color: #007bff;
+    }
+    .action-icon:hover {
+      color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Список предприятий</h1>
+  {% include 'control_buttons.html' %}
+
+  <div>
+    <a href="/admin/enterprises/add" class="button">Добавить предприятие</a>
+    <a href="/admin" class="button">Назад</a>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Номер</th>
+        <th>Название</th>
+        <th>Secret</th>
+        <th>Bot Token</th>
+        <th>Активность</th>
+        <th>Доступность бота</th>
+        <th>Chat ID</th>
+        <th>IP</th>
+        <th>Доп. имя</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ent in enterprises|sort(attribute='number', reverse=false) %}
+      <tr>
+        <td>{{ ent.number }}</td>
+        <td>{{ ent.name }}</td>
+        <td>
+          <button class="button" onclick="navigator.clipboard.writeText('{{ ent.secret }}')">Копировать</button>
+        </td>
+        <td>
+          <button class="button" onclick="navigator.clipboard.writeText('{{ ent.bot_token }}')">Копировать</button>
+        </td>
+        <td>
+          <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
+            <button type="submit" class="button">
+              {% if ent.active %}Отключить{% else %}Включить{% endif %}
+            </button>
+          </form>
+        </td>
+        <td>
+          {% if ent.bot_available %}
+            <span class="status-active">Доступен</span>
+          {% else %}
+            <span class="status-inactive">Ошибка</span>
+          {% endif %}
+        </td>
+        <td>{{ ent.chat_id }}</td>
+        <td>{{ ent.ip }}</td>
+        <td>{{ ent.name2 or '' }}</td>
+        <td>
+          <a href="/admin/enterprises/{{ ent.number }}/edit" title="Редактировать" class="action-icon">✎</a>
+          <span title="Удалить" class="action-icon" onclick="confirmDelete('{{ ent.number }}')">🗑</span>
+          {% if ent.bot_available %}
+            <span title="Отправить сообщение" class="action-icon" onclick="openMessageDialog('{{ ent.number }}')">✉</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="10">Нет предприятий</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <script>
+    function confirmDelete(number) {
+      if (confirm(`Удалить предприятие с номером ${number}? Это действие необратимо.`)) {
+        fetch(`/admin/enterprises/${number}`, { method: 'DELETE' })
+          .then(resp => {
+            if (resp.ok) {
+              alert('Предприятие удалено');
+              location.reload();
+            } else {
+              resp.json().then(data => alert(`Ошибка при удалении: ${data.detail || 'Unknown error'}`));
+            }
+          })
+          .catch(() => alert('Ошибка соединения при удалении'));
+      }
+    }
+
+    function openMessageDialog(number) {
+      const message = prompt(`Введите сообщение для предприятия ${number}:`);
+      if (!message) return;
+      if (confirm(`Отправить сообщение предприятию ${number}?`)) {
+        fetch(`/admin/enterprises/${number}/send_message`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ message })
+        })
+        .then(resp => {
+          if (resp.ok) {
+            alert('Сообщение отправлено');
+          } else {
+            resp.json().then(data => alert(`Ошибка при отправке сообщения: ${data.detail || 'Unknown error'}`));
+          }
+        })
+        .catch(() => alert('Ошибка соединения при отправке сообщения'));
+      }
+    }
+  </script>
+</body>
+</html>

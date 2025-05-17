@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Редактировать предприятие {{ e.number }}</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    form { max-width: 500px; margin-top: 1rem; }
+    label { display: block; margin-bottom: 0.5rem; }
+    input { width: 100%; padding: 0.5rem; margin-bottom: 1rem; box-sizing: border-box; }
+    .button { display: inline-block; padding: 0.5rem 1rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Редактировать предприятие {{ e.number }}</h1>
+  <form method="post">
+    <label>Number (не меняется): {{ e.number }}</label>
+
+    <label>Название:
+      <input name="name" value="{{ e.name|e }}" required />
+    </label>
+    <label>Доп. имя:
+      <input name="name2" value="{{ e.name2|e }}" />
+    </label>
+    <label>Bot Token:
+      <input name="bot_token" value="{{ e.bot_token|e }}" required />
+    </label>
+    <label>Chat ID:
+      <input name="chat_id" value="{{ e.chat_id|e }}" required />
+    </label>
+    <label>IP:
+      <input name="ip" value="{{ e.ip|e }}" />
+    </label>
+    <label>Secret:
+      <input name="secret" value="{{ e.secret|e }}" />
+    </label>
+    <label>Host:
+      <input name="host" value="{{ e.host|e }}" />
+    </label>
+
+    <button type="submit" class="button">Сохранить</button>
+    <a href="/admin/enterprises" class="button">Отмена</a>
+  </form>
+</body>
+</html>

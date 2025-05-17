@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>{% if action == 'add' %}Новое предприятие{% else %}Редактировать предприятие{% endif %}</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    form p { margin: 0.5rem 0; }
+    input { padding: 0.4rem; width: 300px; }
+    button { padding: 0.5rem 1rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <a href="/admin/enterprises">← список</a>
+  <h1>{% if action == 'add' %}Добавить предприятие{% else %}Редактировать предприятие{% endif %}</h1>
+
+  <form method="post">
+    {% if action == 'edit' %}
+      <p>Номер: <strong>{{ enterprise.number }}</strong></p>
+      <input type="hidden" name="active" value="{{ enterprise.active or 0 }}">
+    {% else %}
+      <p>Номер: <input name="number" required value="{{ enterprise.number or '' }}"></p>
+      <input type="hidden" name="active" value="1">
+    {% endif %}
+    <p>Название: <input name="name" required value="{{ enterprise.name or '' }}"></p>
+    <p>Bot Token: <input name="bot_token" required value="{{ enterprise.bot_token or '' }}"></p>
+    <p>Chat ID: <input name="chat_id" required value="{{ enterprise.chat_id or '' }}"></p>
+    <p>IP: <input name="ip" required value="{{ enterprise.ip or '' }}"></p>
+    <p>Secret: <input name="secret" required value="{{ enterprise.secret or '' }}"></p>
+    <p>Host: <input name="host" required value="{{ enterprise.host or '' }}"></p>
+    <p>Доп. имя: <input name="name2" value="{{ enterprise.name2 or '' }}"></p>
+    <button type="submit">Сохранить</button>
+  </form>
+</body>
+</html>

@@ -1,0 +1,11 @@
+[0;1;31m×[0m admin_app.service - FastAPI Admin App for Telegram Bot
+     Loaded: loaded (/etc/systemd/system/admin_app.service; enabled; vendor preset: enabled)
+     Active: [0;1;31mfailed[0m (Result: exit-code) since Tue 2025-05-13 07:47:07 UTC; 10min ago
+   Main PID: 2018 (code=exited, status=1/FAILURE)
+        CPU: 405ms
+
+May 13 07:47:07 v3b systemd[1]: admin_app.service: Scheduled restart job, restart counter is at 156.
+May 13 07:47:07 v3b systemd[1]: Stopped FastAPI Admin App for Telegram Bot.
+May 13 07:47:07 v3b systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185madmin_app.service: Start request repeated too quickly.[0m
+May 13 07:47:07 v3b systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185madmin_app.service: Failed with result 'exit-code'.[0m
+May 13 07:47:07 v3b systemd[1]: [0;1;31m[0;1;39m[0;1;31mFailed to start FastAPI Admin App for Telegram Bot.[0m

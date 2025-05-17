@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Заявки на подключение</title></head>
+<body>
+  <h1>Заявки на подключение</h1>
+  <a href="/admin">← назад</a>
+  <table border="1" cellpadding="5" cellspacing="0">
+    <tr>
+      <th>ID</th><th>Enterprise</th><th>Telegram ID</th><th>Username</th><th>Requested At</th><th>Actions</th>
+    </tr>
+    {% for req in requests %}
+    <tr>
+      <td>{{ req.id }}</td>
+      <td>{{ req.enterprise_id }}</td>
+      <td>{{ req.telegram_id }}</td>
+      <td>{{ req.username }}</td>
+      <td>{{ req.requested_at }}</td>
+      <td>
+        <form action="/admin/requests/approve/{{ req.id }}" method="post" style="display:inline">
+          <button type="submit">Одобрить</button>
+        </form>
+        <form action="/admin/requests/reject/{{ req.id }}" method="post" style="display:inline">
+          <button type="submit">Отклонить</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Вход</title>
+    <style>
+      body { font-family: sans-serif; padding: 2rem; }
+      form { max-width: 300px; margin: auto; display: flex; flex-direction: column; }
+      input, button { padding: 0.5rem; margin-top: 1rem; font-size: 1rem; }
+      .error { color: red; }
+    </style>
+</head>
+<body>
+  <h1>Вход в админку</h1>
+
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% endif %}
+
+  <!-- ВАЖНО: action указывает на /admin/login -->
+  <form action="/admin/login" method="post">
+    <input type="password" name="password" placeholder="Пароль" required autofocus>
+    <button type="submit">Войти</button>
+  </form>
+</body>
+</html>

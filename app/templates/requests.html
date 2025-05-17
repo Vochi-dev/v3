@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>Заявки</title></head>
+<body>
+  <a href="/admin/">← Назад</a>
+  <h1>Заявки на подключение</h1>
+
+  <table border="1" cellpadding="4">
+    <tr>
+      <th>ID</th><th>Email</th><th>Предприятие</th><th>Статус</th><th>Создано</th>
+    </tr>
+    {% for r in requests %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td>{{ r.email }}</td>
+        <td>{{ r.enterprise or "—" }}</td>
+        <td>{{ r.status }}</td>
+        <td>{{ r.created_at }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5">Заявок нет</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
