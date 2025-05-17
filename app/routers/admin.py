@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import sys
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Form, status, HTTPException
@@ -66,6 +67,7 @@ async def dashboard(request: Request):
 
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
+    print("list_enterprises called", file=sys.stderr)
     require_login(request)
     db = await get_connection()
     db.row_factory = None
@@ -94,9 +96,9 @@ async def list_enterprises(request: Request):
         }
         try:
             ent["bot_available"] = await check_bot_status(ent["bot_token"])
-            print(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
+            print(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}", file=sys.stderr)
         except Exception as e:
-            print(f"Error checking bot status for #{ent['number']}: {e}")
+            print(f"Error checking bot status for #{ent['number']}: {e}", file=sys.stderr)
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
@@ -261,28 +263,4 @@ async def delete_enterprise(number: str, request: Request):
     return JSONResponse({"detail": "Enterprise deleted"})
 
 
-@router.post("/enterprises/{number}/send_message", response_class=JSONResponse)
-async def send_message(number: str, request: Request):
-    require_login(request)
-    data = await request.json()
-    message = data.get("message")
-    if not message:
-        return JSONResponse({"detail": "Message is required"}, status_code=400)
-
-    db = await get_connection()
-    db.row_factory = None
-    cur = await db.execute("SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
-    row = await cur.fetchone()
-    await db.close()
-
-    if not row:
-        return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
-
-    bot_token, chat_id = row
-    try:
-        await send_message_to_bot(bot_token, chat_id, message)
-    except Exception as e:
-        logger.error(f"Failed to send message to bot {number}: {e}")
-        return JSONResponse({"detail": "Failed to send message"}, status_code=500)
-
-    return JSONResponse({"detail": "Message sent"})
+@router.post("/
