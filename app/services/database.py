@@ -8,6 +8,7 @@ async def execute(sql, params=()):
 
 async def fetchall(sql, params=()):
     async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row  # Чтобы получить dict-подобные строки
         cursor = await db.execute(sql, params)
         rows = await cursor.fetchall()
         await cursor.close()
@@ -15,6 +16,7 @@ async def fetchall(sql, params=()):
 
 async def fetchone(sql, params=()):
     async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row  # Чтобы получить dict-подобный результат
         cursor = await db.execute(sql, params)
         row = await cursor.fetchone()
         await cursor.close()
