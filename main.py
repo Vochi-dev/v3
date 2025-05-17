@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
 from app.services.database import (
-    get_enterprises_with_tokens,
+    get_all_enterprises,
     get_enterprise_by_number,
     add_enterprise,
     update_enterprise,
@@ -30,18 +30,18 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    logger.debug("Redirecting from root to /admin/enterprises")
+    logger.debug("Redirecting root to /admin/enterprises")
     return RedirectResponse(url="/admin/enterprises")
 
 
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
-    enterprises_rows = await get_enterprises_with_tokens()
+    enterprises_rows = await get_all_enterprises()
+    logger.debug(f"Fetched {len(enterprises_rows)} enterprises from DB")
     enterprises = [dict(ent) for ent in enterprises_rows]
-    logger.debug(f"Fetched {len(enterprises)} enterprises from DB")
 
-    # Sort by number numerically
+    # Sort enterprises numerically by number
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
 
     for ent in enterprises_sorted:
@@ -61,8 +61,7 @@ async def list_enterprises(request: Request):
 
 @app.get("/admin/enterprises/new", response_class=HTMLResponse)
 async def new_enterprise_form(request: Request):
-    logger.debug("Serving new enterprise form")
-    # Render empty form for adding enterprise
+    logger.debug("Rendering new enterprise form")
     return templates.TemplateResponse(
         "enterprise_form.html",
         {"request": request, "enterprise": {}, "action": "add", "error": None}
@@ -82,30 +81,24 @@ async def create_enterprise(
     name2: str = Form(""),
 ):
     logger.info(f"Creating enterprise number={number}, name={name}")
-    # Check for duplicates by number, name, name2, ip
-    enterprises = await get_enterprises_with_tokens()
+    enterprises = await get_all_enterprises()
+    error = None
     for ent in enterprises:
         if ent['number'] == number:
             error = f"Предприятие с номером {number} уже существует"
-            logger.warning(error)
             break
         if ent['name'].strip().lower() == name.strip().lower():
             error = f"Предприятие с названием '{name}' уже существует"
-            logger.warning(error)
             break
         if ent.get('name2', '').strip().lower() == name2.strip().lower() and name2.strip() != "":
             error = f"Предприятие с дополнительным именем '{name2}' уже существует"
-            logger.warning(error)
             break
         if ent['ip'] == ip:
             error = f"Предприятие с IP {ip} уже существует"
-            logger.warning(error)
             break
-    else:
-        error = None
 
     if error:
-        logger.debug("Duplicate detected, returning error to form")
+        logger.warning(f"Duplicate check failed: {error}")
         return templates.TemplateResponse(
             "enterprise_form.html",
             {
@@ -127,16 +120,16 @@ async def create_enterprise(
         )
 
     await add_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
-    logger.info(f"Enterprise {number} created successfully")
+    logger.info(f"Enterprise {number} added successfully")
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.get("/admin/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
-    logger.debug(f"Serving edit form for enterprise {number}")
+    logger.debug(f"Fetching enterprise {number} for editing")
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
-        logger.error(f"Enterprise {number} not found for editing")
+        logger.error(f"Enterprise {number} not found")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
     return templates.TemplateResponse(
         "enterprise_form.html",
@@ -156,27 +149,23 @@ async def update_enterprise_post(
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    logger.info(f"Updating enterprise number={number}, name={name}")
-    # Check duplicates excluding current enterprise
-    enterprises = await get_enterprises_with_tokens()
+    logger.info(f"Updating enterprise number={number}")
+    enterprises = await get_all_enterprises()
+    error = None
     for ent in enterprises:
         if ent['number'] != number:
             if ent['name'].strip().lower() == name.strip().lower():
                 error = f"Предприятие с названием '{name}' уже существует"
-                logger.warning(error)
                 break
             if ent.get('name2', '').strip().lower() == name2.strip().lower() and name2.strip() != "":
                 error = f"Предприятие с дополнительным именем '{name2}' уже существует"
-                logger.warning(error)
                 break
             if ent['ip'] == ip:
                 error = f"Предприятие с IP {ip} уже существует"
-                logger.warning(error)
                 break
-    else:
-        error = None
 
     if error:
+        logger.warning(f"Duplicate check failed on update: {error}")
         enterprise = {
             "number": number,
             "name": name,
@@ -187,7 +176,6 @@ async def update_enterprise_post(
             "host": host,
             "name2": name2,
         }
-        logger.debug("Duplicate detected on update, returning error to form")
         return templates.TemplateResponse(
             "enterprise_form.html",
             {
@@ -208,38 +196,33 @@ async def update_enterprise_post(
 async def delete_enterprise_api(number: str):
     logger.info(f"Deleting enterprise {number}")
     await delete_enterprise(number)
-    logger.info(f"Enterprise {number} deleted")
     return {"detail": "Предприятие удалено"}
 
 
 @app.post("/admin/enterprises/{number}/send_message")
 async def send_message_api(number: str, request: Request):
+    logger.debug(f"Sending message to enterprise {number}")
     data = await request.json()
     message = data.get("message")
     if not message:
-        logger.warning("Empty message sent to send_message_api")
         raise HTTPException(status_code=400, detail="Сообщение не может быть пустым")
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
-        logger.error(f"Enterprise {number} not found in send_message_api")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
     bot_token = enterprise.get('bot_token', "")
     chat_id = enterprise.get('chat_id', "")
 
     success = await send_message_to_bot(bot_token, chat_id, message)
     if not success:
-        logger.error(f"Failed to send message to bot of enterprise {number}")
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
-    logger.info(f"Message sent to enterprise {number}")
     return {"detail": "Сообщение отправлено"}
 
 
 @app.post("/admin/enterprises/{number}/toggle")
 async def toggle_enterprise(request: Request, number: str):
-    logger.info(f"Toggling active status for enterprise {number}")
+    logger.info(f"Toggling enterprise {number}")
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
-        logger.error(f"Enterprise {number} not found in toggle_enterprise")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
     if not isinstance(enterprise, dict):
