@@ -1,101 +1,99 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Список предприятий</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    .button {
-      display: inline-block;
-      padding: 0.3rem 0.6rem;
-      margin: 0 0.3rem;
-      background: #007bff;
-      color: #fff;
-      text-decoration: none;
-      border-radius: 4px;
-      border: none;
-      cursor: pointer;
-      font-size: 0.9rem;
+    table {
+      border-collapse: collapse;
+      width: 100%;
     }
-    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem; vertical-align: top; }
-    th { background: #f0f0f0; }
-    .status-active { color: green; font-weight: bold; }
-    .status-inactive { color: red; font-weight: bold; }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    code {
+      user-select: all;
+      white-space: nowrap;
+    }
+    .action-icon {
+      margin-right: 10px;
+      cursor: pointer;
+      color: #007bff;
+    }
+    .action-icon:hover {
+      color: #0056b3;
+    }
   </style>
 </head>
 <body>
   <h1>Список предприятий</h1>
-  {% include 'control_buttons.html' %}
-
-  <div>
-    <a href="/admin/enterprises/add" class="button">Добавить предприятие</a>
-    <a href="/admin" class="button">Назад</a>
-  </div>
-
-  <table>
+  <table id="enterprises-table">
     <thead>
       <tr>
         <th>Номер</th>
         <th>Название</th>
-        <th>Bot Token</th>
-        <th>Отправка</th>
-        <th>Доступ</th>
-        <th>Chat ID</th>
-        <th>IP</th>
-        <th>Secret</th>
-        <th>Host</th>
-        <th>Доп. имя</th>
+        <th>Секрет</th>
+        <th>Bot Token <button onclick="copyAllTokens()">Копировать все</button></th>
         <th>Действия</th>
       </tr>
     </thead>
     <tbody>
-      {% for ent in enterprises %}
-      <tr>
-        <td>{{ ent.number }}</td>
-        <td>{{ ent.name }}</td>
+      {% for enterprise in enterprises|sort(attribute='number', reverse=false) %}
+      <tr data-number="{{ enterprise.number }}">
+        <td>{{ enterprise.number }}</td>
+        <td>{{ enterprise.name }}</td>
+        <td><code>{{ enterprise.secret }}</code></td>
+        <td><code id="token-{{ enterprise.number }}">{{ enterprise.bot_token }}</code></td>
         <td>
-          {% set parts = ent.bot_token.split(':', 1) %}
-          {{ parts[0] }}:<br>{{ parts[1] }}
+          <a href="/admin/enterprises/edit/{{ enterprise.number }}" title="Редактировать" class="action-icon"><i class="fa fa-edit"></i></a>
+          <span onclick="confirmDelete('{{ enterprise.number }}')" title="Удалить" class="action-icon"><i class="fa fa-trash"></i></span>
+          <span onclick="openMessageDialog('{{ enterprise.number }}')" title="Отправить сообщение" class="action-icon"><i class="fa fa-envelope"></i></span>
         </td>
-        <td>
-          {% if ent.active %}
-            <span class="status-active">Включена</span>
-          {% else %}
-            <span class="status-inactive">Отключена</span>
-          {% endif %}
-          <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
-            <button type="submit" class="button">
-              {% if ent.active %}Отключить{% else %}Включить{% endif %}
-            </button>
-          </form>
-        </td>
-        <td>
-          {% if ent.bot_available %}
-            <span class="status-active">Доступен</span>
-          {% else %}
-            <span class="status-inactive">Ошибка</span>
-          {% endif %}
-        </td>
-        <td>{{ ent.chat_id }}</td>
-        <td>{{ ent.ip }}</td>
-        <td>
-          <button class="button" onclick="navigator.clipboard.writeText('{{ ent.secret }}')">
-            Копировать
-          </button>
-        </td>
-        <td>{{ ent.host }}</td>
-        <td>{{ ent.name2 or '' }}</td>
-        <td>
-          <a href="/admin/enterprises/{{ ent.number }}/edit" class="button">Редактировать</a>
-        </td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="11">Нет предприятий</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+
+  <script>
+    function copyAllTokens() {
+      const tokens = Array.from(document.querySelectorAll('code[id^="token-"]')).map(el => el.textContent.trim()).join('\n');
+      navigator.clipboard.writeText(tokens).then(() => alert("Все токены скопированы в буфер обмена"));
+    }
+
+    function confirmDelete(number) {
+      if (confirm(`Удалить предприятие с номером ${number}? Это действие необратимо.`)) {
+        fetch(`/admin/enterprises/${number}`, { method: 'DELETE' })
+          .then(resp => {
+            if (resp.ok) {
+              alert('Предприятие удалено');
+              location.reload();
+            } else {
+              resp.json().then(data => alert(`Ошибка при удалении: ${data.detail || 'Unknown error'}`));
+            }
+          }).catch(() => alert('Ошибка соединения при удалении'));
+      }
+    }
+
+    function openMessageDialog(number) {
+      const message = prompt(`Введите сообщение для предприятия ${number}:`);
+      if (!message) return;
+      if (confirm(`Отправить сообщение предприятию ${number}?`)) {
+        fetch(`/admin/enterprises/${number}/send_message`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ message })
+        }).then(resp => {
+          if (resp.ok) {
+            alert('Сообщение отправлено');
+          } else {
+            resp.json().then(data => alert(`Ошибка при отправке сообщения: ${data.detail || 'Unknown error'}`));
+          }
+        }).catch(() => alert('Ошибка соединения при отправке сообщения'));
+      }
+    }
+  </script>
 </body>
 </html>
