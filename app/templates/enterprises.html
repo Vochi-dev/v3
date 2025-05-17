@@ -5,47 +5,38 @@
   <title>Список предприятий</title>
   <style>
     body { font-family: sans-serif; padding: 2rem; }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 1rem;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 0.5rem;
-      vertical-align: top;
-      text-align: left;
-    }
-    th {
-      background: #f0f0f0;
-    }
-    .button, .icon-button {
-      cursor: pointer;
-      background: none;
+    .button {
+      display: inline-block;
+      padding: 0.3rem 0.6rem;
+      margin: 0 0.3rem;
+      background: #007bff;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 4px;
       border: none;
-      padding: 0 0.3rem;
-      font-size: 1.1rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; vertical-align: top; }
+    th { background: #f0f0f0; }
+    .status-active { color: green; font-weight: bold; }
+    .status-inactive { color: red; font-weight: bold; }
+    .action-icon {
+      margin-right: 8px;
+      cursor: pointer;
+      font-size: 1.2rem;
+      vertical-align: middle;
       color: #007bff;
     }
-    .button:hover, .icon-button:hover {
+    .action-icon:hover {
       color: #0056b3;
-    }
-    code {
-      user-select: all;
-      white-space: nowrap;
-    }
-    .status-active {
-      color: green;
-      font-weight: bold;
-    }
-    .status-inactive {
-      color: red;
-      font-weight: bold;
     }
   </style>
 </head>
 <body>
   <h1>Список предприятий</h1>
+  {% include 'control_buttons.html' %}
 
   <div>
     <a href="/admin/enterprises/add" class="button">Добавить предприятие</a>
@@ -69,23 +60,21 @@
     </thead>
     <tbody>
       {% for ent in enterprises|sort(attribute='number', reverse=false) %}
-      <tr data-number="{{ ent.number }}">
+      <tr>
         <td>{{ ent.number }}</td>
         <td>{{ ent.name }}</td>
         <td>
-          <code id="secret-{{ ent.number }}">{{ ent.secret }}</code>
-          <button class="button" onclick="copyToClipboard('secret-{{ ent.number }}')">Копировать</button>
+          <button class="button" onclick="navigator.clipboard.writeText('{{ ent.secret }}')">Копировать</button>
         </td>
         <td>
-          <code id="token-{{ ent.number }}">{{ ent.bot_token }}</code>
-          <button class="button" onclick="copyToClipboard('token-{{ ent.number }}')">Копировать</button>
+          <button class="button" onclick="navigator.clipboard.writeText('{{ ent.bot_token }}')">Копировать</button>
         </td>
         <td>
-          {% if ent.active %}
-            <span class="status-active">Включена</span>
-          {% else %}
-            <span class="status-inactive">Отключена</span>
-          {% endif %}
+          <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
+            <button type="submit" class="button">
+              {% if ent.active %}Отключить{% else %}Включить{% endif %}
+            </button>
+          </form>
         </td>
         <td>
           {% if ent.bot_available %}
@@ -98,9 +87,11 @@
         <td>{{ ent.ip }}</td>
         <td>{{ ent.name2 or '' }}</td>
         <td>
-          <a href="/admin/enterprises/{{ ent.number }}/edit" title="Редактировать" class="icon-button">&#9998;</a>
-          <button title="Удалить" class="icon-button" onclick="confirmDelete('{{ ent.number }}')">&#128465;</button>
-          <button title="Отправить сообщение" class="icon-button" onclick="openMessageDialog('{{ ent.number }}')">&#9993;</button>
+          <a href="/admin/enterprises/{{ ent.number }}/edit" title="Редактировать" class="action-icon">✎</a>
+          <span title="Удалить" class="action-icon" onclick="confirmDelete('{{ ent.number }}')">🗑</span>
+          {% if ent.bot_available %}
+            <span title="Отправить сообщение" class="action-icon" onclick="openMessageDialog('{{ ent.number }}')">✉</span>
+          {% endif %}
         </td>
       </tr>
       {% else %}
@@ -112,15 +103,6 @@
   </table>
 
   <script>
-    function copyToClipboard(id) {
-      const el = document.getElementById(id);
-      if (el) {
-        navigator.clipboard.writeText(el.textContent.trim())
-          .then(() => alert('Скопировано в буфер обмена'))
-          .catch(() => alert('Ошибка копирования'));
-      }
-    }
-
     function confirmDelete(number) {
       if (confirm(`Удалить предприятие с номером ${number}? Это действие необратимо.`)) {
         fetch(`/admin/enterprises/${number}`, { method: 'DELETE' })
@@ -129,7 +111,7 @@
               alert('Предприятие удалено');
               location.reload();
             } else {
-              resp.json().then(data => alert(`Ошибка при удалении: ${data.detail || 'Неизвестная ошибка'}`));
+              resp.json().then(data => alert(`Ошибка при удалении: ${data.detail || 'Unknown error'}`));
             }
           })
           .catch(() => alert('Ошибка соединения при удалении'));
@@ -144,13 +126,15 @@
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ message })
-        }).then(resp => {
+        })
+        .then(resp => {
           if (resp.ok) {
             alert('Сообщение отправлено');
           } else {
-            resp.json().then(data => alert(`Ошибка при отправке сообщения: ${data.detail || 'Неизвестная ошибка'}`));
+            resp.json().then(data => alert(`Ошибка при отправке сообщения: ${data.detail || 'Unknown error'}`));
           }
-        }).catch(() => alert('Ошибка соединения при отправке сообщения'));
+        })
+        .catch(() => alert('Ошибка соединения при отправке сообщения'));
       }
     }
   </script>
