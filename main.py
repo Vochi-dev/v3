@@ -202,9 +202,15 @@ async def send_message_api(number: str, request: Request):
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
-    # Заменяем ent.get на ent['']
+
     bot_token = enterprise['bot_token'] if 'bot_token' in enterprise else ""
     chat_id = enterprise['chat_id'] if 'chat_id' in enterprise else ""
+
+    if not bot_token.strip():
+        raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
+
+    if not chat_id.strip():
+        raise HTTPException(status_code=400, detail="У предприятия отсутствует chat_id для отправки")
 
     success = await send_message_to_bot(bot_token, chat_id, message)
     if not success:
