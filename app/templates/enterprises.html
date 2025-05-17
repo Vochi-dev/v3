@@ -3,64 +3,122 @@
 <head>
   <meta charset="UTF-8" />
   <title>Список предприятий</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
+    body { font-family: sans-serif; padding: 2rem; }
     table {
       border-collapse: collapse;
       width: 100%;
+      margin-top: 1rem;
     }
     th, td {
-      padding: 8px;
-      border: 1px solid #ddd;
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      vertical-align: top;
       text-align: left;
+    }
+    th {
+      background: #f0f0f0;
+    }
+    .button, .icon-button {
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0 0.3rem;
+      font-size: 1.1rem;
+      color: #007bff;
+    }
+    .button:hover, .icon-button:hover {
+      color: #0056b3;
     }
     code {
       user-select: all;
       white-space: nowrap;
     }
-    .action-icon {
-      margin-right: 10px;
-      cursor: pointer;
-      color: #007bff;
+    .status-active {
+      color: green;
+      font-weight: bold;
     }
-    .action-icon:hover {
-      color: #0056b3;
+    .status-inactive {
+      color: red;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
   <h1>Список предприятий</h1>
-  <table id="enterprises-table">
+
+  <div>
+    <a href="/admin/enterprises/add" class="button">Добавить предприятие</a>
+    <a href="/admin" class="button">Назад</a>
+  </div>
+
+  <table>
     <thead>
       <tr>
         <th>Номер</th>
         <th>Название</th>
-        <th>Секрет</th>
-        <th>Bot Token <button onclick="copyAllTokens()">Копировать все</button></th>
+        <th>Secret</th>
+        <th>Bot Token</th>
+        <th>Активность</th>
+        <th>Доступность бота</th>
+        <th>Chat ID</th>
+        <th>IP</th>
+        <th>Доп. имя</th>
         <th>Действия</th>
       </tr>
     </thead>
     <tbody>
-      {% for enterprise in enterprises|sort(attribute='number', reverse=false) %}
-      <tr data-number="{{ enterprise.number }}">
-        <td>{{ enterprise.number }}</td>
-        <td>{{ enterprise.name }}</td>
-        <td><code>{{ enterprise.secret }}</code></td>
-        <td><code id="token-{{ enterprise.number }}">{{ enterprise.bot_token }}</code></td>
+      {% for ent in enterprises|sort(attribute='number', reverse=false) %}
+      <tr data-number="{{ ent.number }}">
+        <td>{{ ent.number }}</td>
+        <td>{{ ent.name }}</td>
         <td>
-          <a href="/admin/enterprises/edit/{{ enterprise.number }}" title="Редактировать" class="action-icon"><i class="fa fa-edit"></i></a>
-          <span onclick="confirmDelete('{{ enterprise.number }}')" title="Удалить" class="action-icon"><i class="fa fa-trash"></i></span>
-          <span onclick="openMessageDialog('{{ enterprise.number }}')" title="Отправить сообщение" class="action-icon"><i class="fa fa-envelope"></i></span>
+          <code id="secret-{{ ent.number }}">{{ ent.secret }}</code>
+          <button class="button" onclick="copyToClipboard('secret-{{ ent.number }}')">Копировать</button>
         </td>
+        <td>
+          <code id="token-{{ ent.number }}">{{ ent.bot_token }}</code>
+          <button class="button" onclick="copyToClipboard('token-{{ ent.number }}')">Копировать</button>
+        </td>
+        <td>
+          {% if ent.active %}
+            <span class="status-active">Включена</span>
+          {% else %}
+            <span class="status-inactive">Отключена</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if ent.bot_available %}
+            <span class="status-active">Доступен</span>
+          {% else %}
+            <span class="status-inactive">Ошибка</span>
+          {% endif %}
+        </td>
+        <td>{{ ent.chat_id }}</td>
+        <td>{{ ent.ip }}</td>
+        <td>{{ ent.name2 or '' }}</td>
+        <td>
+          <a href="/admin/enterprises/{{ ent.number }}/edit" title="Редактировать" class="icon-button">&#9998;</a>
+          <button title="Удалить" class="icon-button" onclick="confirmDelete('{{ ent.number }}')">&#128465;</button>
+          <button title="Отправить сообщение" class="icon-button" onclick="openMessageDialog('{{ ent.number }}')">&#9993;</button>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="10">Нет предприятий</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
   <script>
-    function copyAllTokens() {
-      const tokens = Array.from(document.querySelectorAll('code[id^="token-"]')).map(el => el.textContent.trim()).join('\n');
-      navigator.clipboard.writeText(tokens).then(() => alert("Все токены скопированы в буфер обмена"));
+    function copyToClipboard(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        navigator.clipboard.writeText(el.textContent.trim())
+          .then(() => alert('Скопировано в буфер обмена'))
+          .catch(() => alert('Ошибка копирования'));
+      }
     }
 
     function confirmDelete(number) {
@@ -71,9 +129,10 @@
               alert('Предприятие удалено');
               location.reload();
             } else {
-              resp.json().then(data => alert(`Ошибка при удалении: ${data.detail || 'Unknown error'}`));
+              resp.json().then(data => alert(`Ошибка при удалении: ${data.detail || 'Неизвестная ошибка'}`));
             }
-          }).catch(() => alert('Ошибка соединения при удалении'));
+          })
+          .catch(() => alert('Ошибка соединения при удалении'));
       }
     }
 
@@ -89,7 +148,7 @@
           if (resp.ok) {
             alert('Сообщение отправлено');
           } else {
-            resp.json().then(data => alert(`Ошибка при отправке сообщения: ${data.detail || 'Unknown error'}`));
+            resp.json().then(data => alert(`Ошибка при отправке сообщения: ${data.detail || 'Неизвестная ошибка'}`));
           }
         }).catch(() => alert('Ошибка соединения при отправке сообщения'));
       }
