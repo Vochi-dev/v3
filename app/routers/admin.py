@@ -95,8 +95,9 @@ async def list_enterprises(request: Request):
         bot_token = ent["bot_token"]
         try:
             ent["bot_available"] = await check_bot_status(bot_token)
+            logger.debug(f"Bot status for #{ent['number']} (token {bot_token}): {ent['bot_available']}")
         except Exception as e:
-            logger.warning("Failed to check bot status: %s", e)
+            logger.error(f"Error checking bot status for #{ent['number']} (token {bot_token}): {e}")
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
