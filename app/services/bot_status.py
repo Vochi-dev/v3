@@ -1,5 +1,5 @@
-from telegram import Bot
-from telegram.error import TelegramError
+from aiogram import Bot
+from aiogram.exceptions import TelegramError
 
 async def check_bot_status(bot_token: str) -> bool:
     """
@@ -9,6 +9,7 @@ async def check_bot_status(bot_token: str) -> bool:
     try:
         bot = Bot(token=bot_token)
         await bot.get_me()
+        await bot.session.close()
         return True
     except TelegramError:
         return False
