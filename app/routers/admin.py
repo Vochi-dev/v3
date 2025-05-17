@@ -102,7 +102,13 @@ async def list_enterprises(request: Request):
 
     return templates.TemplateResponse(
         "enterprises.html",
-        {"request": request, "enterprises": enterprises_with_status}
+        {
+            "request": request,
+            "enterprises": enterprises_with_status,
+            # Добавим флаги для кнопок управления сервисом
+            "service_running": True,  # Здесь можно подставить реальную проверку
+            "bots_running": True      # Аналогично для состояния ботов
+        }
     )
 
 
@@ -275,6 +281,4 @@ async def send_message(number: str, request: Request):
         await send_message_to_bot(bot_token, chat_id, message)
     except Exception as e:
         logger.error(f"Failed to send message to bot {number}: {e}")
-        return JSONResponse({"detail": "Failed to send message"}, status_code=500)
-
-    return JSONResponse({"detail": "Message sent"})
+       
