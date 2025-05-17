@@ -42,8 +42,9 @@ async def list_enterprises(request: Request):
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
 
     for ent in enterprises_sorted:
+        bot_token = ent.get("bot_token") or ""
         try:
-            ent["bot_available"] = await check_bot_status(ent.get("bot_token", ""))
+            ent["bot_available"] = await check_bot_status(bot_token)
             logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
         except Exception as e:
             logger.error(f"Error checking bot status for #{ent['number']}: {e}")
@@ -75,7 +76,7 @@ async def create_enterprise(
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    # Проверка дублирования по number, name, name2, ip
+    # Проверка дубликатов по ключевым полям
     enterprises = await get_enterprises_with_tokens()
     for ent in enterprises:
         if ent['number'] == number:
@@ -141,7 +142,7 @@ async def update_enterprise_post(
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    # Аналогичная проверка дубликатов при редактировании (исключая саму запись)
+    # Проверка дубликатов при редактировании (исключая саму запись)
     enterprises = await get_enterprises_with_tokens()
     for ent in enterprises:
         if ent['number'] != number:
