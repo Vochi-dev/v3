@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
-from aiogram.enums import ParseMode
+from aiogram.types import ParseMode
 from aiogram.dispatcher.filters import Command
 from aiogram.types import Message
 from aiogram.dispatcher.router import Router
