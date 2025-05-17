@@ -5,8 +5,10 @@ import sqlite3
 from datetime import datetime
 from telegram import Bot
 from telegram.error import TelegramError
+import asyncio
 
 from app.config import DB_PATH
+
 
 def list_enterprises():
     conn = sqlite3.connect(DB_PATH)
@@ -16,6 +18,7 @@ def list_enterprises():
     conn.close()
     return rows
 
+
 def get_enterprise(number: str):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -24,9 +27,11 @@ def get_enterprise(number: str):
     conn.close()
     return row
 
+
 def create_enterprise(number: str, name: str, name2: str, bot_token: str,
                       chat_id: str, ip: str, secret: str, host: str):
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     conn.execute(
         """
         INSERT INTO enterprises
@@ -38,9 +43,11 @@ def create_enterprise(number: str, name: str, name2: str, bot_token: str,
     conn.commit()
     conn.close()
 
+
 def update_enterprise(number: str, name: str, name2: str, bot_token: str,
                       chat_id: str, ip: str, secret: str, host: str):
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     conn.execute(
         """
         UPDATE enterprises SET
@@ -58,15 +65,19 @@ def update_enterprise(number: str, name: str, name2: str, bot_token: str,
     conn.commit()
     conn.close()
 
+
 def delete_enterprise(number: str):
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     conn.execute("DELETE FROM enterprises WHERE number = ?", (number,))
     conn.commit()
     conn.close()
 
+
 async def send_message_to_bot(bot_token: str, chat_id: str, message: str):
     """
-    Асинхронно отправляет сообщение в Telegram-бота.
+    Асинхронно отправляет сообщение в Telegram-бота по bot_token и chat_id.
+    Возвращает True при успехе, False при ошибке.
     """
     bot = Bot(token=bot_token)
     try:
