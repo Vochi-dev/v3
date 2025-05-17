@@ -69,7 +69,8 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
-    db.row_factory = None
+    # Используем sqlite3.Row для удобного доступа по именам
+    db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
           number, name, bot_token, active,
@@ -82,17 +83,7 @@ async def list_enterprises(request: Request):
 
     enterprises_with_status = []
     for row in rows:
-        ent = {
-            "number": row[0],
-            "name": row[1],
-            "bot_token": row[2],
-            "active": row[3],
-            "chat_id": row[4],
-            "ip": row[5],
-            "secret": row[6],
-            "host": row[7],
-            "name2": row[8],
-        }
+        ent = dict(row)  # скопировать, чтобы не было ошибок при добавлении ключей
         try:
             ent["bot_available"] = await check_bot_status(ent["bot_token"])
             logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
