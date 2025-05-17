@@ -16,8 +16,8 @@ from app.services.database import (
 from app.services.enterprise import send_message_to_bot
 from app.routers import admin, enterprise, user_requests, auth_email, email_users
 
-# Импорт функции запуска ботов из app.telegram.bot
-from app.telegram.bot import start_enterprise_bots, stop_enterprise_bots
+# Убрали импорт Telegram-бота
+# from app.telegram.bot import start_enterprise_bots, stop_enterprise_bots
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -37,23 +37,22 @@ app.include_router(user_requests.router, prefix="/requests")
 app.include_router(auth_email.router, prefix="/auth")
 app.include_router(email_users.router, prefix="/email_users")
 
-bot_task = None  # переменная для хранения задачи запуска ботов
+# Убрали запуск бота на старте и остановку
+# bot_task = None
 
+# @app.on_event("startup")
+# async def startup_event():
+#     global bot_task
+#     bot_task = asyncio.create_task(start_enterprise_bots())
+#     logger.info("Telegram bots started")
 
-@app.on_event("startup")
-async def startup_event():
-    global bot_task
-    bot_task = asyncio.create_task(start_enterprise_bots())
-    logger.info("Telegram bots started")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    global bot_task
-    if bot_task:
-        bot_task.cancel()
-    await stop_enterprise_bots()
-    logger.info("Telegram bots stopped")
+# @app.on_event("shutdown")
+# async def shutdown_event():
+#     global bot_task
+#     if bot_task:
+#         bot_task.cancel()
+#     await stop_enterprise_bots()
+#     logger.info("Telegram bots stopped")
 
 
 @app.get("/", response_class=HTMLResponse)
