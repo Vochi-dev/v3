@@ -3,9 +3,9 @@
 
 import sqlite3
 from datetime import datetime
+import asyncio
 from telegram import Bot
 from telegram.error import TelegramError
-import asyncio
 
 from app.config import DB_PATH
 
@@ -74,7 +74,7 @@ def delete_enterprise(number: str):
     conn.close()
 
 
-async def send_message_to_bot(bot_token: str, chat_id: str, message: str):
+async def send_message_to_bot(bot_token: str, chat_id: str, message: str) -> bool:
     """
     Асинхронно отправляет сообщение в Telegram-бота по bot_token и chat_id.
     Возвращает True при успехе, False при ошибке.
@@ -84,5 +84,6 @@ async def send_message_to_bot(bot_token: str, chat_id: str, message: str):
         await bot.send_message(chat_id=int(chat_id), text=message)
         return True
     except TelegramError as e:
-        # Можно добавить логирование ошибки
+        # Логируем ошибку, можно добавить логирование в файл или сервис
+        print(f"Ошибка при отправке сообщения боту: {e}")
         return False
