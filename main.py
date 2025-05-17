@@ -1,113 +1,144 @@
-import sys
-import asyncio
 import logging
+import asyncio
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, Form, HTTPException, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from telegram import Bot
+from fastapi.staticfiles import StaticFiles
 
-from app.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DB_PATH
-import aiosqlite
-
-from app.services.events import (
-    init_database_tables,
-    load_hangup_message_history,
-    save_asterisk_event,
+from app.services.database import (
+    get_enterprises_with_tokens,
+    get_enterprise_by_number,
+    update_enterprise,
+    add_enterprise,
+    delete_enterprise
 )
-from app.services.calls import (
-    process_start,
-    process_dial,
-    process_bridge,
-    process_hangup,
-    create_resend_loop,
+from app.services.enterprise import send_message_to_bot
+from app.routers import admin, enterprise, user_requests, auth_email, email_users
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
-from app.services.calls.internal import (
-    process_internal_start,
-    process_internal_bridge,
-    process_internal_hangup,
-)
-from app.services.calls.utils import is_internal_number
+logger = logging.getLogger(__name__)
 
-# ───────── настройка логирования ─────────
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-
-# Консоль
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(
-    logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-)
-logger.addHandler(console_handler)
-
-# Файл
-file_handler = logging.FileHandler("asterisk_events.log")
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-)
-logger.addHandler(file_handler)
-
-# aiogram
-logging.getLogger("aiogram").setLevel(logging.DEBUG)
-
-# ───────── FastAPI & шаблоны ─────────
 app = FastAPI()
+
 templates = Jinja2Templates(directory="app/templates")
 
-# ───────── middleware для логирования всех запросов ─────────
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    body = await request.body()
-    logger.debug(
-        f"Incoming request: {request.method} {request.url} — Body: "
-        f"{body.decode('utf-8', errors='ignore')}"
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+app.include_router(admin.router, prefix="/admin")
+app.include_router(enterprise.router, prefix="/enterprise")
+app.include_router(user_requests.router, prefix="/requests")
+app.include_router(auth_email.router, prefix="/auth")
+app.include_router(email_users.router, prefix="/email_users")
+
+
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    return RedirectResponse(url="/admin/enterprises")
+
+
+@app.get("/admin/enterprises", response_class=HTMLResponse)
+async def list_enterprises(request: Request):
+    enterprises = await get_enterprises_with_tokens()
+    # Сортируем предприятия по возрастанию номера (строковое или числовое? Предполагаем числовое)
+    enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
+    return templates.TemplateResponse(
+        "enterprises.html",
+        {"request": request, "enterprises": enterprises_sorted}
     )
-    return await call_next(request)
 
-# Бот для фоновых уведомлений
-notify_bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# ───────── routers ─────────
-from app.routers import admin, enterprise, user_requests, auth_email, email_users  # noqa: E402
+@app.get("/admin/enterprises/new", response_class=HTMLResponse)
+async def new_enterprise_form(request: Request):
+    return templates.TemplateResponse(
+        "enterprise_form.html",
+        {"request": request, "enterprise": None, "is_new": True}
+    )
 
-app.include_router(admin.router)
-app.include_router(enterprise.router)
-app.include_router(user_requests.router)
-app.include_router(email_users.router)
-app.include_router(auth_email.router)
 
-# ───────── состояние мостов ─────────
-dial_cache = {}
-bridge_store = {}
-active_bridges = {}
-
-@app.on_event("startup")
-async def startup_tasks():
-    logger.debug("Startup: init DB tables and load hangup history")
-    await init_database_tables()
-    await load_hangup_message_history()
-
-    logger.debug("Starting background resend loop")
-    asyncio.create_task(
-        create_resend_loop(
-            dial_cache,
-            bridge_store,
-            active_bridges,
-            notify_bot,
-            TELEGRAM_CHAT_ID,
+@app.post("/admin/enterprises/new")
+async def create_enterprise(
+    request: Request,
+    number: str = Form(...),
+    name: str = Form(...),
+    secret: str = Form(...),
+    bot_token: str = Form(...),
+    chat_id: str = Form(...),
+    ip: str = Form(...),
+    host: str = Form(...),
+):
+    existing = await get_enterprise_by_number(number)
+    if existing:
+        return templates.TemplateResponse(
+            "enterprise_form.html",
+            {
+                "request": request,
+                "enterprise": {"number": number, "name": name, "secret": secret,
+                               "bot_token": bot_token, "chat_id": chat_id, "ip": ip, "host": host},
+                "is_new": True,
+                "error": "Предприятие с таким номером уже существует"
+            }
         )
+    await add_enterprise(number, name, secret, bot_token, chat_id, ip, host)
+    return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/admin/enterprises/edit/{number}", response_class=HTMLResponse)
+async def edit_enterprise_form(request: Request, number: str):
+    enterprise = await get_enterprise_by_number(number)
+    if not enterprise:
+        raise HTTPException(status_code=404, detail="Предприятие не найдено")
+    return templates.TemplateResponse(
+        "enterprise_form.html",
+        {"request": request, "enterprise": enterprise, "is_new": False}
     )
 
-    # Инициализация Telegram-хендлеров
-    try:
-        from app.telegram.bot import start_enterprise_bots
-        asyncio.create_task(start_enterprise_bots())
-        logger.info("Telegram bots launched inside main.py")
-    except Exception as e:
-        logger.exception("Failed to start Telegram bots in main.py")
 
-@app.get("/health")
-async def health():
-    logger.debug("GET /health")
-    return {"status": "ok"}
+@app.post("/admin/enterprises/edit/{number}")
+async def update_enterprise_post(
+    request: Request,
+    number: str,
+    name: str = Form(...),
+    secret: str = Form(...),
+    bot_token: str = Form(...),
+    chat_id: str = Form(...),
+    ip: str = Form(...),
+    host: str = Form(...),
+):
+    await update_enterprise(number, name, secret, bot_token, chat_id, ip, host)
+    return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.delete("/admin/enterprises/{number}")
+async def delete_enterprise_api(number: str):
+    await delete_enterprise(number)
+    return {"detail": "Предприятие удалено"}
+
+
+@app.post("/admin/enterprises/{number}/send_message")
+async def send_message_api(number: str, request: Request):
+    data = await request.json()
+    message = data.get("message")
+    if not message:
+        raise HTTPException(status_code=400, detail="Сообщение не может быть пустым")
+    success = await send_message_to_bot(number, message)
+    if not success:
+        raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
+    return {"detail": "Сообщение отправлено"}
+
+
+@app.get("/admin")
+async def admin_root():
+    return RedirectResponse(url="/admin/enterprises")
+
+
+# Можно добавить другие страницы, если в проекте предусмотрены
+
+
+# Для теста или отладки
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, log_level="debug", reload=True)
