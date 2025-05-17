@@ -1,4 +1,3 @@
-# main.py
 import logging
 import asyncio
 
@@ -44,6 +43,7 @@ async def root(request: Request):
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     enterprises = await get_enterprises_with_tokens()
+    # Сортируем предприятия по возрастанию номера (предполагаем числовое)
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
     return templates.TemplateResponse(
         "enterprises.html",
@@ -82,7 +82,7 @@ async def create_enterprise(
                 "error": "Предприятие с таким номером уже существует"
             }
         )
-    await add_enterprise(number, name, secret, bot_token, chat_id, ip, host)
+    await add_enterprise(number, name, bot_token, chat_id, ip, secret, host)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -108,7 +108,7 @@ async def update_enterprise_post(
     ip: str = Form(...),
     host: str = Form(...),
 ):
-    await update_enterprise(number, name, secret, bot_token, chat_id, ip, host)
+    await update_enterprise(number, name, bot_token, chat_id, ip, secret, host)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -124,7 +124,14 @@ async def send_message_api(number: str, request: Request):
     message = data.get("message")
     if not message:
         raise HTTPException(status_code=400, detail="Сообщение не может быть пустым")
-    success = await send_message_to_bot(number, message)
+    # Получаем данные предприятия
+    enterprise = await get_enterprise_by_number(number)
+    if not enterprise:
+        raise HTTPException(status_code=404, detail="Предприятие не найдено")
+    bot_token = enterprise['bot_token']
+    chat_id = enterprise['chat_id']
+
+    success = await send_message_to_bot(bot_token, chat_id, message)
     if not success:
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
     return {"detail": "Сообщение отправлено"}
