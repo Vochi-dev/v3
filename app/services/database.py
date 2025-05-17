@@ -45,3 +45,10 @@ async def update_enterprise(number: str, name: str, bot_token: str, chat_id: str
         WHERE number = ?
     """
     await execute(sql, (name, bot_token, chat_id, ip, secret, host, name2, number))
+
+async def add_enterprise(number: str, name: str, bot_token: str, chat_id: str, ip: str, secret: str, host: str, name2: str = ''):
+    sql = """
+        INSERT INTO enterprises (number, name, bot_token, chat_id, ip, secret, host, created_at, name2)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
+    """
+    await execute(sql, (number, name, bot_token, chat_id, ip, secret, host, name2))
