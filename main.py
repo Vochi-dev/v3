@@ -203,14 +203,18 @@ async def send_message_api(number: str, request: Request):
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
-    # sqlite3.Row не имеет метода get(), используем доступ к атрибутам
-    bot_token = enterprise['bot_token'] if 'bot_token' in enterprise else ""
-    chat_id = enterprise['chat_id'] if 'chat_id' in enterprise else ""
+    bot_token = enterprise['bot_token'] if enterprise['bot_token'] else ""
+    chat_id = enterprise['chat_id'] if enterprise['chat_id'] else ""
 
-    if not bot_token or not bot_token.strip():
+    bot_token = bot_token.strip()
+    chat_id = chat_id.strip()
+
+    logger.info(f"Sending message. Bot token: '{bot_token}', chat_id: '{chat_id}', message: '{message}'")
+
+    if not bot_token:
         raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
 
-    if not chat_id or not chat_id.strip():
+    if not chat_id:
         raise HTTPException(status_code=400, detail="У предприятия отсутствует chat_id для отправки")
 
     success = await send_message_to_bot(bot_token, chat_id, message)
