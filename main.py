@@ -86,7 +86,6 @@ async def create_enterprise(
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
-# Вот тут поменял порядок сегментов в URL, чтобы совпадал с запросом /admin/enterprises/{number}/edit
 @app.get("/admin/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
     enterprise = await get_enterprise_by_number(number)
@@ -108,8 +107,9 @@ async def update_enterprise_post(
     chat_id: str = Form(...),
     ip: str = Form(...),
     host: str = Form(...),
+    name2: str = Form(""),  # добавлен параметр name2
 ):
-    await update_enterprise(number, name, bot_token, chat_id, ip, secret, host)
+    await update_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
