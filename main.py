@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
 from app.services.database import (
-    get_all_enterprises,  # Заменено здесь
+    get_all_enterprises,
     get_enterprise_by_number,
     add_enterprise,
     update_enterprise,
@@ -36,7 +36,7 @@ async def root(request: Request):
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
-    enterprises_rows = await get_all_enterprises()  # Используем get_all_enterprises()
+    enterprises_rows = await get_all_enterprises()
     enterprises = [dict(ent) for ent in enterprises_rows]
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
 
@@ -79,7 +79,7 @@ async def create_enterprise(
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    enterprises = await get_all_enterprises()  # Аналогично здесь
+    enterprises = await get_all_enterprises()
     for ent in enterprises:
         if ent['number'] == number:
             error = f"Предприятие с номером {number} уже существует"
@@ -202,8 +202,9 @@ async def send_message_api(number: str, request: Request):
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
-    bot_token = enterprise.get('bot_token', "")
-    chat_id = enterprise.get('chat_id', "")
+    # Заменяем ent.get на ent['']
+    bot_token = enterprise['bot_token'] if 'bot_token' in enterprise else ""
+    chat_id = enterprise['chat_id'] if 'chat_id' in enterprise else ""
 
     success = await send_message_to_bot(bot_token, chat_id, message)
     if not success:
