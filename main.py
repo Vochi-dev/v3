@@ -184,4 +184,21 @@ async def toggle_enterprise(request: Request, number: str):
     bot_token = enterprise.get("bot_token", "")
     chat_id = enterprise.get("chat_id", "")
     bot = Bot(token=bot_token)
-    text = f"✅ Сервис {'активирован' if new_status
+    text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
+    try:
+        await bot.send_message(chat_id=int(chat_id), text=text)
+        logger.info(f"Sent toggle message to bot {number}: {text}")
+    except TelegramError as e:
+        logger.error(f"Toggle bot notification failed: {e}")
+
+    return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/admin")
+async def admin_root():
+    return RedirectResponse(url="/admin/enterprises")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, log_level="info", reload=True)
