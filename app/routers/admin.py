@@ -69,7 +69,7 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
-    # Используем sqlite3.Row для удобного доступа по именам
+    # Возвращаем словари, чтобы можно было добавлять ключи
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
@@ -83,7 +83,7 @@ async def list_enterprises(request: Request):
 
     enterprises_with_status = []
     for row in rows:
-        ent = dict(row)  # скопировать, чтобы не было ошибок при добавлении ключей
+        ent = dict(row)
         try:
             ent["bot_available"] = await check_bot_status(ent["bot_token"])
             logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
