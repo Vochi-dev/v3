@@ -22,15 +22,6 @@ async def fetchone(sql, params=()):
         await cursor.close()
         return row
 
-async def get_enterprises_with_tokens():
-    sql = """
-        SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2, active
-        FROM enterprises
-        WHERE bot_token IS NOT NULL AND bot_token != ''
-        ORDER BY CAST(number AS INTEGER) ASC
-    """
-    return await fetchall(sql)
-
 async def get_all_enterprises():
     sql = """
         SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2, active

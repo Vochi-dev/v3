@@ -69,6 +69,7 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
+    # Используем row_factory для словарей, чтобы удобно работать с результатами
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
@@ -104,7 +105,6 @@ async def list_enterprises(request: Request):
     )
 
 
-# Добавлен GET-обработчик для формы добавления предприятия по пути /admin/enterprises/add
 @router.get("/enterprises/add", response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
     require_login(request)
@@ -239,6 +239,11 @@ async def send_message(number: str, request: Request):
         return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
 
     bot_token, chat_id = row
+    if not bot_token or not bot_token.strip():
+        return JSONResponse({"detail": "Enterprise has no bot token"}, status_code=400)
+    if not chat_id or not chat_id.strip():
+        return JSONResponse({"detail": "Enterprise has no chat_id"}, status_code=400)
+
     try:
         await send_message_to_bot(bot_token, chat_id, message)
     except Exception as e:
