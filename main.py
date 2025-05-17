@@ -41,7 +41,6 @@ async def root(request: Request):
 async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     enterprises_rows = await get_enterprises_with_tokens()
-    # Преобразуем sqlite3.Row в dict для удобства
     enterprises = [dict(ent) for ent in enterprises_rows]
 
     enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
@@ -60,6 +59,7 @@ async def list_enterprises(request: Request):
     )
 
 
+# Вот правильный GET-обработчик формы добавления предприятия (новый путь /admin/enterprises/new)
 @app.get("/admin/enterprises/new", response_class=HTMLResponse)
 async def new_enterprise_form(request: Request):
     return templates.TemplateResponse(
@@ -68,6 +68,7 @@ async def new_enterprise_form(request: Request):
     )
 
 
+# POST-обработчик на тот же путь для добавления
 @app.post("/admin/enterprises/new")
 async def create_enterprise(
     request: Request,
@@ -148,21 +149,16 @@ async def send_message_api(number: str, request: Request):
 
 @app.post("/admin/enterprises/{number}/toggle")
 async def toggle_enterprise(request: Request, number: str):
-    """
-    Переключение активности предприятия (active 0/1) и уведомление бота
-    """
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
-    # Приводим к dict, если ещё не dict
     if not isinstance(enterprise, dict):
         enterprise = dict(enterprise)
 
     current_active = enterprise.get("active", 0)
     new_status = 0 if current_active else 1
 
-    # Вызов update_enterprise с параметром active
     await update_enterprise(
         number,
         enterprise.get("name", ""),
@@ -175,7 +171,6 @@ async def toggle_enterprise(request: Request, number: str):
         active=new_status
     )
 
-    # Отправка уведомления в Telegram
     bot_token = enterprise.get("bot_token", "")
     chat_id = enterprise.get("chat_id", "")
     bot = Bot(token=bot_token)
