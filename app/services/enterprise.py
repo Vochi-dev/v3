@@ -27,7 +27,6 @@ def get_enterprise(number: str):
 def create_enterprise(number: str, name: str, name2: str, bot_token: str,
                       chat_id: str, ip: str, secret: str, host: str):
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
     conn.execute(
         """
         INSERT INTO enterprises
@@ -42,7 +41,6 @@ def create_enterprise(number: str, name: str, name2: str, bot_token: str,
 def update_enterprise(number: str, name: str, name2: str, bot_token: str,
                       chat_id: str, ip: str, secret: str, host: str):
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
     conn.execute(
         """
         UPDATE enterprises SET
@@ -62,21 +60,18 @@ def update_enterprise(number: str, name: str, name2: str, bot_token: str,
 
 def delete_enterprise(number: str):
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
     conn.execute("DELETE FROM enterprises WHERE number = ?", (number,))
     conn.commit()
     conn.close()
 
-
-async def send_message_to_bot(bot_token: str, chat_id: str, message: str) -> bool:
+async def send_message_to_bot(bot_token: str, chat_id: str, message: str):
     """
     Асинхронно отправляет сообщение в Telegram-бота.
-    Возвращает True при успехе, False при ошибке.
     """
     bot = Bot(token=bot_token)
     try:
         await bot.send_message(chat_id=int(chat_id), text=message)
         return True
     except TelegramError as e:
-        # Логирование ошибки можно добавить здесь, если нужно
+        # Можно добавить логирование ошибки
         return False
