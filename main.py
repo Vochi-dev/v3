@@ -1,7 +1,6 @@
 import logging
-import asyncio
 
-from fastapi import FastAPI, Request, Depends, Form, HTTPException, status
+from fastapi import FastAPI, Request, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -47,7 +46,7 @@ async def list_enterprises(request: Request):
 
     for ent in enterprises_sorted:
         try:
-            ent["bot_available"] = await check_bot_status(ent["bot_token"])
+            ent["bot_available"] = await check_bot_status(ent.get("bot_token", ""))
             logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
         except Exception as e:
             logger.error(f"Error checking bot status for #{ent['number']}: {e}")
@@ -63,7 +62,7 @@ async def list_enterprises(request: Request):
 async def new_enterprise_form(request: Request):
     return templates.TemplateResponse(
         "enterprise_form.html",
-        {"request": request, "enterprise": None, "is_new": True}
+        {"request": request, "enterprise": {}, "is_new": True}
     )
 
 
@@ -73,24 +72,37 @@ async def create_enterprise(
     number: str = Form(...),
     name: str = Form(...),
     secret: str = Form(...),
-    bot_token: str = Form(...),
-    chat_id: str = Form(...),
+    bot_token: str = Form(None),
+    chat_id: str = Form(None),
     ip: str = Form(...),
     host: str = Form(...),
+    name2: str = Form(""),
 ):
-    existing = await get_enterprise_by_number(number)
-    if existing:
-        return templates.TemplateResponse(
-            "enterprise_form.html",
-            {
-                "request": request,
-                "enterprise": {"number": number, "name": name, "secret": secret,
-                               "bot_token": bot_token, "chat_id": chat_id, "ip": ip, "host": host},
-                "is_new": True,
-                "error": "Предприятие с таким номером уже существует"
-            }
-        )
-    await add_enterprise(number, name, bot_token, chat_id, ip, secret, host)
+    enterprises = await get_enterprises_with_tokens()
+    for ent in enterprises:
+        if (ent['number'] == number or
+            ent['name'] == name or
+            ent.get('name2', '') == name2 or
+            ent['ip'] == ip):
+            return templates.TemplateResponse(
+                "enterprise_form.html",
+                {
+                    "request": request,
+                    "enterprise": {
+                        "number": number,
+                        "name": name,
+                        "secret": secret,
+                        "bot_token": bot_token or "",
+                        "chat_id": chat_id or "",
+                        "ip": ip,
+                        "host": host,
+                        "name2": name2,
+                    },
+                    "is_new": True,
+                    "error": "Предприятие с таким номером, названием, доп. именем или IP уже существует"
+                }
+            )
+    await add_enterprise(number, name, bot_token or "", chat_id or "", ip, secret, host, name2)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -111,13 +123,13 @@ async def update_enterprise_post(
     number: str,
     name: str = Form(...),
     secret: str = Form(...),
-    bot_token: str = Form(...),
-    chat_id: str = Form(...),
+    bot_token: str = Form(None),
+    chat_id: str = Form(None),
     ip: str = Form(...),
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    await update_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
+    await update_enterprise(number, name, bot_token or "", chat_id or "", ip, secret, host, name2)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -136,8 +148,8 @@ async def send_message_api(number: str, request: Request):
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
-    bot_token = enterprise['bot_token']
-    chat_id = enterprise['chat_id']
+    bot_token = enterprise.get('bot_token', "")
+    chat_id = enterprise.get('chat_id', "")
 
     success = await send_message_to_bot(bot_token, chat_id, message)
     if not success:
@@ -172,21 +184,4 @@ async def toggle_enterprise(request: Request, number: str):
     bot_token = enterprise.get("bot_token", "")
     chat_id = enterprise.get("chat_id", "")
     bot = Bot(token=bot_token)
-    text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
-    try:
-        await bot.send_message(chat_id=int(chat_id), text=text)
-        logger.info(f"Sent toggle message to bot {number}: {text}")
-    except TelegramError as e:
-        logger.error(f"Toggle bot notification failed: {e}")
-
-    return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@app.get("/admin")
-async def admin_root():
-    return RedirectResponse(url="/admin/enterprises")
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, log_level="info", reload=True)
+    text = f"✅ Сервис {'активирован' if new_status

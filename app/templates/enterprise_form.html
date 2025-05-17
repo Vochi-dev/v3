@@ -5,66 +5,65 @@
   <title>{% if is_new %}Добавить предприятие{% else %}Редактировать предприятие{% endif %}</title>
   <style>
     body { font-family: sans-serif; padding: 2rem; }
-    label { display: block; margin-top: 1rem; }
+    label { display: block; margin-top: 0.5rem; }
     input[type="text"], input[type="password"] {
       width: 100%;
       padding: 0.4rem;
-      font-size: 1rem;
+      margin-top: 0.2rem;
       box-sizing: border-box;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
     }
     .error {
       color: red;
-      margin-top: 0.5rem;
+      margin-top: 1rem;
+      font-weight: bold;
     }
-    button {
-      margin-top: 1.5rem;
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-    a {
-      margin-left: 1rem;
-      font-size: 0.9rem;
-      text-decoration: none;
-      color: #007bff;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
+    a { margin-left: 1rem; }
   </style>
 </head>
 <body>
   <h1>{% if is_new %}Добавить предприятие{% else %}Редактировать предприятие{% endif %}</h1>
 
   {% if error %}
-  <div class="error">{{ error }}</div>
+    <div class="error">{{ error }}</div>
   {% endif %}
 
   <form method="post" action="{% if is_new %}/admin/enterprises/new{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}">
-    <label for="number">Номер:</label>
-    <input type="text" id="number" name="number" required value="{{ enterprise.number or '' }}" {% if not is_new %}readonly{% endif %} />
+    
+    <label for="number">Номер *</label>
+    <input type="text" id="number" name="number" value="{{ enterprise.number or '' }}" {% if not is_new %}readonly{% endif %} required />
 
-    <label for="name">Название:</label>
-    <input type="text" id="name" name="name" required value="{{ enterprise.name or '' }}" />
+    <label for="name">Название *</label>
+    <input type="text" id="name" name="name" value="{{ enterprise.name or '' }}" required />
 
-    <label for="secret">Secret:</label>
-    <input type="text" id="secret" name="secret" required value="{{ enterprise.secret or '' }}" />
+    <label for="bot_token">Bot Token</label>
+    <input type="text" id="bot_token" name="bot_token" value="{{ enterprise.bot_token or '' }}" />
 
-    <label for="bot_token">Bot Token:</label>
-    <input type="text" id="bot_token" name="bot_token" required value="{{ enterprise.bot_token or '' }}" />
+    <label for="chat_id">Chat ID</label>
+    <input type="text" id="chat_id" name="chat_id" value="{{ enterprise.chat_id or '' }}" />
 
-    <label for="chat_id">Chat ID:</label>
-    <input type="text" id="chat_id" name="chat_id" required value="{{ enterprise.chat_id or '' }}" />
+    <label for="ip">IP *</label>
+    <input type="text" id="ip" name="ip" value="{{ enterprise.ip or '' }}" required />
 
-    <label for="ip">IP:</label>
-    <input type="text" id="ip" name="ip" required value="{{ enterprise.ip or '' }}" />
+    <label for="secret">Secret *</label>
+    <input type="password" id="secret" name="secret" value="{{ enterprise.secret or '' }}" required />
 
-    <label for="host">Host:</label>
-    <input type="text" id="host" name="host" required value="{{ enterprise.host or '' }}" />
+    <label for="host">Host *</label>
+    <input type="text" id="host" name="host" value="{{ enterprise.host or '' }}" required />
+
+    <label for="name2">Доп. имя</label>
+    <input type="text" id="name2" name="name2" value="{{ enterprise.name2 or '' }}" />
 
     {% if not is_new %}
-    <label for="name2">Доп. имя:</label>
-    <input type="text" id="name2" name="name2" value="{{ enterprise.name2 or '' }}" />
+      <label for="active">Активность</label>
+      <select id="active" name="active">
+        <option value="1" {% if enterprise.active == 1 %}selected{% endif %}>Активен</option>
+        <option value="0" {% if enterprise.active == 0 %}selected{% endif %}>Неактивен</option>
+      </select>
     {% endif %}
 
     <button type="submit">{% if is_new %}Добавить{% else %}Сохранить{% endif %}</button>
