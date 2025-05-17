@@ -37,3 +37,11 @@ async def get_enterprise_by_number(number: str):
         LIMIT 1
     """
     return await fetchone(sql, (number,))
+
+async def update_enterprise(number: str, name: str, bot_token: str, chat_id: str, ip: str, secret: str, host: str, name2: str = ''):
+    sql = """
+        UPDATE enterprises
+        SET name = ?, bot_token = ?, chat_id = ?, ip = ?, secret = ?, host = ?, name2 = ?
+        WHERE number = ?
+    """
+    await execute(sql, (name, bot_token, chat_id, ip, secret, host, name2, number))
