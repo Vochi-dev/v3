@@ -17,6 +17,9 @@
       cursor: pointer;
       font-size: 0.9rem;
     }
+    .button.red {
+      background: #dc3545; /* bootstrap danger red */
+    }
     table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
     th, td { border: 1px solid #ccc; padding: 0.5rem; vertical-align: top; }
     th { background: #f0f0f0; }
@@ -69,11 +72,18 @@
           <button class="button" onclick="navigator.clipboard.writeText('{{ ent.bot_token }}')">Копировать</button>
         </td>
         <td>
-          <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
-            <button type="submit" class="button">
-              {% if ent.active %}Отключить{% else %}Включить{% endif %}
-            </button>
-          </form>
+          {% if ent.bot_available %}
+            <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
+              <button
+                type="submit"
+                class="button {% if not ent.active %}red{% endif %}"
+              >
+                {% if ent.active %}Отключить{% else %}Включить{% endif %}
+              </button>
+            </form>
+          {% else %}
+            <!-- Нет кнопки, если бот недоступен -->
+          {% endif %}
         </td>
         <td>
           {% if ent.bot_available %}
