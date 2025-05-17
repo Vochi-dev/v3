@@ -105,37 +105,7 @@ async def list_enterprises(request: Request):
     )
 
 
-@router.post("/enterprises/{number}/toggle", response_class=RedirectResponse)
-async def toggle_enterprise(request: Request, number: str):
-    require_login(request)
-    db = await get_connection()
-    db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-    cur = await db.execute("SELECT active, bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
-    enterprise = await cur.fetchone()
-
-    if not enterprise:
-        await db.close()
-        raise HTTPException(status_code=404, detail="Enterprise not found")
-
-    new_status = 0 if enterprise["active"] else 1
-    await db.execute("UPDATE enterprises SET active = ? WHERE number = ?", (new_status, number))
-    await db.commit()
-
-    bot_token = enterprise["bot_token"]
-    chat_id = enterprise["chat_id"]
-
-    bot = Bot(token=bot_token)
-    text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
-    try:
-        await bot.send_message(chat_id=int(chat_id), text=text)
-        logger.info(f"Sent toggle message to bot {number}: {text}")
-    except TelegramError as e:
-        logger.error(f"Toggle bot notification failed: {e}")
-
-    await db.close()
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-
+# Вот исправленный маршрут, где префикс /admin/enterprises/add включён в путь
 @router.get("/enterprises/add", response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
     require_login(request)
