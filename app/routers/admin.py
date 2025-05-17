@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import sys
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Form, status, HTTPException
@@ -67,7 +66,7 @@ async def dashboard(request: Request):
 
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
-    print("list_enterprises called", file=sys.stderr)
+    logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
     db.row_factory = None
@@ -96,9 +95,9 @@ async def list_enterprises(request: Request):
         }
         try:
             ent["bot_available"] = await check_bot_status(ent["bot_token"])
-            print(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}", file=sys.stderr)
+            logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
         except Exception as e:
-            print(f"Error checking bot status for #{ent['number']}: {e}", file=sys.stderr)
+            logger.error(f"Error checking bot status for #{ent['number']}: {e}")
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
