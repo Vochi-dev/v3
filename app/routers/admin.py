@@ -94,15 +94,11 @@ async def list_enterprises(request: Request):
         }
         try:
             ent["bot_available"] = await check_bot_status(ent["bot_token"])
-            logger.debug(f"Bot status for #{ent['number']}: {ent['bot_available']}")
+            print(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
         except Exception as e:
-            logger.error(f"Error checking bot status for #{ent['number']}: {e}")
+            print(f"Error checking bot status for #{ent['number']}: {e}")
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
-
-    # Логируем статус активности бота перед отправкой в шаблон
-    for ent in enterprises_with_status:
-        logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
 
     service_running = True
     bots_running = True
