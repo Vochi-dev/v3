@@ -42,6 +42,10 @@ async def list_enterprises(request: Request):
 
     for ent in enterprises_sorted:
         bot_token = ent.get("bot_token") or ""
+        if not bot_token.strip():
+            ent["bot_available"] = False
+            logger.info(f"Enterprise #{ent['number']} - no bot_token, bot_available set to False")
+            continue
         try:
             ent["bot_available"] = await check_bot_status(bot_token)
             logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
@@ -83,7 +87,9 @@ async def create_enterprise(
         if ent['name'].strip().lower() == name.strip().lower():
             error = f"Предприятие с названием '{name}' уже существует"
             break
-        if ent['name2'].strip().lower() == name2.strip().lower() and name2.strip() != "":
+        # ent['name2'] может быть None, поэтому защитимся
+        existing_name2 = ent['name2'] if ent['name2'] is not None else ""
+        if existing_name2.strip().lower() == name2.strip().lower() and name2.strip() != "":
             error = f"Предприятие с дополнительным именем '{name2}' уже существует"
             break
         if ent['ip'] == ip:
@@ -146,7 +152,8 @@ async def update_enterprise_post(
             if ent['name'].strip().lower() == name.strip().lower():
                 error = f"Предприятие с названием '{name}' уже существует"
                 break
-            if ent['name2'].strip().lower() == name2.strip().lower() and name2.strip() != "":
+            existing_name2 = ent['name2'] if ent['name2'] is not None else ""
+            if existing_name2.strip().lower() == name2.strip().lower() and name2.strip() != "":
                 error = f"Предприятие с дополнительным именем '{name2}' уже существует"
                 break
             if ent['ip'] == ip:
