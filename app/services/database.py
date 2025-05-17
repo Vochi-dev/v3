@@ -28,3 +28,12 @@ async def get_enterprises_with_tokens():
         ORDER BY CAST(number AS INTEGER) ASC
     """
     return await fetchall(sql)
+
+async def get_enterprise_by_number(number: str):
+    sql = """
+        SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2
+        FROM enterprises
+        WHERE number = ?
+        LIMIT 1
+    """
+    return await fetchone(sql, (number,))
