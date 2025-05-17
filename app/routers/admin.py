@@ -100,7 +100,10 @@ async def list_enterprises(request: Request):
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
-    # Заглушки для кнопок управления сервисом и ботами (в дальнейшем нужно интегрировать реальный статус)
+    # Логируем статус активности бота перед отправкой в шаблон
+    for ent in enterprises_with_status:
+        logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
+
     service_running = True
     bots_running = True
 
