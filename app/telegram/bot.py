@@ -5,23 +5,18 @@ import argparse
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import ParseMode
+from aiogram.enums import ParseMode  # <--- здесь изменение
 from aiogram.utils.exceptions import TelegramAPIError
 
 logger = logging.getLogger(__name__)
 
-# Парсим аргументы для запуска бота конкретного предприятия
 parser = argparse.ArgumentParser(description="Telegram Bot for Enterprise")
 parser.add_argument('--enterprise', type=str, required=True, help='Enterprise number')
 args = parser.parse_args()
 
 ENTERPRISE_NUMBER = args.enterprise
 
-# Здесь загрузка токена для конкретного предприятия из БД или конфига
-# Для примера загружаем из файла, лучше — из базы данных
 def load_bot_token(enterprise_number):
-    # TODO: заменить на загрузку из БД
-    # Пример жестко захардкожен, замени на логику из БД
     tokens = {
         "0100": "7765204924:AAEFCyUsxGhTWsuIENX47iqpD3s8L60kwmc",
         "0201": "8133181812:AAH_Ty_ndTeO8Y_NlTEFkbBsgGIrGUlH5I0",
