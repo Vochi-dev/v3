@@ -199,25 +199,41 @@ async def delete_enterprise_api(number: str):
 async def send_message_api(number: str, request: Request):
     data = await request.json()
     message = data.get("message")
+    logger.info(f"Send message request received for enterprise {number} with message: {message!r}")
+
     if not message:
+        logger.warning("Empty message received")
         raise HTTPException(status_code=400, detail="Сообщение не может быть пустым")
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
+        logger.error(f"Enterprise {number} not found")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
     # sqlite3.Row не имеет метода get(), используем доступ к атрибутам
     bot_token = enterprise['bot_token'] if 'bot_token' in enterprise else ""
     chat_id = enterprise['chat_id'] if 'chat_id' in enterprise else ""
 
+    logger.info(f"Enterprise {number} bot_token: {bot_token!r}, chat_id: {chat_id!r}")
+
     if not bot_token or not bot_token.strip():
+        logger.error(f"Enterprise {number} has no bot token")
         raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
 
     if not chat_id or not chat_id.strip():
+        logger.error(f"Enterprise {number} has no chat_id")
         raise HTTPException(status_code=400, detail="У предприятия отсутствует chat_id для отправки")
 
-    success = await send_message_to_bot(bot_token, chat_id, message)
-    if not success:
+    try:
+        success = await send_message_to_bot(bot_token, chat_id, message)
+    except Exception as e:
+        logger.error(f"Failed to send message to bot {number}: {e}")
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
+
+    if not success:
+        logger.error(f"Sending message to bot {number} returned failure")
+        raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
+
+    logger.info(f"Message sent successfully to enterprise {number}")
     return {"detail": "Сообщение отправлено"}
 
 
