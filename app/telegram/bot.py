@@ -9,7 +9,7 @@ from aiogram.utils.markdown import hbold
 from app.services.database import get_enterprises_with_tokens
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
@@ -33,7 +33,8 @@ async def create_bot_instance(bot_token: str, enterprise_number: str):
 
     try:
         await bot.delete_webhook(drop_pending_updates=True)
-        logger.info(f"✅ Бот {enterprise_number} запущен: @{(await bot.get_me()).username}")
+        me = await bot.get_me()
+        logger.info(f"✅ Бот {enterprise_number} запущен: @{me.username}")
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"❌ Ошибка при инициализации бота {enterprise_number}: {e}")
@@ -47,9 +48,12 @@ async def start_enterprise_bots():
 
     tasks = []
     for ent in enterprises:
+        # Преобразуем Row в dict для корректной работы с .get()
+        ent = dict(ent)
         bot_token = ent.get("bot_token", "").strip()
         number = ent.get("number", "").strip()
         if bot_token and number:
+            logger.debug(f"Запускаем бота для предприятия #{number} с токеном: {bot_token[:5]}...")
             tasks.append(create_bot_instance(bot_token, number))
         else:
             logger.warning(f"Пропуск предприятия {ent} — отсутствует bot_token или number")
