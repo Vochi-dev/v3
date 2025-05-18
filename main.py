@@ -19,7 +19,7 @@ from app.services.bot_status import check_bot_status
 from telegram import Bot
 from telegram.error import TelegramError
 
-bots_launched = False  # Флаг статуса ботов
+bots_launched = False  # Флаг запуска ботов
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -30,10 +30,12 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 @app.on_event("startup")
 async def startup_event():
     global bots_launched
     bots_launched = True
+    logger.info("✅ Боты внутри main.py запущены (флаг установлен в True)")
 
 
 
@@ -383,11 +385,8 @@ async def toggle_bots_service():
 
 
 @app.get("/service/bots_status")
-def bots_status():
+async def bots_status():
     return {"running": bots_launched}
-    except Exception as e:
-        logger.error(f"Ошибка при проверке статуса ботов: {e}")
-        raise HTTPException(status_code=500, detail="Не удалось получить статус ботов")
 
 
 @app.get("/admin")
