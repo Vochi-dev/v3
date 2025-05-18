@@ -19,7 +19,7 @@ from app.services.enterprise import send_message_to_bot
 from app.services.bot_status import check_bot_status
 from telegram import Bot
 from telegram.error import TelegramError
-from app.telegram.bot import start_enterprise_bots
+from app.telegram.bot import start_enterprise_bots  # если нужна внутренняя логика старта ботов - можно убрать
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -32,10 +32,8 @@ templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
-# Исправленный middleware для логирования запросов и ответов
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # Правильный вызов с параметрами для совместимости с uvicorn
         logger.info("Incoming request: %s %s", request.method, request.url)
         try:
             response = await call_next(request)
