@@ -2,6 +2,7 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
+from aiogram.client.bot import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message
 from aiogram.utils.markdown import hbold
@@ -21,7 +22,7 @@ async def start_handler(message: Message, enterprise_number: str):
 
 
 async def create_bot_instance(bot_token: str, enterprise_number: str):
-    bot = Bot(token=bot_token, parse_mode=ParseMode.HTML)
+    bot = Bot(token=bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=MemoryStorage())
 
     @dp.message()
@@ -35,6 +36,7 @@ async def create_bot_instance(bot_token: str, enterprise_number: str):
         await bot.delete_webhook(drop_pending_updates=True)
         me = await bot.get_me()
         logger.info(f"✅ Бот {enterprise_number} запущен: @{me.username}")
+        # Запуск polling будет блокирующим, его нельзя просто await
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"❌ Ошибка при инициализации бота {enterprise_number}: {e}")
@@ -48,17 +50,18 @@ async def start_enterprise_bots():
 
     tasks = []
     for ent in enterprises:
-        # Преобразуем Row в dict для корректной работы с .get()
-        ent = dict(ent)
+        ent = dict(ent)  # sqlite3.Row -> dict
         bot_token = ent.get("bot_token", "").strip()
         number = ent.get("number", "").strip()
         if bot_token and number:
             logger.debug(f"Запускаем бота для предприятия #{number} с токеном: {bot_token[:5]}...")
-            tasks.append(create_bot_instance(bot_token, number))
+            # Запускаем create_bot_instance как таску, чтобы не блокировать
+            task = asyncio.create_task(create_bot_instance(bot_token, number))
+            tasks.append(task)
         else:
             logger.warning(f"Пропуск предприятия {ent} — отсутствует bot_token или number")
 
-    await asyncio.gather(*tasks)
+    # await asyncio.gather(*tasks)  # НЕ await — оставим таски жить параллельно
 
 
 if __name__ == "__main__":
