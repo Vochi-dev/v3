@@ -55,9 +55,22 @@ async def list_enterprises(request: Request):
             logger.error(f"Error checking bot status for #{ent['number']}: {e}")
             ent["bot_available"] = False
 
+    # Расширенная проверка статуса ботов (процессы)
+    try:
+        result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
+        bots_running = bool(result.stdout.strip())
+        logger.debug(f"Процессы ботов:\n{result.stdout}")
+    except Exception as e:
+        logger.error(f"Ошибка при проверке процессов ботов: {e}")
+        bots_running = False
+
     return templates.TemplateResponse(
         "enterprises.html",
-        {"request": request, "enterprises": enterprises_sorted}
+        {
+            "request": request,
+            "enterprises": enterprises_sorted,
+            "bots_running": bots_running,
+        }
     )
 
 
@@ -242,8 +255,10 @@ async def send_message_api(number: str, request: Request):
 
 @app.post("/admin/enterprises/{number}/toggle")
 async def toggle_enterprise(request: Request, number: str):
+    logger.info(f"toggle_enterprise called for #{number}")
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
+        logger.error(f"Enterprise #{number} not found on toggle")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
     if not isinstance(enterprise, dict):
@@ -251,6 +266,7 @@ async def toggle_enterprise(request: Request, number: str):
 
     current_active = enterprise.get("active", 0)
     new_status = 0 if current_active else 1
+    logger.debug(f"Enterprise #{number} current_active={current_active}, toggling to {new_status}")
 
     await update_enterprise(
         number,
@@ -272,29 +288,43 @@ async def toggle_enterprise(request: Request, number: str):
         await bot.send_message(chat_id=int(chat_id), text=text)
         logger.info(f"Sent toggle message to bot {number}: {text}")
     except TelegramError as e:
-        logger.error(f"Toggle bot notification failed: {e}")
+        logger.error(f"Toggle bot notification failed for #{number}: {e}")
 
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.get("/service/bots_status")
 async def bots_status():
-    result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
-    running = bool(result.stdout.strip())
+    try:
+        result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
+        running = bool(result.stdout.strip())
+        logger.debug(f"bots_status check: running={running}\n{result.stdout}")
+    except Exception as e:
+        logger.error(f"Ошибка при проверке статуса ботов: {e}")
+        running = False
     return {"running": running}
 
 
 @app.post("/service/toggle_bots")
 async def toggle_bots_service():
+    logger.info("toggle_bots_service called")
     try:
         result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
         running = bool(result.stdout.strip())
+        logger.debug(f"Processes before toggle:\n{result.stdout}")
         if running:
+            logger.info("Bots running, attempting to stop")
             subprocess.run(["pkill", "-f", "app.telegram.bot"], check=False)
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
+            result_after = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
+            logger.debug(f"Processes after stop:\n{result_after.stdout}")
             detail = "Сервисы ботов остановлены"
         else:
+            logger.info("Bots not running, attempting to start")
             subprocess.Popen(["./start_bots.sh"])
+            await asyncio.sleep(3)
+            result_after = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
+            logger.debug(f"Processes after start:\n{result_after.stdout}")
             detail = "Сервисы ботов запущены"
         return {"detail": detail, "running": not running}
     except Exception as e:
@@ -304,6 +334,7 @@ async def toggle_bots_service():
 
 @app.on_event("startup")
 async def startup_event():
+    logger.info("startup event - launching bots")
     try:
         subprocess.Popen(["./start_bots.sh"])
         logger.info("✅ Боты запущены при старте сервиса")
