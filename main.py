@@ -1,11 +1,11 @@
 import logging
 import asyncio
 import subprocess
+import contextlib
 from fastapi import FastAPI, Request, Form, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-
 from app.services.database import (
     get_all_enterprises,
     get_enterprise_by_number,
@@ -15,9 +15,9 @@ from app.services.database import (
 )
 from app.services.enterprise import send_message_to_bot
 from app.services.bot_status import check_bot_status
-
 from telegram import Bot
 from telegram.error import TelegramError
+from app.telegram.bot import start_enterprise_bots
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -279,7 +279,7 @@ async def toggle_enterprise(request: Request, number: str):
 
 @app.get("/service/bots_status")
 async def bots_status():
-    result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
+    result = subprocess.run(["pgrep", "-fl", "app/telegram/bot.py"], capture_output=True, text=True)
     running = bool(result.stdout.strip())
     return {"running": running}
 
@@ -287,10 +287,10 @@ async def bots_status():
 @app.post("/service/toggle_bots")
 async def toggle_bots_service():
     try:
-        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
+        result = subprocess.run(["pgrep", "-fl", "app/telegram/bot.py"], capture_output=True, text=True)
         running = bool(result.stdout.strip())
         if running:
-            subprocess.run(["pkill", "-f", "bot.py"], check=False)
+            subprocess.run(["pkill", "-f", "app/telegram/bot.py"], check=False)
             await asyncio.sleep(1)
             detail = "Сервисы ботов остановлены"
         else:
@@ -302,7 +302,6 @@ async def toggle_bots_service():
         raise HTTPException(status_code=500, detail="Не удалось переключить сервисы ботов")
 
 
-
 @app.on_event("startup")
 async def startup_event():
     try:
@@ -310,19 +309,10 @@ async def startup_event():
         logger.info("✅ Боты запущены при старте сервиса")
     except Exception as e:
         logger.error(f"❌ Ошибка автозапуска ботов при старте сервиса: {e}")
+    with contextlib.suppress(Exception):
+        asyncio.create_task(start_enterprise_bots())
 
 
 @app.get("/admin")
 async def admin_root():
     return RedirectResponse(url="/admin/enterprises")
-
-
-# --- Автозапуск ботов при старте FastAPI ---
-
-import contextlib
-from app.telegram.bot import start_enterprise_bots
-
-@app.on_event("startup")
-async def startup_event():
-    with contextlib.suppress(Exception):
-        asyncio.create_task(start_enterprise_bots())
