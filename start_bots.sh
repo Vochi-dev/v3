@@ -6,9 +6,9 @@ cd /root/asterisk-webhook || exit 1
 # Завершаем старые процессы
 pkill -f app/telegram/bot.py
 
-# Запускаем ботов заново
+# Запускаем с правильным PYTHONPATH
 echo "[$(date)] Запуск ботов" >> bots.log
-nohup python3 app/telegram/bot.py >> bots.log 2>&1 &
+nohup PYTHONPATH=. python3 app/telegram/bot.py >> bots.log 2>&1 &
 
 # Немного ждём
 sleep 2
