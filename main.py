@@ -205,6 +205,7 @@ async def send_message_api(number: str, request: Request):
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
+    # sqlite3.Row не имеет метода get(), используем доступ к атрибутам
     bot_token = enterprise['bot_token'] if 'bot_token' in enterprise else ""
     chat_id = enterprise['chat_id'] if 'chat_id' in enterprise else ""
 
@@ -353,7 +354,7 @@ async def bots_status():
     except Exception as e:
         logger.error(f"Ошибка при проверке статуса ботов: {e}")
         raise HTTPException(status_code=500, detail="Не удалось получить статус ботов")
-        
+
 
 @app.get("/admin")
 async def admin_root():
