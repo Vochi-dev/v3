@@ -279,7 +279,7 @@ async def toggle_enterprise(request: Request, number: str):
 
 @app.get("/service/bots_status")
 async def bots_status():
-    result = subprocess.run(["pgrep", "-fl", "app/telegram/bot.py"], capture_output=True, text=True)
+    result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
     running = bool(result.stdout.strip())
     return {"running": running}
 
@@ -287,10 +287,10 @@ async def bots_status():
 @app.post("/service/toggle_bots")
 async def toggle_bots_service():
     try:
-        result = subprocess.run(["pgrep", "-fl", "app/telegram/bot.py"], capture_output=True, text=True)
+        result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
         running = bool(result.stdout.strip())
         if running:
-            subprocess.run(["pkill", "-f", "app/telegram/bot.py"], check=False)
+            subprocess.run(["pkill", "-f", "app.telegram.bot"], check=False)
             await asyncio.sleep(1)
             detail = "Сервисы ботов остановлены"
         else:
