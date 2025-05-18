@@ -53,7 +53,8 @@
     <button class="button" onclick="serviceAction('/service/restart_all', 'Все сервисы перезапущены')">🔁 Полная перезагрузка</button>
     <button class="button" onclick="serviceAction('/service/restart_bots', 'Сервисы ботов перезапущены')">🤖 Перезапустить ботов</button>
     <button
-      class="button {% if bots_running %}green{% else %}red{% endif %}"
+      id="toggle-bots-btn"
+      class="button"
       onclick="toggleBots()"
     >
       ⚙️ Включить/Выключить ботов
@@ -61,7 +62,7 @@
   </div>
 
   <div>
-    <a href="/admin/enterprises/new" class="button">Добавить предприятие</a>
+    <a href="/admin/enterprises/add" class="button">Добавить предприятие</a>
     <a href="/admin" class="button">Назад</a>
   </div>
 
@@ -96,7 +97,7 @@
             <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
               <button
                 type="submit"
-                class="button {% if not ent.active %}red{% endif %}"
+                class="button {% if not ent.active %}red{% else %}green{% endif %}"
               >
                 {% if ent.active %}Отключить{% else %}Включить{% endif %}
               </button>
@@ -190,15 +191,38 @@
           alert("Не удалось получить статус ботов");
           return;
         }
+        const btn = document.getElementById('toggle-bots-btn');
         if (data.running) {
           await serviceAction('/service/stop_bots', 'Сервисы ботов остановлены');
+          btn.classList.remove('green');
+          btn.classList.add('red');
         } else {
           await serviceAction('/service/restart_bots', 'Сервисы ботов запущены');
+          btn.classList.remove('red');
+          btn.classList.add('green');
         }
       } catch (e) {
         alert("Ошибка при переключении ботов: " + e.message);
       }
     }
+
+    // При загрузке страницы обновим цвет кнопки в зависимости от состояния
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        let response = await fetch('/service/bots_status');
+        let data = await response.json();
+        const btn = document.getElementById('toggle-bots-btn');
+        if (data.running) {
+          btn.classList.remove('red');
+          btn.classList.add('green');
+        } else {
+          btn.classList.remove('green');
+          btn.classList.add('red');
+        }
+      } catch (e) {
+        console.error("Ошибка при получении статуса ботов:", e);
+      }
+    });
   </script>
 </body>
 </html>
