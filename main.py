@@ -23,8 +23,6 @@ from aiogram import Bot as AiogramBot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
-from aiogram.client.session import DefaultBotSession
-from aiogram.client.bot import DefaultBotProperties
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -81,7 +79,7 @@ async def list_enterprises(request: Request):
         {
             "request": request,
             "enterprises": enterprises_sorted,
-            "bots_running": True,
+            "bots_running": True,  # Всегда True, т.к. боты запускаются фоном
         }
     )
 
@@ -305,12 +303,6 @@ async def toggle_enterprise(request: Request, number: str):
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
-@app.get("/service/bots_status")
-async def bots_status():
-    # Теперь всегда true, т.к. боты стартуют в фоне
-    return {"running": True}
-
-
 BOT_TOKENS = {
     "0100": "7765204924:AAEFCyUsxGhTWsuIENX47iqpD3s8L60kwmc",
     "0201": "8133181812:AAH_Ty_ndTeO8Y_NlTEFkbBsgGIrGUlH5I0",
@@ -325,8 +317,7 @@ async def start_bot(enterprise_number: str):
         return
     bot = AiogramBot(
         token=token,
-        session=DefaultBotSession(),
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        parse_mode=ParseMode.HTML
     )
     dp = Dispatcher()
 
