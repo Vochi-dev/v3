@@ -212,8 +212,13 @@ async def send_message_api(number: str, request: Request):
         logger.error(f"Enterprise #{number} not found in database")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
-    bot_token = enterprise.get('bot_token', "")
-    chat_id = enterprise.get('chat_id', "")
+    # Обрабатываем sqlite3.Row (не dict) корректно
+    if hasattr(enterprise, "get"):
+        bot_token = enterprise.get('bot_token', "")
+        chat_id = enterprise.get('chat_id', "")
+    else:
+        bot_token = enterprise[2]  # Обычно bot_token по 3-му индексу (нужно проверить!)
+        chat_id = enterprise[3]    # Обычно chat_id по 4-му индексу
 
     logger.debug(f"Using bot_token={bot_token!r}, chat_id={chat_id!r} for enterprise #{number}")
 
@@ -221,7 +226,7 @@ async def send_message_api(number: str, request: Request):
         logger.error(f"Enterprise #{number} has no bot_token or it is empty")
         raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
 
-    if not chat_id or not chat_id.strip():
+    if not chat_id or not str(chat_id).strip():
         logger.error(f"Enterprise #{number} has no chat_id or it is empty")
         raise HTTPException(status_code=400, detail="У предприятия отсутствует chat_id для отправки")
 
@@ -348,11 +353,4 @@ async def bots_status():
         result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
         running = bool(result.stdout.strip())
         return {"running": running}
-    except Exception as e:
-        logger.error(f"Ошибка при проверке статуса ботов: {e}")
-        raise HTTPException(status_code=500, detail="Не удалось получить статус ботов")
-
-
-@app.get("/admin")
-async def admin_root():
-    return RedirectResponse(url="/admin/enterprises")
+    except
