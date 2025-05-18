@@ -1,4 +1,3 @@
-# app/routers/admin.py
 # -*- coding: utf-8 -*-
 
 import logging
@@ -15,7 +14,7 @@ from telegram.error import TelegramError
 from app.config import ADMIN_PASSWORD
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
-from app.services.enterprise import send_message_to_bot, update_enterprise
+from app.services.enterprise import send_message_to_bot
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -92,16 +91,15 @@ async def list_enterprises(request: Request):
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
-    # Проверяем статус сервиса ботов через pgrep
+    # Получаем состояние сервиса ботов
+    bots_running = False
     try:
         result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
         bots_running = bool(result.stdout.strip())
-        logger.info(f"Bots running status: {bots_running}")
     except Exception as e:
-        bots_running = False
-        logger.error(f"Failed to check bots running status: {e}")
+        logger.error(f"Ошибка при проверке статуса ботов: {e}", exc_info=True)
 
-    service_running = True  # Заглушка, можно добавить проверку основного сервиса
+    service_running = True  # Можно улучшить, если есть сервисы кроме ботов
 
     return templates.TemplateResponse(
         "enterprises.html",
@@ -239,29 +237,38 @@ async def send_message(number: str, request: Request):
         return JSONResponse({"detail": "Message is required"}, status_code=400)
 
     db = await get_connection()
-    db.row_factory = None
-    cur = await db.execute("SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
-    row = await cur.fetchone()
+    db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
+    cur = await db.execute(
+        """
+        SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2, active
+        FROM enterprises
+        WHERE number = ?
+        LIMIT 1
+        """,
+        (number,)
+    )
+    enterprise = await cur.fetchone()
     await db.close()
 
-    if not row:
+    if not enterprise:
         return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
 
-    bot_token, chat_id = row
+    bot_token = enterprise['bot_token']
+    chat_id = enterprise['chat_id']
+
     if not bot_token or not bot_token.strip():
-        return JSONResponse({"detail": "Enterprise has no bot token"}, status_code=400)
-    if not chat_id or not chat_id.strip():
-        return JSONResponse({"detail": "Enterprise has no chat_id"}, status_code=400)
+        return JSONResponse({"detail": "У предприятия отсутствует токен бота"}, status_code=400)
+    if not chat_id or not str(chat_id).strip():
+        return JSONResponse({"detail": "У предприятия отсутствует chat_id"}, status_code=400)
 
     try:
+        logger.info(f"send_message_api called for enterprise #{number} with message: {message}")
         success = await send_message_to_bot(bot_token, chat_id, message)
-        if success:
-            logger.info(f"Message sent successfully to enterprise #{number}")
-        else:
+        if not success:
             logger.error(f"send_message_to_bot returned False for enterprise #{number}")
             return JSONResponse({"detail": "Failed to send message"}, status_code=500)
     except Exception as e:
-        logger.error(f"Failed to send message to bot {number}: {e}", exc_info=True)
+        logger.error(f"Ошибка при отправке сообщения: {e}", exc_info=True)
         return JSONResponse({"detail": "Failed to send message"}, status_code=500)
 
     return JSONResponse({"detail": "Message sent"})
@@ -296,16 +303,17 @@ async def toggle_enterprise(request: Request, number: str):
     current_active = ent_dict.get("active", 0)
     new_status = 0 if current_active else 1
 
-    await update_enterprise(
-        number,
-        ent_dict.get("name", ""),
-        ent_dict.get("bot_token", ""),
-        ent_dict.get("chat_id", ""),
-        ent_dict.get("ip", ""),
-        ent_dict.get("secret", ""),
-        ent_dict.get("host", ""),
-        ent_dict.get("name2", ""),
-        active=new_status
+    await edit_enterprise(
+        request=request,
+        number=number,
+        name=ent_dict.get("name", ""),
+        bot_token=ent_dict.get("bot_token", ""),
+        active=new_status,
+        chat_id=ent_dict.get("chat_id", ""),
+        ip=ent_dict.get("ip", ""),
+        secret=ent_dict.get("secret", ""),
+        host=ent_dict.get("host", ""),
+        name2=ent_dict.get("name2", "")
     )
 
     bot_token = ent_dict.get("bot_token", "")
@@ -320,8 +328,6 @@ async def toggle_enterprise(request: Request, number: str):
 
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
-
-# --- Новые эндпоинты для управления сервисами ---
 
 @router.post("/service/restart_main")
 async def restart_main_service():
@@ -376,12 +382,15 @@ async def toggle_bots_service():
         running = bool(result.stdout.strip())
         if running:
             subprocess.run(["pkill", "-f", "bot.py"], check=False)
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
             detail = "Сервисы ботов остановлены"
+            running = False
         else:
             subprocess.Popen(["./start_bots.sh"])
+            await asyncio.sleep(2)
             detail = "Сервисы ботов запущены"
-        return {"detail": detail, "running": not running}
+            running = True
+        return {"detail": detail, "running": running}
     except Exception as e:
         logger.error(f"Ошибка при переключении ботов: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Не удалось переключить сервисы ботов")
