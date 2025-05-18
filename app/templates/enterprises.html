@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -196,12 +197,10 @@
           await serviceAction('/service/stop_bots', 'Сервисы ботов остановлены');
           btn.classList.remove('green');
           btn.classList.add('red');
-          btn.textContent = '⚙️ Боты отключены';
         } else {
           await serviceAction('/service/restart_bots', 'Сервисы ботов запущены');
           btn.classList.remove('red');
           btn.classList.add('green');
-          btn.textContent = '⚙️ Боты включены';
         }
       } catch (e) {
         alert("Ошибка при переключении ботов: " + e.message);
@@ -217,11 +216,9 @@
         if (data.running) {
           btn.classList.remove('red');
           btn.classList.add('green');
-          btn.textContent = '⚙️ Боты включены';
         } else {
           btn.classList.remove('green');
           btn.classList.add('red');
-          btn.textContent = '⚙️ Боты отключены';
         }
       } catch (e) {
         console.error("Ошибка при получении статуса ботов:", e);
