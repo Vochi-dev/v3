@@ -2,7 +2,7 @@ import logging
 import asyncio
 import subprocess
 from fastapi import FastAPI, Request, Form, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
@@ -28,21 +28,6 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-
-@app.on_event("startup")
-async def on_startup():
-    logger.info("🚀 FastAPI startup — запуск ботов...")
-    asyncio.create_task(start_enterprise_bots())
-
-
-async def start_enterprise_bots():
-    try:
-        subprocess.run(["chmod", "+x", "start_bots.sh"], check=False)
-        subprocess.Popen(["./start_bots.sh"])
-        logger.info("✅ Боты запущены через start_bots.sh")
-    except Exception as e:
-        logger.error(f"❌ Не удалось запустить ботов при старте FastAPI: {e}")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -219,7 +204,10 @@ async def send_message_api(number: str, request: Request):
         raise HTTPException(status_code=400, detail="Сообщение не может быть пустым")
 
     enterprise = await get_enterprise_by_number(number)
+    logger.debug(f"Enterprise data retrieved for #{number}: {enterprise}")
+
     if not enterprise:
+        logger.error(f"Enterprise #{number} not found in database")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
     if not isinstance(enterprise, dict):
@@ -228,18 +216,25 @@ async def send_message_api(number: str, request: Request):
     bot_token = enterprise.get('bot_token', "")
     chat_id = enterprise.get('chat_id', "")
 
-    if not bot_token.strip():
+    logger.debug(f"Using bot_token={bot_token!r}, chat_id={chat_id!r} for enterprise #{number}")
+
+    if not bot_token or not bot_token.strip():
+        logger.error(f"Enterprise #{number} has no bot_token or it is empty")
         raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
 
-    if not chat_id.strip():
-        raise HTTPException(status_code=400, detail="У предприятия отсутствует chat_id")
+    if not chat_id or not chat_id.strip():
+        logger.error(f"Enterprise #{number} has no chat_id or it is empty")
+        raise HTTPException(status_code=400, detail="У предприятия отсутствует chat_id для отправки")
 
     try:
         success = await send_message_to_bot(bot_token, chat_id, message)
-        if not success:
+        if success:
+            logger.info(f"Message sent successfully to enterprise #{number}")
+        else:
+            logger.error(f"send_message_to_bot returned False for enterprise #{number}")
             raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
     except Exception as e:
-        logger.exception(f"Ошибка при отправке сообщения в бот #{number}: {e}")
+        logger.exception(f"Failed to send message to bot {number}: {e}")
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение")
 
     return {"detail": "Сообщение отправлено"}
@@ -310,3 +305,14 @@ async def toggle_bots_service():
 @app.get("/admin")
 async def admin_root():
     return RedirectResponse(url="/admin/enterprises")
+
+
+# --- Автозапуск ботов при старте FastAPI ---
+
+import contextlib
+from app.telegram.bot import start_enterprise_bots
+
+@app.on_event("startup")
+async def startup_event():
+    with contextlib.suppress(Exception):
+        asyncio.create_task(start_enterprise_bots())
