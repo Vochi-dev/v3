@@ -1,13 +1,20 @@
 #!/bin/bash
-# start_bots.sh
-# Скрипт для запуска сервисов ботов
+# start_bots.sh — перезапускает ботов
 
 cd /root/asterisk-webhook || exit 1
 
-# Завершаем все процессы ботов (например, по имени бота, или через systemctl, если есть)
+# Завершаем старые процессы
 pkill -f bot.py
 
-# Запускаем ботов в фоне с логированием
-nohup python3 bot.py >> bots.log 2>&1 &
+# Запускаем бота из правильного пути, логируем
+echo "Запуск ботов: $(date)" >> bots.log
+nohup python3 app/telegram/bot.py >> bots.log 2>&1 &
 
-echo "Боты запущены"
+sleep 2
+
+# Проверка запуска
+if pgrep -f app/telegram/bot.py > /dev/null; then
+    echo "✅ Боты успешно запущены" >> bots.log
+else
+    echo "❌ Ошибка запуска ботов!" >> bots.log
+fi
