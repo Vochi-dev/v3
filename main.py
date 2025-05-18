@@ -30,12 +30,15 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
 @app.on_event("startup")
 async def startup_event():
     global bots_launched
+    # По умолчанию боты запускаются при старте FastAPI
+    subprocess.Popen(["./start_bots.sh"])
     bots_launched = True
-    logger.info("✅ Боты внутри main.py запущены (флаг установлен в True)")
+    logger.info("✅ Боты запущены при старте приложения")
+
+
 
 
 
@@ -384,8 +387,12 @@ async def toggle_bots_service():
         raise HTTPException(status_code=500, detail="Не удалось переключить сервисы ботов")
 
 
+
+
+
 @app.get("/service/bots_status")
 async def bots_status():
+    global bots_launched
     return {"running": bots_launched}
 
 
