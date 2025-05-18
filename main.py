@@ -31,12 +31,18 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 @app.on_event("startup")
-async def startup_event():
+async def on_startup():
+    logger.info("🚀 FastAPI startup — запуск ботов...")
+    asyncio.create_task(start_enterprise_bots())
+
+
+async def start_enterprise_bots():
     try:
-        logger.info("Запуск сервисов ботов при старте FastAPI...")
+        subprocess.run(["chmod", "+x", "start_bots.sh"], check=False)
         subprocess.Popen(["./start_bots.sh"])
+        logger.info("✅ Боты запущены через start_bots.sh")
     except Exception as e:
-        logger.error(f"Ошибка автозапуска ботов при старте сервиса: {e}")
+        logger.error(f"❌ Не удалось запустить ботов при старте FastAPI: {e}")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -209,6 +215,7 @@ async def send_message_api(number: str, request: Request):
     logger.debug(f"send_message_api called for enterprise #{number} with message: {message!r}")
 
     if not message:
+        logger.warning(f"Empty message received for enterprise #{number}")
         raise HTTPException(status_code=400, detail="Сообщение не может быть пустым")
 
     enterprise = await get_enterprise_by_number(number)
@@ -232,7 +239,7 @@ async def send_message_api(number: str, request: Request):
         if not success:
             raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
     except Exception as e:
-        logger.exception(f"Failed to send message to bot {number}: {e}")
+        logger.exception(f"Ошибка при отправке сообщения в бот #{number}: {e}")
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение")
 
     return {"detail": "Сообщение отправлено"}
@@ -268,6 +275,7 @@ async def toggle_enterprise(request: Request, number: str):
     text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
     try:
         await bot.send_message(chat_id=int(chat_id), text=text)
+        logger.info(f"Sent toggle message to bot {number}: {text}")
     except TelegramError as e:
         logger.error(f"Toggle bot notification failed: {e}")
 
