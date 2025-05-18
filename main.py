@@ -1,4 +1,4 @@
-dimport logging
+import logging
 import asyncio
 import subprocess
 from fastapi import FastAPI, Request, Form, HTTPException, status
