@@ -68,3 +68,12 @@ async def delete_enterprise(number: str):
         WHERE number = ?
     """
     await execute(sql, (number,))
+
+async def get_enterprises_with_tokens():
+    sql = """
+        SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2, active
+        FROM enterprises
+        WHERE bot_token IS NOT NULL AND chat_id IS NOT NULL AND TRIM(bot_token) != '' AND TRIM(chat_id) != '' AND active = 1
+        ORDER BY CAST(number AS INTEGER) ASC
+    """
+    return await fetchall(sql)
