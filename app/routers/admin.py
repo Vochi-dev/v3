@@ -91,7 +91,6 @@ async def list_enterprises(request: Request):
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
-    # Получаем состояние сервиса ботов
     bots_running = False
     try:
         result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
@@ -99,7 +98,7 @@ async def list_enterprises(request: Request):
     except Exception as e:
         logger.error(f"Ошибка при проверке статуса ботов: {e}", exc_info=True)
 
-    service_running = True  # Можно улучшить, если есть сервисы кроме ботов
+    service_running = True
 
     return templates.TemplateResponse(
         "enterprises.html",
