@@ -1,4 +1,4 @@
-# admin.py
+# -*- coding: utf-8 -*-
 
 import logging
 import asyncio
@@ -26,7 +26,7 @@ def require_login(request: Request):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
 
-@router.get("", response_class=RedirectResponse)
+@router.get("", response_class=HTMLResponse)
 async def root_redirect(request: Request):
     if request.cookies.get("auth") == "1":
         return RedirectResponse("/admin/dashboard", status_code=status.HTTP_302_FOUND)
@@ -117,7 +117,7 @@ async def add_enterprise_form(request: Request):
     require_login(request)
     return templates.TemplateResponse(
         "enterprise_form.html",
-        {"request": request, "action": "add", "enterprise": {}}
+        {"request": request, "action": "add", "enterprise": {}, "error": None}
     )
 
 
@@ -126,8 +126,8 @@ async def add_enterprise(
     request: Request,
     number: str = Form(...),
     name: str = Form(...),
-    bot_token: str = Form(...),
-    chat_id: str = Form(...),
+    bot_token: str = Form(""),
+    chat_id: str = Form(""),
     ip: str = Form(...),
     secret: str = Form(...),
     host: str = Form(...),
@@ -183,7 +183,7 @@ async def edit_enterprise_form(request: Request, number: str):
     }
     return templates.TemplateResponse(
         "enterprise_form.html",
-        {"request": request, "action": "edit", "enterprise": ent_dict}
+        {"request": request, "action": "edit", "enterprise": ent_dict, "error": None}
     )
 
 
@@ -192,9 +192,9 @@ async def edit_enterprise(
     request: Request,
     number: str,
     name: str = Form(...),
-    bot_token: str = Form(...),
+    bot_token: str = Form(""),
     active: int = Form(...),
-    chat_id: str = Form(...),
+    chat_id: str = Form(""),
     ip: str = Form(...),
     secret: str = Form(...),
     host: str = Form(...),
