@@ -1,56 +1,61 @@
 import asyncio
 import logging
-
 from aiogram import Bot, Dispatcher, types
-from aiogram.utils import executor
-from aiogram.dispatcher.filters import Command
+from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import Message
+from aiogram.utils.markdown import hbold
 
 from app.services.database import get_enterprises_with_tokens
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 logger = logging.getLogger(__name__)
 
-async def start_handler(message: types.Message):
-    await message.answer("Привет! Я ваш бот.")
 
-async def start_bot(enterprise_number: str, token: str):
-    bot = Bot(token=token, parse_mode=types.ParseMode.HTML)
-    dp = Dispatcher(bot)
+async def start_handler(message: Message, enterprise_number: str):
+    text = f"Привет! Я ваш бот.\nВаш номер предприятия: {hbold(enterprise_number)}"
+    await message.answer(text)
 
-    # Регистрируем хендлеры (aiogram 2.x)
-    dp.register_message_handler(start_handler, commands=["start"])
 
-    if enterprise_number == "0201":
-        logger.setLevel(logging.DEBUG)
-        logging.getLogger("aiogram").setLevel(logging.DEBUG)
-        logging.getLogger("httpx").setLevel(logging.WARNING)
-        logger.debug("🔍 Подробное логирование включено для бота 0201")
-        logger.debug(f"Токен: {token}")
+async def create_bot_instance(bot_token: str, enterprise_number: str):
+    bot = Bot(token=bot_token, parse_mode=ParseMode.HTML)
+    dp = Dispatcher(storage=MemoryStorage())
+
+    @dp.message()
+    async def handle_all_messages(message: Message):
+        if message.text == "/start":
+            await start_handler(message, enterprise_number)
+        else:
+            await message.answer("Команда не распознана.")
 
     try:
-        me = await bot.get_me()
-        logger.info(f"✅ Бот {enterprise_number} запущен: @{me.username}")
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info(f"✅ Бот {enterprise_number} запущен: @{(await bot.get_me()).username}")
+        await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"❌ Ошибка при инициализации бота {enterprise_number}: {e}")
-        return
 
-    try:
-        # Запуск polling (в синхронном виде через executor)
-        # Чтобы запустить несколько ботов параллельно, надо использовать create_task, 
-        # но в aiogram 2.x лучше делать это по-другому — для простоты оставим так:
-        await dp.start_polling()
-    except Exception as e:
-        logger.exception(f"❌ Ошибка во время polling для бота {enterprise_number}: {e}")
 
 async def start_enterprise_bots():
     enterprises = await get_enterprises_with_tokens()
+    if not enterprises:
+        logger.warning("Нет ни одного активного предприятия с токеном для запуска бота.")
+        return
+
     tasks = []
     for ent in enterprises:
-        number = ent["number"]
-        token = ent["bot_token"]
-        # Запускаем боты параллельно
-        tasks.append(asyncio.create_task(start_bot(number, token)))
+        bot_token = ent.get("bot_token", "").strip()
+        number = ent.get("number", "").strip()
+        if bot_token and number:
+            tasks.append(create_bot_instance(bot_token, number))
+        else:
+            logger.warning(f"Пропуск предприятия {ent} — отсутствует bot_token или number")
+
     await asyncio.gather(*tasks)
 
+
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     asyncio.run(start_enterprise_bots())
