@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 from app.services.database import (
     get_all_enterprises,
     get_enterprise_by_number,
@@ -19,19 +20,40 @@ from telegram import Bot
 from telegram.error import TelegramError
 from app.telegram.bot import start_enterprise_bots
 
+# --- Настройка максимального логирования ---
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler()]
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.access")
+logger.setLevel(logging.DEBUG)
 
+# Создаём FastAPI с middleware для логирования всех запросов и ответов
 app = FastAPI()
+
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
+# Middleware для логирования запросов и ответов
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        logger.debug(f"Incoming request: {request.method} {request.url}")
+        try:
+            response = await call_next(request)
+        except Exception as e:
+            logger.exception(f"Exception during request processing: {e}")
+            raise
+        logger.debug(f"Response status: {response.status_code} for {request.method} {request.url}")
+        return response
+
+app.add_middleware(LoggingMiddleware)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
+    logger.debug("Root endpoint called")
     return RedirectResponse(url="/admin/enterprises")
 
 
@@ -59,9 +81,9 @@ async def list_enterprises(request: Request):
     try:
         result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
         bots_running = bool(result.stdout.strip())
-        logger.debug(f"Процессы ботов:\n{result.stdout}")
+        logger.debug(f"Processes for bots:\n{result.stdout}")
     except Exception as e:
-        logger.error(f"Ошибка при проверке процессов ботов: {e}")
+        logger.error(f"Error checking bot processes: {e}")
         bots_running = False
 
     return templates.TemplateResponse(
@@ -76,6 +98,7 @@ async def list_enterprises(request: Request):
 
 @app.api_route("/admin/enterprises/add", methods=["GET", "POST"], response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
+    logger.debug("add_enterprise_form called")
     if request.method == "GET":
         return templates.TemplateResponse(
             "enterprise_form.html",
@@ -111,6 +134,7 @@ async def add_enterprise_form(request: Request):
         error = None
 
     if error:
+        logger.warning(f"Add enterprise form error: {error}")
         return templates.TemplateResponse(
             "enterprise_form.html",
             {
@@ -132,13 +156,16 @@ async def add_enterprise_form(request: Request):
         )
 
     await add_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
+    logger.info(f"Enterprise #{number} added successfully")
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.get("/admin/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
+    logger.debug(f"edit_enterprise_form called for #{number}")
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
+        logger.error(f"Enterprise #{number} not found for edit")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
     return templates.TemplateResponse(
         "enterprise_form.html",
@@ -158,6 +185,7 @@ async def update_enterprise_post(
     host: str = Form(...),
     name2: str = Form(""),
 ):
+    logger.debug(f"update_enterprise_post called for #{number}")
     enterprises = await get_all_enterprises()
     for ent in enterprises:
         if ent['number'] != number:
@@ -175,6 +203,7 @@ async def update_enterprise_post(
         error = None
 
     if error:
+        logger.warning(f"Update enterprise form error: {error}")
         enterprise = {
             "number": number,
             "name": name,
@@ -197,27 +226,31 @@ async def update_enterprise_post(
         )
 
     await update_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
+    logger.info(f"Enterprise #{number} updated successfully")
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.delete("/admin/enterprises/{number}")
 async def delete_enterprise_api(number: str):
+    logger.info(f"delete_enterprise_api called for #{number}")
     await delete_enterprise(number)
+    logger.info(f"Enterprise #{number} deleted")
     return {"detail": "Предприятие удалено"}
 
 
 @app.post("/admin/enterprises/{number}/send_message")
 async def send_message_api(number: str, request: Request):
+    logger.debug(f"send_message_api called for #{number}")
     data = await request.json()
     message = data.get("message")
-    logger.debug(f"send_message_api called for enterprise #{number} with message: {message!r}")
+    logger.debug(f"Message received: {message!r}")
 
     if not message:
         logger.warning(f"Empty message received for enterprise #{number}")
         raise HTTPException(status_code=400, detail="Сообщение не может быть пустым")
 
     enterprise = await get_enterprise_by_number(number)
-    logger.debug(f"Enterprise data retrieved for #{number}: {enterprise}")
+    logger.debug(f"Enterprise data retrieved: {enterprise}")
 
     if not enterprise:
         logger.error(f"Enterprise #{number} not found in database")
@@ -229,7 +262,7 @@ async def send_message_api(number: str, request: Request):
     bot_token = enterprise.get('bot_token', "")
     chat_id = enterprise.get('chat_id', "")
 
-    logger.debug(f"Using bot_token={bot_token!r}, chat_id={chat_id!r} for enterprise #{number}")
+    logger.debug(f"Using bot_token={bot_token!r}, chat_id={chat_id!r}")
 
     if not bot_token or not bot_token.strip():
         logger.error(f"Enterprise #{number} has no bot_token or it is empty")
@@ -295,6 +328,7 @@ async def toggle_enterprise(request: Request, number: str):
 
 @app.get("/service/bots_status")
 async def bots_status():
+    logger.debug("bots_status endpoint called")
     try:
         result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
         running = bool(result.stdout.strip())
@@ -346,4 +380,5 @@ async def startup_event():
 
 @app.get("/admin")
 async def admin_root():
+    logger.debug("admin_root called")
     return RedirectResponse(url="/admin/enterprises")
