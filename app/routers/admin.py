@@ -15,7 +15,7 @@ from telegram.error import TelegramError
 from app.config import ADMIN_PASSWORD
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
-from app.services.enterprise import send_message_to_bot  # оставлено на случай, если нужно
+from app.services.enterprise import send_message_to_bot
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -71,6 +71,7 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
+    # row_factory для удобной работы со словарями
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
@@ -92,8 +93,16 @@ async def list_enterprises(request: Request):
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
-    service_running = True
-    bots_running = True  # сюда можно добавить реальную проверку статуса ботов
+    # Проверяем статус сервиса ботов через pgrep
+    try:
+        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
+        bots_running = bool(result.stdout.strip())
+        logger.info(f"Bots running status: {bots_running}")
+    except Exception as e:
+        bots_running = False
+        logger.error(f"Failed to check bots running status: {e}")
+
+    service_running = True  # Можно расширить логику, если есть проверка основного сервиса
 
     return templates.TemplateResponse(
         "enterprises.html",
@@ -227,11 +236,7 @@ async def send_message(number: str, request: Request):
     require_login(request)
     data = await request.json()
     message = data.get("message")
-
-    logger.info(f"send_message called for enterprise #{number} with payload: {data}")
-
     if not message:
-        logger.warning(f"Empty message received for enterprise #{number}")
         return JSONResponse({"detail": "Message is required"}, status_code=400)
 
     db = await get_connection()
@@ -241,27 +246,23 @@ async def send_message(number: str, request: Request):
     await db.close()
 
     if not row:
-        logger.error(f"Enterprise #{number} not found in database")
         return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
 
     bot_token, chat_id = row
-    logger.info(f"Enterprise #{number} bot_token: {bot_token!r}, chat_id: {chat_id!r}")
-
     if not bot_token or not bot_token.strip():
-        logger.error(f"Enterprise #{number} has no bot_token or it is empty")
         return JSONResponse({"detail": "Enterprise has no bot token"}, status_code=400)
-    if not chat_id:
-        logger.error(f"Enterprise #{number} has no chat_id or it is empty")
+    if not chat_id or not chat_id.strip():
         return JSONResponse({"detail": "Enterprise has no chat_id"}, status_code=400)
 
     try:
-        bot = Bot(token=bot_token)
-        chat_id_int = int(chat_id)
-        logger.info(f"Sending manual message to chat_id {chat_id_int} for enterprise #{number}")
-        sent_message = await bot.send_message(chat_id=chat_id_int, text=message)
-        logger.info(f"Message sent successfully: message_id={sent_message.message_id}")
+        success = await send_message_to_bot(bot_token, chat_id, message)
+        if success:
+            logger.info(f"Message sent successfully to enterprise #{number}")
+        else:
+            logger.error(f"send_message_to_bot returned False for enterprise #{number}")
+            return JSONResponse({"detail": "Failed to send message"}, status_code=500)
     except Exception as e:
-        logger.error(f"Failed to send manual message to bot {number}: {e}", exc_info=True)
+        logger.error(f"Failed to send message to bot {number}: {e}", exc_info=True)
         return JSONResponse({"detail": "Failed to send message"}, status_code=500)
 
     return JSONResponse({"detail": "Message sent"})
