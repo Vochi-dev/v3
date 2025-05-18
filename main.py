@@ -279,7 +279,7 @@ async def toggle_enterprise(request: Request, number: str):
 
 @app.get("/service/bots_status")
 async def bots_status():
-    result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
+    result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
     running = bool(result.stdout.strip())
     return {"running": running}
 
@@ -300,6 +300,16 @@ async def toggle_bots_service():
     except Exception as e:
         logger.error(f"Ошибка при переключении ботов: {e}")
         raise HTTPException(status_code=500, detail="Не удалось переключить сервисы ботов")
+
+
+
+@app.on_event("startup")
+async def startup_event():
+    try:
+        subprocess.Popen(["./start_bots.sh"])
+        logger.info("✅ Боты запущены при старте сервиса")
+    except Exception as e:
+        logger.error(f"❌ Ошибка автозапуска ботов при старте сервиса: {e}")
 
 
 @app.get("/admin")
