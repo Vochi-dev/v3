@@ -1,4 +1,4 @@
-import logging
+dimport logging
 import asyncio
 import subprocess
 from fastapi import FastAPI, Request, Form, HTTPException, status
@@ -30,10 +30,13 @@ templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 @app.on_event("startup")
 async def startup_event():
-    global bots_launched
-    subprocess.Popen(["./start_bots.sh"])
-    bots_launched = True
-    logger.info("✅ Боты запущены при старте. Далее управляются только кнопкой.")
+    try:
+        import subprocess
+        subprocess.Popen(["./start_bots.sh"])
+        logger.info("✅ Боты запущены при старте сервера.")
+    except Exception as e:
+        logger.error(f"Ошибка запуска ботов при старте: {e}")
+
 
 
 
@@ -385,10 +388,6 @@ async def toggle_bots_service():
 
 
 
-@app.get("/service/bots_status")
-async def bots_status():
-    global bots_launched
-    return {"running": bots_launched}
 
 
 @app.get("/admin")
