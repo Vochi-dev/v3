@@ -10,12 +10,6 @@ from aiogram.exceptions import TelegramAPIError
 
 logger = logging.getLogger(__name__)
 
-parser = argparse.ArgumentParser(description="Telegram Bot for Enterprise")
-parser.add_argument('--enterprise', type=str, required=True, help='Enterprise number')
-args = parser.parse_args()
-
-ENTERPRISE_NUMBER = args.enterprise
-
 def load_bot_token(enterprise_number):
     tokens = {
         "0100": "7765204924:AAEFCyUsxGhTWsuIENX47iqpD3s8L60kwmc",
@@ -24,34 +18,42 @@ def load_bot_token(enterprise_number):
     }
     return tokens.get(enterprise_number)
 
-BOT_TOKEN = load_bot_token(ENTERPRISE_NUMBER)
-if not BOT_TOKEN:
-    logger.error(f"No bot token found for enterprise {ENTERPRISE_NUMBER}")
-    sys.exit(1)
+async def run_bot(enterprise_number: str):
+    BOT_TOKEN = load_bot_token(enterprise_number)
+    if not BOT_TOKEN:
+        logger.error(f"No bot token found for enterprise {enterprise_number}")
+        sys.exit(1)
 
-from aiogram.client.session import DefaultBotSession
-from aiogram.client.bot import DefaultBotProperties
+    from aiogram.client.session import DefaultBotSession
+    from aiogram.client.bot import DefaultBotProperties
 
-bot = Bot(
-    token=BOT_TOKEN,
-    session=DefaultBotSession(),
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-)
-dp = Dispatcher()
+    bot = Bot(
+        token=BOT_TOKEN,
+        session=DefaultBotSession(),
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
+    dp = Dispatcher()
 
-@dp.message(Command(commands=["start"]))
-async def cmd_start(message: types.Message):
-    await message.answer(f"Привет! Бот предприятия {ENTERPRISE_NUMBER} запущен и готов к работе.")
+    @dp.message(Command(commands=["start"]))
+    async def cmd_start(message: types.Message):
+        await message.answer(f"Привет! Бот предприятия {enterprise_number} запущен и готов к работе.")
 
-async def main():
     try:
-        logger.info(f"Bot for enterprise {ENTERPRISE_NUMBER} started.")
+        logger.info(f"Bot for enterprise {enterprise_number} started.")
         await dp.start_polling(bot)
     except TelegramAPIError as e:
         logger.error(f"Telegram API error: {e}")
     finally:
         await bot.session.close()
 
+def main():
+    parser = argparse.ArgumentParser(description="Telegram Bot for Enterprise")
+    parser.add_argument('--enterprise', type=str, required=True, help='Enterprise number')
+    args = parser.parse_args()
+
+    enterprise_number = args.enterprise
+    asyncio.run(run_bot(enterprise_number))
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
+    main()
