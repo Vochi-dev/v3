@@ -55,9 +55,17 @@ async def list_enterprises(request: Request):
             logger.error(f"Error checking bot status for #{ent['number']}: {e}")
             ent["bot_available"] = False
 
+    # Проверяем состояние сервиса ботов для кнопки
+    try:
+        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
+        bots_running = bool(result.stdout.strip())
+    except Exception as e:
+        logger.error(f"Ошибка при проверке статуса ботов: {e}")
+        bots_running = False
+
     return templates.TemplateResponse(
         "enterprises.html",
-        {"request": request, "enterprises": enterprises_sorted}
+        {"request": request, "enterprises": enterprises_sorted, "bots_running": bots_running}
     )
 
 
