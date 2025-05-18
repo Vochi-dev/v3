@@ -18,8 +18,9 @@ from app.services.bot_status import check_bot_status
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
-logger = logging.getLogger("admin")
 
+logger = logging.getLogger("admin")
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 
 def require_login(request: Request):
     if request.cookies.get("auth") != "1":
@@ -377,4 +378,4 @@ async def stop_bots_service():
 @router.post("/service/toggle_bots")
 async def toggle_bots_service():
     try:
-        result = subprocess.run(["
+        result
