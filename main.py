@@ -20,7 +20,7 @@ from telegram import Bot
 from telegram.error import TelegramError
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # уровень DEBUG для расширенного логирования
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
@@ -199,24 +199,43 @@ async def delete_enterprise_api(number: str):
 async def send_message_api(number: str, request: Request):
     data = await request.json()
     message = data.get("message")
+    logger.debug(f"send_message_api called for enterprise #{number} with message: {message!r}")
+
     if not message:
+        logger.warning(f"Empty message received for enterprise #{number}")
         raise HTTPException(status_code=400, detail="Сообщение не может быть пустым")
+
     enterprise = await get_enterprise_by_number(number)
+    logger.debug(f"Enterprise data retrieved for #{number}: {enterprise}")
+
     if not enterprise:
+        logger.error(f"Enterprise #{number} not found in database")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
-    bot_token = enterprise['bot_token'] if 'bot_token' in enterprise else ""
-    chat_id = enterprise['chat_id'] if 'chat_id' in enterprise else ""
+    bot_token = enterprise.get('bot_token', "")
+    chat_id = enterprise.get('chat_id', "")
+
+    logger.debug(f"Using bot_token={bot_token!r}, chat_id={chat_id!r} for enterprise #{number}")
 
     if not bot_token or not bot_token.strip():
+        logger.error(f"Enterprise #{number} has no bot_token or it is empty")
         raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
 
     if not chat_id or not chat_id.strip():
+        logger.error(f"Enterprise #{number} has no chat_id or it is empty")
         raise HTTPException(status_code=400, detail="У предприятия отсутствует chat_id для отправки")
 
-    success = await send_message_to_bot(bot_token, chat_id, message)
-    if not success:
-        raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
+    try:
+        success = await send_message_to_bot(bot_token, chat_id, message)
+        if success:
+            logger.info(f"Message sent successfully to enterprise #{number}")
+        else:
+            logger.error(f"send_message_to_bot returned False for enterprise #{number}")
+            raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
+    except Exception as e:
+        logger.exception(f"Failed to send message to bot {number}: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось отправить сообщение")
+
     return {"detail": "Сообщение отправлено"}
 
 
@@ -261,9 +280,6 @@ async def toggle_enterprise(request: Request, number: str):
 
 @app.post("/service/restart_main")
 async def restart_main_service():
-    """
-    Перезапускает только основной сервис main.py
-    """
     try:
         subprocess.run(["pkill", "-f", "uvicorn main:app"], check=False)
         await asyncio.sleep(1)
@@ -276,9 +292,6 @@ async def restart_main_service():
 
 @app.post("/service/restart_all")
 async def restart_all_services():
-    """
-    Полная перезагрузка всех python процессов (main и ботов)
-    """
     try:
         subprocess.run(["pkill", "-f", "python"], check=False)
         await asyncio.sleep(2)
@@ -291,9 +304,6 @@ async def restart_all_services():
 
 @app.post("/service/restart_bots")
 async def restart_bots_service():
-    """
-    Перезапускает только ботов
-    """
     try:
         subprocess.run(["pkill", "-f", "bot.py"], check=False)
         await asyncio.sleep(1)
@@ -306,9 +316,6 @@ async def restart_bots_service():
 
 @app.post("/service/stop_bots")
 async def stop_bots_service():
-    """
-    Останавливает сервис ботов
-    """
     try:
         subprocess.run(["pkill", "-f", "bot.py"], check=False)
         return {"detail": "Сервисы ботов остановлены"}
@@ -319,20 +326,14 @@ async def stop_bots_service():
 
 @app.post("/service/toggle_bots")
 async def toggle_bots_service():
-    """
-    Включить или выключить сервис ботов в зависимости от текущего состояния
-    """
     try:
-        # Проверяем, работают ли боты
         result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
         running = bool(result.stdout.strip())
         if running:
-            # Останавливаем
             subprocess.run(["pkill", "-f", "bot.py"], check=False)
             await asyncio.sleep(1)
             detail = "Сервисы ботов остановлены"
         else:
-            # Запускаем
             subprocess.Popen(["./start_bots.sh"])
             detail = "Сервисы ботов запущены"
         return {"detail": detail, "running": not running}
@@ -343,9 +344,6 @@ async def toggle_bots_service():
 
 @app.get("/service/bots_status")
 async def bots_status():
-    """
-    Возвращает статус работы ботов (работают/не работают)
-    """
     try:
         result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
         running = bool(result.stdout.strip())
@@ -353,7 +351,7 @@ async def bots_status():
     except Exception as e:
         logger.error(f"Ошибка при проверке статуса ботов: {e}")
         raise HTTPException(status_code=500, detail="Не удалось получить статус ботов")
-        
+
 
 @app.get("/admin")
 async def admin_root():
