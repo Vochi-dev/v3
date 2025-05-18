@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# admin.py
 
 import logging
 import asyncio
@@ -26,7 +26,7 @@ def require_login(request: Request):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
 
-@router.get("", response_class=HTMLResponse)
+@router.get("", response_class=RedirectResponse)
 async def root_redirect(request: Request):
     if request.cookies.get("auth") == "1":
         return RedirectResponse("/admin/dashboard", status_code=status.HTTP_302_FOUND)
@@ -91,6 +91,7 @@ async def list_enterprises(request: Request):
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
+    # Получаем состояние сервиса ботов
     bots_running = False
     try:
         result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
@@ -98,7 +99,7 @@ async def list_enterprises(request: Request):
     except Exception as e:
         logger.error(f"Ошибка при проверке статуса ботов: {e}", exc_info=True)
 
-    service_running = True
+    service_running = True  # Можно улучшить, если есть сервисы кроме ботов
 
     return templates.TemplateResponse(
         "enterprises.html",
