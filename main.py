@@ -30,6 +30,15 @@ templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
+@app.on_event("startup")
+async def startup_event():
+    try:
+        logger.info("Запуск start_bots.sh при старте сервиса FastAPI")
+        subprocess.Popen(["./start_bots.sh"])
+    except Exception as e:
+        logger.error(f"Ошибка при автозапуске ботов: {e}")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     return RedirectResponse(url="/admin/enterprises")
