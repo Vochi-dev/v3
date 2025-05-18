@@ -15,7 +15,6 @@ from telegram.error import TelegramError
 from app.config import ADMIN_PASSWORD
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
-from app.services.enterprise import send_message_to_bot
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -378,32 +377,4 @@ async def stop_bots_service():
 @router.post("/service/toggle_bots")
 async def toggle_bots_service():
     try:
-        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
-        running = bool(result.stdout.strip())
-        if running:
-            subprocess.run(["pkill", "-f", "bot.py"], check=False)
-            await asyncio.sleep(1)
-            detail = "Сервисы ботов остановлены"
-        else:
-            subprocess.Popen(["./start_bots.sh"])
-            detail = "Сервисы ботов запущены"
-        return {"detail": detail, "running": not running}
-    except Exception as e:
-        logger.error(f"Ошибка при переключении ботов: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Не удалось переключить сервисы ботов")
-
-
-@router.get("/service/bots_status")
-async def bots_status():
-    try:
-        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
-        running = bool(result.stdout.strip())
-        return {"running": running}
-    except Exception as e:
-        logger.error(f"Ошибка при проверке статуса ботов: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Не удалось получить статус ботов")
-
-
-@router.get("/admin")
-async def admin_root():
-    return RedirectResponse(url="/admin/enterprises")
+        result = subprocess.run(["
