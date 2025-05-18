@@ -71,7 +71,7 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
-    # Используем row_factory для словарей, чтобы удобно работать с результатами
+    # row_factory для удобной работы со словарями
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
@@ -234,19 +234,19 @@ async def send_message(number: str, request: Request):
         logger.warning(f"Empty message received for enterprise #{number}")
         return JSONResponse({"detail": "Message is required"}, status_code=400)
 
+    # Используем row_factory для словаря, как в toggle_enterprise
     db = await get_connection()
-    db.row_factory = None
+    db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
     row = await cur.fetchone()
     await db.close()
-
-    logger.info(f"Database row for enterprise #{number}: {row}")
 
     if not row:
         logger.error(f"Enterprise #{number} not found in database")
         return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
 
-    bot_token, chat_id = row
+    bot_token = row.get("bot_token")
+    chat_id = row.get("chat_id")
     logger.info(f"Enterprise #{number} bot_token: {bot_token!r}, chat_id: {chat_id!r}")
 
     if not bot_token or not bot_token.strip():
@@ -257,6 +257,7 @@ async def send_message(number: str, request: Request):
         return JSONResponse({"detail": "Enterprise has no chat_id"}, status_code=400)
 
     try:
+        # Используем send_message_to_bot как и в toggle_enterprise
         success = await send_message_to_bot(bot_token, chat_id, message)
         if success:
             logger.info(f"Message sent successfully to enterprise #{number}")
@@ -384,7 +385,7 @@ async def toggle_bots_service():
         else:
             subprocess.Popen(["./start_bots.sh"])
             detail = "Сервисы ботов запущены"
-        return {"detail": detail, "running": not running}
+        return {"detail": detail, "running": !running}
     except Exception as e:
         logger.error(f"Ошибка при переключении ботов: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Не удалось переключить сервисы ботов")
