@@ -342,4 +342,17 @@ async def toggle_bots_service():
 @router.get("/service/bots_status")
 async def bots_status():
     """
-    Возвращает статус работы
+    Возвращает статус работы ботов (работают/не работают)
+    """
+    try:
+        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
+        running = bool(result.stdout.strip())
+        return {"running": running}
+    except Exception as e:
+        logger.error(f"Ошибка при проверке статуса ботов: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось получить статус ботов")
+
+
+@router.get("/admin")
+async def admin_root():
+    return RedirectResponse(url="/admin/enterprises")
