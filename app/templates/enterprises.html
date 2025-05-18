@@ -49,7 +49,7 @@
   <div id="service-buttons">
     <button class="button" onclick="serviceAction('/service/restart_main', 'Основной сервис перезапущен')">🔄 Перезапустить сервис</button>
     <button class="button" onclick="serviceAction('/service/restart_all', 'Все сервисы перезапущены')">🔁 Полная перезагрузка</button>
-    <button class="button" onclick="serviceAction('/service/restart_bots', 'Сервисы ботов перезапущены')">🤖 Перезапустить ботов</button>
+    <button class="button" onclick="serviceAction('/service/toggle_bots', 'Сервисы ботов переключены')">🤖 Переключить ботов</button>
     <button id="toggle-bots-btn" class="button" onclick="toggleBots()">⏳ Проверка статуса ботов...</button>
   </div>
 
@@ -182,7 +182,7 @@
         const btn = document.getElementById('toggle-bots-btn');
 
         if (data.running) {
-          const stopResp = await fetch('/service/stop_bots', { method: 'POST' });
+          const stopResp = await fetch('/service/toggle_bots', { method: 'POST' });
           if (stopResp.ok) {
             alert('Сервисы ботов остановлены');
             btn.classList.remove('green');
@@ -192,7 +192,7 @@
             alert('Ошибка при остановке ботов');
           }
         } else {
-          const startResp = await fetch('/service/restart_bots', { method: 'POST' });
+          const startResp = await fetch('/service/toggle_bots', { method: 'POST' });
           if (startResp.ok) {
             alert('Сервисы ботов запущены');
             btn.classList.remove('red');
