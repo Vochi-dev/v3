@@ -55,7 +55,7 @@ async def list_enterprises(request: Request):
             logger.error(f"Error checking bot status for #{ent['number']}: {e}")
             ent["bot_available"] = False
 
-    # Расширенная проверка статуса ботов (процессы)
+    # Проверка запущенных процессов ботов
     try:
         result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
         bots_running = bool(result.stdout.strip())
