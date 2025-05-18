@@ -15,7 +15,7 @@ from telegram.error import TelegramError
 from app.config import ADMIN_PASSWORD
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
-from app.services.enterprise import send_message_to_bot  # не используется для ручной отправки, но оставил для совместимости
+from app.services.enterprise import send_message_to_bot  # не используется, но оставил
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -254,7 +254,7 @@ async def send_message(number: str, request: Request):
         return JSONResponse({"detail": "Enterprise has no chat_id"}, status_code=400)
 
     try:
-        # Используем такой же метод, как и в toggle
+        # Отправляем через Bot как в toggle, а не через send_message_to_bot
         bot = Bot(token=bot_token)
         await bot.send_message(chat_id=int(chat_id), text=message)
         logger.info(f"Message sent successfully to enterprise #{number}")
