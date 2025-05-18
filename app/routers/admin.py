@@ -15,7 +15,7 @@ from telegram.error import TelegramError
 from app.config import ADMIN_PASSWORD
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
-from app.services.enterprise import send_message_to_bot  # не используется, но оставил
+from app.services.enterprise import send_message_to_bot  # Не используется, но импорт оставлен
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -71,6 +71,7 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
+    # row_factory для удобной работы со словарями
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
@@ -229,7 +230,7 @@ async def send_message(number: str, request: Request):
     message = data.get("message")
     logger.info(f"send_message called for enterprise #{number} with message: {message}")
 
-    if not message:
+    if not message or message.strip() == "":
         logger.warning(f"Empty message received for enterprise #{number}")
         return JSONResponse({"detail": "Message is required"}, status_code=400)
 
@@ -244,22 +245,25 @@ async def send_message(number: str, request: Request):
         return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
 
     bot_token, chat_id = row
-    logger.info(f"Enterprise #{number} bot_token: {bot_token!r}, chat_id: {chat_id!r}")
 
-    if not bot_token or not bot_token.strip():
-        logger.error(f"Enterprise #{number} has no bot_token or it is empty")
-        return JSONResponse({"detail": "Enterprise has no bot token"}, status_code=400)
-    if not chat_id or not chat_id.strip():
-        logger.error(f"Enterprise #{number} has no chat_id or it is empty")
-        return JSONResponse({"detail": "Enterprise has no chat_id"}, status_code=400)
+    bot_token = bot_token.strip() if bot_token else ""
+    chat_id = chat_id.strip() if chat_id else ""
+
+    logger.info(f"Enterprise #{number} bot_token: {repr(bot_token)}, chat_id: {repr(chat_id)}")
+
+    if bot_token == "":
+        logger.error(f"Enterprise #{number} has no valid bot_token")
+        return JSONResponse({"detail": "Enterprise has no valid bot token"}, status_code=400)
+    if chat_id == "":
+        logger.error(f"Enterprise #{number} has no valid chat_id")
+        return JSONResponse({"detail": "Enterprise has no valid chat_id"}, status_code=400)
 
     try:
-        # Отправляем через Bot как в toggle, а не через send_message_to_bot
         bot = Bot(token=bot_token)
         await bot.send_message(chat_id=int(chat_id), text=message)
         logger.info(f"Message sent successfully to enterprise #{number}")
     except TelegramError as e:
-        logger.error(f"Failed to send message to bot {number}: {e}")
+        logger.error(f"Failed to send message to bot {number}: {e}", exc_info=True)
         return JSONResponse({"detail": "Failed to send message"}, status_code=500)
 
     return JSONResponse({"detail": "Message sent"})
@@ -306,8 +310,8 @@ async def toggle_enterprise(request: Request, number: str):
         active=new_status
     )
 
-    bot_token = ent_dict.get("bot_token", "")
-    chat_id = ent_dict.get("chat_id", "")
+    bot_token = ent_dict.get("bot_token", "").strip()
+    chat_id = ent_dict.get("chat_id", "").strip()
     bot = Bot(token=bot_token)
     text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
     try:
@@ -319,4 +323,83 @@ async def toggle_enterprise(request: Request, number: str):
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
-# --- Конец файла ---
+# --- Новые эндпоинты для управления сервисами ---
+
+@router.post("/service/restart_main")
+async def restart_main_service():
+    try:
+        subprocess.run(["pkill", "-f", "uvicorn main:app"], check=False)
+        await asyncio.sleep(1)
+        subprocess.Popen(["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--log-level", "debug", "--reload"])
+        return {"detail": "Основной сервис перезапущен"}
+    except Exception as e:
+        logger.error(f"Ошибка при перезапуске основного сервиса: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Не удалось перезапустить основной сервис")
+
+
+@router.post("/service/restart_all")
+async def restart_all_services():
+    try:
+        subprocess.run(["pkill", "-f", "python"], check=False)
+        await asyncio.sleep(2)
+        subprocess.Popen(["./start_all.sh"])
+        return {"detail": "Все сервисы перезапущены"}
+    except Exception as e:
+        logger.error(f"Ошибка при полной перезагрузке сервисов: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Не удалось перезапустить все сервисы")
+
+
+@router.post("/service/restart_bots")
+async def restart_bots_service():
+    try:
+        subprocess.run(["pkill", "-f", "bot.py"], check=False)
+        await asyncio.sleep(1)
+        subprocess.Popen(["./start_bots.sh"])
+        return {"detail": "Сервисы ботов перезапущены"}
+    except Exception as e:
+        logger.error(f"Ошибка при перезапуске ботов: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Не удалось перезапустить ботов")
+
+
+@router.post("/service/stop_bots")
+async def stop_bots_service():
+    try:
+        subprocess.run(["pkill", "-f", "bot.py"], check=False)
+        return {"detail": "Сервисы ботов остановлены"}
+    except Exception as e:
+        logger.error(f"Ошибка при остановке ботов: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Не удалось остановить сервисы ботов")
+
+
+@router.post("/service/toggle_bots")
+async def toggle_bots_service():
+    try:
+        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
+        running = bool(result.stdout.strip())
+        if running:
+            subprocess.run(["pkill", "-f", "bot.py"], check=False)
+            await asyncio.sleep(1)
+            detail = "Сервисы ботов остановлены"
+        else:
+            subprocess.Popen(["./start_bots.sh"])
+            detail = "Сервисы ботов запущены"
+        return {"detail": detail, "running": not running}
+    except Exception as e:
+        logger.error(f"Ошибка при переключении ботов: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Не удалось переключить сервисы ботов")
+
+
+@router.get("/service/bots_status")
+async def bots_status():
+    try:
+        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
+        running = bool(result.stdout.strip())
+        return {"running": running}
+    except Exception as e:
+        logger.error(f"Ошибка при проверке статуса ботов: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Не удалось получить статус ботов")
+
+
+@router.get("/admin")
+async def admin_root():
+    return RedirectResponse(url="/admin/enterprises")
