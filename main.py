@@ -20,7 +20,7 @@ from telegram import Bot
 from telegram.error import TelegramError
 
 logging.basicConfig(
-    level=logging.DEBUG,  # включено подробное логирование
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
@@ -124,6 +124,38 @@ async def create_enterprise(
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
+# --- Алиасы для совместимости с /admin/enterprises/add ---
+
+@app.get("/admin/enterprises/add", response_class=HTMLResponse)
+async def add_enterprise_form_alias(request: Request):
+    return await new_enterprise_form(request)
+
+
+@app.post("/admin/enterprises/add", response_class=HTMLResponse)
+async def create_enterprise_alias(
+    request: Request,
+    number: str = Form(...),
+    name: str = Form(...),
+    secret: str = Form(...),
+    bot_token: str = Form(""),
+    chat_id: str = Form(""),
+    ip: str = Form(...),
+    host: str = Form(...),
+    name2: str = Form(""),
+):
+    return await create_enterprise(
+        request=request,
+        number=number,
+        name=name,
+        secret=secret,
+        bot_token=bot_token,
+        chat_id=chat_id,
+        ip=ip,
+        host=host,
+        name2=name2,
+    )
+
+
 @app.get("/admin/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
     enterprise = await get_enterprise_by_number(number)
@@ -212,7 +244,6 @@ async def send_message_api(number: str, request: Request):
         logger.error(f"Enterprise #{number} not found in database")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
 
-    # Если enterprise - sqlite3.Row, преобразуем в dict для удобства
     if not isinstance(enterprise, dict):
         enterprise = dict(enterprise)
 
@@ -279,8 +310,6 @@ async def toggle_enterprise(request: Request, number: str):
 
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
-
-# --- Новые эндпоинты для управления сервисами ---
 
 @app.post("/service/restart_main")
 async def restart_main_service():
