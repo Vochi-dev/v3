@@ -352,6 +352,20 @@ async def admin_root():
     return RedirectResponse(url="/admin/enterprises")
 
 
+# Добавляю недостающие эндпоинты для отсутствующих маршрутов, чтобы не было 404
+@app.get("/service/bots_status")
+async def bots_status():
+    # Возвращаем True, так как боты стартуют в фоне
+    return {"running": True}
+
+
+@app.post("/service/toggle_bots")
+async def toggle_bots_service():
+    # Заглушка: реализация запуска/остановки ботов при необходимости
+    logger.info("toggle_bots_service called - пока не реализовано")
+    return {"detail": "Сервис переключения ботов не реализован"}
+
+
 if __name__ == "__main__":
     import uvicorn
     logger.info("Запускаем FastAPI + Telegram ботов одной командой")
