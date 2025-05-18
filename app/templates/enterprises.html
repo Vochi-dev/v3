@@ -186,22 +186,34 @@
     async function toggleBots() {
       try {
         let response = await fetch('/service/bots_status');
-        let data = await response.json();
         if (!response.ok) {
           alert("Не удалось получить статус ботов");
           return;
         }
+        let data = await response.json();
         const btn = document.getElementById('toggle-bots-btn');
         if (data.running) {
-          await serviceAction('/service/stop_bots', 'Сервисы ботов остановлены');
-          btn.classList.remove('green');
-          btn.classList.add('red');
-          btn.textContent = '⚙️ Боты отключены';
+          // Остановить ботов
+          let stopResponse = await fetch('/service/stop_bots', { method: 'POST' });
+          if (stopResponse.ok) {
+            btn.classList.remove('green');
+            btn.classList.add('red');
+            btn.textContent = '⚙️ Боты отключены';
+            alert('Сервисы ботов остановлены');
+          } else {
+            alert('Не удалось остановить сервисы ботов');
+          }
         } else {
-          await serviceAction('/service/restart_bots', 'Сервисы ботов запущены');
-          btn.classList.remove('red');
-          btn.classList.add('green');
-          btn.textContent = '⚙️ Боты включены';
+          // Запустить ботов
+          let startResponse = await fetch('/service/restart_bots', { method: 'POST' });
+          if (startResponse.ok) {
+            btn.classList.remove('red');
+            btn.classList.add('green');
+            btn.textContent = '⚙️ Боты включены';
+            alert('Сервисы ботов запущены');
+          } else {
+            alert('Не удалось запустить сервисы ботов');
+          }
         }
       } catch (e) {
         alert("Ошибка при переключении ботов: " + e.message);
@@ -212,6 +224,10 @@
     document.addEventListener('DOMContentLoaded', async () => {
       try {
         let response = await fetch('/service/bots_status');
+        if (!response.ok) {
+          console.error("Не удалось получить статус ботов");
+          return;
+        }
         let data = await response.json();
         const btn = document.getElementById('toggle-bots-btn');
         if (data.running) {
