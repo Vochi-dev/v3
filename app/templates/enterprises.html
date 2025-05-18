@@ -20,6 +20,9 @@
     .button.red {
       background: #dc3545;
     }
+    .button.green {
+      background: #28a745;
+    }
     table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
     th, td { border: 1px solid #ccc; padding: 0.5rem; vertical-align: top; }
     th { background: #f0f0f0; }
@@ -49,7 +52,12 @@
     <button class="button" onclick="serviceAction('/service/restart_main', 'Основной сервис перезапущен')">🔄 Перезапустить сервис</button>
     <button class="button" onclick="serviceAction('/service/restart_all', 'Все сервисы перезапущены')">🔁 Полная перезагрузка</button>
     <button class="button" onclick="serviceAction('/service/restart_bots', 'Сервисы ботов перезапущены')">🤖 Перезапустить ботов</button>
-    <button class="button" onclick="toggleBots()">⚙️ Включить/Выключить ботов</button>
+    <button
+      class="button {% if bots_running %}green{% else %}red{% endif %}"
+      onclick="toggleBots()"
+    >
+      ⚙️ Включить/Выключить ботов
+    </button>
   </div>
 
   <div>
