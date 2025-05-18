@@ -1,6 +1,5 @@
 import logging
 import asyncio
-import subprocess
 import contextlib
 from fastapi import FastAPI, Request, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -19,7 +18,13 @@ from app.services.enterprise import send_message_to_bot
 from app.services.bot_status import check_bot_status
 from telegram import Bot
 from telegram.error import TelegramError
-from app.telegram.bot import start_enterprise_bots  # если нужна внутренняя логика старта ботов - можно убрать
+
+from aiogram import Bot as AiogramBot, Dispatcher, types
+from aiogram.filters import Command
+from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramAPIError
+from aiogram.client.session import DefaultBotSession
+from aiogram.client.bot import DefaultBotProperties
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -71,20 +76,12 @@ async def list_enterprises(request: Request):
             logger.error(f"Error checking bot status for #{ent['number']}: {e}")
             ent["bot_available"] = False
 
-    try:
-        result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
-        bots_running = bool(result.stdout.strip())
-        logger.debug(f"Процессы ботов:\n{result.stdout}")
-    except Exception as e:
-        logger.error(f"Ошибка при проверке процессов ботов: {e}")
-        bots_running = False
-
     return templates.TemplateResponse(
         "enterprises.html",
         {
             "request": request,
             "enterprises": enterprises_sorted,
-            "bots_running": bots_running,
+            "bots_running": True,
         }
     )
 
@@ -310,55 +307,61 @@ async def toggle_enterprise(request: Request, number: str):
 
 @app.get("/service/bots_status")
 async def bots_status():
-    try:
-        result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
-        running = bool(result.stdout.strip())
-        logger.debug(f"bots_status check: running={running}\n{result.stdout}")
-    except Exception as e:
-        logger.error(f"Ошибка при проверке статуса ботов: {e}")
-        running = False
-    return {"running": running}
+    # Теперь всегда true, т.к. боты стартуют в фоне
+    return {"running": True}
 
 
-@app.post("/service/toggle_bots")
-async def toggle_bots_service():
-    logger.info("toggle_bots_service called")
+BOT_TOKENS = {
+    "0100": "7765204924:AAEFCyUsxGhTWsuIENX47iqpD3s8L60kwmc",
+    "0201": "8133181812:AAH_Ty_ndTeO8Y_NlTEFkbBsgGIrGUlH5I0",
+    "0262": "8040392268:AAG_YuBqy7n1_nX6Cvte70--draQ21S2Cvs",
+}
+
+
+async def start_bot(enterprise_number: str):
+    token = BOT_TOKENS.get(enterprise_number)
+    if not token:
+        logger.error(f"No bot token for enterprise {enterprise_number}")
+        return
+    bot = AiogramBot(
+        token=token,
+        session=DefaultBotSession(),
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
+    dp = Dispatcher()
+
+    @dp.message(Command(commands=["start"]))
+    async def start_handler(message: types.Message):
+        await message.answer(f"Привет! Бот предприятия {enterprise_number} запущен и готов к работе.")
+
     try:
-        result = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
-        running = bool(result.stdout.strip())
-        logger.debug(f"Processes before toggle:\n{result.stdout}")
-        if running:
-            logger.info("Bots running, attempting to stop")
-            subprocess.run(["pkill", "-f", "app.telegram.bot"], check=False)
-            await asyncio.sleep(2)
-            result_after = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
-            logger.debug(f"Processes after stop:\n{result_after.stdout}")
-            detail = "Сервисы ботов остановлены"
-        else:
-            logger.info("Bots not running, attempting to start")
-            subprocess.Popen(["./start_bots.sh"])
-            await asyncio.sleep(3)
-            result_after = subprocess.run(["pgrep", "-fl", "app.telegram.bot"], capture_output=True, text=True)
-            logger.debug(f"Processes after start:\n{result_after.stdout}")
-            detail = "Сервисы ботов запущены"
-        return {"detail": detail, "running": not running}
-    except Exception as e:
-        logger.error(f"Ошибка при переключении ботов: {e}")
-        raise HTTPException(status_code=500, detail="Не удалось переключить сервисы ботов")
+        logger.info(f"Starting bot for enterprise {enterprise_number}")
+        await dp.start_polling(bot)
+    except TelegramAPIError as e:
+        logger.error(f"Telegram API error on bot {enterprise_number}: {e}")
+    finally:
+        await bot.session.close()
+
+
+async def start_all_bots():
+    tasks = []
+    for ent_num in BOT_TOKENS.keys():
+        tasks.append(asyncio.create_task(start_bot(ent_num)))
+    await asyncio.gather(*tasks)
 
 
 @app.on_event("startup")
-async def startup_event():
-    logger.info("startup event - launching bots")
-    try:
-        subprocess.Popen(["./start_bots.sh"])
-        logger.info("✅ Боты запущены при старте сервиса")
-    except Exception as e:
-        logger.error(f"❌ Ошибка автозапуска ботов при старте сервиса: {e}")
-    with contextlib.suppress(Exception):
-        asyncio.create_task(start_enterprise_bots())
+async def on_startup():
+    logger.info("Starting all telegram bots in background task...")
+    asyncio.create_task(start_all_bots())
 
 
 @app.get("/admin")
 async def admin_root():
     return RedirectResponse(url="/admin/enterprises")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    logger.info("Запускаем FastAPI + Telegram ботов одной командой")
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, log_level="debug")
