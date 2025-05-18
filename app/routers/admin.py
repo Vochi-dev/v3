@@ -15,7 +15,7 @@ from telegram.error import TelegramError
 from app.config import ADMIN_PASSWORD
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
-from app.services.enterprise import send_message_to_bot
+from app.services.enterprise import send_message_to_bot  # оставлено на случай, если нужно
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -71,7 +71,6 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
-    # row_factory для удобной работы со словарями
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
@@ -94,7 +93,7 @@ async def list_enterprises(request: Request):
         enterprises_with_status.append(ent)
 
     service_running = True
-    bots_running = True
+    bots_running = True  # сюда можно добавить реальную проверку статуса ботов
 
     return templates.TemplateResponse(
         "enterprises.html",
