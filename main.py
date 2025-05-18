@@ -19,8 +19,6 @@ from app.services.bot_status import check_bot_status
 from telegram import Bot
 from telegram.error import TelegramError
 
-bots_launched = False  # Флаг запуска ботов
-
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -33,12 +31,9 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 @app.on_event("startup")
 async def startup_event():
     global bots_launched
-    # По умолчанию боты запускаются при старте FastAPI
     subprocess.Popen(["./start_bots.sh"])
     bots_launched = True
-    logger.info("✅ Боты запущены при старте приложения")
-
-
+    logger.info("✅ Боты запущены при старте. Далее управляются только кнопкой.")
 
 
 
