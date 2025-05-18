@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import asyncio
+import subprocess
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Form, status, HTTPException
@@ -69,7 +71,7 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
-    # Используем row_factory для словарей, чтобы удобно работать с результатами
+    # row_factory для удобной работы со словарями
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
@@ -251,3 +253,106 @@ async def send_message(number: str, request: Request):
         return JSONResponse({"detail": "Failed to send message"}, status_code=500)
 
     return JSONResponse({"detail": "Message sent"})
+
+
+# --- Новые эндпоинты для управления сервисами ---
+
+@router.post("/service/restart_main")
+async def restart_main_service():
+    """
+    Перезапускает только основной сервис main.py
+    """
+    try:
+        subprocess.run(["pkill", "-f", "uvicorn main:app"], check=False)
+        await asyncio.sleep(1)
+        subprocess.Popen(["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--log-level", "debug", "--reload"])
+        return {"detail": "Основной сервис перезапущен"}
+    except Exception as e:
+        logger.error(f"Ошибка при перезапуске основного сервиса: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось перезапустить основной сервис")
+
+
+@router.post("/service/restart_all")
+async def restart_all_services():
+    """
+    Полная перезагрузка всех python процессов (main и ботов)
+    """
+    try:
+        subprocess.run(["pkill", "-f", "python"], check=False)
+        await asyncio.sleep(2)
+        subprocess.Popen(["./start_all.sh"])
+        return {"detail": "Все сервисы перезапущены"}
+    except Exception as e:
+        logger.error(f"Ошибка при полной перезагрузке сервисов: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось перезапустить все сервисы")
+
+
+@router.post("/service/restart_bots")
+async def restart_bots_service():
+    """
+    Перезапускает только ботов
+    """
+    try:
+        subprocess.run(["pkill", "-f", "bot.py"], check=False)
+        await asyncio.sleep(1)
+        subprocess.Popen(["./start_bots.sh"])
+        return {"detail": "Сервисы ботов перезапущены"}
+    except Exception as e:
+        logger.error(f"Ошибка при перезапуске ботов: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось перезапустить ботов")
+
+
+@router.post("/service/stop_bots")
+async def stop_bots_service():
+    """
+    Останавливает сервис ботов
+    """
+    try:
+        subprocess.run(["pkill", "-f", "bot.py"], check=False)
+        return {"detail": "Сервисы ботов остановлены"}
+    except Exception as e:
+        logger.error(f"Ошибка при остановке ботов: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось остановить сервисы ботов")
+
+
+@router.post("/service/toggle_bots")
+async def toggle_bots_service():
+    """
+    Включить или выключить сервис ботов в зависимости от текущего состояния
+    """
+    try:
+        # Проверяем, работают ли боты
+        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
+        running = bool(result.stdout.strip())
+        if running:
+            # Останавливаем
+            subprocess.run(["pkill", "-f", "bot.py"], check=False)
+            await asyncio.sleep(1)
+            detail = "Сервисы ботов остановлены"
+        else:
+            # Запускаем
+            subprocess.Popen(["./start_bots.sh"])
+            detail = "Сервисы ботов запущены"
+        return {"detail": detail, "running": not running}
+    except Exception as e:
+        logger.error(f"Ошибка при переключении ботов: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось переключить сервисы ботов")
+
+
+@router.get("/service/bots_status")
+async def bots_status():
+    """
+    Возвращает статус работы ботов (работают/не работают)
+    """
+    try:
+        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
+        running = bool(result.stdout.strip())
+        return {"running": running}
+    except Exception as e:
+        logger.error(f"Ошибка при проверке статуса ботов: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось получить статус ботов")
+
+
+@router.get("/admin")
+async def admin_root():
+    return RedirectResponse(url="/admin/enterprises")
