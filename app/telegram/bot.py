@@ -1,68 +1,53 @@
 import asyncio
 import logging
+import sys
+import argparse
+
 from aiogram import Bot, Dispatcher, types
-from aiogram.enums import ParseMode
-from aiogram.client.bot import DefaultBotProperties
-from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message
-from aiogram.utils.markdown import hbold
+from aiogram.filters import Command
+from aiogram.types import ParseMode
+from aiogram.utils.exceptions import TelegramAPIError
 
-from app.services.database import get_enterprises_with_tokens
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
 logger = logging.getLogger(__name__)
 
+# Парсим аргументы для запуска бота конкретного предприятия
+parser = argparse.ArgumentParser(description="Telegram Bot for Enterprise")
+parser.add_argument('--enterprise', type=str, required=True, help='Enterprise number')
+args = parser.parse_args()
 
-async def start_handler(message: Message, enterprise_number: str):
-    text = f"Привет! Я ваш бот.\nВаш номер предприятия: {hbold(enterprise_number)}"
-    await message.answer(text)
+ENTERPRISE_NUMBER = args.enterprise
 
+# Здесь загрузка токена для конкретного предприятия из БД или конфига
+# Для примера загружаем из файла, лучше — из базы данных
+def load_bot_token(enterprise_number):
+    # TODO: заменить на загрузку из БД
+    # Пример жестко захардкожен, замени на логику из БД
+    tokens = {
+        "0100": "7765204924:AAEFCyUsxGhTWsuIENX47iqpD3s8L60kwmc",
+        "0201": "8133181812:AAH_Ty_ndTeO8Y_NlTEFkbBsgGIrGUlH5I0",
+        "0262": "8040392268:AAG_YuBqy7n1_nX6Cvte70--draQ21S2Cvs",
+    }
+    return tokens.get(enterprise_number)
 
-async def create_bot_instance(bot_token: str, enterprise_number: str):
-    bot = Bot(token=bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dp = Dispatcher(storage=MemoryStorage())
+BOT_TOKEN = load_bot_token(ENTERPRISE_NUMBER)
+if not BOT_TOKEN:
+    logger.error(f"No bot token found for enterprise {ENTERPRISE_NUMBER}")
+    sys.exit(1)
 
-    @dp.message()
-    async def handle_all_messages(message: Message):
-        if message.text == "/start":
-            await start_handler(message, enterprise_number)
-        else:
-            await message.answer("Команда не распознана.")
+bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
+dp = Dispatcher()
 
+@dp.message(Command(commands=["start"]))
+async def cmd_start(message: types.Message):
+    await message.answer(f"Привет! Бот предприятия {ENTERPRISE_NUMBER} запущен и готов к работе.")
+
+async def main():
     try:
-        await bot.delete_webhook(drop_pending_updates=True)
-        me = await bot.get_me()
-        logger.info(f"✅ Бот {enterprise_number} запущен: @{me.username}")
-        # Запуск polling будет блокирующим, его нельзя просто await
+        logger.info(f"Bot for enterprise {ENTERPRISE_NUMBER} started.")
         await dp.start_polling(bot)
-    except Exception as e:
-        logger.error(f"❌ Ошибка при инициализации бота {enterprise_number}: {e}")
-
-
-async def start_enterprise_bots():
-    enterprises = await get_enterprises_with_tokens()
-    if not enterprises:
-        logger.warning("Нет ни одного активного предприятия с токеном для запуска бота.")
-        return
-
-    tasks = []
-    for ent in enterprises:
-        ent = dict(ent)  # sqlite3.Row -> dict
-        bot_token = ent.get("bot_token", "").strip()
-        number = ent.get("number", "").strip()
-        if bot_token and number:
-            logger.debug(f"Запускаем бота для предприятия #{number} с токеном: {bot_token[:5]}...")
-            # Запускаем create_bot_instance как таску, чтобы не блокировать
-            task = asyncio.create_task(create_bot_instance(bot_token, number))
-            tasks.append(task)
-        else:
-            logger.warning(f"Пропуск предприятия {ent} — отсутствует bot_token или number")
-
-    # await asyncio.gather(*tasks)  # НЕ await — оставим таски жить параллельно
-
+    finally:
+        await bot.session.close()
 
 if __name__ == "__main__":
-    asyncio.run(start_enterprise_bots())
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(main())
