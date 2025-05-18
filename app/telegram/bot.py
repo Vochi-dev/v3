@@ -24,14 +24,7 @@ async def run_bot(enterprise_number: str):
         logger.error(f"No bot token found for enterprise {enterprise_number}")
         sys.exit(1)
 
-    from aiogram.client.session import DefaultBotSession
-    from aiogram.client.bot import DefaultBotProperties
-
-    bot = Bot(
-        token=BOT_TOKEN,
-        session=DefaultBotSession(),
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-    )
+    bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
     dp = Dispatcher()
 
     @dp.message(Command(commands=["start"]))
