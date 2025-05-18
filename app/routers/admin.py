@@ -15,7 +15,7 @@ from telegram.error import TelegramError
 from app.config import ADMIN_PASSWORD
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
-from app.services.enterprise import send_message_to_bot  # Не используется, но импорт оставлен
+from app.services.enterprise import send_message_to_bot
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -226,44 +226,48 @@ async def delete_enterprise(number: str, request: Request):
 @router.post("/enterprises/{number}/send_message", response_class=JSONResponse)
 async def send_message(number: str, request: Request):
     require_login(request)
-    data = await request.json()
-    message = data.get("message")
-    logger.info(f"send_message called for enterprise #{number} with message: {message}")
-
-    if not message or message.strip() == "":
-        logger.warning(f"Empty message received for enterprise #{number}")
-        return JSONResponse({"detail": "Message is required"}, status_code=400)
-
-    db = await get_connection()
-    db.row_factory = None
-    cur = await db.execute("SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
-    row = await cur.fetchone()
-    await db.close()
-
-    if not row:
-        logger.error(f"Enterprise #{number} not found in database")
-        return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
-
-    bot_token, chat_id = row
-
-    bot_token = bot_token.strip() if bot_token else ""
-    chat_id = chat_id.strip() if chat_id else ""
-
-    logger.info(f"Enterprise #{number} bot_token: {repr(bot_token)}, chat_id: {repr(chat_id)}")
-
-    if bot_token == "":
-        logger.error(f"Enterprise #{number} has no valid bot_token")
-        return JSONResponse({"detail": "Enterprise has no valid bot token"}, status_code=400)
-    if chat_id == "":
-        logger.error(f"Enterprise #{number} has no valid chat_id")
-        return JSONResponse({"detail": "Enterprise has no valid chat_id"}, status_code=400)
-
     try:
+        data = await request.json()
+        message = data.get("message")
+        logger.info(f"[send_message] Enterprise #{number} - received message payload: {data}")
+
+        if not message or message.strip() == "":
+            logger.warning(f"[send_message] Enterprise #{number} - empty message received")
+            return JSONResponse({"detail": "Message is required"}, status_code=400)
+
+        db = await get_connection()
+        db.row_factory = None
+        cur = await db.execute("SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
+        row = await cur.fetchone()
+        await db.close()
+
+        logger.info(f"[send_message] Enterprise #{number} - DB query result: {row}")
+
+        if not row:
+            logger.error(f"[send_message] Enterprise #{number} not found in DB")
+            return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
+
+        bot_token, chat_id = row
+        logger.info(f"[send_message] Enterprise #{number} - bot_token: {repr(bot_token)}, chat_id: {repr(chat_id)}")
+
+        if not bot_token or not bot_token.strip():
+            logger.error(f"[send_message] Enterprise #{number} - missing or empty bot_token")
+            return JSONResponse({"detail": "Enterprise has no bot token"}, status_code=400)
+        if not chat_id or not chat_id.strip():
+            logger.error(f"[send_message] Enterprise #{number} - missing or empty chat_id")
+            return JSONResponse({"detail": "Enterprise has no chat_id"}, status_code=400)
+
+        bot_token = bot_token.strip()
+        chat_id = chat_id.strip()
+
         bot = Bot(token=bot_token)
-        await bot.send_message(chat_id=int(chat_id), text=message)
-        logger.info(f"Message sent successfully to enterprise #{number}")
-    except TelegramError as e:
-        logger.error(f"Failed to send message to bot {number}: {e}", exc_info=True)
+        logger.info(f"[send_message] Enterprise #{number} - sending message via Telegram API")
+
+        response = await bot.send_message(chat_id=int(chat_id), text=message)
+        logger.info(f"[send_message] Enterprise #{number} - Telegram API response: {response}")
+
+    except Exception as e:
+        logger.error(f"[send_message] Enterprise #{number} - failed to send message: {e}", exc_info=True)
         return JSONResponse({"detail": "Failed to send message"}, status_code=500)
 
     return JSONResponse({"detail": "Message sent"})
@@ -310,8 +314,8 @@ async def toggle_enterprise(request: Request, number: str):
         active=new_status
     )
 
-    bot_token = ent_dict.get("bot_token", "").strip()
-    chat_id = ent_dict.get("chat_id", "").strip()
+    bot_token = ent_dict.get("bot_token", "")
+    chat_id = ent_dict.get("chat_id", "")
     bot = Bot(token=bot_token)
     text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
     try:
