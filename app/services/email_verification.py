@@ -11,9 +11,7 @@ import aiosqlite
 
 from app.config import settings
 
-# ────────────────────────────────────────────────────────────────────────────────
-# Создаём таблицу email_tokens, если её нет
-# ────────────────────────────────────────────────────────────────────────────────
+# ─────────────── Создаём email_tokens, если нет ───────────────
 _conn = sqlite3.connect(settings.DB_PATH)
 _cur = _conn.cursor()
 _cur.execute("""
@@ -29,7 +27,7 @@ _conn.close()
 
 def create_verification_token(email: str) -> str:
     """
-    Генерирует токен, сохраняет его в БД вместе с меткой времени и возвращает.
+    Генерирует токен, сохраняет его в БД и возвращает.
     """
     token = secrets.token_urlsafe(32)
     created_at = datetime.datetime.utcnow().isoformat()
@@ -50,10 +48,7 @@ def get_email_by_token(token: str) -> str | None:
     """
     conn = sqlite3.connect(settings.DB_PATH)
     cur = conn.cursor()
-    cur.execute(
-        "SELECT email FROM email_tokens WHERE token = ?",
-        (token,)
-    )
+    cur.execute("SELECT email FROM email_tokens WHERE token = ?", (token,))
     row = cur.fetchone()
     conn.close()
     return row[0] if row else None
@@ -65,19 +60,17 @@ def delete_token(token: str):
     """
     conn = sqlite3.connect(settings.DB_PATH)
     cur = conn.cursor()
-    cur.execute(
-        "DELETE FROM email_tokens WHERE token = ?",
-        (token,)
-    )
+    cur.execute("DELETE FROM email_tokens WHERE token = ?", (token,))
     conn.commit()
     conn.close()
 
 
 def send_verification_email(email: str, token: str):
     """
-    Отправляет письмо с ссылкой для подтверждения.
+    Отправляет письмо с линком вида https://<ваш-домен>/verify-email/{token}
     """
-    link = f"{settings.VERIFY_URL_BASE}?token={token}"
+    # Ссылка теперь строится через путь, а не query param
+    link = f"{settings.VERIFY_URL_BASE}/{token}"
     subject = "Подтверждение email"
     body = f"""Здравствуйте!
 
@@ -85,7 +78,7 @@ def send_verification_email(email: str, token: str):
 
 {link}
 
-Если вы не запрашивали доступ — проигнорируйте это письмо.
+Если вы не запрашивали доступ — просто проигнорируйте это письмо.
 """
 
     msg = EmailMessage()
@@ -106,9 +99,7 @@ def send_verification_email(email: str, token: str):
         raise RuntimeError(f"Ошибка отправки email: {e}")
 
 
-# ────────────────────────────────────────────────────────────────────────────────
-# Асинхронные функции для работы с telegram_users
-# ────────────────────────────────────────────────────────────────────────────────
+# ─────────────── Асинхронные для telegram_users ───────────────
 
 async def email_exists(email: str) -> bool:
     async with aiosqlite.connect(settings.DB_PATH) as db:
@@ -125,8 +116,7 @@ async def email_already_verified(email: str) -> bool:
 
 async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: str):
     """
-    Вставляет или обновляет запись в telegram_users.
-    Использует tg_id как первичный ключ.
+    Вставляет или обновляет запись в telegram_users по ключу tg_id.
     """
     async with aiosqlite.connect(settings.DB_PATH) as db:
         await db.execute(
