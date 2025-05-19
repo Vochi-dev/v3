@@ -1,4 +1,5 @@
 # app/telegram/dispatcher.py
+import logging
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.enums import ParseMode
@@ -6,6 +7,8 @@ from aiogram.client.default import DefaultBotProperties
 
 from app.services.db import get_enterprise_number_by_bot_token
 from app.telegram import onboarding
+
+logger = logging.getLogger(__name__)
 
 
 async def create_dispatcher(bot: Bot) -> Dispatcher:
@@ -28,8 +31,6 @@ async def create_dispatcher(bot: Bot) -> Dispatcher:
     bot.enterprise_id = enterprise_id
 
     # --- регистрируем наши хэндлеры ---
-    # Сбрасываем привязку родителя, чтобы можно было многократно подключать
-    onboarding.router.parent_router = None
     dp.include_router(onboarding.router)
 
     return dp
@@ -45,7 +46,10 @@ async def setup_dispatcher(bot: Bot, enterprise_number: str) -> Dispatcher:
     # ✅ Сохраняем enterprise_id как атрибут бота
     bot.enterprise_id = enterprise_number
 
-    # --- регистрируем наши хэндлеры ---
-    onboarding.router.parent_router = None
-    dp.include_router(onboarding.router)
+    # --- регистрируем наши хэндлеры, но пропускаем, если уже подключены ---
+    try:
+        dp.include_router(onboarding.router)
+    except RuntimeError as e:
+        logger.warning(f"Router already attached, skipping include_router: {e}")
+
     return dp
