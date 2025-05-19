@@ -23,6 +23,7 @@ from aiogram import Bot as AiogramBot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
+from aiogram.client.default import DefaultBotProperties
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -31,8 +32,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-from app.routers import admin
-app.include_router(admin.router, prefix="/admin")
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -319,7 +318,7 @@ async def start_bot(enterprise_number: str):
         return
     bot = AiogramBot(
         token=token,
-        parse_mode=ParseMode.HTML
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
 
