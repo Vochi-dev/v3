@@ -27,6 +27,7 @@ from aiogram.client.default import DefaultBotProperties
 
 # 👇 ВОССТАНОВЛЕНО: Подключение маршрутов /admin/*
 from app.routers import admin
+
 app = FastAPI()
 app.include_router(admin.router, prefix="/admin")
 
