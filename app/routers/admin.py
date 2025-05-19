@@ -12,7 +12,9 @@ from fastapi import (
     APIRouter, Request, Form, status, HTTPException,
     File, UploadFile
 )
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import (
+    HTMLResponse, RedirectResponse, JSONResponse
+)
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
 from telegram.error import TelegramError
@@ -74,7 +76,6 @@ async def dashboard(request: Request):
 
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
-    logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
@@ -171,15 +172,9 @@ async def edit_enterprise_form(request: Request, number: str):
     if not ent:
         raise HTTPException(status_code=404, detail="Enterprise not found")
     ent_dict = {
-        "number": ent[0],
-        "name": ent[1],
-        "bot_token": ent[2],
-        "active": ent[3],
-        "chat_id": ent[4],
-        "ip": ent[5],
-        "secret": ent[6],
-        "host": ent[7],
-        "name2": ent[8],
+        "number": ent[0], "name": ent[1], "bot_token": ent[2],
+        "active": ent[3], "chat_id": ent[4], "ip": ent[5],
+        "secret": ent[6], "host": ent[7], "name2": ent[8],
     }
     return templates.TemplateResponse(
         "enterprise_form.html",
@@ -250,12 +245,10 @@ async def send_message(number: str, request: Request):
     try:
         success = await send_message_to_bot(bot_token, chat_id, message)
         if success:
-            logger.info(f"Message sent successfully to enterprise #{number}")
             return JSONResponse({"detail": "Message sent"})
         else:
             return JSONResponse({"detail": "Failed to send message"}, status_code=500)
-    except Exception as e:
-        logger.error(f"Failed to send message to bot {number}: {e}", exc_info=True)
+    except Exception:
         return JSONResponse({"detail": "Failed to send message"}, status_code=500)
 
 
@@ -285,7 +278,6 @@ async def email_users_page(request: Request):
     """)
     rows = await cur.fetchall()
     await db.close()
-
     return templates.TemplateResponse(
         "email_users.html",
         {"request": request, "email_users": rows}
@@ -301,38 +293,37 @@ async def upload_email_users(
 ):
     require_login(request)
 
-    # Повторное подтверждение
+    # если пришло подтверждение из confirm_sync.html
     if confirm:
-        # раскодируем CSV
-        data = base64.b64decode(csv_b64.encode())
-        text = data.decode('utf-8-sig')
+        raw = base64.b64decode(csv_b64.encode())
+        text = raw.decode('utf-8-sig')
         reader = csv.DictReader(io.StringIO(text))
+        new_set = {r["email"].strip().lower() for r in reader if r.get("email")}
 
         db = await get_connection()
         try:
-            # удаляем из telegram_users тех, кого больше нет
-            cur_exist = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
-            exist = await cur_exist.fetchall()
-            new_emails = {row["email"].strip().lower() for row in reader}
-            reader = csv.DictReader(io.StringIO(text))  # сброс итератора
-
-            for email, tg_id, bot_token in exist:
-                if email.lower() not in new_emails:
+            # первые, удалить из telegram_users тех, кого нет в новом CSV
+            cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
+            for email, tg_id, bot_token in await cur.fetchall():
+                if email.strip().lower() not in new_set:
                     await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
-                    # уведомляем пользователя
+                    # уведомление
                     try:
                         bot = Bot(token=bot_token)
                         await bot.send_message(chat_id=int(tg_id),
-                                               text="⚠️ Администратор отозвал ваш доступ.")
+                                               text="⛔️ Администратор отозвал ваш доступ.")
                     except TelegramError:
                         pass
 
-            # перезаполняем email_users
+            # затем — полностью обновить email_users
             await db.execute("DELETE FROM email_users")
+            await db.commit()
+            reader = csv.DictReader(io.StringIO(text))
             for row in reader:
                 await db.execute(
                     """
-                    INSERT INTO email_users(number, email, name, right_all, right_1, right_2)
+                    INSERT INTO email_users(number, email, name,
+                                             right_all, right_1, right_2)
                     VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
@@ -350,37 +341,34 @@ async def upload_email_users(
 
         return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
-    # Первый заход: читаем новый CSV
+    # иначе — первый заход, собираем preview
     content = await file.read()
     text = content.decode('utf-8-sig')
     reader = csv.DictReader(io.StringIO(text))
-    new_emails = {r["email"].strip().lower() for r in reader}
+    new_emails = {r["email"].strip().lower() for r in reader if r.get("email")}
     csv_b64_val = base64.b64encode(text.encode()).decode()
 
     db = await get_connection()
     try:
-        # текущие telegram_users
-        cur_exist = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
-        exist = await cur_exist.fetchall()
-
+        cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
         to_remove = []
-        for email, tg_id, bot_token in exist:
-            if email.lower() not in new_emails:
-                # узнаём юнит
+        for email, tg_id, bot_token in await cur.fetchall():
+            if email.strip().lower() not in new_emails:
                 cur_ent = await db.execute(
                     "SELECT name FROM enterprises WHERE bot_token = ?", (bot_token,)
                 )
                 ent_row = await cur_ent.fetchone()
                 unit = ent_row[0] if ent_row else ""
-                to_remove.append({"tg_id": tg_id, "email": email, "enterprise_name": unit})
+                to_remove.append({
+                    "tg_id": tg_id, "email": email, "enterprise_name": unit
+                })
 
-        # очищаем email_users на время подтверждения
+        # очистка email_users, ждем подтверждения
         await db.execute("DELETE FROM email_users")
         await db.commit()
     finally:
         await db.close()
 
-    # если есть исчезнувшие — показываем confirm
     if to_remove:
         return templates.TemplateResponse(
             "confirm_sync.html",
@@ -388,17 +376,19 @@ async def upload_email_users(
                 "request": request,
                 "to_remove": to_remove,
                 "csv_b64": csv_b64_val
-            }
+            },
+            status_code=status.HTTP_200_OK
         )
 
-    # нет конфликтов — сразу вставляем
+    # нет conflict — сразу вставляем
     reader = csv.DictReader(io.StringIO(text))
     db = await get_connection()
     try:
         for row in reader:
             await db.execute(
                 """
-                INSERT INTO email_users(number, email, name, right_all, right_1, right_2)
+                INSERT INTO email_users(number, email, name,
+                                         right_all, right_1, right_2)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
