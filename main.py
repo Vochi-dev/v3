@@ -27,7 +27,7 @@ from aiogram.client.default import DefaultBotProperties
 
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(2023-06-01 12:34:56 [INFO] main: message)s"
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
 
