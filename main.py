@@ -28,7 +28,7 @@ from aiogram.client.default import DefaultBotProperties
 from app.routers import admin  # ВАЖНО: это устраняет 404 /admin/login
 
 # Импортируем dispatcher с логикой start/email/валидации
-from dispatcher import setup_dispatcher
+from app.telegram.dispatcher import setup_dispatcher
 
 logging.basicConfig(
     level=logging.DEBUG,
