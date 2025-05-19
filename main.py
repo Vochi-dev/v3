@@ -28,16 +28,14 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
 from aiogram.client.default import DefaultBotProperties
 
-# Подключаем маршруты
-from app.routers.admin import router as admin_router
-from app.routers.email_users import router as email_users_router
-from app.routers.enterprise import router as enterprise_router
-from app.routers.health import router as health_router
-from app.routers.user_requests import router as user_requests_router
-from app.routers.webhooks import router as webhooks_router
-from app.routers.auth_email import router as auth_email_router
+# ────────────────────────────────────────────────────────────────────────────────
+# Подключаем админ-маршруты
+# ────────────────────────────────────────────────────────────────────────────────
+from app.routers import admin           # /admin/*
+from app.routers.email_users import router as email_users_router   # /admin/email-users
+from app.routers.auth_email import router as auth_email_router     # /verify-email/{token}
 
-# Импортируем dispatcher с логикой start/email/валидации
+# Импортируем dispatcher с логикой /start и e-mail
 from app.telegram.dispatcher import setup_dispatcher
 
 # --- Настройка логирования ---
@@ -46,28 +44,27 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# --- Создаём FastAPI с debug=True для расширенного логирования ---
+app = FastAPI(debug=True)
+
+# Повышаем уровень логирования для uvicorn и fastapi
 logging.getLogger("uvicorn").setLevel(logging.DEBUG)
 logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
 logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
 fastapi_logger.setLevel(logging.DEBUG)
 
-# --- Создаём FastAPI с debug=True ---
-app = FastAPI(debug=True)
-
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# --- Подключаем роутеры ---
-app.include_router(admin_router, prefix="/admin")
-app.include_router(email_users_router, prefix="/admin/email-users")
-app.include_router(enterprise_router, prefix="/admin/enterprises")
-app.include_router(health_router, prefix="/health")
-app.include_router(user_requests_router, prefix="/admin/user-requests")
-app.include_router(webhooks_router, prefix="/webhooks")
-app.include_router(auth_email_router, prefix="/verify-email")
+# ────────────────────────────────────────────────────────────────────────────────
+# Регистрируем роутеры
+# ────────────────────────────────────────────────────────────────────────────────
+app.include_router(admin.router)              # /admin/*
+app.include_router(email_users_router)        # /admin/email-users*
+app.include_router(auth_email_router)         # /verify-email/{token}
 
-
-# --- Обработчик ошибок валидации (422) ---
+# --- Обработчик ошибок валидации запросов (422) ---
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     fastapi_logger.error(
@@ -83,8 +80,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": exc.errors()}
     )
 
-
-# --- Middleware для логирования всех запросов ---
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         logger.info("Incoming request: %s %s", request.method, request.url)
@@ -93,44 +88,33 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         except Exception:
             logger.exception("Exception during request processing")
             raise
-        logger.info(
-            "Response status: %d for %s %s",
-            response.status_code, request.method, request.url
-        )
+        logger.info("Response status: %d for %s %s", response.status_code, request.method, request.url)
         return response
 
 app.add_middleware(LoggingMiddleware)
 
-
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     return RedirectResponse(url="/admin/enterprises")
-
 
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     enterprises_rows = await get_all_enterprises()
     enterprises = [dict(ent) for ent in enterprises_rows]
-    enterprises_sorted = sorted(enterprises, key=lambda e: int(e["number"]))
+    enterprises_sorted = sorted(enterprises, key=lambda e: int(e['number']))
 
     for ent in enterprises_sorted:
         bot_token = ent.get("bot_token") or ""
         if not bot_token.strip():
             ent["bot_available"] = False
-            logger.info(
-                f"Enterprise #{ent['number']} - no bot_token, bot_available set to False"
-            )
+            logger.info(f"Enterprise #{ent['number']} - no bot_token, bot_available set to False")
             continue
         try:
             ent["bot_available"] = await check_bot_status(bot_token)
-            logger.info(
-                f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}"
-            )
+            logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
         except Exception as e:
-            logger.error(
-                f"Error checking bot status for #{ent['number']}: {e}"
-            )
+            logger.error(f"Error checking bot status for #{ent['number']}: {e}")
             ent["bot_available"] = False
 
     return templates.TemplateResponse(
@@ -141,7 +125,6 @@ async def list_enterprises(request: Request):
             "bots_running": True,
         }
     )
-
 
 @app.api_route("/admin/enterprises/add", methods=["GET", "POST"], response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
@@ -163,17 +146,17 @@ async def add_enterprise_form(request: Request):
 
     enterprises = await get_all_enterprises()
     for ent in enterprises:
-        if ent["number"] == number:
+        if ent['number'] == number:
             error = f"Предприятие с номером {number} уже существует"
             break
-        if ent["name"].strip().lower() == name.strip().lower():
+        if ent['name'].strip().lower() == name.strip().lower():
             error = f"Предприятие с названием '{name}' уже существует"
             break
-        existing_name2 = ent.get("name2") or ""
+        existing_name2 = ent['name2'] or ""
         if existing_name2.strip().lower() == name2.strip().lower() and name2.strip():
             error = f"Предприятие с дополнительным именем '{name2}' уже существует"
             break
-        if ent["ip"] == ip:
+        if ent['ip'] == ip:
             error = f"Предприятие с IP {ip} уже существует"
             break
     else:
@@ -203,7 +186,6 @@ async def add_enterprise_form(request: Request):
     await add_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
-
 @app.get("/admin/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
     enterprise = await get_enterprise_by_number(number)
@@ -213,7 +195,6 @@ async def edit_enterprise_form(request: Request, number: str):
         "enterprise_form.html",
         {"request": request, "enterprise": enterprise, "action": "edit", "error": None}
     )
-
 
 @app.post("/admin/enterprises/{number}/edit", response_class=HTMLResponse)
 async def update_enterprise_post(
@@ -229,35 +210,36 @@ async def update_enterprise_post(
 ):
     enterprises = await get_all_enterprises()
     for ent in enterprises:
-        if ent["number"] != number:
-            if ent["name"].strip().lower() == name.strip().lower():
+        if ent['number'] != number:
+            if ent['name'].strip().lower() == name.strip().lower():
                 error = f"Предприятие с названием '{name}' уже существует"
                 break
-            existing_name2 = ent.get("name2") or ""
+            existing_name2 = ent['name2'] or ""
             if existing_name2.strip().lower() == name2.strip().lower() and name2.strip():
                 error = f"Предприятие с дополнительным именем '{name2}' уже существует"
                 break
-            if ent["ip"] == ip:
+            if ent['ip'] == ip:
                 error = f"Предприятие с IP {ip} уже существует"
                 break
     else:
         error = None
 
     if error:
+        enterprise = {
+            "number": number,
+            "name": name,
+            "secret": secret,
+            "bot_token": bot_token,
+            "chat_id": chat_id,
+            "ip": ip,
+            "host": host,
+            "name2": name2,
+        }
         return templates.TemplateResponse(
             "enterprise_form.html",
             {
                 "request": request,
-                "enterprise": {
-                    "number": number,
-                    "name": name,
-                    "secret": secret,
-                    "bot_token": bot_token,
-                    "chat_id": chat_id,
-                    "ip": ip,
-                    "host": host,
-                    "name2": name2,
-                },
+                "enterprise": enterprise,
                 "action": "edit",
                 "error": error,
             },
@@ -267,12 +249,10 @@ async def update_enterprise_post(
     await update_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
-
 @app.delete("/admin/enterprises/{number}")
 async def delete_enterprise_api(number: str):
     await delete_enterprise(number)
     return {"detail": "Предприятие удалено"}
-
 
 @app.post("/admin/enterprises/{number}/send_message")
 async def send_message_api(number: str, request: Request):
@@ -285,34 +265,54 @@ async def send_message_api(number: str, request: Request):
         raise HTTPException(status_code=400, detail="Сообщение не может быть пустым")
 
     enterprise = await get_enterprise_by_number(number)
+    logger.debug(f"Enterprise data retrieved for #{number}: {enterprise}")
+
     if not enterprise:
+        logger.error(f"Enterprise #{number} not found in database")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
-    enterprise = dict(enterprise)
 
-    bot_token = enterprise.get("bot_token", "")
-    chat_id = enterprise.get("chat_id", "")
-    if not bot_token.strip() or not chat_id.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="У предприятия отсутствует токен бота или chat_id"
-        )
+    if not isinstance(enterprise, dict):
+        enterprise = dict(enterprise)
 
-    success = await send_message_to_bot(bot_token, chat_id, message)
-    if not success:
-        raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
+    bot_token = enterprise.get('bot_token', "")
+    chat_id = enterprise.get('chat_id', "")
+
+    if not bot_token.strip():
+        logger.error(f"Enterprise #{number} has no bot_token or it is empty")
+        raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
+
+    if not chat_id.strip():
+        logger.error(f"Enterprise #{number} has no chat_id or it is empty")
+        raise HTTPException(status_code=400, detail="У предприятия отсутствует chat_id для отправки")
+
+    try:
+        success = await send_message_to_bot(bot_token, chat_id, message)
+        if success:
+            logger.info(f"Message sent successfully to enterprise #{number}")
+        else:
+            logger.error(f"send_message_to_bot returned False for enterprise #{number}")
+            raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
+    except Exception as e:
+        logger.exception(f"Failed to send message to bot {number}: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось отправить сообщение")
 
     return {"detail": "Сообщение отправлено"}
-
 
 @app.post("/admin/enterprises/{number}/toggle")
 async def toggle_enterprise(request: Request, number: str):
     logger.info(f"toggle_enterprise called for #{number}")
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
+        logger.error(f"Enterprise #{number} not found on toggle")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
-    enterprise = dict(enterprise)
 
-    new_status = 0 if enterprise.get("active") else 1
+    if not isinstance(enterprise, dict):
+        enterprise = dict(enterprise)
+
+    current_active = enterprise.get("active", 0)
+    new_status = 0 if current_active else 1
+    logger.debug(f"Enterprise #{number} current_active={current_active}, toggling to {new_status}")
+
     await update_enterprise(
         number,
         enterprise.get("name", ""),
@@ -325,15 +325,17 @@ async def toggle_enterprise(request: Request, number: str):
         active=new_status
     )
 
-    bot = Bot(token=enterprise["bot_token"])
+    bot_token = enterprise.get("bot_token", "")
+    chat_id = enterprise.get("chat_id", "")
+    bot = Bot(token=bot_token)
     text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
     try:
-        await bot.send_message(chat_id=int(enterprise["chat_id"]), text=text)
-    except TelegramError:
-        pass
+        await bot.send_message(chat_id=int(chat_id), text=text)
+        logger.info(f"Sent toggle message to bot {number}: {text}")
+    except TelegramError as e:
+        logger.error(f"Toggle bot notification failed for #{number}: {e}")
 
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
 
 async def start_bot(enterprise_number: str, token: str):
     bot = AiogramBot(
@@ -350,7 +352,6 @@ async def start_bot(enterprise_number: str, token: str):
     finally:
         await bot.session.close()
 
-
 async def start_all_bots():
     tokens = await get_all_bot_tokens()
     tasks = []
@@ -361,28 +362,23 @@ async def start_all_bots():
         tasks.append(asyncio.create_task(start_bot(enterprise_number, token)))
     await asyncio.gather(*tasks)
 
-
 @app.on_event("startup")
 async def on_startup():
     logger.info("Starting all telegram bots in background task...")
     asyncio.create_task(start_all_bots())
 
-
 @app.get("/service/bots_status")
 async def bots_status():
     return {"running": True}
-
 
 @app.post("/service/toggle_bots")
 async def toggle_bots_service():
     logger.info("toggle_bots_service called - пока не реализовано")
     return {"detail": "Сервис переключения ботов не реализован"}
 
-
 @app.get("/admin")
 async def admin_root():
     return RedirectResponse(url="/admin/enterprises")
-
 
 @app.on_event("shutdown")
 async def shutdown_event():
