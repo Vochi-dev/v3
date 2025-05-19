@@ -1,6 +1,8 @@
 # app/telegram/dispatcher.py
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 
 from app.config import settings               # BOT_TOKEN и путь к БД храним в settings
 from app.services.db import get_enterprise_number_by_bot_token  # исправлено!
@@ -13,7 +15,10 @@ async def create_dispatcher() -> Dispatcher:
     (по bot_token → enterprises.bot_token в БД) и
     подключает все нужные роутеры.
     """
-    bot = Bot(token=settings.TELEGRAM_BOT_TOKEN, parse_mode="HTML")
+    bot = Bot(
+        token=settings.TELEGRAM_BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
     dp = Dispatcher(storage=MemoryStorage())
 
     # --- узнаём, какому enterprise принадлежит этот бот ---
