@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import asyncio
 import subprocess
 import csv
 import io
@@ -268,28 +267,38 @@ async def send_message(number: str, request: Request):
     return JSONResponse({"detail": "Message sent"})
 
 
+# ——————————————————————————————————————————————————————————————————————————
+# Работа с email_users
+# ——————————————————————————————————————————————————————————————————————————
+
 @router.get("/email-users", response_class=HTMLResponse)
 async def email_users_page(request: Request):
     require_login(request)
     db = await get_connection()
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
+
     cur = await db.execute("""
         SELECT
-          tu.tg_id           AS tg_id,
-          tu.email           AS email,
-          eu.name            AS name,
-          eu.right_all       AS right_all,
-          eu.right_1         AS right_1,
-          eu.right_2         AS right_2,
+          eu.number             AS number,
+          eu.email              AS email,
+          eu.name               AS name,
+          eu.right_all          AS right_all,
+          eu.right_1            AS right_1,
+          eu.right_2            AS right_2,
+          tu.tg_id              AS tg_id,
           COALESCE(ent.name, '') AS enterprise_name
-        FROM telegram_users tu
-        LEFT JOIN email_users eu ON eu.email = tu.email
-        LEFT JOIN enterprises ent ON ent.bot_token = tu.bot_token
-        ORDER BY tu.tg_id ASC
+        FROM email_users eu
+        LEFT JOIN telegram_users tu ON tu.email = eu.email
+        LEFT JOIN enterprises ent ON ent.number = eu.number
+        ORDER BY eu.number ASC, eu.email ASC
     """)
     rows = await cur.fetchall()
     await db.close()
-    return templates.TemplateResponse("email_users.html", {"request": request, "email_users": rows})
+
+    return templates.TemplateResponse(
+        "email_users.html",
+        {"request": request, "email_users": rows}
+    )
 
 
 @router.post("/email-users/upload", response_class=RedirectResponse)
@@ -302,7 +311,6 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
 
     db = await get_connection()
     try:
-        # Очистим таблицу перед загрузкой (опционально)
         await db.execute("DELETE FROM email_users")
         for row in reader:
             await db.execute(
