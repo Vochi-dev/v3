@@ -273,16 +273,17 @@ async def email_users_page(request: Request):
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
-          e.number AS tg_id,
-          e.email,
-          e.name,
-          e.right_all,
-          e.right_1,
-          e.right_2,
+          tu.user_id        AS tg_id,
+          tu.email          AS email,
+          eu.name           AS name,
+          eu.right_all      AS right_all,
+          eu.right_1        AS right_1,
+          eu.right_2        AS right_2,
           COALESCE(ent.name, '') AS enterprise_name
-        FROM email_users e
-        LEFT JOIN enterprises ent ON e.number = ent.number
-        ORDER BY e.number ASC
+        FROM telegram_users tu
+        LEFT JOIN email_users eu ON eu.email = tu.email
+        LEFT JOIN enterprises ent ON ent.bot_token = tu.bot_token
+        ORDER BY tu.user_id ASC
     """)
     rows = await cur.fetchall()
     await db.close()
