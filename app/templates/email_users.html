@@ -41,7 +41,7 @@
           <td>{{ u.right_all }}</td>
           <td>{{ u.right_1 }}</td>
           <td>{{ u.right_2 }}</td>
-          <td>{{ u.enterprise_name or "" }}</td>
+          <td>{{ u.enterprise_name }}</td>
           <td>
             {% if u.tg_id %}
               <form action="/admin/email-users/delete/{{ u.tg_id }}" method="post" style="display:inline">
