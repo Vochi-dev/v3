@@ -59,3 +59,14 @@ def get_enterprise_name_by_number(enterprise_number: str) -> str | None:
     conn.close()
 
     return row[0] if row else None
+
+async def get_all_bot_tokens() -> dict:
+    """
+    Возвращает словарь {enterprise_number: bot_token} для всех предприятий с непустыми токенами.
+    """
+    result = {}
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT number, bot_token FROM enterprises WHERE bot_token IS NOT NULL AND bot_token != ''") as cursor:
+            async for row in cursor:
+                result[row[0]] = row[1]
+    return result
