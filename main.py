@@ -279,7 +279,8 @@ async def send_message_api(number: str, request: Request):
 
     logger.debug(f"Using bot_token={bot_token!r}, chat_id={chat_id!r} for enterprise #{number}")
 
-    if not bot_token or not token.strip():
+    # NOTE: your original logic assumed a field 'token' here; ensure you reference bot_token
+    if not bot_token or not bot_token.strip():
         logger.error(f"Enterprise #{number} has no bot_token or it is empty")
         raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
 
