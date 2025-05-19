@@ -4,25 +4,20 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
-from app.config import settings               # BOT_TOKEN и путь к БД храним в settings
-from app.services.db import get_enterprise_number_by_bot_token  # исправлено!
-from app.telegram import onboarding  # исправлено — теперь путь корректный
+from app.services.db import get_enterprise_number_by_bot_token
+from app.telegram import onboarding
 
 
-async def create_dispatcher() -> Dispatcher:
+async def create_dispatcher(bot: Bot) -> Dispatcher:
     """
     Создаёт Dispatcher, привязывает его к конкретному предприятию
     (по bot_token → enterprises.bot_token в БД) и
     подключает все нужные роутеры.
     """
-    bot = Bot(
-        token=settings.TELEGRAM_BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-    )
     dp = Dispatcher(storage=MemoryStorage())
 
     # --- узнаём, какому enterprise принадлежит этот бот ---
-    enterprise_id = await get_enterprise_number_by_bot_token(settings.TELEGRAM_BOT_TOKEN)
+    enterprise_id = await get_enterprise_number_by_bot_token(bot.token)
     if enterprise_id is None:
         raise RuntimeError(
             "Этого bot_token нет в таблице enterprises – "

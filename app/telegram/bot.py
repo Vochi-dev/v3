@@ -9,18 +9,14 @@ from aiogram.filters import Command
 from aiogram.client.default import DefaultBotProperties
 from aiogram.exceptions import TelegramAPIError
 
+from app.services.db import get_bot_token_by_number, get_enterprise_name_by_number  # 👈 добавлено
+
 logger = logging.getLogger(__name__)
 
-def load_bot_token(enterprise_number):
-    tokens = {
-        "0100": "7765204924:AAEFCyUsxGhTWsuIENX47iqpD3s8L60kwmc",
-        "0201": "8133181812:AAH_Ty_ndTeO8Y_NlTEFkbBsgGIrGUlH5I0",
-        "0262": "8040392268:AAG_YuBqy7n1_nX6Cvte70--draQ21S2Cvs",
-    }
-    return tokens.get(enterprise_number)
+# 🔴 Удалено: def load_bot_token(...)
 
 async def run_bot(enterprise_number: str):
-    BOT_TOKEN = load_bot_token(enterprise_number)
+    BOT_TOKEN = await get_bot_token_by_number(enterprise_number)  # 👈 получаем токен из базы
     if not BOT_TOKEN:
         logger.error(f"No bot token found for enterprise {enterprise_number}")
         sys.exit(1)
@@ -33,7 +29,10 @@ async def run_bot(enterprise_number: str):
 
     @dp.message(Command(commands=["start"]))
     async def cmd_start(message: types.Message):
-        await message.answer(f"Привет! Бот предприятия {enterprise_number} запущен и готов к работе.")
+        name = await get_enterprise_name_by_number(enterprise_number)  # 👈 получаем имя компании
+        if not name:
+            name = enterprise_number
+        await message.answer(f"Бот компании {name} запущен. Техподдержка @VochiSupport")
 
     try:
         logger.info(f"Bot for enterprise {enterprise_number} started.")

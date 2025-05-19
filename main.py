@@ -16,6 +16,8 @@ from app.services.database import (
 )
 from app.services.enterprise import send_message_to_bot
 from app.services.bot_status import check_bot_status
+from app.services.db import get_all_bot_tokens
+
 from telegram import Bot
 from telegram.error import TelegramError
 
@@ -88,7 +90,7 @@ async def list_enterprises(request: Request):
         {
             "request": request,
             "enterprises": enterprises_sorted,
-            "bots_running": True,  # Всегда True, т.к. боты запускаются фоном
+            "bots_running": True,
         }
     )
 
@@ -312,19 +314,7 @@ async def toggle_enterprise(request: Request, number: str):
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
-# Блок ботов — запуск из BOT_TOKENS
-BOT_TOKENS = {
-    "0100": "7765204924:AAEFCyUsxGhTWsuIENX47iqpD3s8L60kwmc",
-    "0201": "8133181812:AAH_Ty_ndTeO8Y_NlTEFkbBsgGIrGUlH5I0",
-    "0262": "8040392268:AAG_YuBqy7n1_nX6Cvte70--draQ21S2Cvs",
-}
-
-
-async def start_bot(enterprise_number: str):
-    token = BOT_TOKENS.get(enterprise_number)
-    if not token:
-        logger.error(f"No bot token for enterprise {enterprise_number}")
-        return
+async def start_bot(enterprise_number: str, token: str):
     bot = AiogramBot(
         token=token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
@@ -341,9 +331,10 @@ async def start_bot(enterprise_number: str):
 
 
 async def start_all_bots():
+    tokens = await get_all_bot_tokens()
     tasks = []
-    for ent_num in BOT_TOKENS.keys():
-        tasks.append(asyncio.create_task(start_bot(ent_num)))
+    for enterprise_number, token in tokens.items():
+        tasks.append(asyncio.create_task(start_bot(enterprise_number, token)))
     await asyncio.gather(*tasks)
 
 
