@@ -28,6 +28,7 @@ from app.services.database import update_enterprise
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
 logger = logging.getLogger("admin")
+logger.setLevel(logging.DEBUG)
 
 
 def require_login(request: Request):
@@ -37,19 +38,22 @@ def require_login(request: Request):
 
 @router.get("", response_class=HTMLResponse)
 async def root_redirect(request: Request):
-    if request.cookies.get("auth") == "1":
-        return RedirectResponse("/admin/dashboard", status_code=status.HTTP_302_FOUND)
-    return RedirectResponse("/admin/login", status_code=status.HTTP_302_FOUND)
+    require_login(request)
+    logger.debug("Redirecting to dashboard")
+    return RedirectResponse("/admin/dashboard", status_code=status.HTTP_302_FOUND)
 
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
+    logger.debug("Rendering login page")
     return templates.TemplateResponse("login.html", {"request": request, "error": None})
 
 
 @router.post("/login", response_class=HTMLResponse)
 async def login(request: Request, password: str = Form(...)):
+    logger.debug("Login attempt")
     if password != ADMIN_PASSWORD:
+        logger.debug("Login failed")
         return templates.TemplateResponse(
             "login.html",
             {"request": request, "error": "Неверный пароль"},
@@ -57,17 +61,24 @@ async def login(request: Request, password: str = Form(...)):
         )
     resp = RedirectResponse("/admin/dashboard", status_code=status.HTTP_303_SEE_OTHER)
     resp.set_cookie("auth", "1", httponly=True)
+    logger.debug("Login successful, setting auth cookie")
     return resp
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     require_login(request)
+    logger.debug("Fetching enterprise count for dashboard")
     db = await get_connection()
     db.row_factory = None
-    cur = await db.execute("SELECT COUNT(*) AS cnt FROM enterprises")
+
+    sql = "SELECT COUNT(*) AS cnt FROM enterprises"
+    logger.debug("Executing SQL: %s", sql)
+    cur = await db.execute(sql)
     row = await cur.fetchone()
+    logger.debug("Dashboard count result: %r", row)
     await db.close()
+
     return templates.TemplateResponse(
         "dashboard.html",
         {"request": request, "enterprise_count": row[0]}
@@ -77,15 +88,20 @@ async def dashboard(request: Request):
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     require_login(request)
+    logger.debug("Listing enterprises")
     db = await get_connection()
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
-    cur = await db.execute("""
+
+    sql = """
         SELECT number, name, bot_token, active,
                chat_id, ip, secret, host, name2
           FROM enterprises
          ORDER BY CAST(number AS INTEGER) ASC
-    """)
+    """
+    logger.debug("Executing SQL: %s", sql.strip())
+    cur = await db.execute(sql)
     rows = await cur.fetchall()
+    logger.debug("Fetched %d enterprises", len(rows))
     await db.close()
 
     enterprises_with_status = []
@@ -97,10 +113,13 @@ async def list_enterprises(request: Request):
         enterprises_with_status.append(ent)
 
     try:
+        logger.debug("Checking running bots via pgrep")
         result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
         bots_running = bool(result.stdout.strip())
-    except Exception:
+        logger.debug("Bots running: %s", bots_running)
+    except Exception as e:
         bots_running = False
+        logger.error("Failed to check bots running: %s", e)
 
     return templates.TemplateResponse(
         "enterprises.html",
@@ -116,6 +135,7 @@ async def list_enterprises(request: Request):
 @router.get("/enterprises/add", response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
     require_login(request)
+    logger.debug("Rendering add enterprise form")
     return templates.TemplateResponse(
         "enterprise_form.html",
         {"request": request, "action": "add", "enterprise": {}}
@@ -135,18 +155,19 @@ async def add_enterprise(
     name2: str = Form("")
 ):
     require_login(request)
+    logger.debug("Adding enterprise %s", number)
     created_at = datetime.utcnow().isoformat()
     db = await get_connection()
+    sql = """
+        INSERT INTO enterprises(
+          number, name, bot_token, chat_id,
+          ip, secret, host, created_at, name2
+        ) VALUES (?,?,?,?,?,?,?,?,?)
+    """
+    params = (number, name, bot_token, chat_id, ip, secret, host, created_at, name2)
+    logger.debug("Executing SQL: %s params=%r", sql.strip(), params)
     try:
-        await db.execute(
-            """
-            INSERT INTO enterprises(
-              number, name, bot_token, chat_id,
-              ip, secret, host, created_at, name2
-            ) VALUES (?,?,?,?,?,?,?,?,?)
-            """,
-            (number, name, bot_token, chat_id, ip, secret, host, created_at, name2)
-        )
+        await db.execute(sql, params)
         await db.commit()
     finally:
         await db.close()
@@ -156,18 +177,19 @@ async def add_enterprise(
 @router.get("/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
     require_login(request)
+    logger.debug("Rendering edit form for enterprise %s", number)
     db = await get_connection()
     db.row_factory = None
-    cur = await db.execute(
-        """
+    sql = """
         SELECT number, name, bot_token, active,
                chat_id, ip, secret, host, name2
           FROM enterprises
          WHERE number = ?
-        """,
-        (number,)
-    )
+    """
+    logger.debug("Executing SQL: %s params=(%s,)", sql.strip(), number)
+    cur = await db.execute(sql, (number,))
     ent = await cur.fetchone()
+    logger.debug("Edit fetch result: %r", ent)
     await db.close()
     if not ent:
         raise HTTPException(status_code=404, detail="Enterprise not found")
@@ -195,17 +217,18 @@ async def edit_enterprise(
     name2: str = Form("")
 ):
     require_login(request)
+    logger.debug("Updating enterprise %s", number)
     db = await get_connection()
+    sql = """
+        UPDATE enterprises
+           SET name=?, bot_token=?,
+               chat_id=?, ip=?, secret=?, host=?, name2=?
+         WHERE number=?
+    """
+    params = (name, bot_token, chat_id, ip, secret, host, name2, number)
+    logger.debug("Executing SQL: %s params=%r", sql.strip(), params)
     try:
-        await db.execute(
-            """
-            UPDATE enterprises
-               SET name=?, bot_token=?,
-                   chat_id=?, ip=?, secret=?, host=?, name2=?
-             WHERE number=?
-            """,
-            (name, bot_token, chat_id, ip, secret, host, name2, number)
-        )
+        await db.execute(sql, params)
         await db.commit()
     finally:
         await db.close()
@@ -215,8 +238,11 @@ async def edit_enterprise(
 @router.delete("/enterprises/{number}", response_class=JSONResponse)
 async def delete_enterprise(number: str, request: Request):
     require_login(request)
+    logger.debug("Deleting enterprise %s", number)
     db = await get_connection()
-    await db.execute("DELETE FROM enterprises WHERE number = ?", (number,))
+    sql = "DELETE FROM enterprises WHERE number = ?"
+    logger.debug("Executing SQL: %s params=(%s,)", sql, number)
+    await db.execute(sql, (number,))
     await db.commit()
     await db.close()
     return JSONResponse({"detail": "Enterprise deleted"})
@@ -230,11 +256,12 @@ async def send_message(number: str, request: Request):
     if not message:
         return JSONResponse({"detail": "Message is required"}, status_code=400)
 
+    logger.debug("Sending message to enterprise %s: %s", number, message)
     db = await get_connection()
     db.row_factory = None
-    cur = await db.execute(
-        "SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,)
-    )
+    sql = "SELECT bot_token, chat_id FROM enterprises WHERE number = ?"
+    logger.debug("Executing SQL: %s params=(%s,)", sql, number)
+    cur = await db.execute(sql, (number,))
     row = await cur.fetchone()
     await db.close()
 
@@ -245,10 +272,13 @@ async def send_message(number: str, request: Request):
     try:
         success = await send_message_to_bot(bot_token, chat_id, message)
         if success:
+            logger.debug("Message sent successfully")
             return JSONResponse({"detail": "Message sent"})
         else:
+            logger.error("Failed to send message via service")
             return JSONResponse({"detail": "Failed to send message"}, status_code=500)
-    except Exception:
+    except Exception as e:
+        logger.exception("Exception sending message")
         return JSONResponse({"detail": "Failed to send message"}, status_code=500)
 
 
@@ -258,14 +288,11 @@ async def send_message(number: str, request: Request):
 
 @router.get("/email-users", response_class=HTMLResponse)
 async def email_users_page(request: Request):
-    """
-    Отображаем всех telegram_users, привязанных к e-mail,
-    подтягивая имя и права из email_users, а Unit — из таблицы enterprise_users.
-    """
     require_login(request)
+    logger.debug("Displaying email_users page")
     db = await get_connection()
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
-    cur = await db.execute("""
+    sql = """
         SELECT
           tu.tg_id                   AS tg_id,
           tu.email                   AS email,
@@ -282,8 +309,11 @@ async def email_users_page(request: Request):
         LEFT JOIN enterprises ent
           ON ent.number = ue.enterprise_id
         ORDER BY tu.tg_id ASC
-    """)
+    """
+    logger.debug("Executing SQL: %s", sql.strip())
+    cur = await db.execute(sql)
     rows = await cur.fetchall()
+    logger.debug("Fetched %d email_users rows", len(rows))
     await db.close()
 
     return templates.TemplateResponse(
@@ -301,65 +331,66 @@ async def upload_email_users(
 ):
     require_login(request)
 
-    # ——— Шаг 2: после подтверждения удаления ———
     if confirm:
+        # Шаг 2: подтвердили удаление
         raw = base64.b64decode(csv_b64.encode())
         text = raw.decode('utf-8-sig')
         reader = csv.DictReader(io.StringIO(text))
         new_set = {r["email"].strip().lower() for r in reader if r.get("email")}
+        logger.debug("Confirmed removal, new email set: %r", new_set)
 
         db = await get_connection()
         try:
-            # 1) удаляем из telegram_users ушедших и уведомляем
-            cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
+            # 1) remove & notify
+            sql_sel = "SELECT email, tg_id, bot_token FROM telegram_users"
+            logger.debug("Executing SQL: %s", sql_sel)
+            cur = await db.execute(sql_sel)
             for email, tg_id, bot_token in await cur.fetchall():
                 if email.strip().lower() not in new_set:
+                    logger.debug("Removing telegram_user %s", email)
                     await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
                     try:
                         bot = Bot(token=bot_token)
-                        await bot.send_message(
-                            chat_id=int(tg_id),
-                            text="⛔️ Ваш доступ был отозван администратором."
-                        )
+                        await bot.send_message(chat_id=int(tg_id),
+                                               text="⛔️ Ваш доступ был отозван администратором.")
                     except TelegramError:
-                        pass
+                        logger.debug("Failed to notify %s", tg_id)
 
-            # 2) полностью пересинхронизируем email_users
+            # 2) sync email_users
             await db.execute("DELETE FROM email_users")
             await db.commit()
             reader = csv.DictReader(io.StringIO(text))
             for row in reader:
-                await db.execute(
-                    """
+                params = (
+                    row.get("number"), row.get("email"), row.get("name"),
+                    int(row.get("right_all", 0)), int(row.get("right_1", 0)), int(row.get("right_2", 0))
+                )
+                sql_ins = """
                     INSERT INTO email_users(number, email, name,
                                              right_all, right_1, right_2)
                     VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        row.get("number"),
-                        row.get("email"),
-                        row.get("name"),
-                        int(row.get("right_all", 0)),
-                        int(row.get("right_1", 0)),
-                        int(row.get("right_2", 0)),
-                    )
-                )
+                """
+                logger.debug("Executing SQL: %s params=%r", sql_ins.strip(), params)
+                await db.execute(sql_ins, params)
             await db.commit()
         finally:
             await db.close()
 
         return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
-    # ——— Шаг 1: первый заход — собираем preview удаления ———
+    # Шаг 1: первый заход — preview
     content = await file.read()
     text = content.decode('utf-8-sig')
     reader = csv.DictReader(io.StringIO(text))
     new_emails = {r["email"].strip().lower() for r in reader if r.get("email")}
+    logger.debug("Preview new emails: %r", new_emails)
     csv_b64_val = base64.b64encode(text.encode()).decode()
 
     db = await get_connection()
     try:
-        cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
+        sql_sel = "SELECT email, tg_id, bot_token FROM telegram_users"
+        logger.debug("Executing SQL: %s", sql_sel)
+        cur = await db.execute(sql_sel)
         to_remove = []
         for email, tg_id, bot_token in await cur.fetchall():
             if email.strip().lower() not in new_emails:
@@ -368,44 +399,35 @@ async def upload_email_users(
                 )
                 ent_row = await cur_ent.fetchone()
                 unit = ent_row[0] if ent_row else ""
-                to_remove.append({
-                    "tg_id": tg_id, "email": email, "enterprise_name": unit
-                })
+                to_remove.append({"tg_id": tg_id, "email": email, "enterprise_name": unit})
+        logger.debug("Calculated to_remove list: %r", to_remove)
     finally:
         await db.close()
 
     if to_remove:
         return templates.TemplateResponse(
             "confirm_sync.html",
-            {
-                "request": request,
-                "to_remove": to_remove,
-                "csv_b64": csv_b64_val
-            },
+            {"request": request, "to_remove": to_remove, "csv_b64": csv_b64_val},
             status_code=status.HTTP_200_OK
         )
 
-    # ——— Если нет удалений — сразу вставляем новые ———
+    # Если ничего удалять не нужно — сразу sync
     reader = csv.DictReader(io.StringIO(text))
     db = await get_connection()
     try:
         await db.execute("DELETE FROM email_users")
         for row in reader:
-            await db.execute(
-                """
+            params = (
+                row.get("number"), row.get("email"), row.get("name"),
+                int(row.get("right_all", 0)), int(row.get("right_1", 0)), int(row.get("right_2", 0))
+            )
+            sql_ins = """
                 INSERT INTO email_users(number, email, name,
                                          right_all, right_1, right_2)
                 VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    row.get("number"),
-                    row.get("email"),
-                    row.get("name"),
-                    int(row.get("right_all", 0)),
-                    int(row.get("right_1", 0)),
-                    int(row.get("right_2", 0)),
-                )
-            )
+            """
+            logger.debug("Executing SQL: %s params=%r", sql_ins.strip(), params)
+            await db.execute(sql_ins, params)
         await db.commit()
     finally:
         await db.close()
