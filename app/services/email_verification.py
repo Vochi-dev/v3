@@ -126,7 +126,7 @@ async def email_already_verified(email: str) -> bool:
 async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: str):
     """
     Вставляет или обновляет запись в telegram_users.
-    Используется tg_id вместо user_id.
+    Использует tg_id как первичный ключ.
     """
     async with aiosqlite.connect(settings.DB_PATH) as db:
         await db.execute(
