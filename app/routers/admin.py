@@ -279,17 +279,23 @@ async def email_users_page(request: Request):
 
     cur = await db.execute("""
         SELECT
-          eu.number               AS number,
-          eu.email                AS email,
-          eu.name                 AS name,
-          eu.right_all            AS right_all,
-          eu.right_1              AS right_1,
-          eu.right_2              AS right_2,
-          tu.tg_id                AS tg_id,
-          COALESCE(ent.name, '')  AS enterprise_name
+          eu.number                 AS number,
+          eu.email                  AS email,
+          eu.name                   AS name,
+          eu.right_all              AS right_all,
+          eu.right_1                AS right_1,
+          eu.right_2                AS right_2,
+          tu.tg_id                  AS tg_id,
+          COALESCE(ent_csv.name,
+                   ent_bot.name,
+                   '')                  AS enterprise_name
         FROM email_users eu
-        LEFT JOIN telegram_users tu ON tu.email = eu.email
-        LEFT JOIN enterprises ent ON ent.number = eu.number
+        LEFT JOIN telegram_users tu
+          ON tu.email = eu.email
+        LEFT JOIN enterprises ent_csv
+          ON ent_csv.number = eu.number
+        LEFT JOIN enterprises ent_bot
+          ON ent_bot.bot_token = tu.bot_token
         ORDER BY eu.number ASC, eu.email ASC
     """)
     rows = await cur.fetchall()
@@ -311,6 +317,7 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
 
     db = await get_connection()
     try:
+        # Очистим таблицу перед загрузкой
         await db.execute("DELETE FROM email_users")
         for row in reader:
             await db.execute(
