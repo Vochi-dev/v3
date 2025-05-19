@@ -1,429 +1,52 @@
-# app/routers/admin.py
-# -*- coding: utf-8 -*-
+<!-- app/templates/confirm_sync.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Подтверждение синхронизации e-mail</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background: #f0f0f0; }
+    form { margin-top: 1rem; }
+    button { padding: 0.5rem 1rem; margin-right: 0.5rem; }
+    .danger { background: #dc3545; color: white; border: none; }
+    .safe   { background: #28a745; color: white; border: none; }
+  </style>
+</head>
+<body>
+  <h1>Будут удалены следующие пользователи:</h1>
 
-import logging
-import asyncio
-import subprocess
-import csv
-import io
-import base64
-from datetime import datetime
+  {% if to_remove %}
+    <table>
+      <thead>
+        <tr>
+          <th>tg_id</th>
+          <th>e-mail</th>
+          <th>Предприятие</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in to_remove %}
+          <tr>
+            <td>{{ u.tg_id }}</td>
+            <td>{{ u.email }}</td>
+            <td>{{ u.enterprise_name }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
 
-from fastapi import APIRouter, Request, Form, status, HTTPException, File, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-from telegram import Bot
-from telegram.error import TelegramError
+    <form action="/admin/email-users/upload/confirm" method="post">
+      <input type="hidden" name="csv_b64" value="{{ csv_b64 }}">
+      <button type="submit" name="confirm" value="yes" class="safe">Подтвердить удаление</button>
+      <button type="submit" name="confirm" value="no" class="danger">Отменить</button>
+    </form>
 
-from app.config import ADMIN_PASSWORD
-from app.services.db import get_connection
-from app.services.bot_status import check_bot_status
-from app.services.enterprise import send_message_to_bot
-from app.services.database import update_enterprise
-
-router = APIRouter(prefix="/admin", tags=["admin"])
-templates = Jinja2Templates(directory="app/templates")
-logger = logging.getLogger("admin")
-
-
-def require_login(request: Request):
-    if request.cookies.get("auth") != "1":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
-
-
-@router.get("", response_class=HTMLResponse)
-async def root_redirect(request: Request):
-    if request.cookies.get("auth") == "1":
-        return RedirectResponse("/admin/dashboard", status_code=status.HTTP_302_FOUND)
-    return RedirectResponse("/admin/login", status_code=status.HTTP_302_FOUND)
-
-
-@router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
-
-
-@router.post("/login", response_class=HTMLResponse)
-async def login(request: Request, password: str = Form(...)):
-    if password != ADMIN_PASSWORD:
-        return templates.TemplateResponse(
-            "login.html",
-            {"request": request, "error": "Неверный пароль"},
-            status_code=status.HTTP_401_UNAUTHORIZED
-        )
-    resp = RedirectResponse("/admin/dashboard", status_code=status.HTTP_303_SEE_OTHER)
-    resp.set_cookie("auth", "1", httponly=True)
-    return resp
-
-
-@router.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    require_login(request)
-    db = await get_connection()
-    db.row_factory = None
-    cur = await db.execute("SELECT COUNT(*) AS cnt FROM enterprises")
-    row = await cur.fetchone()
-    await db.close()
-    return templates.TemplateResponse(
-        "dashboard.html",
-        {"request": request, "enterprise_count": row[0]}
-    )
-
-
-@router.get("/enterprises", response_class=HTMLResponse)
-async def list_enterprises(request: Request):
-    logger.info("list_enterprises called")
-    require_login(request)
-    db = await get_connection()
-    db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-    cur = await db.execute("""
-        SELECT
-          number, name, bot_token, active,
-          chat_id, ip, secret, host, name2
-        FROM enterprises
-        ORDER BY CAST(number AS INTEGER) ASC
-    """)
-    rows = await cur.fetchall()
-    await db.close()
-
-    enterprises_with_status = []
-    for ent in rows:
-        try:
-            ent["bot_available"] = await check_bot_status(ent["bot_token"])
-            logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
-        except Exception as e:
-            logger.error(f"Error checking bot status for #{ent['number']}: {e}")
-            ent["bot_available"] = False
-        enterprises_with_status.append(ent)
-
-    try:
-        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
-        bots_running = bool(result.stdout.strip())
-        logger.info(f"Bots running status: {bots_running}")
-    except Exception as e:
-        bots_running = False
-        logger.error(f"Failed to check bots running status: {e}")
-
-    service_running = True
-
-    return templates.TemplateResponse(
-        "enterprises.html",
-        {
-            "request": request,
-            "enterprises": enterprises_with_status,
-            "service_running": service_running,
-            "bots_running": bots_running,
-        }
-    )
-
-
-@router.get("/enterprises/add", response_class=HTMLResponse)
-async def add_enterprise_form(request: Request):
-    require_login(request)
-    return templates.TemplateResponse(
-        "enterprise_form.html",
-        {"request": request, "action": "add", "enterprise": {}}
-    )
-
-
-@router.post("/enterprises/add", response_class=RedirectResponse)
-async def add_enterprise(
-    request: Request,
-    number: str = Form(...),
-    name: str = Form(...),
-    bot_token: str = Form(...),
-    chat_id: str = Form(...),
-    ip: str = Form(...),
-    secret: str = Form(...),
-    host: str = Form(...),
-    name2: str = Form("")
-):
-    require_login(request)
-    created_at = datetime.utcnow().isoformat()
-    db = await get_connection()
-    try:
-        await db.execute(
-            """
-            INSERT INTO enterprises(
-              number, name, bot_token, chat_id,
-              ip, secret, host, created_at, name2
-            ) VALUES (?,?,?,?,?,?,?,?,?)
-            """,
-            (number, name, bot_token, chat_id, ip, secret, host, created_at, name2)
-        )
-        await db.commit()
-    finally:
-        await db.close()
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.get("/enterprises/{number}/edit", response_class=HTMLResponse)
-async def edit_enterprise_form(request: Request, number: str):
-    require_login(request)
-    db = await get_connection()
-    db.row_factory = None
-    cur = await db.execute(
-        """
-        SELECT number, name, bot_token, active,
-               chat_id, ip, secret, host, name2
-          FROM enterprises
-         WHERE number = ?
-        """,
-        (number,)
-    )
-    ent = await cur.fetchone()
-    await db.close()
-    if not ent:
-        raise HTTPException(status_code=404, detail="Enterprise not found")
-    ent_dict = {
-        "number": ent[0],
-        "name": ent[1],
-        "bot_token": ent[2],
-        "active": ent[3],
-        "chat_id": ent[4],
-        "ip": ent[5],
-        "secret": ent[6],
-        "host": ent[7],
-        "name2": ent[8],
-    }
-    return templates.TemplateResponse(
-        "enterprise_form.html",
-        {"request": request, "action": "edit", "enterprise": ent_dict}
-    )
-
-
-@router.post("/enterprises/{number}/edit", response_class=RedirectResponse)
-async def edit_enterprise(
-    request: Request,
-    number: str,
-    name: str = Form(...),
-    bot_token: str = Form(""),
-    chat_id: str = Form(""),
-    ip: str = Form(...),
-    secret: str = Form(...),
-    host: str = Form(...),
-    name2: str = Form("")
-):
-    require_login(request)
-    db = await get_connection()
-    try:
-        # Обновляем запись без поля active
-        await db.execute(
-            """
-            UPDATE enterprises
-               SET name=?, bot_token=?,
-                   chat_id=?, ip=?, secret=?, host=?, name2=?
-             WHERE number=?
-            """,
-            (name, bot_token, chat_id, ip, secret, host, name2, number)
-        )
-        await db.commit()
-    finally:
-        await db.close()
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.delete("/enterprises/{number}", response_class=JSONResponse)
-async def delete_enterprise(number: str, request: Request):
-    require_login(request)
-    db = await get_connection()
-    await db.execute("DELETE FROM enterprises WHERE number = ?", (number,))
-    await db.commit()
-    await db.close()
-    return JSONResponse({"detail": "Enterprise deleted"})
-
-
-@router.post("/enterprises/{number}/send_message", response_class=JSONResponse)
-async def send_message(number: str, request: Request):
-    require_login(request)
-    data = await request.json()
-    message = data.get("message")
-    if not message:
-        return JSONResponse({"detail": "Message is required"}, status_code=400)
-
-    db = await get_connection()
-    db.row_factory = None
-    cur = await db.execute("SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
-    row = await cur.fetchone()
-    await db.close()
-
-    if not row:
-        return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
-
-    bot_token, chat_id = row
-    if not bot_token or not bot_token.strip():
-        return JSONResponse({"detail": "Enterprise has no bot token"}, status_code=400)
-    if not chat_id or not chat_id.strip():
-        return JSONResponse({"detail": "Enterprise has no chat_id"}, status_code=400)
-
-    try:
-        success = await send_message_to_bot(bot_token, chat_id, message)
-        if success:
-            logger.info(f"Message sent successfully to enterprise #{number}")
-        else:
-            return JSONResponse({"detail": "Failed to send message"}, status_code=500)
-    except Exception as e:
-        logger.error(f"Failed to send message to bot {number}: {e}", exc_info=True)
-        return JSONResponse({"detail": "Failed to send message"}, status_code=500)
-
-    return JSONResponse({"detail": "Message sent"})
-
-
-@router.get("/email-users", response_class=HTMLResponse)
-async def email_users_page(request: Request):
-    require_login(request)
-    db = await get_connection()
-    db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-    cur = await db.execute("""
-        SELECT
-          tu.tg_id           AS tg_id,
-          tu.email           AS email,
-          eu.name            AS name,
-          eu.right_all       AS right_all,
-          eu.right_1         AS right_1,
-          eu.right_2         AS right_2,
-          COALESCE(ent.name, '') AS enterprise_name
-        FROM telegram_users tu
-        LEFT JOIN email_users eu ON eu.email = tu.email
-        LEFT JOIN enterprises ent ON ent.bot_token = tu.bot_token
-        ORDER BY tu.tg_id ASC
-    """)
-    rows = await cur.fetchall()
-    await db.close()
-    return templates.TemplateResponse("email_users.html", {"request": request, "email_users": rows})
-
-
-# 1. Первый шаг загрузки — анализируем CSV и при необходимости показываем confirm
-@router.post("/email-users/upload", response_class=HTMLResponse)
-async def upload_email_users_preview(
-    request: Request,
-    file: UploadFile = File(...)
-):
-    require_login(request)
-
-    raw = await file.read()
-    text = raw.decode("utf-8-sig")
-    reader = csv.DictReader(io.StringIO(text))
-    new_emails = { row["email"].strip().lower() for row in reader if row.get("email") }
-
-    # текущие e-mail’ы
-    db = await get_connection()
-    try:
-        async with db.execute("SELECT email, tg_id, bot_token FROM telegram_users") as cur:
-            tu_rows = await cur.fetchall()
-    finally:
-        await db.close()
-
-    old_map = { row[0].strip().lower(): {"tg_id": row[1], "bot_token": row[2]} for row in tu_rows }
-    to_remove = []
-    for email, info in old_map.items():
-        if email not in new_emails:
-            # получаем название предприятия
-            db = await get_connection()
-            async with db.execute(
-                "SELECT name FROM enterprises WHERE bot_token = ?",
-                (info["bot_token"],)
-            ) as cur:
-                ent = await cur.fetchone()
-            await db.close()
-            to_remove.append({
-                "tg_id": info["tg_id"],
-                "email": email,
-                "enterprise_name": ent[0] if ent else ""
-            })
-
-    if to_remove:
-        csv_b64 = base64.b64encode(text.encode("utf-8")).decode("ascii")
-        return templates.TemplateResponse(
-            "confirm_sync.html",
-            {
-                "request": request,
-                "to_remove": to_remove,
-                "csv_b64": csv_b64,
-            },
-            status_code=status.HTTP_200_OK
-        )
-
-    # если ничего удалять не нужно — сразу синхронизируем
-    return await _apply_email_sync(text)
-
-
-# 2. Второй шаг — подтверждение (из confirm_sync.html)
-@router.post("/email-users/upload/confirm", response_class=RedirectResponse)
-async def upload_email_users_confirm(
-    request: Request,
-    confirm: str = Form(...),
-    csv_b64: str = Form(...)
-):
-    require_login(request)
-
-    if confirm != "yes":
-        # отказ — возвращаемся назад
-        return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
-
-    # декодируем CSV и применяем синхронизацию
-    text = base64.b64decode(csv_b64.encode("ascii")).decode("utf-8")
-    await _apply_email_sync(text, notify_revoked=True)
-    return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
-
-
-async def _apply_email_sync(text: str, notify_revoked: bool = False):
-    """
-    Общая функция, которая:
-     - чистит email_users
-     - вставляет из CSV
-     - при notify_revoked=True отправляет каждому удалённому ранее пользователю уведомление
-    """
-    # Если нужно уведомить об отзыве — достаём список старых e-mail -> tg_id,bot_token
-    revoked = []
-    if notify_revoked:
-        db = await get_connection()
-        try:
-            async with db.execute("SELECT email, tg_id, bot_token FROM telegram_users") as cur:
-                for email, tg_id, bot_token in await cur.fetchall():
-                    revoked.append((email.strip().lower(), tg_id, bot_token))
-        finally:
-            await db.close()
-
-    # чистим таблицу
-    db = await get_connection()
-    try:
-        await db.execute("DELETE FROM email_users")
-        await db.commit()
-    finally:
-        await db.close()
-
-    # вставляем новую порцию
-    reader = csv.DictReader(io.StringIO(text))
-    db = await get_connection()
-    try:
-        for row in reader:
-            await db.execute(
-                """
-                INSERT INTO email_users(number, email, name, right_all, right_1, right_2)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    row.get("number"),
-                    row.get("email"),
-                    row.get("name"),
-                    int(row.get("right_all") or 0),
-                    int(row.get("right_1")   or 0),
-                    int(row.get("right_2")   or 0),
-                )
-            )
-        await db.commit()
-    finally:
-        await db.close()
-
-    # уведомляем отозванных
-    if notify_revoked:
-        for email, tg_id, bot_token in revoked:
-            # если этого email теперь нет в новой базе — уведомляем
-            if not any(r[0] == email for r in reader):
-                try:
-                    await send_message_to_bot(bot_token, str(tg_id),
-                                              "⛔️ Ваш доступ был отозван администратором.")
-                except Exception:
-                    logger.exception(f"Не удалось отправить отзыв пользователю {tg_id}")
-    return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
+  {% else %}
+    <p>Никаких пользователей удалять не нужно.</p>
+    <a href="/admin/email-users">Вернуться назад</a>
+  {% endif %}
+</body>
+</html>
