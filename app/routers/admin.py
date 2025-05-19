@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import asyncio
 import subprocess
 from datetime import datetime
 
@@ -273,17 +272,17 @@ async def email_users_page(request: Request):
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
     cur = await db.execute("""
         SELECT
-          tu.user_id        AS tg_id,
-          tu.email          AS email,
-          eu.name           AS name,
-          eu.right_all      AS right_all,
-          eu.right_1        AS right_1,
-          eu.right_2        AS right_2,
+          user_id          AS tg_id,
+          email            AS email,
+          eu.name          AS name,
+          eu.right_all     AS right_all,
+          eu.right_1       AS right_1,
+          eu.right_2       AS right_2,
           COALESCE(ent.name, '') AS enterprise_name
-        FROM telegram_users tu
-        LEFT JOIN email_users eu ON eu.email = tu.email
-        LEFT JOIN enterprises ent ON ent.bot_token = tu.bot_token
-        ORDER BY tu.user_id ASC
+        FROM telegram_users
+        LEFT JOIN email_users eu ON eu.email = telegram_users.email
+        LEFT JOIN enterprises ent ON ent.bot_token = telegram_users.bot_token
+        ORDER BY user_id ASC
     """)
     rows = await cur.fetchall()
     await db.close()
