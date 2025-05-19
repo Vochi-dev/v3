@@ -1,34 +1,23 @@
 # app/telegram/dispatcher.py
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.enums import ParseMode
 
-from app.config import settings               # BOT_TOKEN и путь к БД храним в settings
-from app.services.db import get_enterprise_by_bot_token  # маленькая helper-функция
-from app.telegram.handlers import onboarding  # наш router из первого шага
+from app.telegram.handlers import onboarding  # router с логикой start/email
+from app.services.db import get_enterprise_by_token  # достаёт данные по токену
 
 
-async def create_dispatcher() -> Dispatcher:
+async def setup_dispatcher(bot: Bot, enterprise_number: str) -> Dispatcher:
     """
-    Создаёт Dispatcher, привязывает его к конкретному предприятию
-    (по bot_token → enterprises.bot_token в БД) и
-    подключает все нужные роутеры.
+    Создаёт Dispatcher для конкретного Telegram-бота,
+    подключает router onboarding с логикой авторизации.
     """
-    bot = Bot(token=settings.BOT_TOKEN, parse_mode="HTML")
     dp = Dispatcher(storage=MemoryStorage())
 
-    # --- узнаём, какому enterprise принадлежит этот бот ---
-    enterprise = await get_enterprise_by_bot_token(settings.BOT_TOKEN)
-    if enterprise is None:
-        raise RuntimeError(
-            "Этого bot_token нет в таблице enterprises – "
-            "добавьте запись перед запуском."
-        )
+    # Вписываем enterprise_number в словарь бота — доступен в хендлерах
+    bot["enterprise_number"] = enterprise_number
 
-    # Сохраняем id предприятия в контексте бота → доступно во всех хэндлерах:
-    # message.bot['enterprise_id']
-    bot["enterprise_id"] = enterprise.id
-
-    # --- регистрируем наши хэндлеры ---
+    # Подключаем роутеры
     dp.include_router(onboarding.router)
 
     return dp
