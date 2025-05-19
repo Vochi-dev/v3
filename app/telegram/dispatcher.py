@@ -28,6 +28,8 @@ async def create_dispatcher(bot: Bot) -> Dispatcher:
     bot.enterprise_id = enterprise_id
 
     # --- регистрируем наши хэндлеры ---
+    # Сбрасываем привязку родителя, чтобы можно было многократно подключать
+    onboarding.router.parent_router = None
     dp.include_router(onboarding.router)
 
     return dp
@@ -43,5 +45,7 @@ async def setup_dispatcher(bot: Bot, enterprise_number: str) -> Dispatcher:
     # ✅ Сохраняем enterprise_id как атрибут бота
     bot.enterprise_id = enterprise_number
 
+    # --- регистрируем наши хэндлеры ---
+    onboarding.router.parent_router = None
     dp.include_router(onboarding.router)
     return dp
