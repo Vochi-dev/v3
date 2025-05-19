@@ -41,7 +41,7 @@ async def setup_dispatcher(bot: Bot, enterprise_number: str) -> Dispatcher:
     dp = Dispatcher(storage=MemoryStorage())
 
     # ✅ Новый способ сохранить enterprise_id
-    bot.session.context["enterprise_id"] = enterprise_number
+    bot["enterprise_id"] = enterprise_number
 
     dp.include_router(onboarding.router)
     return dp
