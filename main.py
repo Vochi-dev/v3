@@ -25,15 +25,17 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
 from aiogram.client.default import DefaultBotProperties
 
+# 👇 ВОССТАНОВЛЕНО: Подключение маршрутов /admin/*
+from app.routers import admin
+app = FastAPI()
+app.include_router(admin.router, prefix="/admin")
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
-from app.routers import admin
-app.include_router(admin.router, prefix="/admin")
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -54,7 +56,7 @@ app.add_middleware(LoggingMiddleware)
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return RedirectResponse(url="/admin/login")
+    return RedirectResponse(url="/admin/enterprises")
 
 
 @app.get("/admin/enterprises", response_class=HTMLResponse)
@@ -82,7 +84,7 @@ async def list_enterprises(request: Request):
         {
             "request": request,
             "enterprises": enterprises_sorted,
-            "bots_running": True,  # Всегда True, т.к. боты запускаются фоном
+            "bots_running": True,
         }
     )
 
@@ -307,9 +309,9 @@ async def toggle_enterprise(request: Request, number: str):
 
 
 BOT_TOKENS = {
-    "0100": "YOUR_TOKEN_1",
-    "0201": "YOUR_TOKEN_2",
-    "0262": "YOUR_TOKEN_3",
+    "0100": "TOKEN1",
+    "0201": "TOKEN2",
+    "0262": "TOKEN3",
 }
 
 
@@ -352,7 +354,7 @@ async def on_startup():
 
 @app.get("/admin")
 async def admin_root():
-    return RedirectResponse(url="/admin/login")
+    return RedirectResponse(url="/admin/enterprises")
 
 
 @app.get("/service/bots_status")
