@@ -25,11 +25,8 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
 from aiogram.client.default import DefaultBotProperties
 
-# 👇 ВОССТАНОВЛЕНО: Подключение маршрутов /admin/*
-from app.routers import admin
-
-app = FastAPI()
-app.include_router(admin.router, prefix="/admin")
+# Подключаем маршруты из admin.py
+from app.routers import admin  # ВАЖНО: это устраняет 404 /admin/login
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -37,8 +34,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Подключаем admin router
+app.include_router(admin.router)
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -85,7 +86,7 @@ async def list_enterprises(request: Request):
         {
             "request": request,
             "enterprises": enterprises_sorted,
-            "bots_running": True,
+            "bots_running": True,  # Всегда True, т.к. боты запускаются фоном
         }
     )
 
@@ -309,10 +310,11 @@ async def toggle_enterprise(request: Request, number: str):
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
+# Блок ботов — запуск из BOT_TOKENS
 BOT_TOKENS = {
-    "0100": "TOKEN1",
-    "0201": "TOKEN2",
-    "0262": "TOKEN3",
+    "0100": "7765204924:AAEFCyUsxGhTWsuIENX47iqpD3s8L60kwmc",
+    "0201": "8133181812:AAH_Ty_ndTeO8Y_NlTEFkbBsgGIrGUlH5I0",
+    "0262": "8040392268:AAG_YuBqy7n1_nX6Cvte70--draQ21S2Cvs",
 }
 
 
@@ -353,11 +355,6 @@ async def on_startup():
     asyncio.create_task(start_all_bots())
 
 
-@app.get("/admin")
-async def admin_root():
-    return RedirectResponse(url="/admin/enterprises")
-
-
 @app.get("/service/bots_status")
 async def bots_status():
     return {"running": True}
@@ -369,10 +366,9 @@ async def toggle_bots_service():
     return {"detail": "Сервис переключения ботов не реализован"}
 
 
-if __name__ == "__main__":
-    import uvicorn
-    logger.info("Запускаем FastAPI + Telegram ботов одной командой")
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, log_level="debug")
+@app.get("/admin")
+async def admin_root():
+    return RedirectResponse(url="/admin/enterprises")
 
 
 @app.on_event("shutdown")
