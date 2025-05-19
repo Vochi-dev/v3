@@ -268,7 +268,6 @@ async def email_users_page(request: Request):
     logger.debug("Display email_users page")
 
     db = await get_connection()
-    # строки как dict по именам колонок
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     sql = """
         SELECT
@@ -307,34 +306,53 @@ async def upload_email_users(
 ):
     require_login(request)
 
-    # ——— Шаг 2: подтверждение удаления старых ———
-    if confirm:
-        raw = base64.b64decode(csv_b64.encode())
-        text = raw.decode("utf-8-sig")
+    # ——— Шаг 1: превью перед удалением ———
+    if not confirm:
+        content = await file.read()
+        text = content.decode("utf-8-sig")
+        logger.debug("Preview new CSV:\n%s", text)
         reader = csv.DictReader(io.StringIO(text))
-        new_set = {r["email"].strip().lower() for r in reader if r.get("email")}
-        logger.debug("Confirm deletion, new_set=%s", new_set)
+        new_emails = {r["email"].strip().lower() for r in reader if r.get("email")}
+        csv_b64_val = base64.b64encode(text.encode()).decode()
 
         db = await get_connection()
         try:
-            # 1) удалить из telegram_users
             cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
-            for email, tg_id, bot_token in await cur.fetchall():
-                if email.strip().lower() not in new_set:
-                    logger.debug("Deleting telegram_user %s", email)
-                    await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
-                    try:
-                        bot = Bot(token=bot_token)
-                        await bot.send_message(chat_id=int(tg_id),
-                                               text="⛔️ Ваш доступ был отозван администратором.")
-                    except TelegramError:
-                        logger.debug("Failed notifying %s", tg_id)
-            # 2) синхронизировать email_users
-            await db.execute("DELETE FROM email_users")
-            await db.commit()
+            old = await cur.fetchall()
+            logger.debug("Existing telegram_users count: %d", len(old))
+
+            to_remove = []
+            for email, tg_id, bot_token in old:
+                if email.strip().lower() not in new_emails:
+                    logger.debug("Will remove telegram_user %s", email)
+                    c2 = await db.execute(
+                        "SELECT name FROM enterprises WHERE bot_token = ?", (bot_token,)
+                    )
+                    row2 = await c2.fetchone()
+                    unit = row2[0] if row2 else ""
+                    to_remove.append({
+                        "tg_id": tg_id,
+                        "email": email,
+                        "enterprise_name": unit
+                    })
+        finally:
+            await db.close()
+
+        if to_remove:
+            logger.debug("to_remove list: %s", to_remove)
+            return templates.TemplateResponse(
+                "confirm_sync.html",
+                {"request": request, "to_remove": to_remove, "csv_b64": csv_b64_val},
+                status_code=status.HTTP_200_OK
+            )
+
+        # нет удалений — сразу перезаписать email_users
+        db2 = await get_connection()
+        try:
+            await db2.execute("DELETE FROM email_users")
             reader = csv.DictReader(io.StringIO(text))
             for row in reader:
-                await db.execute(
+                await db2.execute(
                     """
                     INSERT INTO email_users(number, email, name,
                                              right_all, right_1, right_2)
@@ -349,51 +367,40 @@ async def upload_email_users(
                         int(row.get("right_2", 0)),
                     )
                 )
-            await db.commit()
-            logger.debug("Synchronized email_users after confirm")
+            await db2.commit()
+            logger.debug("Synchronized email_users without deletions")
         finally:
-            await db.close()
+            await db2.close()
 
         return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
-    # ——— Шаг 1: превью перед удалением ———
-    content = await file.read()
-    text = content.decode("utf-8-sig")
-    logger.debug("Preview new CSV:\n%s", text)
+    # ——— Шаг 2: подтверждение удаления старых ———
+    # (сработает, когда confirm="yes" придёт из формы confirm_sync.html)
+    raw = base64.b64decode(csv_b64.encode())
+    text = raw.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
-    new_emails = {r["email"].strip().lower() for r in reader if r.get("email")}
-    csv_b64_val = base64.b64encode(text.encode()).decode()
+    new_set = {r["email"].strip().lower() for r in reader if r.get("email")}
+    logger.debug("Confirm deletion, new_set=%s", new_set)
 
     db = await get_connection()
     try:
+        # 1) удалить из telegram_users
         cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
-        old = await cur.fetchall()
-        logger.debug("Existing telegram_users count: %d", len(old))
+        for email, tg_id, bot_token in await cur.fetchall():
+            if email.strip().lower() not in new_set:
+                logger.debug("Deleting telegram_user %s", email)
+                await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
+                try:
+                    bot = Bot(token=bot_token)
+                    await bot.send_message(chat_id=int(tg_id),
+                                           text="⛔️ Ваш доступ был отозван администратором.")
+                except TelegramError:
+                    logger.debug("Failed notifying %s", tg_id)
 
-        to_remove = []
-        for email, tg_id, bot_token in old:
-            if email.strip().lower() not in new_emails:
-                logger.debug("Will remove telegram_user %s", email)
-                c2 = await db.execute("SELECT name FROM enterprises WHERE bot_token = ?", (bot_token,))
-                row2 = await c2.fetchone()
-                unit = row2[0] if row2 else ""
-                to_remove.append({"tg_id": tg_id, "email": email, "enterprise_name": unit})
-    finally:
-        await db.close()
-
-    if to_remove:
-        logger.debug("to_remove list: %s", to_remove)
-        return templates.TemplateResponse(
-            "confirm_sync.html",
-            {"request": request, "to_remove": to_remove, "csv_b64": csv_b64_val},
-            status_code=status.HTTP_200_OK
-        )
-
-    # ——— Никаких удалений — просто перезаписать email_users ———
-    reader = csv.DictReader(io.StringIO(text))
-    db = await get_connection()
-    try:
+        # 2) перезаписать email_users
         await db.execute("DELETE FROM email_users")
+        await db.commit()
+        reader = csv.DictReader(io.StringIO(text))
         for row in reader:
             await db.execute(
                 """
@@ -411,8 +418,57 @@ async def upload_email_users(
                 )
             )
         await db.commit()
-        logger.debug("Synchronized email_users without deletions")
+        logger.debug("Synchronized email_users after confirm")
     finally:
         await db.close()
+
+    return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# Новая отдельная точка для confirm, чтобы POST /upload/confirm не падал 404
+@router.post("/email-users/upload/confirm", response_class=RedirectResponse)
+async def upload_confirmed(
+    request: Request,
+    csv_b64: str = Form(...),
+    confirm: str = Form(...)
+):
+    # просто перенаправляем на тот же код
+    return await upload_email_users(request, file=None, confirm=confirm, csv_b64=csv_b64)
+
+
+@router.post("/email-users/delete/{tg_id}", response_class=RedirectResponse)
+async def delete_user(tg_id: int, request: Request):
+    require_login(request)
+
+    bot_token = None
+    async with aiosqlite.connect(DB_PATH) as db2:
+        db2.row_factory = aiosqlite.Row
+        cur2 = await db2.execute("""
+            SELECT e.bot_token
+            FROM enterprise_users u
+            JOIN enterprises e ON u.enterprise_id = e.number
+            WHERE u.telegram_id = ?
+        """, (tg_id,))
+        row2 = await cur2.fetchone()
+        if row2:
+            bot_token = row2["bot_token"]
+
+    db = await get_connection()
+    try:
+        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
+        await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
+        await db.commit()
+    finally:
+        await db.close()
+
+    if bot_token:
+        try:
+            bot = Bot(token=bot_token)
+            await bot.send_message(
+                chat_id=tg_id,
+                text="❌ Ваш доступ к боту был отозван администратором."
+            )
+        except Exception:
+            pass
 
     return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
