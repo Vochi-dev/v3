@@ -31,3 +31,14 @@ async def create_dispatcher() -> Dispatcher:
     dp.include_router(onboarding.router)
 
     return dp
+
+
+# --- добавлено для совместимости с main.py ---
+async def setup_dispatcher(bot: Bot, enterprise_number: str) -> Dispatcher:
+    """
+    Совместимая обёртка setup_dispatcher для main.py
+    """
+    dp = Dispatcher(storage=MemoryStorage())
+    bot["enterprise_id"] = enterprise_number
+    dp.include_router(onboarding.router)
+    return dp
