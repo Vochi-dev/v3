@@ -4,9 +4,11 @@
 import logging
 import asyncio
 import subprocess
+import csv
+import io
 from datetime import datetime
 
-from fastapi import APIRouter, Request, Form, status, HTTPException
+from fastapi import APIRouter, Request, Form, status, HTTPException, File, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
@@ -288,3 +290,37 @@ async def email_users_page(request: Request):
     rows = await cur.fetchall()
     await db.close()
     return templates.TemplateResponse("email_users.html", {"request": request, "email_users": rows})
+
+
+@router.post("/email-users/upload", response_class=RedirectResponse)
+async def upload_email_users(request: Request, file: UploadFile = File(...)):
+    require_login(request)
+
+    content = await file.read()
+    text = content.decode('utf-8-sig')
+    reader = csv.DictReader(io.StringIO(text))
+
+    db = await get_connection()
+    try:
+        # Очистим таблицу перед загрузкой (опционально)
+        await db.execute("DELETE FROM email_users")
+        for row in reader:
+            await db.execute(
+                """
+                INSERT INTO email_users(number, email, name, right_all, right_1, right_2)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    row.get("number"),
+                    row.get("email"),
+                    row.get("name"),
+                    int(row.get("right_all", 0)),
+                    int(row.get("right_1", 0)),
+                    int(row.get("right_2", 0)),
+                )
+            )
+        await db.commit()
+    finally:
+        await db.close()
+
+    return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
