@@ -1,43 +1,41 @@
 # app/routers/enterprise.py
 # -*- coding: utf-8 -*-
+
+import logging
 from fastapi import APIRouter, Request, Form, status, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from app.routers.admin import require_login
-from app.services.db import get_connection
-from app.services.enterprise import get_enterprise, update_enterprise
-from app.config import NOTIFY_BOT_TOKEN, NOTIFY_CHAT_ID
-import datetime as dt
-from telegram import Bot
+from app.services.database import (
+    get_all_enterprises,
+    get_enterprise_by_number,
+    add_enterprise,
+    update_enterprise,
+    delete_enterprise,
+)
+from app.services.enterprise import send_message_to_bot
+from app.services.bot_status import check_bot_status
 
-router = APIRouter(prefix="/admin/enterprises", tags=["admin"])
+router = APIRouter(prefix="/enterprises", tags=["enterprises"])
 templates = Jinja2Templates(directory="app/templates")
+logger = logging.getLogger("enterprise")
+logger.setLevel(logging.DEBUG)
 
 
 @router.get("", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
-    require_login(request)
-    db = await get_connection()
-    db.row_factory = lambda cursor, row: {
-        col[0]: row[idx] for idx, col in enumerate(cursor.description)
-    }
-    try:
-        cur = await db.execute(
-            "SELECT number, name, bot_token, chat_id, ip, secret, host, created_at, name2, active "
-            "FROM enterprises ORDER BY created_at DESC"
-        )
-        enterprises = await cur.fetchall()
-
-        for ent in enterprises:
-            try:
-                bot = Bot(token=ent["bot_token"])
-                await bot.get_me()
-                ent["bot_active"] = True
-            except Exception:
-                ent["bot_active"] = False
-    finally:
-        await db.close()
+    """
+    Список всех предприятий с их статусом (доступен ли бот).
+    """
+    rows = await get_all_enterprises()
+    enterprises = [dict(r) for r in rows]
+    # проверяем доступность каждого бота
+    for ent in enterprises:
+        token = ent.get("bot_token") or ""
+        try:
+            ent["bot_available"] = await check_bot_status(token) if token.strip() else False
+        except Exception:
+            ent["bot_available"] = False
 
     return templates.TemplateResponse(
         "enterprises.html",
@@ -46,99 +44,81 @@ async def list_enterprises(request: Request):
 
 
 @router.get("/add", response_class=HTMLResponse)
-async def add_enterprise_page(request: Request):
-    require_login(request)
-    return templates.TemplateResponse("add_enterprise.html", {"request": request})
+async def add_form(request: Request):
+    return templates.TemplateResponse(
+        "enterprise_form.html",
+        {"request": request, "action": "add", "enterprise": {}}
+    )
 
 
 @router.post("/add", response_class=RedirectResponse)
-async def add_enterprise(
+async def add(
     request: Request,
     number: str = Form(...),
     name: str = Form(...),
-    bot_token: str = Form(...),
-    chat_id: str = Form(...),
+    bot_token: str = Form(""),
+    chat_id: str = Form(""),
+    ip: str = Form(...),
+    secret: str = Form(...),
+    host: str = Form(...),
+    name2: str = Form("")
+):
+    # Проверка дубликатов
+    exists = await get_enterprise_by_number(number)
+    if exists:
+        raise HTTPException(status_code=400, detail="Номер уже существует")
+    await add_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
+    return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.get("/{number}/edit", response_class=HTMLResponse)
+async def edit_form(request: Request, number: str):
+    ent = await get_enterprise_by_number(number)
+    if not ent:
+        raise HTTPException(status_code=404, detail="Предприятие не найдено")
+    return templates.TemplateResponse(
+        "enterprise_form.html",
+        {"request": request, "action": "edit", "enterprise": ent}
+    )
+
+
+@router.post("/{number}/edit", response_class=RedirectResponse)
+async def edit(
+    request: Request,
+    number: str,
+    name: str = Form(...),
+    bot_token: str = Form(""),
+    chat_id: str = Form(""),
     ip: str = Form(...),
     secret: str = Form(...),
     host: str = Form(...),
     name2: str = Form(""),
 ):
-    require_login(request)
-    created_at = dt.datetime.utcnow().isoformat()
-    db = await get_connection()
-    try:
-        await db.execute(
-            "INSERT INTO enterprises (number,name,bot_token,chat_id,ip,secret,host,created_at,name2) "
-            "VALUES (?,?,?,?,?,?,?,?,?)",
-            (number, name, bot_token, chat_id, ip, secret, host, created_at, name2),
-        )
-        await db.commit()
-    finally:
-        await db.close()
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
+    ent = await get_enterprise_by_number(number)
+    if not ent:
+        raise HTTPException(status_code=404, detail="Предприятие не найдено")
+    await update_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
+    return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 
-@router.get("/{number}/edit", response_class=HTMLResponse)
-async def edit_enterprise_page(request: Request, number: str):
-    require_login(request)
-    ent = get_enterprise(number)
+@router.delete("/{number}", response_class=JSONResponse)
+async def delete(number: str):
+    await delete_enterprise(number)
+    return JSONResponse({"detail": "Предприятие удалено"})
+
+
+@router.post("/{number}/send_message", response_class=JSONResponse)
+async def send_message(number: str, request: Request):
+    data = await request.json()
+    message = data.get("message")
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
+
+    ent = await get_enterprise_by_number(number)
     if not ent:
         raise HTTPException(status_code=404, detail="Enterprise not found")
-    return templates.TemplateResponse("edit_enterprise.html", {"request": request, "e": ent})
 
-
-@router.post("/{number}/edit", response_class=RedirectResponse)
-async def edit_enterprise(
-    request: Request,
-    number: str,
-    name: str = Form(...),
-    name2: str = Form(""),
-    bot_token: str = Form(...),
-    chat_id: str = Form(...),
-    ip: str = Form(""),
-    secret: str = Form(""),
-    host: str = Form(""),
-):
-    require_login(request)
-    update_enterprise(number, name, name2, bot_token, chat_id, ip, secret, host)
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.post("/{number}/toggle")
-async def toggle_enterprise(request: Request, number: str):
-    require_login(request)
-    db = await get_connection()
-    db.row_factory = lambda cursor, row: {
-        col[0]: row[idx] for idx, col in enumerate(cursor.description)
-    }
-    try:
-        cur = await db.execute(
-            "SELECT active, bot_token, name FROM enterprises WHERE number = ?",
-            (number,),
-        )
-        row = await cur.fetchone()
-
-        if not row:
-            return RedirectResponse("/admin/enterprises", status_code=status.HTTP_302_FOUND)
-
-        new_status = 0 if row["active"] else 1
-        await db.execute(
-            "UPDATE enterprises SET active = ? WHERE number = ?",
-            (new_status, number),
-        )
-        await db.commit()
-    finally:
-        await db.close()
-
-    try:
-        text = (
-            f'🟢 Бот *{row["name"]}* запущен ✅'
-            if new_status
-            else f'🔴 Бот *{row["name"]}* остановлен ⛔️'
-        )
-        bot = Bot(token=NOTIFY_BOT_TOKEN)
-        await bot.send_message(chat_id=NOTIFY_CHAT_ID, text=text, parse_mode="Markdown")
-    except Exception as e:
-        print(f"Ошибка при уведомлении notify-ботом: {e}")
-
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_302_FOUND)
+    success = await send_message_to_bot(ent["bot_token"], ent["chat_id"], message)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to send message")
+    return JSONResponse({"detail": "Message sent"})
