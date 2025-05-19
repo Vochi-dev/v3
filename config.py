@@ -38,7 +38,8 @@ VERIFY_URL_BASE     = os.environ.get("VERIFY_URL_BASE")
 if not all([EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, VERIFY_URL_BASE]):
     raise RuntimeError("Параметры SMTP/VERIFY_URL_BASE не настроены в .env")
 
-    from pydantic import BaseSettings
+# ───────── Объект settings для pydantic-валидации ─────────
+from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -61,4 +62,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
