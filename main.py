@@ -334,8 +334,13 @@ async def start_all_bots():
     tokens = await get_all_bot_tokens()
     tasks = []
     for enterprise_number, token in tokens.items():
+        # Пропускаем предприятия без токена
+        if not token or not token.strip():
+            logger.info(f"Enterprise #{enterprise_number} has no bot_token, skipping start_bot")
+            continue
         tasks.append(asyncio.create_task(start_bot(enterprise_number, token)))
     await asyncio.gather(*tasks)
+
 
 
 @app.on_event("startup")
