@@ -31,6 +31,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+from app.routers import admin
+app.include_router(admin.router, prefix="/admin")
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
