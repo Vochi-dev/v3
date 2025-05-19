@@ -19,14 +19,16 @@ from app.services.bot_status import check_bot_status
 from telegram import Bot
 from telegram.error import TelegramError
 
-from aiogram import Bot as AiogramBot, Dispatcher, types
-from aiogram.filters import Command
+from aiogram import Bot as AiogramBot
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
 from aiogram.client.default import DefaultBotProperties
 
 # Подключаем маршруты из admin.py
 from app.routers import admin  # ВАЖНО: это устраняет 404 /admin/login
+
+# Импортируем dispatcher с логикой start/email/валидации
+from dispatcher import setup_dispatcher
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -327,11 +329,7 @@ async def start_bot(enterprise_number: str):
         token=token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
-    dp = Dispatcher()
-
-    @dp.message(Command(commands=["start"]))
-    async def start_handler(message: types.Message):
-        await message.answer(f"Привет! Бот предприятия {enterprise_number} запущен и готов к работе.")
+    dp = await setup_dispatcher(bot, enterprise_number)
 
     try:
         logger.info(f"Starting bot for enterprise {enterprise_number}")
