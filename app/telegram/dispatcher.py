@@ -24,8 +24,8 @@ async def create_dispatcher(bot: Bot) -> Dispatcher:
             "добавьте запись перед запуском."
         )
 
-    # ✅ Новый способ сохранить enterprise_id
-    bot.session.context["enterprise_id"] = enterprise_id
+    # ✅ Новый способ сохранить enterprise_id (исправлено)
+    bot["enterprise_id"] = enterprise_id
 
     # --- регистрируем наши хэндлеры ---
     dp.include_router(onboarding.router)
