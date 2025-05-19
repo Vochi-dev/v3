@@ -5,6 +5,8 @@ import sqlite3
 import secrets
 from email.message import EmailMessage
 
+import aiosqlite
+
 from app.config import settings
 
 
@@ -76,3 +78,43 @@ def send_verification_email(email: str, token: str):
             smtp.send_message(msg)
     except Exception as e:
         raise RuntimeError(f"Ошибка отправки email: {e}")
+
+
+# ───────── ДОБАВЛЕННЫЕ ФУНКЦИИ ДЛЯ /start и авторизации ─────────
+
+import random
+import string
+
+
+def random_token(length=32):
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
+
+async def email_exists(email: str) -> bool:
+    async with aiosqlite.connect(settings.DB_PATH) as db:
+        async with db.execute("SELECT 1 FROM email_users WHERE email = ?", (email,)) as cursor:
+            return await cursor.fetchone() is not None
+
+
+async def email_already_verified(email: str) -> bool:
+    async with aiosqlite.connect(settings.DB_PATH) as db:
+        async with db.execute("SELECT verified FROM telegram_users WHERE email = ?", (email,)) as cursor:
+            row = await cursor.fetchone()
+            return row and row[0] == 1
+
+
+async def upsert_telegram_user(user_id: int, email: str, token: str, bot_token: str):
+    async with aiosqlite.connect(settings.DB_PATH) as db:
+        await db.execute(
+            """
+            INSERT INTO telegram_users (user_id, email, token, verified, bot_token)
+            VALUES (?, ?, ?, 0, ?)
+            ON CONFLICT(email) DO UPDATE SET
+                user_id=excluded.user_id,
+                token=excluded.token,
+                verified=0,
+                bot_token=excluded.bot_token
+            """,
+            (user_id, email, token, bot_token)
+        )
+        await db.commit()
