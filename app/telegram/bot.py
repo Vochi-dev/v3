@@ -4,8 +4,9 @@ import sys
 import argparse
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
 from aiogram.enums import ParseMode
+from aiogram.filters import Command
+from aiogram.client.default import DefaultBotProperties
 from aiogram.exceptions import TelegramAPIError
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,10 @@ async def run_bot(enterprise_number: str):
         logger.error(f"No bot token found for enterprise {enterprise_number}")
         sys.exit(1)
 
-    bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
     dp = Dispatcher()
 
     @dp.message(Command(commands=["start"]))
