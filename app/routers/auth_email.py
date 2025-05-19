@@ -5,17 +5,17 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import HTMLResponse
 import aiosqlite
 
-from aiogram import Bot as AiogramBot
-from app.config import DB_PATH
 from app.services.email_verification import mark_verified
+from app.config import settings
+from aiogram import Bot as AiogramBot
 
-router = APIRouter(prefix="/verify-email", tags=["auth"])
+router = APIRouter()
 
 
-@router.get("/{token}", response_class=HTMLResponse)
+@router.get("/verify-email/{token}", response_class=HTMLResponse)
 async def verify_email(token: str):
     """
-    Подтверждение e-mail по токену.
+    Обработчик перехода по ссылке подтверждения.
     """
     ok, tg_id = await mark_verified(token)
     if not ok or tg_id is None:
@@ -24,12 +24,12 @@ async def verify_email(token: str):
             detail="Токен не найден или устарел"
         )
 
-    # Получаем bot_token по tg_id
+    # получаем bot_token по tg_id
     bot_token = None
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(settings.DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
-            "SELECT bot_token FROM telegram_users WHERE tg_id = ?",
+            "SELECT bot_token FROM telegram_users WHERE tg_id = ?", 
             (tg_id,)
         )
         row = await cur.fetchone()
@@ -42,32 +42,17 @@ async def verify_email(token: str):
             detail="Не удалось определить бот для уведомления"
         )
 
-    # Отправляем уведомление в Telegram
+    # уведомляем пользователя в Telegram
+    bot = AiogramBot(token=bot_token)
     try:
-        bot = AiogramBot(token=bot_token)
         await bot.send_message(
             chat_id=tg_id,
-            text="🎉 Ваш e-mail подтверждён! Бот полностью готов к работе."
+            text="🎉 Ваш e-mail подтверждён! Бот готов к работе."
         )
     except Exception:
         pass
 
-    # Возвращаем оформленную HTML-страницу
     return """
-    <!DOCTYPE html>
-    <html lang="ru">
-      <head>
-        <meta charset="UTF-8">
-        <title>Подтверждение завершено</title>
-        <style>
-          body { font-family: sans-serif; padding: 2rem; text-align: center; }
-          h1 { color: #28a745; }
-          p  { font-size: 1.1rem; }
-        </style>
-      </head>
-      <body>
-        <h1>✅ Ваш e-mail подтверждён!</h1>
-        <p>Теперь вы можете вернуться в Telegram-бот и пользоваться всеми функциями.</p>
-      </body>
-    </html>
+    <h1>Почта подтверждена!</h1>
+    <p>Теперь вы можете вернуться в Telegram-бот и пользоваться всеми функциями.</p>
     """
