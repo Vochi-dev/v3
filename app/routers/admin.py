@@ -313,3 +313,15 @@ async def bots_status():
         return {"running": running}
     except Exception as e:
         raise HTTPException(status_code=500, detail="Не удалось получить статус ботов")
+
+
+# ✅ ДОБАВЛЕННЫЙ МАРШРУТ email-users
+@router.get("/email-users", response_class=HTMLResponse)
+async def email_users_page(request: Request):
+    require_login(request)
+    db = await get_connection()
+    db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
+    cur = await db.execute("SELECT id, email, verified, created_at FROM email_users ORDER BY created_at DESC")
+    rows = await cur.fetchall()
+    await db.close()
+    return templates.TemplateResponse("email_users.html", {"request": request, "users": rows})
