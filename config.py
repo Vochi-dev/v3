@@ -37,3 +37,28 @@ VERIFY_URL_BASE     = os.environ.get("VERIFY_URL_BASE")
 
 if not all([EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, VERIFY_URL_BASE]):
     raise RuntimeError("Параметры SMTP/VERIFY_URL_BASE не настроены в .env")
+
+    from pydantic import BaseSettings
+
+
+class Settings(BaseSettings):
+    TELEGRAM_BOT_TOKEN: str
+    TELEGRAM_CHAT_ID: str
+    NOTIFY_BOT_TOKEN: str
+    NOTIFY_CHAT_ID: str
+    DB_PATH: str
+    EMAIL_HOST: str
+    EMAIL_PORT: int
+    EMAIL_HOST_USER: str
+    EMAIL_HOST_PASSWORD: str
+    EMAIL_USE_TLS: bool
+    EMAIL_FROM: str
+    VERIFY_URL_BASE: str
+    ADMIN_PASSWORD: str
+
+    class Config:
+        env_file = ".env"
+
+
+settings = Settings()
+
