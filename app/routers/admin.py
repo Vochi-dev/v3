@@ -258,26 +258,35 @@ async def send_message(number: str, request: Request):
 
 @router.get("/email-users", response_class=HTMLResponse)
 async def email_users_page(request: Request):
+    """
+    Отображаем всех telegram_users, привязанных к e-mail,
+    подтягивая имя и права из email_users, а Unit — из таблицы enterprise_users.
+    """
     require_login(request)
     db = await get_connection()
+    # Возвращать Rows по именам колонок
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     cur = await db.execute("""
         SELECT
-          eu.number               AS number,
-          eu.email                AS email,
-          eu.name                 AS name,
-          eu.right_all            AS right_all,
-          eu.right_1              AS right_1,
-          eu.right_2              AS right_2,
-          tu.tg_id                AS tg_id,
-          COALESCE(ent.name, '')  AS enterprise_name
-        FROM email_users eu
-        LEFT JOIN telegram_users tu ON tu.email = eu.email
-        LEFT JOIN enterprises ent ON ent.number = eu.number
-        ORDER BY eu.number, eu.email
+          tu.tg_id                   AS tg_id,
+          tu.email                   AS email,
+          eu.name                    AS name,
+          eu.right_all               AS right_all,
+          eu.right_1                 AS right_1,
+          eu.right_2                 AS right_2,
+          COALESCE(ent.name, '')     AS enterprise_name
+        FROM telegram_users tu
+        LEFT JOIN email_users eu
+          ON eu.email = tu.email
+        LEFT JOIN enterprise_users ue
+          ON ue.telegram_id = tu.tg_id
+        LEFT JOIN enterprises ent
+          ON ent.number = ue.enterprise_id
+        ORDER BY tu.tg_id ASC
     """)
     rows = await cur.fetchall()
     await db.close()
+
     return templates.TemplateResponse(
         "email_users.html",
         {"request": request, "email_users": rows}
@@ -293,9 +302,8 @@ async def upload_email_users(
 ):
     require_login(request)
 
-    # ——— Шаг 2: подтверждение из confirm_sync.html ———
+    # Шаг 2: после подтверждения удаления
     if confirm:
-        # декодируем CSV
         raw = base64.b64decode(csv_b64.encode())
         text = raw.decode('utf-8-sig')
         reader = csv.DictReader(io.StringIO(text))
@@ -303,26 +311,23 @@ async def upload_email_users(
 
         db = await get_connection()
         try:
-            # 1) удаляем из telegram_users всех, кто отсутствует в new_set
+            # 1) удаляем из telegram_users уехавших и шлем им уведомление
             cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
             for email, tg_id, bot_token in await cur.fetchall():
                 if email.strip().lower() not in new_set:
-                    await db.execute(
-                        "DELETE FROM telegram_users WHERE email = ?", (email,)
-                    )
+                    await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
                     try:
                         bot = Bot(token=bot_token)
                         await bot.send_message(
                             chat_id=int(tg_id),
-                            text="⛔️ Администратор отозвал ваш доступ."
+                            text="⛔️ Ваш доступ был отозван администратором."
                         )
                     except TelegramError:
                         pass
 
-            # 2) очищаем email_users и вставляем новые
+            # 2) полностью пересинхронизируем email_users
             await db.execute("DELETE FROM email_users")
             await db.commit()
-
             reader = csv.DictReader(io.StringIO(text))
             for row in reader:
                 await db.execute(
@@ -346,7 +351,7 @@ async def upload_email_users(
 
         return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
-    # ——— Шаг 1: первый заход, собираем preview ———
+    # Шаг 1: первый заход — собираем preview удаления
     content = await file.read()
     text = content.decode('utf-8-sig')
     reader = csv.DictReader(io.StringIO(text))
@@ -359,6 +364,7 @@ async def upload_email_users(
         to_remove = []
         for email, tg_id, bot_token in await cur.fetchall():
             if email.strip().lower() not in new_emails:
+                # подтягиваем юнит
                 cur_ent = await db.execute(
                     "SELECT name FROM enterprises WHERE bot_token = ?", (bot_token,)
                 )
@@ -367,7 +373,6 @@ async def upload_email_users(
                 to_remove.append({
                     "tg_id": tg_id, "email": email, "enterprise_name": unit
                 })
-        # **НЕ** чистим email_users здесь — ждем потверждения!
     finally:
         await db.close()
 
@@ -382,7 +387,7 @@ async def upload_email_users(
             status_code=status.HTTP_200_OK
         )
 
-    # ——— Если нет to_remove — сразу вставляем новые ———
+    # Если нет удалений — сразу вставляем свежие записи
     reader = csv.DictReader(io.StringIO(text))
     db = await get_connection()
     try:
