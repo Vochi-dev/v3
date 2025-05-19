@@ -194,9 +194,8 @@ async def edit_enterprise(
     request: Request,
     number: str,
     name: str = Form(...),
-    bot_token: str = Form(...),
-    active: int = Form(...),
-    chat_id: str = Form(...),
+    bot_token: str = Form(""),
+    chat_id: str = Form(""),
     ip: str = Form(...),
     secret: str = Form(...),
     host: str = Form(...),
@@ -205,14 +204,15 @@ async def edit_enterprise(
     require_login(request)
     db = await get_connection()
     try:
+        # Обновляем запись без поля active
         await db.execute(
             """
             UPDATE enterprises
-               SET name=?, bot_token=?, active=?,
+               SET name=?, bot_token=?,
                    chat_id=?, ip=?, secret=?, host=?, name2=?
              WHERE number=?
             """,
-            (name, bot_token, active, chat_id, ip, secret, host, name2, number)
+            (name, bot_token, chat_id, ip, secret, host, name2, number)
         )
         await db.commit()
     finally:
