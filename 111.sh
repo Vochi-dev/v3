@@ -25,7 +25,7 @@ case "${1:-start}" in
       echo "🛑 Останавливаем uvicorn (PID=${PID}) и его группу..."
       kill -TERM -"$PID" || true
       rm -f .uvicorn.pid
-      echo "✅ uvicorn остановлен"
+      echo "✅ uvicorn группа PID=${PID} остановлена"
     else
       # fallback: ищем по pgrep
       PID=$(pgrep -f "uvicorn main:app" | head -n1 || true)
@@ -33,11 +33,20 @@ case "${1:-start}" in
         echo "🛑 Файла .uvicorn.pid нет — убиваем по найденному PID=${PID}"
         PGID=$(ps -o pgid= "$PID" | tr -d ' ')
         kill -TERM -"$PGID" || true
-        echo "✅ uvicorn остановлен (по PID=${PID})"
+        echo "✅ uvicorn группа PID=${PID} остановлена"
       else
         echo "⚠️  Процесс uvicorn не найден"
       fi
     fi
+
+    # Принудительно очищаем порт 8001
+    echo "🧹 Чистим порт 8001..."
+    if command -v fuser &>/dev/null; then
+      fuser -k 8001/tcp || true
+    else
+      lsof -ti:8001 | xargs -r kill -9 || true
+    fi
+    echo "✅ Порт 8001 свободен"
     ;;
 
   restart)
