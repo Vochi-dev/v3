@@ -271,7 +271,19 @@ async def email_users_page(request: Request):
     require_login(request)
     db = await get_connection()
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-    cur = await db.execute("SELECT number, email, name, right_all, right_1, right_2 FROM email_users ORDER BY number ASC")
+    cur = await db.execute("""
+        SELECT
+          e.number AS tg_id,
+          e.email,
+          e.name,
+          e.right_all,
+          e.right_1,
+          e.right_2,
+          COALESCE(ent.name, '') AS enterprise_name
+        FROM email_users e
+        LEFT JOIN enterprises ent ON e.number = ent.number
+        ORDER BY e.number ASC
+    """)
     rows = await cur.fetchall()
     await db.close()
-    return templates.TemplateResponse("email_users.html", {"request": request, "users": rows})
+    return templates.TemplateResponse("email_users.html", {"request": request, "email_users": rows})
