@@ -77,9 +77,15 @@
     <div class="error">{{ error }}</div>
   {% endif %}
 
-  <form method="post" action="{% if action == 'add' %}/admin/enterprises/new{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}">
+  <form method="post"
+        action="{% if action == 'add' %}/admin/enterprises/add{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}">
     <label for="number">Номер</label>
-    <input id="number" type="text" name="number" required {% if action == 'edit' %}value="{{ enterprise.number }}" readonly{% else %}value="{{ enterprise.number or '' }}"{% endif %}>
+    <input id="number" type="text" name="number" required
+           {% if action == 'edit' %}
+             value="{{ enterprise.number }}" readonly
+           {% else %}
+             value="{{ enterprise.number or '' }}"
+           {% endif %}>
 
     <label for="name">Название</label>
     <input id="name" type="text" name="name" required value="{{ enterprise.name or '' }}">
@@ -102,7 +108,9 @@
     <label for="name2">Доп. имя (name2)</label>
     <input id="name2" type="text" name="name2" value="{{ enterprise.name2 or '' }}">
 
-    <button class="button" type="submit">{% if action == 'add' %}Добавить{% else %}Сохранить{% endif %}</button>
+    <button class="button" type="submit">
+      {% if action == 'add' %}Добавить{% else %}Сохранить{% endif %}
+    </button>
   </form>
 
   <a href="/admin/enterprises" class="back-link">← Назад к списку предприятий</a>
