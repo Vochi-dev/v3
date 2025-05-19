@@ -1,4 +1,4 @@
-# app/telegram/handlers/onboarding.py
+# app/telegram/onboarding.py
 # -*- coding: utf-8 -*-
 import logging
 from aiogram import Router

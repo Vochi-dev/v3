@@ -2,11 +2,9 @@
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.enums import ParseMode
-from aiogram.client.default import DefaultBotProperties
 
 from app.services.db import get_enterprise_number_by_bot_token
-from app.telegram.handlers.onboarding import create_onboarding_router
+from app.telegram.onboarding import create_onboarding_router
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +28,7 @@ async def create_dispatcher(bot: Bot) -> Dispatcher:
     # ✅ Сохраняем enterprise_id как атрибут бота
     bot.enterprise_id = enterprise_id
 
-    # --- регистрируем новый Router для онбординга ---
+    # --- регистрируем Router онбординга ---
     dp.include_router(create_onboarding_router())
 
     return dp
@@ -46,7 +44,7 @@ async def setup_dispatcher(bot: Bot, enterprise_number: str) -> Dispatcher:
     # ✅ Сохраняем enterprise_id как атрибут бота
     bot.enterprise_id = enterprise_number
 
-    # --- регистрируем новый Router для онбординга ---
+    # --- регистрируем Router онбординга ---
     dp.include_router(create_onboarding_router())
 
     return dp
