@@ -24,8 +24,8 @@ async def create_dispatcher(bot: Bot) -> Dispatcher:
             "добавьте запись перед запуском."
         )
 
-    # Сохраняем id предприятия в контексте бота → доступно во всех хэндлерах:
-    bot["enterprise_id"] = enterprise_id
+    # ✅ Новый способ сохранить enterprise_id
+    bot.session.context["enterprise_id"] = enterprise_id
 
     # --- регистрируем наши хэндлеры ---
     dp.include_router(onboarding.router)
@@ -39,6 +39,9 @@ async def setup_dispatcher(bot: Bot, enterprise_number: str) -> Dispatcher:
     Совместимая обёртка setup_dispatcher для main.py
     """
     dp = Dispatcher(storage=MemoryStorage())
-    bot["enterprise_id"] = enterprise_number
+
+    # ✅ Новый способ сохранить enterprise_id
+    bot.session.context["enterprise_id"] = enterprise_number
+
     dp.include_router(onboarding.router)
     return dp
