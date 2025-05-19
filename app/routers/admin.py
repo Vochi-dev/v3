@@ -279,14 +279,14 @@ async def email_users_page(request: Request):
 
     cur = await db.execute("""
         SELECT
-          eu.number             AS number,
-          eu.email              AS email,
-          eu.name               AS name,
-          eu.right_all          AS right_all,
-          eu.right_1            AS right_1,
-          eu.right_2            AS right_2,
-          tu.tg_id              AS tg_id,
-          COALESCE(ent.name, '') AS enterprise_name
+          eu.number               AS number,
+          eu.email                AS email,
+          eu.name                 AS name,
+          eu.right_all            AS right_all,
+          eu.right_1              AS right_1,
+          eu.right_2              AS right_2,
+          tu.tg_id                AS tg_id,
+          COALESCE(ent.name, '')  AS enterprise_name
         FROM email_users eu
         LEFT JOIN telegram_users tu ON tu.email = eu.email
         LEFT JOIN enterprises ent ON ent.number = eu.number
