@@ -28,8 +28,8 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
 from aiogram.client.default import DefaultBotProperties
 
-# Подключаем маршруты из admin.py
-from app.routers import admin  # ВАЖНО: это устраняет 404 /admin/login
+# Подключаем маршруты из admin.py и других
+from app.routers import admin, email_users, enterprise, health, user_requests, webhooks, auth_email
 
 # Импортируем dispatcher с логикой start/email/валидации
 from app.telegram.dispatcher import setup_dispatcher
@@ -53,8 +53,15 @@ fastapi_logger.setLevel(logging.DEBUG)
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Подключаем admin router
+# --- Подключаем все routers ---
 app.include_router(admin.router)
+app.include_router(email_users.router)
+app.include_router(enterprise.router)
+app.include_router(user_requests.router)
+app.include_router(webhooks.router)
+app.include_router(health.router)
+# Теперь подключаем роутер для подтверждения e-mail:
+app.include_router(auth_email.router)
 
 
 # --- Обработчик ошибок валидации запросов (422) ---
@@ -224,21 +231,20 @@ async def update_enterprise_post(
         error = None
 
     if error:
-        enterprise = {
-            "number": number,
-            "name": name,
-            "secret": secret,
-            "bot_token": bot_token,
-            "chat_id": chat_id,
-            "ip": ip,
-            "host": host,
-            "name2": name2,
-        }
         return templates.TemplateResponse(
             "enterprise_form.html",
             {
                 "request": request,
-                "enterprise": enterprise,
+                "enterprise": {
+                    "number": number,
+                    "name": name,
+                    "secret": secret,
+                    "bot_token": bot_token,
+                    "chat_id": chat_id,
+                    "ip": ip,
+                    "host": host,
+                    "name2": name2,
+                },
                 "action": "edit",
                 "error": error,
             },
