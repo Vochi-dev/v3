@@ -264,7 +264,6 @@ async def email_users_page(request: Request):
     """
     require_login(request)
     db = await get_connection()
-    # Возвращать Rows по именам колонок
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     cur = await db.execute("""
         SELECT
