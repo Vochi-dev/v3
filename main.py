@@ -72,7 +72,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": exc.errors()}
     )
 
-
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         logger.info("Incoming request: %s %s", request.method, request.url)
@@ -86,11 +85,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(LoggingMiddleware)
 
-
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     return RedirectResponse(url="/admin/enterprises")
-
 
 @app.get("/admin/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
@@ -120,7 +117,6 @@ async def list_enterprises(request: Request):
             "bots_running": True,
         }
     )
-
 
 @app.api_route("/admin/enterprises/add", methods=["GET", "POST"], response_class=HTMLResponse)
 async def add_enterprise_form(request: Request):
@@ -182,7 +178,6 @@ async def add_enterprise_form(request: Request):
     await add_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
-
 @app.get("/admin/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
     enterprise = await get_enterprise_by_number(number)
@@ -192,7 +187,6 @@ async def edit_enterprise_form(request: Request, number: str):
         "enterprise_form.html",
         {"request": request, "enterprise": enterprise, "action": "edit", "error": None}
     )
-
 
 @app.post("/admin/enterprises/{number}/edit", response_class=HTMLResponse)
 async def update_enterprise_post(
@@ -247,12 +241,10 @@ async def update_enterprise_post(
     await update_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
-
 @app.delete("/admin/enterprises/{number}")
 async def delete_enterprise_api(number: str):
     await delete_enterprise(number)
     return {"detail": "Предприятие удалено"}
-
 
 @app.post("/admin/enterprises/{number}/send_message")
 async def send_message_api(number: str, request: Request):
@@ -277,9 +269,6 @@ async def send_message_api(number: str, request: Request):
     bot_token = enterprise.get('bot_token', "")
     chat_id = enterprise.get('chat_id', "")
 
-    logger.debug(f"Using bot_token={bot_token!r}, chat_id={chat_id!r} for enterprise #{number}")
-
-    # NOTE: your original logic assumed a field 'token' here; ensure you reference bot_token
     if not bot_token or not bot_token.strip():
         logger.error(f"Enterprise #{number} has no bot_token or it is empty")
         raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
@@ -300,7 +289,6 @@ async def send_message_api(number: str, request: Request):
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение")
 
     return {"detail": "Сообщение отправлено"}
-
 
 @app.post("/admin/enterprises/{number}/toggle")
 async def toggle_enterprise(request: Request, number: str):
@@ -341,7 +329,6 @@ async def toggle_enterprise(request: Request, number: str):
 
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
-
 async def start_bot(enterprise_number: str, token: str):
     bot = AiogramBot(
         token=token,
@@ -357,40 +344,33 @@ async def start_bot(enterprise_number: str, token: str):
     finally:
         await bot.session.close()
 
-
 async def start_all_bots():
     tokens = await get_all_bot_tokens()
     tasks = []
     for enterprise_number, token in tokens.items():
-        # Пропускаем предприятия без токена
         if not token or not token.strip():
             logger.info(f"Enterprise #{enterprise_number} has no bot_token, skipping start_bot")
             continue
         tasks.append(asyncio.create_task(start_bot(enterprise_number, token)))
     await asyncio.gather(*tasks)
 
-
 @app.on_event("startup")
 async def on_startup():
     logger.info("Starting all telegram bots in background task...")
     asyncio.create_task(start_all_bots())
 
-
 @app.get("/service/bots_status")
 async def bots_status():
     return {"running": True}
-
 
 @app.post("/service/toggle_bots")
 async def toggle_bots_service():
     logger.info("toggle_bots_service called - пока не реализовано")
     return {"detail": "Сервис переключения ботов не реализован"}
 
-
 @app.get("/admin")
 async def admin_root():
     return RedirectResponse(url="/admin/enterprises")
-
 
 @app.on_event("shutdown")
 async def shutdown_event():
