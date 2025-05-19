@@ -266,62 +266,12 @@ async def send_message(number: str, request: Request):
     return JSONResponse({"detail": "Message sent"})
 
 
-@router.post("/service/restart_main")
-async def restart_main_service():
-    try:
-        subprocess.run(["pkill", "-f", "uvicorn main:app"], check=False)
-        await asyncio.sleep(1)
-        subprocess.Popen(["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--log-level", "debug"])
-        return {"detail": "Основной сервис перезапущен"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Не удалось перезапустить основной сервис")
-
-
-@router.post("/service/restart_bots")
-async def restart_bots_service():
-    try:
-        subprocess.run(["pkill", "-f", "bot.py"], check=False)
-        await asyncio.sleep(1)
-        subprocess.Popen(["./start_bots.sh"])
-        return {"detail": "Сервисы ботов перезапущены"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Не удалось перезапустить ботов")
-
-
-@router.post("/service/toggle_bots")
-async def toggle_bots_service():
-    try:
-        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
-        running = bool(result.stdout.strip())
-        if running:
-            subprocess.run(["pkill", "-f", "bot.py"], check=False)
-            await asyncio.sleep(1)
-            detail = "Сервисы ботов остановлены"
-        else:
-            subprocess.Popen(["./start_bots.sh"])
-            detail = "Сервисы ботов запущены"
-        return {"detail": detail, "running": not running}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Ошибка переключения ботов")
-
-
-@router.get("/service/bots_status")
-async def bots_status():
-    try:
-        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
-        running = bool(result.stdout.strip())
-        return {"running": running}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Не удалось получить статус ботов")
-
-
-# ✅ ДОБАВЛЕННЫЙ МАРШРУТ email-users
 @router.get("/email-users", response_class=HTMLResponse)
 async def email_users_page(request: Request):
     require_login(request)
     db = await get_connection()
     db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-    cur = await db.execute("SELECT id, email, verified, created_at FROM email_users ORDER BY created_at DESC")
+    cur = await db.execute("SELECT number, email, name, right_all, right_1, right_2 FROM email_users ORDER BY number ASC")
     rows = await cur.fetchall()
     await db.close()
     return templates.TemplateResponse("email_users.html", {"request": request, "users": rows})
