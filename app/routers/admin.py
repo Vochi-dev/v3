@@ -399,6 +399,6 @@ async def bots_status():
         raise HTTPException(status_code=500, detail="Не удалось получить статус ботов")
 
 
-@router.get("/admin")
+@router.get("/")
 async def admin_root():
     return RedirectResponse(url="/admin/enterprises")
