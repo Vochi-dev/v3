@@ -11,7 +11,9 @@ import aiosqlite
 
 from app.config import settings
 
-# ─────────────── Создаём email_tokens, если нет ───────────────
+# ────────────────────────────────────────────────────────────────────────────────
+# Создаём таблицу email_tokens, если её нет
+# ────────────────────────────────────────────────────────────────────────────────
 _conn = sqlite3.connect(settings.DB_PATH)
 _cur = _conn.cursor()
 _cur.execute("""
@@ -27,7 +29,7 @@ _conn.close()
 
 def create_verification_token(email: str) -> str:
     """
-    Генерирует токен, сохраняет его в БД и возвращает.
+    Генерирует токен, сохраняет его в БД вместе с меткой времени и возвращает.
     """
     token = secrets.token_urlsafe(32)
     created_at = datetime.datetime.utcnow().isoformat()
@@ -48,7 +50,10 @@ def get_email_by_token(token: str) -> str | None:
     """
     conn = sqlite3.connect(settings.DB_PATH)
     cur = conn.cursor()
-    cur.execute("SELECT email FROM email_tokens WHERE token = ?", (token,))
+    cur.execute(
+        "SELECT email FROM email_tokens WHERE token = ?",
+        (token,)
+    )
     row = cur.fetchone()
     conn.close()
     return row[0] if row else None
@@ -60,17 +65,19 @@ def delete_token(token: str):
     """
     conn = sqlite3.connect(settings.DB_PATH)
     cur = conn.cursor()
-    cur.execute("DELETE FROM email_tokens WHERE token = ?", (token,))
+    cur.execute(
+        "DELETE FROM email_tokens WHERE token = ?",
+        (token,)
+    )
     conn.commit()
     conn.close()
 
 
 def send_verification_email(email: str, token: str):
     """
-    Отправляет письмо с линком вида https://<ваш-домен>/verify-email/{token}
+    Отправляет письмо с ссылкой для подтверждения.
     """
-    # Ссылка теперь строится через путь, а не query param
-    link = f"{settings.VERIFY_URL_BASE}/{token}"
+    link = f"{settings.VERIFY_URL_BASE}?token={token}"
     subject = "Подтверждение email"
     body = f"""Здравствуйте!
 
@@ -78,7 +85,7 @@ def send_verification_email(email: str, token: str):
 
 {link}
 
-Если вы не запрашивали доступ — просто проигнорируйте это письмо.
+Если вы не запрашивали доступ — проигнорируйте это письмо.
 """
 
     msg = EmailMessage()
@@ -99,7 +106,9 @@ def send_verification_email(email: str, token: str):
         raise RuntimeError(f"Ошибка отправки email: {e}")
 
 
-# ─────────────── Асинхронные для telegram_users ───────────────
+# ────────────────────────────────────────────────────────────────────────────────
+# Асинхронные функции для работы с telegram_users и проверки/подтверждения токена
+# ────────────────────────────────────────────────────────────────────────────────
 
 async def email_exists(email: str) -> bool:
     async with aiosqlite.connect(settings.DB_PATH) as db:
@@ -116,7 +125,8 @@ async def email_already_verified(email: str) -> bool:
 
 async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: str):
     """
-    Вставляет или обновляет запись в telegram_users по ключу tg_id.
+    Вставляет или обновляет запись в telegram_users.
+    Использует поле tg_id как PK.
     """
     async with aiosqlite.connect(settings.DB_PATH) as db:
         await db.execute(
@@ -132,3 +142,37 @@ async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: st
             (tg_id, email, token, bot_token)
         )
         await db.commit()
+
+
+async def mark_verified(token: str) -> tuple[bool, int | None]:
+    """
+    Проверяет токен, помечает telegram_users.verified = 1 и возвращает (True, tg_id).
+    Если токен не найден — (False, None).
+    """
+    # 1) найдём email по токену
+    email = get_email_by_token(token)
+    if not email:
+        return False, None
+
+    # 2) обновим запись telegram_users
+    async with aiosqlite.connect(settings.DB_PATH) as db:
+        # извлечём tg_id
+        async with db.execute(
+            "SELECT tg_id FROM telegram_users WHERE email = ?", 
+            (email,)
+        ) as cur:
+            row = await cur.fetchone()
+        if not row:
+            return False, None
+        tg_id = row[0]
+        # установим verified = 1
+        await db.execute(
+            "UPDATE telegram_users SET verified = 1 WHERE tg_id = ?", 
+            (tg_id,)
+        )
+        await db.commit()
+
+    # 3) удалим токен
+    delete_token(token)
+
+    return True, tg_id
