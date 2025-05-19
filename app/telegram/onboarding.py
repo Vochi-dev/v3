@@ -65,7 +65,11 @@ def create_onboarding_router() -> Router:
             return
 
         # Генерация токена и отправка письма
-        token = create_verification_token()
+        # ————————————————————————————————————————————————
+        # Здесь важно передать email в функцию:
+        token = create_verification_token(email)
+        # ————————————————————————————————————————————————
+
         try:
             await upsert_telegram_user(
                 message.from_user.id,
