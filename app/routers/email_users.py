@@ -32,27 +32,26 @@ logger.setLevel(logging.DEBUG)
 async def list_email_users(request: Request):
     require_login(request)
     db = await get_connection()
-    # показываем сразу всю таблицу
+    # возвращаем Row чтобы можно было обращаться по именам колонок
     db.row_factory = aiosqlite.Row
     try:
+        # старый рабочий запрос: подтягиваем enterprise_name по bot_token из telegram_users
         cur = await db.execute(
             """
             SELECT
-              tu.tg_id           AS tg_id,
-              eu.email           AS email,
-              eu.name            AS name,
-              eu.right_all       AS right_all,
-              eu.right_1         AS right_1,
-              eu.right_2         AS right_2,
-              ent.name           AS enterprise_name
-            FROM email_users eu
-            LEFT JOIN telegram_users tu
+              tu.tg_id               AS tg_id,
+              tu.email               AS email,
+              eu.name                AS name,
+              eu.right_all           AS right_all,
+              eu.right_1             AS right_1,
+              eu.right_2             AS right_2,
+              COALESCE(ent.name, '') AS enterprise_name
+            FROM telegram_users tu
+            LEFT JOIN email_users eu
               ON eu.email = tu.email
-            LEFT JOIN enterprise_users uut
-              ON uut.telegram_id = tu.tg_id
             LEFT JOIN enterprises ent
-              ON uut.enterprise_id = ent.number
-            ORDER BY eu.number, eu.email
+              ON ent.bot_token = tu.bot_token
+            ORDER BY tu.tg_id ASC
             """
         )
         rows = await cur.fetchall()
@@ -74,47 +73,55 @@ async def upload_email_users(
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Файл должен быть в формате CSV")
 
-    # Считаем CSV во временный буфер
+    # читаем CSV во временный буфер
     content = await file.read()
     text = content.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
     new_emails = {row["email"].strip().lower() for row in reader if row.get("email")}
 
-    # Берём из базы текущие email_users + их tg_id и unit
+    # вытягиваем из БД все текущие email_users + их tg_id и bot_token
     db = await get_connection()
     try:
         cur = await db.execute(
             """
             SELECT
-              eu.email            AS email,
-              tu.tg_id            AS tg_id,
-              tu.bot_token        AS bot_token,
-              ent.name            AS enterprise_name
+              eu.email      AS email,
+              tu.tg_id      AS tg_id,
+              tu.bot_token  AS bot_token
             FROM email_users eu
             LEFT JOIN telegram_users tu
               ON eu.email = tu.email
-            LEFT JOIN enterprise_users uut
-              ON uut.telegram_id = tu.tg_id
-            LEFT JOIN enterprises ent
-              ON uut.enterprise_id = ent.number
             """
         )
         old_rows = await cur.fetchall()
     finally:
         await db.close()
 
-    # Вычисляем, кто выпадет
+    # вычисляем, какие email выпадут
     to_remove: List[Dict] = []
     for r in old_rows:
-        e = r["email"].strip().lower()
-        if e not in new_emails:
+        email = (r["email"] or "").strip().lower()
+        if email and email not in new_emails:
+            # найдём название юнита по bot_token
+            unit = ""
+            if r["bot_token"]:
+                db2 = await get_connection()
+                try:
+                    cur2 = await db2.execute(
+                        "SELECT name FROM enterprises WHERE bot_token = ?",
+                        (r["bot_token"],)
+                    )
+                    row2 = await cur2.fetchone()
+                    unit = row2[0] if row2 else ""
+                finally:
+                    await db2.close()
             to_remove.append({
                 "tg_id": r["tg_id"],
                 "email": r["email"],
-                "enterprise_name": r["enterprise_name"] or ""
+                "enterprise_name": unit
             })
 
-    # Если есть потери — показываем confirm_sync
+    # если есть потери — показываем confirm_sync
     if to_remove:
         csv_b64 = base64.b64encode(text.encode()).decode()
         return templates.TemplateResponse(
@@ -127,7 +134,7 @@ async def upload_email_users(
             status_code=status.HTTP_200_OK
         )
 
-    # Иначе — сразу переписываем email_users
+    # иначе сразу синхронизируем email_users
     db = await get_connection()
     try:
         await db.execute("DELETE FROM email_users")
@@ -163,29 +170,27 @@ async def confirm_upload(
 ):
     require_login(request)
 
-    # Если отказались — просто вернёмся
     if confirm != "yes":
         return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
-    # Декодируем CSV
+    # декодируем CSV
     try:
         raw = base64.b64decode(csv_b64.encode())
         text = raw.decode("utf-8-sig")
     except Exception:
         raise HTTPException(status_code=400, detail="Неверные данные CSV")
 
-    # Новый набор e-mail’ов
+    # новый сет e-mail’ов
     reader = csv.DictReader(io.StringIO(text))
     new_set = {row["email"].strip().lower() for row in reader if row.get("email")}
 
-    # 1) Извлекаем из telegram_users всех, чьи e-mail’ы исчезли, удаляем и уведомляем
+    # 1) удаляем из telegram_users всех, чьи e-mails исчезли, и шлём им уведомление
     db = await get_connection()
     try:
         cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
         for email, tg_id, bot_token in await cur.fetchall():
             if email.strip().lower() not in new_set:
                 await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
-                # уведомляем
                 try:
                     bot = AiogramBot(token=bot_token)
                     await bot.send_message(
@@ -195,7 +200,7 @@ async def confirm_upload(
                 except TelegramError:
                     pass
 
-        # 2) Синхронизируем email_users
+        # 2) полностью пересинхронизировать email_users
         await db.execute("DELETE FROM email_users")
         await db.commit()
         reader = csv.DictReader(io.StringIO(text))
@@ -226,7 +231,7 @@ async def confirm_upload(
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
-    # Найдём bot_token по enterprise_users
+    # найдём bot_token для ручного удаления
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
@@ -243,7 +248,7 @@ async def delete_user(tg_id: int, request: Request):
         if row2:
             bot_token = row2["bot_token"]
 
-    # Удаляем из telegram_users и enterprise_users
+    # удаляем записи
     db = await get_connection()
     try:
         await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
@@ -252,7 +257,7 @@ async def delete_user(tg_id: int, request: Request):
     finally:
         await db.close()
 
-    # Уведомляем вручную удалённого
+    # уведомляем вручную удалённого пользователя
     if bot_token:
         try:
             bot = AiogramBot(token=bot_token)
