@@ -261,32 +261,30 @@ async def send_message(number: str, request: Request):
 @router.get("/email-users", response_class=HTMLResponse)
 async def email_users_page(request: Request):
     """
-    Теперь показывает ВСЕ записи из email_users, с tg_id (если есть)
-    и Unit по связи enterprise_users→enterprises.
+    Теперь показывает ВСЕ записи из telegram_users → email_users,
+    и подтягивает Unit из enterprise_users→enterprises.
     """
     require_login(request)
     logger.debug("Display email_users page")
 
     db = await get_connection()
-    # чтобы строки были dict-like по именам колонок
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     sql = """
         SELECT
-          eu.number               AS number,
-          eu.email                AS email,
-          eu.name                 AS name,
-          eu.right_all            AS right_all,
-          eu.right_1              AS right_1,
-          eu.right_2              AS right_2,
-          tu.tg_id                AS tg_id,
-          COALESCE(ent.name, '')  AS enterprise_name
-        FROM email_users eu
-        LEFT JOIN telegram_users tu ON tu.email = eu.email
+          tu.tg_id              AS tg_id,
+          tu.email              AS email,
+          eu.name               AS name,
+          eu.right_all          AS right_all,
+          eu.right_1            AS right_1,
+          eu.right_2            AS right_2,
+          COALESCE(ent.name,'') AS enterprise_name
+        FROM telegram_users tu
+        LEFT JOIN email_users eu ON eu.email = tu.email
         LEFT JOIN enterprise_users ue ON ue.telegram_id = tu.tg_id
         LEFT JOIN enterprises ent ON ent.number = ue.enterprise_id
-        ORDER BY eu.number, eu.email
+        ORDER BY tu.tg_id ASC
     """
-    logger.debug("Executing SQL: %s", sql)
+    logger.debug("Executing SQL: %s", sql.strip())
     cur = await db.execute(sql)
     rows = await cur.fetchall()
     logger.debug("Fetched %d email_users rows", len(rows))
@@ -317,7 +315,6 @@ async def upload_email_users(
 
         db = await get_connection()
         try:
-            # 1) удалить из telegram_users пропавшие email
             cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
             for email, tg_id, bot_token in await cur.fetchall():
                 if email.strip().lower() not in new_set:
@@ -325,10 +322,10 @@ async def upload_email_users(
                     await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
                     try:
                         bot = Bot(token=bot_token)
-                        await bot.send_message(chat_id=int(tg_id), text="⛔️ Ваш доступ был отозван администратором.")
+                        await bot.send_message(chat_id=int(tg_id),
+                                               text="⛔️ Ваш доступ был отозван администратором.")
                     except TelegramError:
                         logger.debug("Failed notifying %s", tg_id)
-            # 2) обновить email_users
             await db.execute("DELETE FROM email_users")
             await db.commit()
             reader = csv.DictReader(io.StringIO(text))
@@ -358,7 +355,7 @@ async def upload_email_users(
     # ——— Шаг 1: превью перед удалением ———
     content = await file.read()
     text = content.decode("utf-8-sig")
-    logger.debug("Preview new emails: %s", text)
+    logger.debug("Preview new emails CSV text")
     reader = csv.DictReader(io.StringIO(text))
     new_emails = {r["email"].strip().lower() for r in reader if r.get("email")}
     csv_b64_val = base64.b64encode(text.encode()).decode()
@@ -373,7 +370,6 @@ async def upload_email_users(
         for email, tg_id, bot_token in old:
             if email.strip().lower() not in new_emails:
                 logger.debug("Will remove telegram_user %s", email)
-                # unit lookup
                 c2 = await db.execute("SELECT name FROM enterprises WHERE bot_token = ?", (bot_token,))
                 row2 = await c2.fetchone()
                 unit = row2[0] if row2 else ""
