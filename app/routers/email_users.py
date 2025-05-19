@@ -32,32 +32,30 @@ logger.setLevel(logging.DEBUG)
 async def list_email_users(request: Request):
     """
     Показывает таблицу всех telegram_users, привязанных к email_users,
-    и подтягивает название предприятия по bot_token из telegram_users.
+    подтягивает название Unit через связующую таблицу enterprise_users.
     """
     require_login(request)
     db = await get_connection()
-    # Row по именам колонок
     db.row_factory = aiosqlite.Row
     try:
-        cur = await db.execute(
-            """
+        cur = await db.execute("""
             SELECT
-              tu.tg_id               AS tg_id,
-              tu.email               AS email,
-              eu.name                AS name,
-              eu.right_all           AS right_all,
-              eu.right_1             AS right_1,
-              eu.right_2             AS right_2,
-              COALESCE(ent.name, '') AS enterprise_name
+              tu.tg_id                AS tg_id,
+              tu.email                AS email,
+              eu.name                 AS name,
+              eu.right_all            AS right_all,
+              eu.right_1              AS right_1,
+              eu.right_2              AS right_2,
+              COALESCE(ent.name, '')  AS enterprise_name
             FROM telegram_users tu
             LEFT JOIN email_users eu
               ON eu.email = tu.email
-            -- Прямой джойн по bot_token
+            LEFT JOIN enterprise_users u
+              ON u.telegram_id = tu.tg_id
             LEFT JOIN enterprises ent
-              ON ent.bot_token = tu.bot_token
+              ON ent.number = u.enterprise_id
             ORDER BY tu.tg_id ASC
-            """
-        )
+        """)
         rows = await cur.fetchall()
     finally:
         await db.close()
@@ -75,25 +73,25 @@ async def upload_email_users(
 ):
     """
     Первый шаг загрузки CSV:
-    - Сравниваем новые email’ы с теми, что в базе.
-    - Если какие-то из существующих пропадают — показываем confirm_sync.
-    - Иначе сразу синхронизируем email_users.
+     - Собираем set новых e-mail’ов из файла.
+     - Берём из БД все текущие e-mail’ы (email_users) вместе с их tg_id и bot_token.
+     - Если какой-то из существующих исчез — показываем confirm_sync.
+     - Иначе — сразу перезаписываем email_users.
     """
     require_login(request)
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Файл должен быть в формате CSV")
 
-    # Читаем CSV в память
-    content = await file.read()
-    text = content.decode("utf-8-sig")
+    # читаем и парсим CSV
+    raw = await file.read()
+    text = raw.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
     new_emails = {row["email"].strip().lower() for row in reader if row.get("email")}
 
-    # Берём текущие email_users + их tg_id и bot_token
+    # достаём из БД старые email + tg_id + bot_token
     db = await get_connection()
     try:
-        cur = await db.execute(
-            """
+        cur = await db.execute("""
             SELECT
               eu.email     AS email,
               tu.tg_id     AS tg_id,
@@ -101,18 +99,17 @@ async def upload_email_users(
             FROM email_users eu
             LEFT JOIN telegram_users tu
               ON eu.email = tu.email
-            """
-        )
+        """)
         old_rows = await cur.fetchall()
     finally:
         await db.close()
 
-    # Определяем, кто выпадет
+    # ищем «выпавшие» e-mail’ы
     to_remove: List[Dict] = []
     for r in old_rows:
-        email = (r["email"] or "").strip().lower()
-        if email and email not in new_emails:
-            # Подтягиваем название enterprise по bot_token
+        em = (r["email"] or "").strip().lower()
+        if em and em not in new_emails:
+            # узнаём Unit по bot_token
             unit = ""
             if r["bot_token"]:
                 db2 = await get_connection()
@@ -127,24 +124,20 @@ async def upload_email_users(
                     await db2.close()
             to_remove.append({
                 "tg_id": r["tg_id"],
-                "email": r["email"],
+                "email":  r["email"],
                 "enterprise_name": unit
             })
 
-    # Если есть выпадения — показываем confirmation
+    # если есть выпадения — показываем confirm
     if to_remove:
         csv_b64 = base64.b64encode(text.encode()).decode()
         return templates.TemplateResponse(
             "confirm_sync.html",
-            {
-                "request": request,
-                "to_remove": to_remove,
-                "csv_b64": csv_b64
-            },
+            {"request": request, "to_remove": to_remove, "csv_b64": csv_b64},
             status_code=status.HTTP_200_OK
         )
 
-    # Иначе — сразу синхронизируем email_users
+    # иначе — сразу синхронизируем email_users
     db = await get_connection()
     try:
         await db.execute("DELETE FROM email_users")
@@ -160,9 +153,9 @@ async def upload_email_users(
                     row.get("number"),
                     row.get("email"),
                     row.get("name"),
-                    int(row.get("right_all", 0)),
-                    int(row.get("right_1", 0)),
-                    int(row.get("right_2", 0)),
+                    int(row.get("right_all") or 0),
+                    int(row.get("right_1")   or 0),
+                    int(row.get("right_2")   or 0),
                 )
             )
         await db.commit()
@@ -179,30 +172,28 @@ async def confirm_upload(
     confirm: str = Form(...)
 ):
     """
-    Подтверждение удаления:
-    - Если админ согласен — удаляем из telegram_users пропавшие e-mail,
-      шлём уведомления, и затем перезаполняем email_users.
-    - Если отказался — просто возвращаемся на список.
+    Второй шаг: подтвердили удаление:
+     - Удаляем из telegram_users всех «выпавших», уведомляем их.
+     - Затем полностью пересинхронизируем email_users.
     """
     require_login(request)
-
     if confirm != "yes":
         return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
-    # Декодируем CSV
+    # декодируем CSV
     try:
         raw = base64.b64decode(csv_b64.encode())
         text = raw.decode("utf-8-sig")
     except Exception:
         raise HTTPException(status_code=400, detail="Неверные данные CSV")
 
-    # Собираем новый сет e-mail’ов
+    # собираем новый set e-mail’ов
     reader = csv.DictReader(io.StringIO(text))
     new_set = {row["email"].strip().lower() for row in reader if row.get("email")}
 
-    # 1) Удаляем из telegram_users тех, чьи e-mail’ы исчезли, и уведомляем
     db = await get_connection()
     try:
+        # удаляем «выпавших» из telegram_users и уведомляем
         cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
         for email, tg_id, bot_token in await cur.fetchall():
             if email.strip().lower() not in new_set:
@@ -216,7 +207,7 @@ async def confirm_upload(
                 except TelegramError:
                     pass
 
-        # 2) Полностью пересинхронизируем email_users
+        # полностью пересинхронизируем email_users
         await db.execute("DELETE FROM email_users")
         await db.commit()
         reader = csv.DictReader(io.StringIO(text))
@@ -231,9 +222,9 @@ async def confirm_upload(
                     row.get("number"),
                     row.get("email"),
                     row.get("name"),
-                    int(row.get("right_all", 0)),
-                    int(row.get("right_1", 0)),
-                    int(row.get("right_2", 0)),
+                    int(row.get("right_all") or 0),
+                    int(row.get("right_1")   or 0),
+                    int(row.get("right_2")   or 0),
                 )
             )
         await db.commit()
@@ -246,12 +237,12 @@ async def confirm_upload(
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
     """
-    Ручное удаление пользователя по кнопке Delete:
-    - Выясняем bot_token и удаляем его из telegram_users + enterprise_users,
-      а затем уведомляем.
+    Ручное удаление из интерфейса:
+     - Удаляет из telegram_users и enterprise_users, уведомляет пользователя.
     """
     require_login(request)
 
+    # находим bot_token через enterprise_users
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
