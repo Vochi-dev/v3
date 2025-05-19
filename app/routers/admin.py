@@ -5,9 +5,13 @@ import logging
 import subprocess
 import csv
 import io
+import base64
 from datetime import datetime
 
-from fastapi import APIRouter, Request, Form, status, HTTPException, File, UploadFile
+from fastapi import (
+    APIRouter, Request, Form, status, HTTPException,
+    File, UploadFile
+)
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
@@ -73,13 +77,12 @@ async def list_enterprises(request: Request):
     logger.info("list_enterprises called")
     require_login(request)
     db = await get_connection()
-    db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
+    db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     cur = await db.execute("""
-        SELECT
-          number, name, bot_token, active,
-          chat_id, ip, secret, host, name2
-        FROM enterprises
-        ORDER BY CAST(number AS INTEGER) ASC
+        SELECT number, name, bot_token, active,
+               chat_id, ip, secret, host, name2
+          FROM enterprises
+         ORDER BY CAST(number AS INTEGER) ASC
     """)
     rows = await cur.fetchall()
     await db.close()
@@ -88,28 +91,22 @@ async def list_enterprises(request: Request):
     for ent in rows:
         try:
             ent["bot_available"] = await check_bot_status(ent["bot_token"])
-            logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
-        except Exception as e:
-            logger.error(f"Error checking bot status for #{ent['number']}: {e}")
+        except Exception:
             ent["bot_available"] = False
         enterprises_with_status.append(ent)
 
     try:
         result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
         bots_running = bool(result.stdout.strip())
-        logger.info(f"Bots running status: {bots_running}")
-    except Exception as e:
+    except Exception:
         bots_running = False
-        logger.error(f"Failed to check bots running status: {e}")
-
-    service_running = True
 
     return templates.TemplateResponse(
         "enterprises.html",
         {
             "request": request,
             "enterprises": enterprises_with_status,
-            "service_running": service_running,
+            "service_running": True,
             "bots_running": bots_running,
         }
     )
@@ -205,7 +202,6 @@ async def edit_enterprise(
     require_login(request)
     db = await get_connection()
     try:
-        # Обновляем запись без поля active
         await db.execute(
             """
             UPDATE enterprises
@@ -241,7 +237,9 @@ async def send_message(number: str, request: Request):
 
     db = await get_connection()
     db.row_factory = None
-    cur = await db.execute("SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,))
+    cur = await db.execute(
+        "SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,)
+    )
     row = await cur.fetchone()
     await db.close()
 
@@ -249,22 +247,16 @@ async def send_message(number: str, request: Request):
         return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
 
     bot_token, chat_id = row
-    if not bot_token or not bot_token.strip():
-        return JSONResponse({"detail": "Enterprise has no bot token"}, status_code=400)
-    if not chat_id or not chat_id.strip():
-        return JSONResponse({"detail": "Enterprise has no chat_id"}, status_code=400)
-
     try:
         success = await send_message_to_bot(bot_token, chat_id, message)
         if success:
             logger.info(f"Message sent successfully to enterprise #{number}")
+            return JSONResponse({"detail": "Message sent"})
         else:
             return JSONResponse({"detail": "Failed to send message"}, status_code=500)
     except Exception as e:
         logger.error(f"Failed to send message to bot {number}: {e}", exc_info=True)
         return JSONResponse({"detail": "Failed to send message"}, status_code=500)
-
-    return JSONResponse({"detail": "Message sent"})
 
 
 # ——————————————————————————————————————————————————————————————————————————
@@ -275,28 +267,21 @@ async def send_message(number: str, request: Request):
 async def email_users_page(request: Request):
     require_login(request)
     db = await get_connection()
-    db.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-
+    db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     cur = await db.execute("""
         SELECT
-          eu.number                 AS number,
-          eu.email                  AS email,
-          eu.name                   AS name,
-          eu.right_all              AS right_all,
-          eu.right_1                AS right_1,
-          eu.right_2                AS right_2,
-          tu.tg_id                  AS tg_id,
-          COALESCE(ent_csv.name,
-                   ent_bot.name,
-                   '')                  AS enterprise_name
+          eu.number               AS number,
+          eu.email                AS email,
+          eu.name                 AS name,
+          eu.right_all            AS right_all,
+          eu.right_1              AS right_1,
+          eu.right_2              AS right_2,
+          tu.tg_id                AS tg_id,
+          COALESCE(ent.name, '')  AS enterprise_name
         FROM email_users eu
-        LEFT JOIN telegram_users tu
-          ON tu.email = eu.email
-        LEFT JOIN enterprises ent_csv
-          ON ent_csv.number = eu.number
-        LEFT JOIN enterprises ent_bot
-          ON ent_bot.bot_token = tu.bot_token
-        ORDER BY eu.number ASC, eu.email ASC
+        LEFT JOIN telegram_users tu ON tu.email = eu.email
+        LEFT JOIN enterprises ent ON ent.number = eu.number
+        ORDER BY eu.number, eu.email
     """)
     rows = await cur.fetchall()
     await db.close()
@@ -307,18 +292,109 @@ async def email_users_page(request: Request):
     )
 
 
-@router.post("/email-users/upload", response_class=RedirectResponse)
-async def upload_email_users(request: Request, file: UploadFile = File(...)):
+@router.post("/email-users/upload", response_class=HTMLResponse)
+async def upload_email_users(
+    request: Request,
+    file: UploadFile = File(...),
+    confirm: str | None = Form(None),
+    csv_b64: str | None = Form(None),
+):
     require_login(request)
 
+    # Повторное подтверждение
+    if confirm:
+        # раскодируем CSV
+        data = base64.b64decode(csv_b64.encode())
+        text = data.decode('utf-8-sig')
+        reader = csv.DictReader(io.StringIO(text))
+
+        db = await get_connection()
+        try:
+            # удаляем из telegram_users тех, кого больше нет
+            cur_exist = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
+            exist = await cur_exist.fetchall()
+            new_emails = {row["email"].strip().lower() for row in reader}
+            reader = csv.DictReader(io.StringIO(text))  # сброс итератора
+
+            for email, tg_id, bot_token in exist:
+                if email.lower() not in new_emails:
+                    await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
+                    # уведомляем пользователя
+                    try:
+                        bot = Bot(token=bot_token)
+                        await bot.send_message(chat_id=int(tg_id),
+                                               text="⚠️ Администратор отозвал ваш доступ.")
+                    except TelegramError:
+                        pass
+
+            # перезаполняем email_users
+            await db.execute("DELETE FROM email_users")
+            for row in reader:
+                await db.execute(
+                    """
+                    INSERT INTO email_users(number, email, name, right_all, right_1, right_2)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        row.get("number"),
+                        row.get("email"),
+                        row.get("name"),
+                        int(row.get("right_all", 0)),
+                        int(row.get("right_1", 0)),
+                        int(row.get("right_2", 0)),
+                    )
+                )
+            await db.commit()
+        finally:
+            await db.close()
+
+        return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Первый заход: читаем новый CSV
     content = await file.read()
     text = content.decode('utf-8-sig')
     reader = csv.DictReader(io.StringIO(text))
+    new_emails = {r["email"].strip().lower() for r in reader}
+    csv_b64_val = base64.b64encode(text.encode()).decode()
 
     db = await get_connection()
     try:
-        # Очистим таблицу перед загрузкой
+        # текущие telegram_users
+        cur_exist = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
+        exist = await cur_exist.fetchall()
+
+        to_remove = []
+        for email, tg_id, bot_token in exist:
+            if email.lower() not in new_emails:
+                # узнаём юнит
+                cur_ent = await db.execute(
+                    "SELECT name FROM enterprises WHERE bot_token = ?", (bot_token,)
+                )
+                ent_row = await cur_ent.fetchone()
+                unit = ent_row[0] if ent_row else ""
+                to_remove.append({"tg_id": tg_id, "email": email, "enterprise_name": unit})
+
+        # очищаем email_users на время подтверждения
         await db.execute("DELETE FROM email_users")
+        await db.commit()
+    finally:
+        await db.close()
+
+    # если есть исчезнувшие — показываем confirm
+    if to_remove:
+        return templates.TemplateResponse(
+            "confirm_sync.html",
+            {
+                "request": request,
+                "to_remove": to_remove,
+                "csv_b64": csv_b64_val
+            }
+        )
+
+    # нет конфликтов — сразу вставляем
+    reader = csv.DictReader(io.StringIO(text))
+    db = await get_connection()
+    try:
         for row in reader:
             await db.execute(
                 """
