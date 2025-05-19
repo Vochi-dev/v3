@@ -1,5 +1,6 @@
 # app/telegram/onboarding.py
 # -*- coding: utf-8 -*-
+
 import logging
 from aiogram import Router
 from aiogram.filters import CommandStart
@@ -65,11 +66,7 @@ def create_onboarding_router() -> Router:
             return
 
         # Генерация токена и отправка письма
-        # ————————————————————————————————————————————————
-        # Здесь важно передать email в функцию:
         token = create_verification_token(email)
-        # ————————————————————————————————————————————————
-
         try:
             await upsert_telegram_user(
                 message.from_user.id,
@@ -77,7 +74,8 @@ def create_onboarding_router() -> Router:
                 token,
                 message.bot.token
             )
-            await send_verification_email(email, token)
+            # send_verification_email — синхронная, не await
+            send_verification_email(email, token)
             logger.info(f"Письмо отправлено: {email}, токен: {token}")
             await message.answer("✅ Письмо отправлено! Проверьте почту и перейдите по ссылке.")
         except Exception as e:
