@@ -302,7 +302,7 @@ async def upload_email_users(
 ):
     require_login(request)
 
-    # Шаг 2: после подтверждения удаления
+    # ——— Шаг 2: после подтверждения удаления ———
     if confirm:
         raw = base64.b64decode(csv_b64.encode())
         text = raw.decode('utf-8-sig')
@@ -311,7 +311,7 @@ async def upload_email_users(
 
         db = await get_connection()
         try:
-            # 1) удаляем из telegram_users уехавших и шлем им уведомление
+            # 1) удаляем из telegram_users ушедших и уведомляем
             cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
             for email, tg_id, bot_token in await cur.fetchall():
                 if email.strip().lower() not in new_set:
@@ -351,7 +351,7 @@ async def upload_email_users(
 
         return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
-    # Шаг 1: первый заход — собираем preview удаления
+    # ——— Шаг 1: первый заход — собираем preview удаления ———
     content = await file.read()
     text = content.decode('utf-8-sig')
     reader = csv.DictReader(io.StringIO(text))
@@ -364,7 +364,6 @@ async def upload_email_users(
         to_remove = []
         for email, tg_id, bot_token in await cur.fetchall():
             if email.strip().lower() not in new_emails:
-                # подтягиваем юнит
                 cur_ent = await db.execute(
                     "SELECT name FROM enterprises WHERE bot_token = ?", (bot_token,)
                 )
@@ -387,7 +386,7 @@ async def upload_email_users(
             status_code=status.HTTP_200_OK
         )
 
-    # Если нет удалений — сразу вставляем свежие записи
+    # ——— Если нет удалений — сразу вставляем новые ———
     reader = csv.DictReader(io.StringIO(text))
     db = await get_connection()
     try:
