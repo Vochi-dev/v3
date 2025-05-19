@@ -1,39 +1,43 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from pydantic_settings import BaseSettings  # Pydantic v2 совместимо
+from pydantic_settings import BaseSettings
 
 # Загружаем переменные из .env
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-# ───────── Pydantic-класс для настроек ─────────
+# ───────── Для обратной совместимости ─────────
+DB_PATH = os.environ.get("DB_PATH") or str(Path(__file__).parent.parent / "asterisk_events.db")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "SuperS3cret!")
+
+# ───────── Pydantic-класс для settings ─────────
 class Settings(BaseSettings):
-    DB_PATH: str = os.environ.get("DB_PATH") or str(Path(__file__).parent.parent / "asterisk_events.db")
-    ADMIN_PASSWORD: str = os.environ.get("ADMIN_PASSWORD", "SuperS3cret!")
-
-    TELEGRAM_BOT_TOKEN: str = os.environ.get("TELEGRAM_BOT_TOKEN")
-    TELEGRAM_CHAT_ID: str = os.environ.get("TELEGRAM_CHAT_ID")
-
-    NOTIFY_BOT_TOKEN: str = os.environ.get("NOTIFY_BOT_TOKEN")
-    NOTIFY_CHAT_ID: str = os.environ.get("NOTIFY_CHAT_ID")
-
-    EMAIL_HOST: str = os.environ.get("EMAIL_HOST")
-    EMAIL_PORT: int = int(os.environ.get("EMAIL_PORT", 587))
-    EMAIL_HOST_USER: str = os.environ.get("EMAIL_HOST_USER")
-    EMAIL_HOST_PASSWORD: str = os.environ.get("EMAIL_HOST_PASSWORD")
-    EMAIL_USE_TLS: bool = os.environ.get("EMAIL_USE_TLS", "True").lower() in ("1", "true", "yes")
-    EMAIL_FROM: str = os.environ.get("EMAIL_FROM", os.environ.get("EMAIL_HOST_USER"))
-    VERIFY_URL_BASE: str = os.environ.get("VERIFY_URL_BASE")
+    TELEGRAM_BOT_TOKEN: str
+    TELEGRAM_CHAT_ID: str
+    NOTIFY_BOT_TOKEN: str
+    NOTIFY_CHAT_ID: str
+    EMAIL_HOST: str
+    EMAIL_PORT: int = 587
+    EMAIL_HOST_USER: str
+    EMAIL_HOST_PASSWORD: str
+    EMAIL_USE_TLS: bool = True
+    EMAIL_FROM: str | None = None
+    VERIFY_URL_BASE: str
+    DB_PATH: str = DB_PATH
+    ADMIN_PASSWORD: str = ADMIN_PASSWORD
 
     class Config:
         env_file = ".env"
 
 
-# ───────── Создаём глобальный объект настроек ─────────
 settings = Settings()
 
-# ───────── Проверка обязательных значений ─────────
+# Подставим EMAIL_FROM, если он не задан
+if not settings.EMAIL_FROM:
+    settings.EMAIL_FROM = settings.EMAIL_HOST_USER
+
+# Проверка обязательных переменных
 required_vars = [
     settings.TELEGRAM_BOT_TOKEN,
     settings.TELEGRAM_CHAT_ID,
