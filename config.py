@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from pydantic import BaseSettings
 
-# Загружаем переменные из .env (не забудьте установить python-dotenv!)
+# ───────── Загрузка переменных из .env ─────────
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
@@ -39,9 +40,6 @@ if not all([EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, VERIFY_URL_BASE]):
     raise RuntimeError("Параметры SMTP/VERIFY_URL_BASE не настроены в .env")
 
 # ───────── Объект settings для pydantic-валидации ─────────
-from pydantic import BaseSettings
-
-
 class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str
     TELEGRAM_CHAT_ID: str
