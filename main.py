@@ -2,9 +2,11 @@ import logging
 import asyncio
 import contextlib
 from fastapi import FastAPI, Request, Form, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
+from fastapi.logger import logger as fastapi_logger
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.services.database import (
@@ -32,18 +34,43 @@ from app.routers import admin  # ВАЖНО: это устраняет 404 /admi
 # Импортируем dispatcher с логикой start/email/валидации
 from app.telegram.dispatcher import setup_dispatcher
 
+# --- Настройка логирования ---
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+# --- Создаём FastAPI с debug=True для расширенного логирования валидации ---
+app = FastAPI(debug=True)
+
+# Повышаем уровень логирования для uvicorn и fastapi
+logging.getLogger("uvicorn").setLevel(logging.DEBUG)
+logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
+logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
+fastapi_logger.setLevel(logging.DEBUG)
+
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Подключаем admin router
 app.include_router(admin.router)
+
+# --- Обработчик ошибок валидации запросов (422) ---
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    fastapi_logger.error(
+        f"Validation error for {request.method} {request.url}\nErrors: {exc.errors()}"
+    )
+    try:
+        body = await request.body()
+        fastapi_logger.debug(f"Request body: {body.decode('utf-8')}")
+    except Exception as e:
+        fastapi_logger.debug(f"Could not read request body: {e}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()}
+    )
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -252,7 +279,7 @@ async def send_message_api(number: str, request: Request):
 
     logger.debug(f"Using bot_token={bot_token!r}, chat_id={chat_id!r} for enterprise #{number}")
 
-    if not bot_token or not bot_token.strip():
+    if not bot_token or not token.strip():
         logger.error(f"Enterprise #{number} has no bot_token or it is empty")
         raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
 
@@ -340,7 +367,6 @@ async def start_all_bots():
             continue
         tasks.append(asyncio.create_task(start_bot(enterprise_number, token)))
     await asyncio.gather(*tasks)
-
 
 
 @app.on_event("startup")
