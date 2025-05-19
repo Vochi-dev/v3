@@ -42,16 +42,17 @@ async def list_email_users(request: Request):
         cur = await db.execute(
             """
             SELECT
-              tu.tg_id           AS tg_id,
-              tu.email           AS email,
-              eu.name            AS name,
-              eu.right_all       AS right_all,
-              eu.right_1         AS right_1,
-              eu.right_2         AS right_2,
+              tu.tg_id               AS tg_id,
+              tu.email               AS email,
+              eu.name                AS name,
+              eu.right_all           AS right_all,
+              eu.right_1             AS right_1,
+              eu.right_2             AS right_2,
               COALESCE(ent.name, '') AS enterprise_name
             FROM telegram_users tu
             LEFT JOIN email_users eu
               ON eu.email = tu.email
+            -- Прямой джойн по bot_token
             LEFT JOIN enterprises ent
               ON ent.bot_token = tu.bot_token
             ORDER BY tu.tg_id ASC
