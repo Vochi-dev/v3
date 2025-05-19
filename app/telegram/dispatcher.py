@@ -24,8 +24,8 @@ async def create_dispatcher(bot: Bot) -> Dispatcher:
             "добавьте запись перед запуском."
         )
 
-    # ✅ Новый способ сохранить enterprise_id (исправлено)
-    bot["enterprise_id"] = enterprise_id
+    # ✅ Сохраняем enterprise_id как атрибут бота
+    bot.enterprise_id = enterprise_id
 
     # --- регистрируем наши хэндлеры ---
     dp.include_router(onboarding.router)
@@ -40,8 +40,8 @@ async def setup_dispatcher(bot: Bot, enterprise_number: str) -> Dispatcher:
     """
     dp = Dispatcher(storage=MemoryStorage())
 
-    # ✅ Новый способ сохранить enterprise_id
-    bot["enterprise_id"] = enterprise_number
+    # ✅ Сохраняем enterprise_id как атрибут бота
+    bot.enterprise_id = enterprise_number
 
     dp.include_router(onboarding.router)
     return dp
