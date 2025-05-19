@@ -27,7 +27,7 @@ from aiogram.client.default import DefaultBotProperties
 
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    format="%(2023-06-01 12:34:56 [INFO] main: message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ app.add_middleware(LoggingMiddleware)
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return RedirectResponse(url="/admin/enterprises")
+    return RedirectResponse(url="/admin/login")
 
 
 @app.get("/admin/enterprises", response_class=HTMLResponse)
@@ -305,9 +305,9 @@ async def toggle_enterprise(request: Request, number: str):
 
 
 BOT_TOKENS = {
-    "0100": "7765204924:AAEFCyUsxGhTWsuIENX47iqpD3s8L60kwmc",
-    "0201": "8133181812:AAH_Ty_ndTeO8Y_NlTEFkbBsgGIrGUlH5I0",
-    "0262": "8040392268:AAG_YuBqy7n1_nX6Cvte70--draQ21S2Cvs",
+    "0100": "YOUR_TOKEN_1",
+    "0201": "YOUR_TOKEN_2",
+    "0262": "YOUR_TOKEN_3",
 }
 
 
@@ -350,19 +350,16 @@ async def on_startup():
 
 @app.get("/admin")
 async def admin_root():
-    return RedirectResponse(url="/admin/enterprises")
+    return RedirectResponse(url="/admin/login")
 
 
-# Добавляю недостающие эндпоинты для отсутствующих маршрутов, чтобы не было 404
 @app.get("/service/bots_status")
 async def bots_status():
-    # Возвращаем True, так как боты стартуют в фоне
     return {"running": True}
 
 
 @app.post("/service/toggle_bots")
 async def toggle_bots_service():
-    # Заглушка: реализация запуска/остановки ботов при необходимости
     logger.info("toggle_bots_service called - пока не реализовано")
     return {"detail": "Сервис переключения ботов не реализован"}
 
@@ -371,6 +368,7 @@ if __name__ == "__main__":
     import uvicorn
     logger.info("Запускаем FastAPI + Telegram ботов одной командой")
     uvicorn.run("main:app", host="0.0.0.0", port=8001, log_level="debug")
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
