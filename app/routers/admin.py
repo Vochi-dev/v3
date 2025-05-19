@@ -293,8 +293,9 @@ async def upload_email_users(
 ):
     require_login(request)
 
-    # если пришло подтверждение из confirm_sync.html
+    # ——— Шаг 2: подтверждение из confirm_sync.html ———
     if confirm:
+        # декодируем CSV
         raw = base64.b64decode(csv_b64.encode())
         text = raw.decode('utf-8-sig')
         reader = csv.DictReader(io.StringIO(text))
@@ -302,22 +303,26 @@ async def upload_email_users(
 
         db = await get_connection()
         try:
-            # первые, удалить из telegram_users тех, кого нет в новом CSV
+            # 1) удаляем из telegram_users всех, кто отсутствует в new_set
             cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
             for email, tg_id, bot_token in await cur.fetchall():
                 if email.strip().lower() not in new_set:
-                    await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
-                    # уведомление
+                    await db.execute(
+                        "DELETE FROM telegram_users WHERE email = ?", (email,)
+                    )
                     try:
                         bot = Bot(token=bot_token)
-                        await bot.send_message(chat_id=int(tg_id),
-                                               text="⛔️ Администратор отозвал ваш доступ.")
+                        await bot.send_message(
+                            chat_id=int(tg_id),
+                            text="⛔️ Администратор отозвал ваш доступ."
+                        )
                     except TelegramError:
                         pass
 
-            # затем — полностью обновить email_users
+            # 2) очищаем email_users и вставляем новые
             await db.execute("DELETE FROM email_users")
             await db.commit()
+
             reader = csv.DictReader(io.StringIO(text))
             for row in reader:
                 await db.execute(
@@ -341,7 +346,7 @@ async def upload_email_users(
 
         return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
-    # иначе — первый заход, собираем preview
+    # ——— Шаг 1: первый заход, собираем preview ———
     content = await file.read()
     text = content.decode('utf-8-sig')
     reader = csv.DictReader(io.StringIO(text))
@@ -362,10 +367,7 @@ async def upload_email_users(
                 to_remove.append({
                     "tg_id": tg_id, "email": email, "enterprise_name": unit
                 })
-
-        # очистка email_users, ждем подтверждения
-        await db.execute("DELETE FROM email_users")
-        await db.commit()
+        # **НЕ** чистим email_users здесь — ждем потверждения!
     finally:
         await db.close()
 
@@ -380,10 +382,11 @@ async def upload_email_users(
             status_code=status.HTTP_200_OK
         )
 
-    # нет conflict — сразу вставляем
+    # ——— Если нет to_remove — сразу вставляем новые ———
     reader = csv.DictReader(io.StringIO(text))
     db = await get_connection()
     try:
+        await db.execute("DELETE FROM email_users")
         for row in reader:
             await db.execute(
                 """
