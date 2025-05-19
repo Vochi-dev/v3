@@ -8,7 +8,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 
 from app.services.email_verification import (
-    random_token,
+    create_verification_token,
     upsert_telegram_user,
     email_exists,
     email_already_verified,
@@ -53,7 +53,7 @@ async def receive_email(message: Message, state: FSMContext) -> None:
         await state.clear()
         return
 
-    token = random_token()
+    token = create_verification_token()
     try:
         await upsert_telegram_user(
             message.from_user.id,
