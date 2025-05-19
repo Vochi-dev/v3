@@ -8,6 +8,7 @@ import io
 import base64
 from datetime import datetime
 
+import aiosqlite                          # ← добавлено
 from fastapi import (
     APIRouter, Request, Form, status, HTTPException,
     File, UploadFile
@@ -19,7 +20,7 @@ from fastapi.templating import Jinja2Templates
 from telegram import Bot
 from telegram.error import TelegramError
 
-from app.config import ADMIN_PASSWORD
+from app.config import ADMIN_PASSWORD, DB_PATH  # ← добавлено DB_PATH
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
 from app.services.enterprise import send_message_to_bot
@@ -374,8 +375,8 @@ async def upload_email_users(
 
         return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
+
     # ——— Шаг 2: подтверждение удаления старых ———
-    # (сработает, когда confirm="yes" придёт из формы confirm_sync.html)
     raw = base64.b64decode(csv_b64.encode())
     text = raw.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
@@ -384,7 +385,6 @@ async def upload_email_users(
 
     db = await get_connection()
     try:
-        # 1) удалить из telegram_users
         cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
         for email, tg_id, bot_token in await cur.fetchall():
             if email.strip().lower() not in new_set:
@@ -397,7 +397,6 @@ async def upload_email_users(
                 except TelegramError:
                     logger.debug("Failed notifying %s", tg_id)
 
-        # 2) перезаписать email_users
         await db.execute("DELETE FROM email_users")
         await db.commit()
         reader = csv.DictReader(io.StringIO(text))
@@ -425,14 +424,12 @@ async def upload_email_users(
     return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
 
-# Новая отдельная точка для confirm, чтобы POST /upload/confirm не падал 404
 @router.post("/email-users/upload/confirm", response_class=RedirectResponse)
 async def upload_confirmed(
     request: Request,
     csv_b64: str = Form(...),
     confirm: str = Form(...)
 ):
-    # просто перенаправляем на тот же код
     return await upload_email_users(request, file=None, confirm=confirm, csv_b64=csv_b64)
 
 
