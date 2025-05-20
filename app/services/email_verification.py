@@ -23,6 +23,10 @@ _cur.execute("""
         created_at  TEXT NOT NULL
     )
 """)
+# Добавим уникальный индекс для email в telegram_users (если нет)
+_cur.execute("""
+    CREATE UNIQUE INDEX IF NOT EXISTS ix_telegram_users_email ON telegram_users(email)
+""")
 _conn.commit()
 _conn.close()
 
@@ -125,17 +129,27 @@ async def email_already_verified(email: str) -> bool:
 
 async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: str):
     """
-    Вставляет или обновляет запись в telegram_users по первичному ключу tg_id.
+    Вставляет или обновляет запись в telegram_users по уникальному email.
+    Перед этим отвязывает tg_id от других email (разрешает смену владельца).
     """
     async with aiosqlite.connect(settings.DB_PATH) as db:
+        # 1. Отвязать tg_id от других email (только если такой уже был у другого)
+        await db.execute(
+            """
+            UPDATE telegram_users SET tg_id = NULL
+            WHERE tg_id = ? AND email != ?
+            """,
+            (tg_id, email)
+        )
+        # 2. Upsert по email (UNIQUE)
         await db.execute(
             """
             INSERT INTO telegram_users (tg_id, email, token, verified, bot_token)
             VALUES (?, ?, ?, 0, ?)
-            ON CONFLICT(tg_id) DO UPDATE SET
-                email     = excluded.email,
-                token     = excluded.token,
-                verified  = 0,
+            ON CONFLICT(email) DO UPDATE SET
+                tg_id    = excluded.tg_id,
+                token    = excluded.token,
+                verified = 0,
                 bot_token = excluded.bot_token
             """,
             (tg_id, email, token, bot_token)
