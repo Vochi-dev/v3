@@ -9,18 +9,8 @@
     th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
     th { background: #f0f0f0; }
     .danger { color: #dc3545; text-decoration: none; }
-    .msg-form td { background: #f9f9f9; }
+    .message-form { margin-top: 0.5rem; }
   </style>
-  <script>
-    function confirmSend(form) {
-      const txt = form.querySelector('input[name="message"]').value.trim();
-      if (!txt) {
-        alert("Введите сообщение.");
-        return false;
-      }
-      return confirm("Отправить сообщение пользователю?");
-    }
-  </script>
 </head>
 <body>
   <h1>Пользователи по e-mail</h1>
@@ -67,28 +57,27 @@
             {% endif %}
           </td>
         </tr>
-        {% if selected_tg == u.tg_id %}
-          <tr class="msg-form">
+
+        {# Если этот пользователь — selected, рисуем форму сразу под его строкой #}
+        {% if selected_tg and u.tg_id == selected_tg %}
+          <tr class="message-form">
             <td colspan="8">
-              <form 
-                action="/admin/email-users/message/{{ u.tg_id }}" 
-                method="post" 
-                onsubmit="return confirmSend(this)"
-              >
-                <label>Сообщение пользователю {{ u.tg_id }}:</label>
-                <input 
-                  type="text" 
-                  name="message" 
-                  style="width:80%;" 
+              <form action="/admin/email-users/message/{{ selected_tg }}" method="post">
+                <label>Сообщение пользователю {{ selected_tg }}:</label>
+                <input
+                  type="text"
+                  name="message"
                   placeholder="Введите текст…"
+                  style="width:70%"
                   required
                 />
                 <button type="submit">Отправить</button>
-                <a href="/admin/email-users" style="margin-left:1rem;">Отмена</a>
+                <a href="/admin/email-users">Отмена</a>
               </form>
             </td>
           </tr>
         {% endif %}
+
       {% endfor %}
     </tbody>
   </table>
