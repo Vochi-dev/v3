@@ -1,6 +1,5 @@
 # app/routers/email_users.py
 # -*- coding: utf-8 -*-
-
 import csv
 import io
 import base64
@@ -15,7 +14,7 @@ from fastapi import (
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from telegram import Bot  # <-- используем telegram.Bot
+from telegram import Bot
 from telegram.error import TelegramError
 
 from app.config import DB_PATH
@@ -70,27 +69,44 @@ async def list_email_users(request: Request):
     )
 
 
-# ... (upload и confirm_upload остаются без изменений) ...
+@router.post("/upload", response_class=HTMLResponse)
+async def upload_email_users(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    require_login(request)
+    # ... (здесь без изменений код загрузки CSV) ...
+
+
+@router.post("/upload/confirm", response_class=RedirectResponse)
+async def confirm_upload(
+    request: Request,
+    csv_b64: str = Form(...),
+    confirm: str   = Form(...)
+):
+    require_login(request)
+    # ... (здесь без изменений код подтверждения синхронизации) ...
 
 
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
-    # 1. Сначала пробуем получить bot_token из telegram_users
     bot_token = None
-    async with aiosqlite.connect(DB_PATH) as db2:
-        db2.row_factory = aiosqlite.Row
-        cur2 = await db2.execute(
-            "SELECT bot_token, email FROM telegram_users WHERE tg_id = ?",
+
+    # 1. Попытаемся получить bot_token из telegram_users
+    async with aiosqlite.connect(DB_PATH) as db1:
+        db1.row_factory = aiosqlite.Row
+        cur1 = await db1.execute(
+            "SELECT bot_token FROM telegram_users WHERE tg_id = ?",
             (tg_id,)
         )
-        row2 = await cur2.fetchone()
-        if row2 and row2["bot_token"]:
-            bot_token = row2["bot_token"]
-            logger.info(f"Найден bot_token в telegram_users: {bot_token}")
+        row1 = await cur1.fetchone()
+        if row1 and row1["bot_token"]:
+            bot_token = row1["bot_token"]
+            logger.info(f"bot_token найден в telegram_users: {bot_token}")
 
-    # 2. Если не нашли — пробуем через enterprise_users (на всякий случай)
+    # 2. Если не нашли, пробуем enterprise_users
     if not bot_token:
         async with aiosqlite.connect(DB_PATH) as db2:
             db2.row_factory = aiosqlite.Row
@@ -104,26 +120,26 @@ async def delete_user(tg_id: int, request: Request):
             row2 = await cur2.fetchone()
             if row2 and row2["bot_token"]:
                 bot_token = row2["bot_token"]
-                logger.info(f"Найден bot_token в enterprise_users: {bot_token}")
+                logger.info(f"bot_token найден в enterprise_users: {bot_token}")
 
-    # 3. Отправляем уведомление, если токен есть
+    # 3. Отправляем уведомление пользователю, если токен есть
     if bot_token:
         bot = Bot(token=bot_token)
         try:
-            logger.info(f"Отправляю удаление пользователю {tg_id} через бот {bot_token}")
+            logger.info(f"Отправка уведомления об удалении пользователю {tg_id} через бот {bot_token}")
             await bot.send_message(
                 chat_id=tg_id,
                 text="❌ Ваш доступ к боту был отозван администратором."
             )
         except TelegramError as e:
-            logger.warning(f"Не удалось отправить удаление пользователю {tg_id}: {e}")
+            logger.warning(f"Не удалось отправить уведомление пользователю {tg_id}: {e}")
         finally:
-            # закрываем сессию HTTP клиента
+            # обязательно закрываем сессию
             await bot.session.close()
     else:
-        logger.error(f"Не найден bot_token для пользователя {tg_id}, сообщение не отправлено")
+        logger.error(f"bot_token для пользователя {tg_id} не найден — сообщение не отправлено")
 
-    # 4. Удаляем все его записи из БД
+    # 4. Фактическое удаление из БД
     db = await get_connection()
     try:
         await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
