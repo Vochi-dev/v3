@@ -27,7 +27,11 @@ logger.setLevel(logging.DEBUG)
 
 
 @router.get("", response_class=HTMLResponse)
-async def list_email_users(request: Request, selected: int | None = None):
+async def list_email_users(
+    request: Request,
+    selected: int | None = None,
+    group: bool | None = None,
+):
     require_login(request)
     db = await get_connection()
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
@@ -64,9 +68,62 @@ async def list_email_users(request: Request, selected: int | None = None):
         {
             "request": request,
             "email_users": rows,
-            "selected_tg": selected
+            "selected_tg": selected,
+            "group_mode": bool(group),
         }
     )
+
+
+@router.post("/message/{tg_id}")
+async def message_user(
+    tg_id: int,
+    message: str = Form(...),
+    request: Request = None
+):
+    require_login(request)
+    # отправка одному пользователю
+    db = await get_connection()
+    try:
+        row = await db.execute(
+            "SELECT bot_token FROM telegram_users WHERE tg_id = ?",
+            (tg_id,)
+        )
+        rec = await row.fetchone()
+    finally:
+        await db.close()
+
+    if not rec or not rec["bot_token"]:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    await send_message_to_bot(rec["bot_token"], tg_id, message)
+    return RedirectResponse("/admin/email-users", status_code=303)
+
+
+@router.post("/message-group", response_class=RedirectResponse)
+async def message_group(
+    request: Request,
+    message: str = Form(...)
+):
+    require_login(request)
+    db = await get_connection()
+    try:
+        cur = await db.execute(
+            "SELECT tg_id, bot_token FROM telegram_users WHERE verified = 1"
+        )
+        rows = await cur.fetchall()
+    finally:
+        await db.close()
+
+    for r in rows:
+        tg_id = r["tg_id"]
+        bot_token = r["bot_token"]
+        if tg_id and bot_token:
+            try:
+                await send_message_to_bot(bot_token, tg_id, message)
+            except Exception as e:
+                logger.warning(f"Не удалось отправить групповое сообщение {tg_id}: {e}")
+
+    return RedirectResponse("/admin/email-users", status_code=303)
 
 
 @router.post("/upload", response_class=HTMLResponse)
@@ -171,7 +228,6 @@ async def confirm_upload(
     }
 
     db = await get_connection()
-    # Делаем доступ по именам колонок
     db.row_factory = aiosqlite.Row
     try:
         cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
@@ -182,7 +238,7 @@ async def confirm_upload(
             tg_id     = row["tg_id"]
             bot_token = row["bot_token"]
             if email and email not in new_set and tg_id and bot_token:
-                # 1) посылаем уведомление
+                # 1) уведомляем
                 await send_message_to_bot(
                     bot_token,
                     tg_id,
@@ -238,7 +294,7 @@ async def delete_user(tg_id: int, request: Request):
         logger.error(f"[delete] bot_token не найден для tg_id={tg_id}")
         return RedirectResponse("/admin/email-users", status_code=303)
 
-    # 2) отправляем фиксированное сообщение
+    # 2) отправляем уведомление
     try:
         await send_message_to_bot(
             bot_token,
