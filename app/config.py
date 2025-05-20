@@ -8,7 +8,8 @@ env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 # ───────── Для обратной совместимости ─────────
-DB_PATH = os.environ.get("DB_PATH") or str(Path(__file__).parent.parent / "asterisk_events.db")
+DEFAULT_DB_PATH = str(Path(__file__).parent.parent / "asterisk_events.db")
+DB_PATH = os.environ.get("DB_PATH") or DEFAULT_DB_PATH
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "SuperS3cret!")
 
 # ───────── Pydantic-класс для settings ─────────
@@ -29,7 +30,6 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
-
 
 settings = Settings()
 
