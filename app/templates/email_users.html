@@ -9,6 +9,7 @@
     th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
     th { background: #f0f0f0; }
     .danger { color: #dc3545; text-decoration: none; }
+    .message-form td { background: #f9f9f9; }
   </style>
 </head>
 <body>
@@ -35,13 +36,19 @@
     <tbody>
       {% for u in email_users %}
         <tr>
-          <td>{{ u.tg_id or "" }}</td>
+          <td>
+            {% if u.tg_id %}
+              <a href="?selected={{ u.tg_id }}">{{ u.tg_id }}</a>
+            {% else %}
+              —
+            {% endif %}
+          </td>
           <td>{{ u.email }}</td>
-          <td>{{ u.name or "" }}</td>
+          <td>{{ u.name or '' }}</td>
           <td>{{ u.right_all }}</td>
           <td>{{ u.right_1 }}</td>
           <td>{{ u.right_2 }}</td>
-          <td>{{ u.enterprise_name }}</td>
+          <td>{{ u.enterprise_name or '—' }}</td>
           <td>
             {% if u.tg_id %}
               <form action="/admin/email-users/delete/{{ u.tg_id }}" method="post" style="display:inline">
@@ -50,6 +57,29 @@
             {% endif %}
           </td>
         </tr>
+
+        {% if selected_tg and u.tg_id == selected_tg %}
+          <tr class="message-form">
+            <td colspan="8">
+              <form
+                action="/admin/email-users/message/{{ selected_tg }}"
+                method="post"
+                onsubmit="return confirm('Вы уверены, что хотите отправить сообщение пользователю {{ selected_tg }}?');"
+              >
+                <label>Сообщение пользователю {{ selected_tg }}:</label>
+                <input
+                  type="text"
+                  name="message"
+                  placeholder="Введите текст…"
+                  style="width:70%;"
+                  required
+                />
+                <button type="submit">Отправить</button>
+                <a href="/admin/email-users">Отмена</a>
+              </form>
+            </td>
+          </tr>
+        {% endif %}
       {% endfor %}
     </tbody>
   </table>
