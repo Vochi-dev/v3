@@ -99,7 +99,7 @@ def send_verification_email(email: str, token: str):
 
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Асинхронные функции для telegram_users и проверки токена
+# Асинхронные функции
 # ────────────────────────────────────────────────────────────────────────────────
 
 async def email_exists(email: str) -> bool:
@@ -170,12 +170,12 @@ async def verify_token_and_register_user(token: str) -> None:
     if not row:
         raise RuntimeError("Токен не найден или неверен.")
 
-    # 2) проверяем время жизни (24 часа)
+    # 2) проверяем возраст
     created = datetime.datetime.fromisoformat(row["created_at"])
     if datetime.datetime.utcnow() - created > datetime.timedelta(hours=24):
         raise RuntimeError("Токен устарел. Запросите письмо повторно.")
 
-    # 3) регистрируем в telegram_users
+    # 3) регистрируем
     await upsert_telegram_user(
         row["tg_id"],
         row["email"],
@@ -183,5 +183,5 @@ async def verify_token_and_register_user(token: str) -> None:
         row["bot_token"]
     )
 
-    # 4) удаляем запись токена
+    # 4) удаляем запись
     delete_token(token)

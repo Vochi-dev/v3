@@ -45,30 +45,30 @@ def create_onboarding_router() -> Router:
 
         logger.info(f"Получен e-mail от {user_id}: {email}")
 
-        # 1) Простая валидация
+        # 1) Простая валидация формата
         if "@" not in email or "." not in email:
             logger.warning(f"Невалидный email от {user_id}: {email}")
             await message.answer("Это не похоже на e-mail. Попробуйте ещё раз:")
             return
 
-        # 2) Проверка, что e-mail есть в списке разрешённых
+        # 2) Проверка, что e-mail есть в таблице email_users
         if not await email_exists(email):
             logger.warning(f"Не найден email в базе: {email}")
             await message.answer("⛔️ Такой e-mail не найден. Обратитесь к администратору.")
             await state.clear()
             return
 
-        # 3) Проверка, не был ли он уже подтверждён
+        # 3) Проверка, не был ли уже подтверждён
         if await email_already_verified(email):
             logger.warning(f"Email уже подтверждён ранее: {email}")
-            await message.answer("⛔️ Этот e-mail уже подтверждён в другом боте.")
+            await message.answer("⛔️ Этот e-mail уже подтверждён.")
             await state.clear()
             return
 
-        # 4) Генерируем и сохраняем токен (но НЕ регистрируем ещё в telegram_users)
+        # 4) Генерируем и сохраняем токен (еще не регистрируем пользователя)
         token = create_and_store_token(email, user_id, bot_token)
 
-        # 5) Отправляем письмо с ссылкой на подтверждение
+        # 5) Отправляем письмо
         try:
             send_verification_email(email, token)
             logger.info(f"Письмо отправлено: {email}, токен: {token}")
@@ -79,7 +79,7 @@ def create_onboarding_router() -> Router:
             logger.exception(f"Ошибка при отправке письма на {email}: {e}")
             await message.answer("⚠️ Не удалось отправить письмо. Попробуйте позже.")
 
-        # 6) Завершаем FSM — пользователь должен снова /start после письма
+        # 6) Завершаем FSM — пользователь снова запускает /start после письма
         await state.clear()
         logger.debug(f"Состояние очищено для пользователя {user_id}")
 
