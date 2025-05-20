@@ -130,18 +130,9 @@ async def email_already_verified(email: str) -> bool:
 async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: str):
     """
     Вставляет или обновляет запись в telegram_users по уникальному email.
-    Перед этим отвязывает tg_id от других email (разрешает смену владельца).
     """
     async with aiosqlite.connect(settings.DB_PATH) as db:
-        # 1. Отвязать tg_id от других email (только если такой уже был у другого)
-        await db.execute(
-            """
-            UPDATE telegram_users SET tg_id = NULL
-            WHERE tg_id = ? AND email != ?
-            """,
-            (tg_id, email)
-        )
-        # 2. Upsert по email (UNIQUE)
+        # Upsert по email (UNIQUE)
         await db.execute(
             """
             INSERT INTO telegram_users (tg_id, email, token, verified, bot_token)
