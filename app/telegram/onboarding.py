@@ -10,7 +10,6 @@ from aiogram.types import Message
 
 from app.services.email_verification import (
     create_and_store_token,
-    upsert_telegram_user,
     email_exists,
     email_already_verified,
     send_verification_email,
@@ -51,7 +50,7 @@ def create_onboarding_router() -> Router:
             await message.answer("Это не похоже на e-mail. Попробуйте ещё раз:")
             return
 
-        # Проверка в БД
+        # Проверка в БД: такой e-mail должен быть в таблице email_users
         if not await email_exists(email):
             logger.warning(f"Не найден email в базе: {email}")
             await message.answer("⛔️ Такой e-mail не найден. Обратитесь к администратору.")
@@ -65,34 +64,25 @@ def create_onboarding_router() -> Router:
             await state.clear()
             return
 
-        # Генерация токена и сохранение вместе с tg_id и bot_token
+        # Генерируем и сохраняем токен вместе с tg_id и bot_token
         token = create_and_store_token(
             email,
             message.from_user.id,
             message.bot.token
         )
 
+        # Отправляем письмо с ссылкой на подтверждение
         try:
-            # Сохраняем черновую запись в telegram_users (verified=0)
-            await upsert_telegram_user(
-                message.from_user.id,
-                email,
-                token,
-                message.bot.token
-            )
-            # Отправляем письмо (синхронно)
             send_verification_email(email, token)
             logger.info(f"Письмо отправлено: {email}, токен: {token}")
-            await message.answer("✅ Письмо отправлено! Проверьте почту и перейдите по ссылке.")
+            await message.answer(
+                "✅ Письмо отправлено! Проверьте почту и перейдите по ссылке."
+            )
         except Exception as e:
             logger.exception(f"Ошибка при отправке письма на {email}: {e}")
             await message.answer("⚠️ Не удалось отправить письмо. Попробуйте позже.")
-            # В случае неуспеха удаляем черновую запись, чтобы не дать доступ
-            # (чтобы пользователь не остался в users без подтверждения)
-            # можно вызвать явную очистку:
-            # await some_cleanup_function(message.from_user.id, email)
 
-        # Очистка FSM
+        # Очистка FSM (пользователь снова стартует командой /start после письма)
         await state.clear()
         logger.debug(f"Состояние очищено для пользователя {message.from_user.id}")
 
