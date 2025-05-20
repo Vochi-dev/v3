@@ -226,9 +226,10 @@ async def confirm_upload(
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
+    # Найдём bot_token до удаления из таблицы!
     bot_token = None
 
-    # Сначала ищем bot_token через enterprise_users (как было)
+    # Пробуем сначала через enterprise_users
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
         cur2 = await db2.execute("""
@@ -236,12 +237,13 @@ async def delete_user(tg_id: int, request: Request):
             FROM enterprise_users u
             JOIN enterprises e ON u.enterprise_id = e.number
             WHERE u.telegram_id = ?
+            AND u.status = 'approved'
         """, (tg_id,))
         row2 = await cur2.fetchone()
         if row2 and row2["bot_token"]:
             bot_token = row2["bot_token"]
 
-    # Если не нашли, ищем bot_token в telegram_users (гарантировано будет!)
+    # Если не нашли, ищем bot_token в telegram_users ДО удаления!
     if not bot_token:
         async with aiosqlite.connect(DB_PATH) as db2:
             db2.row_factory = aiosqlite.Row
@@ -253,14 +255,7 @@ async def delete_user(tg_id: int, request: Request):
             if row2 and row2["bot_token"]:
                 bot_token = row2["bot_token"]
 
-    db = await get_connection()
-    try:
-        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
-        await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
-        await db.commit()
-    finally:
-        await db.close()
-
+    # Сначала отправляем сообщение!
     if bot_token:
         try:
             bot = AiogramBot(token=bot_token)
@@ -270,5 +265,14 @@ async def delete_user(tg_id: int, request: Request):
             )
         except Exception as e:
             logger.warning(f"Не удалось отправить сообщение об удалении пользователю {tg_id}: {e}")
+
+    # Только теперь удаляем пользователя из БД
+    db = await get_connection()
+    try:
+        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
+        await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
+        await db.commit()
+    finally:
+        await db.close()
 
     return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
