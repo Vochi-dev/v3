@@ -15,16 +15,13 @@ from fastapi import (
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from telegram import Bot
-from telegram.error import TelegramError
-
 from app.config import DB_PATH
 from app.routers.admin import require_login
 from app.services.db import get_connection
+from app.services.enterprise import send_message_to_bot  # <--- импортируем
 
 router = APIRouter(prefix="/admin/email-users", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
-
 logger = logging.getLogger("email_users")
 logger.setLevel(logging.DEBUG)
 
@@ -57,10 +54,8 @@ async def list_email_users(request: Request):
               ON ent_bot.bot_token = tu.bot_token
             ORDER BY eu.number, eu.email
         """
-        logger.debug("Executing SQL for list_email_users: %s", sql.strip())
         cur = await db.execute(sql)
         rows = await cur.fetchall()
-        logger.debug("Fetched %d rows from email_users", len(rows))
     finally:
         await db.close()
 
@@ -77,9 +72,8 @@ async def list_email_users(request: Request):
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
+    # 1) Получаем bot_token из telegram_users
     bot_token = None
-
-    # 1. Сначала пробуем найти bot_token в telegram_users
     async with aiosqlite.connect(DB_PATH) as db1:
         db1.row_factory = aiosqlite.Row
         cur1 = await db1.execute(
@@ -87,12 +81,11 @@ async def delete_user(tg_id: int, request: Request):
             (tg_id,)
         )
         row1 = await cur1.fetchone()
-        await cur1.close()
     if row1 and row1["bot_token"]:
         bot_token = row1["bot_token"]
         logger.info(f"[delete] bot_token найден в telegram_users: {bot_token}")
 
-    # 2. Если не нашли — пробуем enterprise_users
+    # 2) Если не нашли — пробуем enterprise_users
     if not bot_token:
         async with aiosqlite.connect(DB_PATH) as db2:
             db2.row_factory = aiosqlite.Row
@@ -104,28 +97,28 @@ async def delete_user(tg_id: int, request: Request):
                    AND u.status = 'approved'
             """, (tg_id,))
             row2 = await cur2.fetchone()
-            await cur2.close()
         if row2 and row2["bot_token"]:
             bot_token = row2["bot_token"]
             logger.info(f"[delete] bot_token найден в enterprise_users: {bot_token}")
 
-    # 3. Если нашли токен — отправляем уведомление
+    # 3) Отправляем уведомление через send_message_to_bot
     if bot_token:
-        bot = Bot(token=bot_token)
         try:
-            logger.info(f"[delete] Отправка уведомления об удалении пользователю {tg_id} через бот {bot_token}")
-            bot.send_message(chat_id=tg_id,
-                             text="❌ Ваш доступ к боту был отозван администратором.")
-            logger.info(f"[delete] Уведомление отправлено пользователю {tg_id}")
-        except TelegramError as e:
-            logger.warning(f"[delete] Ошибка при отправке уведомления пользователю {tg_id}: {e}")
-        finally:
-            # Закрываем HTTP-сессию python-telegram-bot
-            await bot.session.close()
+            sent = await send_message_to_bot(
+                bot_token,
+                tg_id,
+                "❌ Ваш доступ к боту был отозван администратором."
+            )
+            if sent:
+                logger.info(f"[delete] Уведомление об удалении успешно отправлено пользователю {tg_id}")
+            else:
+                logger.warning(f"[delete] Не удалось отправить уведомление пользователю {tg_id}")
+        except Exception as e:
+            logger.error(f"[delete] Ошибка при отправке уведомления пользователю {tg_id}: {e}")
     else:
-        logger.error(f"[delete] bot_token для пользователя {tg_id} не найден — уведомление не отправлено")
+        logger.error(f"[delete] Не найден bot_token, уведомление не отправлено")
 
-    # 4. Удаляем записи из БД
+    # 4) Удаляем из БД
     db = await get_connection()
     try:
         await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
