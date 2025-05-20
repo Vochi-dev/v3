@@ -9,8 +9,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 
 from app.services.email_verification import (
-    create_verification_token,
-    store_verification_token,
+    create_and_store_token,
     email_exists,
     email_already_verified,
     send_verification_email,
@@ -27,14 +26,14 @@ def create_onboarding_router() -> Router:
     router = Router(name="onboarding")
 
     @router.message(CommandStart())
-    async def cmd_start(message: Message, state: FSMContext) -> None:
+    async def cmd_start(message: Message, state: FSMContext):
         await message.answer("Привет! Введите ваш корпоративный e-mail:")
         await state.set_state(Signup.waiting_email)
 
     @router.message(Signup.waiting_email)
-    async def receive_email(message: Message, state: FSMContext) -> None:
+    async def receive_email(message: Message, state: FSMContext):
         email = message.text.strip().lower()
-        user_id = message.from_user.id
+        tg_id = message.from_user.id
         bot_token = message.bot.token
 
         # Валидация
@@ -52,15 +51,15 @@ def create_onboarding_router() -> Router:
             await state.clear()
             return
 
-        # Генерируем токен и сохраняем его (связь email → token + телеграм-id + bot_token)
-        token = create_verification_token(email)
-        await store_verification_token(user_id, email, bot_token, token)
+        # Генерим и сохраняем токен вместе с tg_id и bot_token
+        token = create_and_store_token(email, tg_id, bot_token)
 
-        # Пытаемся отправить письмо
+        # Отправляем письмо
         try:
             send_verification_email(email, token)
             await message.answer("✅ Письмо отправлено! Проверьте почту и перейдите по ссылке.")
         except Exception:
+            logger.exception("Ошибка при отправке письма")
             await message.answer("⚠️ Не удалось отправить письмо. Попробуйте позже.")
 
         await state.clear()

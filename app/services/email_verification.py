@@ -8,90 +8,57 @@ import datetime
 from email.message import EmailMessage
 
 import aiosqlite
-
 from app.config import settings
 
-# ────────────────────────────────────────────────────────────────────────────────
-# Создаём таблицу email_tokens, если её нет
-# ────────────────────────────────────────────────────────────────────────────────
+# — создаём/проверяем таблицу email_tokens с новыми колонками —
 _conn = sqlite3.connect(settings.DB_PATH)
 _cur = _conn.cursor()
 _cur.execute("""
     CREATE TABLE IF NOT EXISTS email_tokens (
         email       TEXT PRIMARY KEY,
-        token       TEXT NOT NULL,
-        created_at  TEXT NOT NULL
+        tg_id       INTEGER NOT NULL,
+        bot_token   TEXT    NOT NULL,
+        token       TEXT    NOT NULL,
+        created_at  TEXT    NOT NULL
     )
-""")
-# Добавим уникальный индекс для email в telegram_users (если нет)
-_cur.execute("""
-    CREATE UNIQUE INDEX IF NOT EXISTS ix_telegram_users_email ON telegram_users(email)
 """)
 _conn.commit()
 _conn.close()
 
 
-def create_verification_token(email: str) -> str:
-    """
-    Генерирует токен, сохраняет его в БД вместе с меткой времени и возвращает.
-    """
+def create_and_store_token(email: str, tg_id: int, bot_token: str) -> str:
     token = secrets.token_urlsafe(32)
     created_at = datetime.datetime.utcnow().isoformat()
     conn = sqlite3.connect(settings.DB_PATH)
     cur = conn.cursor()
     cur.execute(
-        "INSERT OR REPLACE INTO email_tokens (email, token, created_at) VALUES (?, ?, ?)",
-        (email, token, created_at)
+        "INSERT OR REPLACE INTO email_tokens (email, tg_id, bot_token, token, created_at) VALUES (?, ?, ?, ?, ?)",
+        (email, tg_id, bot_token, token, created_at)
     )
     conn.commit()
     conn.close()
     return token
 
 
-def get_email_by_token(token: str) -> str | None:
-    """
-    Возвращает email по токену, или None если не найден.
-    """
-    conn = sqlite3.connect(settings.DB_PATH)
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT email FROM email_tokens WHERE token = ?",
-        (token,)
-    )
-    row = cur.fetchone()
-    conn.close()
-    return row[0] if row else None
-
-
 def delete_token(token: str):
-    """
-    Удаляет использованный токен.
-    """
     conn = sqlite3.connect(settings.DB_PATH)
     cur = conn.cursor()
-    cur.execute(
-        "DELETE FROM email_tokens WHERE token = ?",
-        (token,)
-    )
+    cur.execute("DELETE FROM email_tokens WHERE token = ?", (token,))
     conn.commit()
     conn.close()
 
 
 def send_verification_email(email: str, token: str):
-    """
-    Отправляет письмо с ссылкой для подтверждения.
-    """
     link = f"{settings.VERIFY_URL_BASE}?token={token}"
     subject = "Подтверждение email"
     body = f"""Здравствуйте!
 
-Чтобы подтвердить ваш email, пожалуйста перейдите по ссылке:
+Чтобы подтвердить ваш email, пожалуйста перейдите по этой ссылке:
 
 {link}
 
-Если вы не запрашивали доступ — проигнорируйте это письмо.
+Если вы не запрашивали доступ — просто проигнорируйте это письмо.
 """
-
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = settings.EMAIL_FROM
@@ -110,79 +77,48 @@ def send_verification_email(email: str, token: str):
         raise RuntimeError(f"Ошибка отправки email: {e}")
 
 
-# ────────────────────────────────────────────────────────────────────────────────
-# Асинхронные функции для работы с telegram_users и проверки/подтверждения токена
-# ────────────────────────────────────────────────────────────────────────────────
-
 async def email_exists(email: str) -> bool:
     async with aiosqlite.connect(settings.DB_PATH) as db:
-        async with db.execute("SELECT 1 FROM email_users WHERE email = ?", (email,)) as cur:
-            return await cur.fetchone() is not None
+        cur = await db.execute("SELECT 1 FROM email_users WHERE email = ?", (email,))
+        return await cur.fetchone() is not None
 
 
 async def email_already_verified(email: str) -> bool:
     async with aiosqlite.connect(settings.DB_PATH) as db:
-        async with db.execute("SELECT verified FROM telegram_users WHERE email = ?", (email,)) as cur:
-            row = await cur.fetchone()
-            return bool(row and row[0] == 1)
+        cur = await db.execute("SELECT verified FROM telegram_users WHERE email = ?", (email,))
+        row = await cur.fetchone()
+        return bool(row and row[0] == 1)
 
 
 async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: str):
-    """
-    Вставляет или обновляет запись в telegram_users по уникальному email.
-    Если tg_id уже есть в другой строке — удаляет старую строку с этим tg_id.
-    """
     async with aiosqlite.connect(settings.DB_PATH) as db:
-        # 1. Удалить старую строку с таким tg_id (но с другим email)
-        await db.execute(
-            "DELETE FROM telegram_users WHERE tg_id = ? AND email != ?",
-            (tg_id, email)
-        )
-        # 2. Upsert по email (UNIQUE)
-        await db.execute(
-            """
+        # удалим старую запись с этим tg_id (если другой email)
+        await db.execute("DELETE FROM telegram_users WHERE tg_id = ? AND email != ?", (tg_id, email))
+        # вставим или обновим по email
+        await db.execute("""
             INSERT INTO telegram_users (tg_id, email, token, verified, bot_token)
-            VALUES (?, ?, ?, 0, ?)
+            VALUES (?, ?, ?, 1, ?)
             ON CONFLICT(email) DO UPDATE SET
                 tg_id    = excluded.tg_id,
                 token    = excluded.token,
-                verified = 0,
+                verified = 1,
                 bot_token = excluded.bot_token
-            """,
-            (tg_id, email, token, bot_token)
-        )
+        """, (tg_id, email, token, bot_token))
         await db.commit()
 
 
-async def mark_verified(token: str) -> tuple[bool, int | None]:
-    """
-    Проверяет токен, помечает telegram_users.verified = 1 и возвращает (True, tg_id).
-    Если токен не найден — (False, None).
-    """
-    # 1) найдём email по токену
-    email = get_email_by_token(token)
-    if not email:
-        return False, None
-
-    # 2) обновим запись telegram_users
+async def verify_token_and_register_user(token: str):
     async with aiosqlite.connect(settings.DB_PATH) as db:
-        # извлечём tg_id
-        async with db.execute(
-            "SELECT tg_id FROM telegram_users WHERE email = ?",
-            (email,)
-        ) as cur:
-            row = await cur.fetchone()
+        db.row_factory = aiosqlite.Row
+        row = await db.execute("SELECT email, tg_id, bot_token, created_at FROM email_tokens WHERE token = ?", (token,)).fetchone()
         if not row:
-            return False, None
-        tg_id = row[0]
-        # установим verified = 1
-        await db.execute(
-            "UPDATE telegram_users SET verified = 1 WHERE tg_id = ?",
-            (tg_id,)
-        )
+            raise RuntimeError("Токен не найден")
+        created = datetime.datetime.fromisoformat(row["created_at"])
+        if datetime.datetime.utcnow() - created > datetime.timedelta(hours=24):
+            raise RuntimeError("Токен устарел")
+
+        # регистрируем пользователя в telegram_users (verified=1)
+        await upsert_telegram_user(row["tg_id"], row["email"], token, row["bot_token"])
+        # удаляем токен
+        await db.execute("DELETE FROM email_tokens WHERE token = ?", (token,))
         await db.commit()
-
-    # 3) удалим токен
-    delete_token(token)
-
-    return True, tg_id
