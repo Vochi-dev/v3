@@ -1,5 +1,6 @@
 # app/routers/email_users.py
 # -*- coding: utf-8 -*-
+
 import csv
 import io
 import base64
@@ -69,23 +70,7 @@ async def list_email_users(request: Request):
     )
 
 
-@router.post("/upload", response_class=HTMLResponse)
-async def upload_email_users(
-    request: Request,
-    file: UploadFile = File(...),
-):
-    require_login(request)
-    # ... (код загрузки CSV без изменений) ...
-
-
-@router.post("/upload/confirm", response_class=RedirectResponse)
-async def confirm_upload(
-    request: Request,
-    csv_b64: str = Form(...),
-    confirm: str   = Form(...)
-):
-    require_login(request)
-    # ... (код подтверждения синхронизации без изменений) ...
+# ... ваши upload / confirm handlers без изменений ...
 
 
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
@@ -94,7 +79,7 @@ async def delete_user(tg_id: int, request: Request):
 
     bot_token = None
 
-    # 1. Сначала пытаемся получить bot_token из telegram_users
+    # 1. Сначала пробуем найти bot_token в telegram_users
     async with aiosqlite.connect(DB_PATH) as db1:
         db1.row_factory = aiosqlite.Row
         cur1 = await db1.execute(
@@ -102,11 +87,12 @@ async def delete_user(tg_id: int, request: Request):
             (tg_id,)
         )
         row1 = await cur1.fetchone()
-        if row1 and row1["bot_token"]:
-            bot_token = row1["bot_token"]
-            logger.info(f"bot_token найден в telegram_users: {bot_token}")
+        await cur1.close()
+    if row1 and row1["bot_token"]:
+        bot_token = row1["bot_token"]
+        logger.info(f"[delete] bot_token найден в telegram_users: {bot_token}")
 
-    # 2. Если не нашли, пробуем enterprise_users
+    # 2. Если не нашли — пробуем enterprise_users
     if not bot_token:
         async with aiosqlite.connect(DB_PATH) as db2:
             db2.row_factory = aiosqlite.Row
@@ -118,34 +104,34 @@ async def delete_user(tg_id: int, request: Request):
                    AND u.status = 'approved'
             """, (tg_id,))
             row2 = await cur2.fetchone()
-            if row2 and row2["bot_token"]:
-                bot_token = row2["bot_token"]
-                logger.info(f"bot_token найден в enterprise_users: {bot_token}")
+            await cur2.close()
+        if row2 and row2["bot_token"]:
+            bot_token = row2["bot_token"]
+            logger.info(f"[delete] bot_token найден в enterprise_users: {bot_token}")
 
-    # 3. Отправляем уведомление об отзыве доступа, если bot_token есть
+    # 3. Если нашли токен — отправляем уведомление
     if bot_token:
         bot = Bot(token=bot_token)
         try:
-            logger.info(f"Отправка уведомления об удалении пользователю {tg_id} через бот {bot_token}")
-            await bot.send_message(
-                chat_id=tg_id,
-                text="❌ Ваш доступ к боту был отозван администратором."
-            )
+            logger.info(f"[delete] Отправка уведомления об удалении пользователю {tg_id} через бот {bot_token}")
+            bot.send_message(chat_id=tg_id,
+                             text="❌ Ваш доступ к боту был отозван администратором.")
+            logger.info(f"[delete] Уведомление отправлено пользователю {tg_id}")
         except TelegramError as e:
-            logger.warning(f"Не удалось отправить уведомление пользователю {tg_id}: {e}")
+            logger.warning(f"[delete] Ошибка при отправке уведомления пользователю {tg_id}: {e}")
         finally:
-            # Закрываем HTTP-сессию бота
+            # Закрываем HTTP-сессию python-telegram-bot
             await bot.session.close()
     else:
-        logger.error(f"bot_token для пользователя {tg_id} не найден — сообщение не отправлено")
+        logger.error(f"[delete] bot_token для пользователя {tg_id} не найден — уведомление не отправлено")
 
-    # 4. Наконец, удаляем пользователя из БД
+    # 4. Удаляем записи из БД
     db = await get_connection()
     try:
         await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
         await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
         await db.commit()
-        logger.info(f"Пользователь {tg_id} удалён из БД")
+        logger.info(f"[delete] Пользователь {tg_id} удалён из БД")
     finally:
         await db.close()
 
