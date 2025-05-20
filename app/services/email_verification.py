@@ -132,12 +132,10 @@ async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: st
     Вставляет или обновляет запись в telegram_users после верификации.
     """
     async with aiosqlite.connect(settings.DB_PATH) as db:
-        # 1) Удаляем старую строку с этим tg_id, если email другой
         await db.execute(
             "DELETE FROM telegram_users WHERE tg_id = ? AND email != ?",
             (tg_id, email)
         )
-        # 2) Upsert по email
         await db.execute(
             """
             INSERT INTO telegram_users (tg_id, email, token, verified, bot_token)
@@ -161,11 +159,12 @@ async def verify_token_and_register_user(token: str) -> None:
     # 1) читаем токен
     async with aiosqlite.connect(settings.DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        row = await db.execute(
+        cur = await db.execute(
             "SELECT email, tg_id, bot_token, created_at "
             "FROM email_tokens WHERE token = ?",
             (token,)
-        ).fetchone()
+        )
+        row = await cur.fetchone()
 
     if not row:
         raise RuntimeError("Токен не найден или неверен.")
