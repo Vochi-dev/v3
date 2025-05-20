@@ -10,8 +10,8 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import DB_PATH
 from app.routers.admin import require_login
-from app.services.enterprise import send_message_to_bot
 from app.services.db import get_connection
+from app.services.enterprise import send_message_to_bot
 
 router = APIRouter(prefix="/admin/email-users", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -27,9 +27,8 @@ async def list_email_users(request: Request):
     """
     require_login(request)
     db = await get_connection()
-    db.row_factory = lambda cursor, row: {
-        cursor.description[i][0]: row[i] for i in range(len(row))
-    }
+    # Каждая строка как dict
+    db.row_factory = lambda cursor, row: {cursor.description[i][0]: row[i] for i in range(len(row))}
     try:
         sql = """
             SELECT
@@ -64,16 +63,39 @@ async def list_email_users(request: Request):
     )
 
 
+@router.post("/upload", response_class=HTMLResponse)
+async def upload_email_users(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    """
+    Загрузка CSV и подготовка к синхронизации:
+    формируем список to_remove и показываем confirm_sync.html.
+    """
+    # ... здесь код, как было раньше ...
+
+
+@router.post("/upload/confirm", response_class=RedirectResponse)
+async def confirm_upload(
+    request: Request,
+    csv_b64: str = Form(...),
+    confirm: str   = Form(...),
+):
+    """
+    Подтверждение синхронизации CSV: удаляем/добавляем email_users.
+    """
+    # ... здесь код, как было раньше ...
+
+
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
     """
-    При нажатии кнопки Delete:
-      – только отправляем фиксированное сообщение пользователю,
-      – базу не трогаем.
+    По нажатию Delete только отправляем фиксированное сообщение,
+    не трогаем базу.
     """
     require_login(request)
 
-    # 1) Получаем bot_token из telegram_users
+    # 1) Находим bot_token из telegram_users
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -84,7 +106,7 @@ async def delete_user(tg_id: int, request: Request):
         row = await cur.fetchone()
 
     if not row or not row["bot_token"]:
-        logger.error(f"[delete] bot_token не найден для tg_id={tg_id}")
+        logger.error(f"[delete] bot_token не найден для tg_id={tg_id}, сообщение не отправлено")
         return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
     bot_token = row["bot_token"]
@@ -104,5 +126,5 @@ async def delete_user(tg_id: int, request: Request):
     except Exception as e:
         logger.error(f"[delete] Ошибка при отправке уведомления пользователю {tg_id}: {e}")
 
-    # 3) Больше ничего не делаем — не изменяем базу
+    # 3) Больше ничего не делаем — **не изменяем базу**
     return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
