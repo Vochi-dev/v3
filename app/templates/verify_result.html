@@ -1,0 +1,23 @@
+<!-- app/templates/verify_result.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Подтверждение e-mail</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; text-align: center; }
+    .ok { color: green; }
+    .error { color: red; }
+    a { text-decoration: none; color: #0066cc; }
+  </style>
+</head>
+<body>
+  {% if success %}
+    <h1 class="ok">✅ {{ message }}</h1>
+    <p>Можете закрыть эту страницу и вернуться к боту.</p>
+  {% else %}
+    <h1 class="error">❌ {{ message }}</h1>
+    <p>Если нужно, <a href="https://t.me/YourBotUsername">вернитесь в бот</a> или обратитесь к администратору.</p>
+  {% endif %}
+</body>
+</html>
