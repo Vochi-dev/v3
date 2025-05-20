@@ -9,7 +9,18 @@
     th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
     th { background: #f0f0f0; }
     .danger { color: #dc3545; text-decoration: none; }
+    .msg-form td { background: #f9f9f9; }
   </style>
+  <script>
+    function confirmSend(form) {
+      const txt = form.querySelector('input[name="message"]').value.trim();
+      if (!txt) {
+        alert("Введите сообщение.");
+        return false;
+      }
+      return confirm("Отправить сообщение пользователю?");
+    }
+  </script>
 </head>
 <body>
   <h1>Пользователи по e-mail</h1>
@@ -28,20 +39,25 @@
         <th>Все права</th>
         <th>Право 1</th>
         <th>Право 2</th>
-        <th>Unit</th>  <!-- остался тот же заголовок -->
+        <th>Unit</th>
         <th>Удалить</th>
       </tr>
     </thead>
     <tbody>
       {% for u in email_users %}
         <tr>
-          <td>{{ u.tg_id or '—' }}</td>
+          <td>
+            {% if u.tg_id %}
+              <a href="?selected={{ u.tg_id }}">{{ u.tg_id }}</a>
+            {% else %}
+              —
+            {% endif %}
+          </td>
           <td>{{ u.email }}</td>
           <td>{{ u.name or '' }}</td>
           <td>{{ u.right_all }}</td>
           <td>{{ u.right_1 }}</td>
           <td>{{ u.right_2 }}</td>
-          <!-- вот здесь ставим дефолтный '—', если enterprise_name пуст -->
           <td>{{ u.enterprise_name or '—' }}</td>
           <td>
             {% if u.tg_id %}
@@ -51,6 +67,28 @@
             {% endif %}
           </td>
         </tr>
+        {% if selected_tg == u.tg_id %}
+          <tr class="msg-form">
+            <td colspan="8">
+              <form 
+                action="/admin/email-users/message/{{ u.tg_id }}" 
+                method="post" 
+                onsubmit="return confirmSend(this)"
+              >
+                <label>Сообщение пользователю {{ u.tg_id }}:</label>
+                <input 
+                  type="text" 
+                  name="message" 
+                  style="width:80%;" 
+                  placeholder="Введите текст…"
+                  required
+                />
+                <button type="submit">Отправить</button>
+                <a href="/admin/email-users" style="margin-left:1rem;">Отмена</a>
+              </form>
+            </td>
+          </tr>
+        {% endif %}
       {% endfor %}
     </tbody>
   </table>
