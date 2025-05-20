@@ -15,7 +15,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from aiogram import Bot as AiogramBot
-from telegram.error import TelegramError
 
 from app.config import DB_PATH
 from app.routers.admin import require_login
@@ -189,12 +188,13 @@ async def confirm_upload(
                 await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
                 try:
                     bot = AiogramBot(token=bot_token)
+                    logger.info(f"Отправляю сообщение об удалении пользователю {tg_id} через бота {bot_token}")
                     await bot.send_message(
                         chat_id=int(tg_id),
                         text="⛔️ Ваш доступ был отозван администратором."
                     )
-                except TelegramError:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Ошибка при отправке сообщения об удалении {tg_id}: {e}")
 
         # 2) Пересинхронизируем email_users
         await db.execute("DELETE FROM email_users")
@@ -259,6 +259,7 @@ async def delete_user(tg_id: int, request: Request):
     if bot_token:
         try:
             bot = AiogramBot(token=bot_token)
+            logger.info(f"Отправляю сообщение об удалении пользователю {tg_id} через бота {bot_token}")
             await bot.send_message(
                 chat_id=tg_id,
                 text="❌ Ваш доступ к боту был отозван администратором."
