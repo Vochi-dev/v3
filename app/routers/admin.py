@@ -263,7 +263,9 @@ async def send_message(number: str, request: Request):
 async def email_users_page(request: Request):
     """
     Теперь показывает ВСЕ записи из email_users (даже без tg_id),
-    подтягивает tg_id (если есть) и Unit (название предприятия) из enterprise_users.
+    подтягивает tg_id (если есть) и определяет Unit:
+      — сначала по approved записи в enterprise_users,
+      — иначе по bot_token из telegram_users.
     """
     require_login(request)
     logger.debug("Display email_users page")
@@ -280,14 +282,25 @@ async def email_users_page(request: Request):
           eu.right_1              AS right_1,
           eu.right_2              AS right_2,
           tu.tg_id                AS tg_id,
-          COALESCE(ent.name, '')  AS enterprise_name
+          COALESCE(ent_app.name,
+                   ent_bot.name,
+                   '')               AS enterprise_name
         FROM email_users eu
+
         LEFT JOIN telegram_users tu
           ON tu.email = eu.email
-        LEFT JOIN enterprise_users ue
-          ON ue.telegram_id = tu.tg_id
-        LEFT JOIN enterprises ent
-          ON ent.number = ue.enterprise_id
+
+        -- первый приоритет: официальная связь через enterprise_users
+        LEFT JOIN enterprise_users ue_app
+          ON ue_app.telegram_id = tu.tg_id
+          AND ue_app.status = 'approved'
+        LEFT JOIN enterprises ent_app
+          ON ent_app.number = ue_app.enterprise_id
+
+        -- второй приоритет: на основе bot_token
+        LEFT JOIN enterprises ent_bot
+          ON ent_bot.bot_token = tu.bot_token
+
         ORDER BY eu.number, eu.email
     """
     logger.debug("Executing SQL: %s", sql.replace("\n", " "))
