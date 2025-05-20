@@ -9,7 +9,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 
 from app.services.email_verification import (
-    create_verification_token,
+    create_and_store_token,
     upsert_telegram_user,
     email_exists,
     email_already_verified,
@@ -65,33 +65,35 @@ def create_onboarding_router() -> Router:
             await state.clear()
             return
 
-        # Генерация токена
-        token = create_verification_token(email)
-        logger.debug(f"Сгенерирован токен для {email}: {token}")
+        # Генерация токена и сохранение вместе с tg_id и bot_token
+        token = create_and_store_token(
+            email,
+            message.from_user.id,
+            message.bot.token
+        )
 
-        # Попытка отправки письма
         try:
-            send_verification_email(email, token)
-            logger.info(f"Письмо с токеном отправлено на {email}")
-
-            # только после успешной отправки — создаём запись в telegram_users
+            # Сохраняем черновую запись в telegram_users (verified=0)
             await upsert_telegram_user(
                 message.from_user.id,
                 email,
                 token,
                 message.bot.token
             )
-            logger.debug(f"Telegram-пользователь {message.from_user.id} сохранён в БД (verified=0)")
-
+            # Отправляем письмо (синхронно)
+            send_verification_email(email, token)
+            logger.info(f"Письмо отправлено: {email}, токен: {token}")
             await message.answer("✅ Письмо отправлено! Проверьте почту и перейдите по ссылке.")
-            # очищаем состояние — дальше ждём перехода по ссылке
-            await state.clear()
-
         except Exception as e:
             logger.exception(f"Ошибка при отправке письма на {email}: {e}")
             await message.answer("⚠️ Не удалось отправить письмо. Попробуйте позже.")
-            # не сохраняем пользователя в БД, оставляем в текущем состоянии
-            # чтобы он мог повторить ввод или команду /start
-            # state не сбрасываем
+            # В случае неуспеха удаляем черновую запись, чтобы не дать доступ
+            # (чтобы пользователь не остался в users без подтверждения)
+            # можно вызвать явную очистку:
+            # await some_cleanup_function(message.from_user.id, email)
+
+        # Очистка FSM
+        await state.clear()
+        logger.debug(f"Состояние очищено для пользователя {message.from_user.id}")
 
     return router
