@@ -10,7 +10,6 @@ from email.message import EmailMessage
 import aiosqlite
 
 from app.config import settings
-from app.services.email_verification import upsert_telegram_user  # если upsert в этом модуле, поправьте импорт
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Инициализация таблицы email_tokens
@@ -25,6 +24,11 @@ _cur.execute("""
         token       TEXT    NOT NULL,
         created_at  TEXT    NOT NULL
     )
+""")
+# Обеспечим уникальность email в telegram_users
+_cur.execute("""
+    CREATE UNIQUE INDEX IF NOT EXISTS ix_telegram_users_email
+      ON telegram_users(email)
 """)
 _conn.commit()
 _conn.close()
@@ -95,10 +99,13 @@ def send_verification_email(email: str, token: str):
 
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Асинхронные функции для работы с telegram_users и проверкой токена
+# Асинхронные функции для telegram_users и проверки токена
 # ────────────────────────────────────────────────────────────────────────────────
 
 async def email_exists(email: str) -> bool:
+    """
+    Проверяет, есть ли email в таблице email_users.
+    """
     async with aiosqlite.connect(settings.DB_PATH) as db:
         cur = await db.execute(
             "SELECT 1 FROM email_users WHERE email = ?",
@@ -108,6 +115,9 @@ async def email_exists(email: str) -> bool:
 
 
 async def email_already_verified(email: str) -> bool:
+    """
+    Проверяет, помечён ли email в telegram_users.
+    """
     async with aiosqlite.connect(settings.DB_PATH) as db:
         cur = await db.execute(
             "SELECT verified FROM telegram_users WHERE email = ?",
@@ -119,23 +129,23 @@ async def email_already_verified(email: str) -> bool:
 
 async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: str):
     """
-    Вставляет или обновляет telegram_users только после верификации.
+    Вставляет или обновляет запись в telegram_users после верификации.
     """
     async with aiosqlite.connect(settings.DB_PATH) as db:
-        # удаляем старую строку с таким tg_id (если другой email)
+        # 1) Удаляем старую строку с этим tg_id, если email другой
         await db.execute(
             "DELETE FROM telegram_users WHERE tg_id = ? AND email != ?",
             (tg_id, email)
         )
-        # upsert по email
+        # 2) Upsert по email
         await db.execute(
             """
             INSERT INTO telegram_users (tg_id, email, token, verified, bot_token)
             VALUES (?, ?, ?, 1, ?)
             ON CONFLICT(email) DO UPDATE SET
-                tg_id    = excluded.tg_id,
-                token    = excluded.token,
-                verified = 1,
+                tg_id     = excluded.tg_id,
+                token     = excluded.token,
+                verified  = 1,
                 bot_token = excluded.bot_token
             """,
             (tg_id, email, token, bot_token)
@@ -145,23 +155,25 @@ async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: st
 
 async def verify_token_and_register_user(token: str) -> None:
     """
-    Проверяет токен, регистрирует пользователя в telegram_users и удаляет токен.
+    Проверяет токен, если он валиден и не старше 24 часов — регистрирует
+    пользователя в telegram_users (verified=1) и удаляет токен.
     """
-    # 1) читаем запись из email_tokens
+    # 1) читаем токен
     async with aiosqlite.connect(settings.DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         row = await db.execute(
-            "SELECT email, tg_id, bot_token, created_at FROM email_tokens WHERE token = ?",
+            "SELECT email, tg_id, bot_token, created_at "
+            "FROM email_tokens WHERE token = ?",
             (token,)
         ).fetchone()
 
     if not row:
         raise RuntimeError("Токен не найден или неверен.")
 
-    # 2) проверяем возраст токена (24 часа)
+    # 2) проверяем время жизни (24 часа)
     created = datetime.datetime.fromisoformat(row["created_at"])
     if datetime.datetime.utcnow() - created > datetime.timedelta(hours=24):
-        raise RuntimeError("Токен устарел. Запросите подтверждение снова.")
+        raise RuntimeError("Токен устарел. Запросите письмо повторно.")
 
     # 3) регистрируем в telegram_users
     await upsert_telegram_user(
