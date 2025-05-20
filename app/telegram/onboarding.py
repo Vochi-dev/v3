@@ -24,16 +24,14 @@ class Signup(StatesGroup):
 
 def create_onboarding_router() -> Router:
     """
-    Создаёт и возвращает новый Router со всеми хэндлерами
-    для онбординга пользователя.
+    Создаёт Router с хэндлерами для онбординга пользователя через e-mail.
     """
     router = Router(name="onboarding")
 
     @router.message(CommandStart())
     async def cmd_start(message: Message, state: FSMContext) -> None:
         logger.info(
-            f"/start от пользователя: {message.from_user.id} "
-            f"({message.from_user.username})"
+            f"/start от пользователя: {message.from_user.id} ({message.from_user.username})"
         )
         await message.answer("Привет! Введите ваш корпоративный e-mail:")
         await state.set_state(Signup.waiting_email)
@@ -42,36 +40,35 @@ def create_onboarding_router() -> Router:
     @router.message(Signup.waiting_email)
     async def receive_email(message: Message, state: FSMContext) -> None:
         email = message.text.strip().lower()
-        logger.info(f"Получен e-mail от {message.from_user.id}: {email}")
+        user_id = message.from_user.id
+        bot_token = message.bot.token
 
-        # Простая валидация формата
+        logger.info(f"Получен e-mail от {user_id}: {email}")
+
+        # 1) Простая валидация
         if "@" not in email or "." not in email:
-            logger.warning(f"Невалидный email от {message.from_user.id}: {email}")
+            logger.warning(f"Невалидный email от {user_id}: {email}")
             await message.answer("Это не похоже на e-mail. Попробуйте ещё раз:")
             return
 
-        # Проверка в БД: такой e-mail должен быть в таблице email_users
+        # 2) Проверка, что e-mail есть в списке разрешённых
         if not await email_exists(email):
             logger.warning(f"Не найден email в базе: {email}")
             await message.answer("⛔️ Такой e-mail не найден. Обратитесь к администратору.")
             await state.clear()
             return
 
-        # Проверка, не подтверждён ли уже
+        # 3) Проверка, не был ли он уже подтверждён
         if await email_already_verified(email):
             logger.warning(f"Email уже подтверждён ранее: {email}")
             await message.answer("⛔️ Этот e-mail уже подтверждён в другом боте.")
             await state.clear()
             return
 
-        # Генерируем и сохраняем токен вместе с tg_id и bot_token
-        token = create_and_store_token(
-            email,
-            message.from_user.id,
-            message.bot.token
-        )
+        # 4) Генерируем и сохраняем токен (но НЕ регистрируем ещё в telegram_users)
+        token = create_and_store_token(email, user_id, bot_token)
 
-        # Отправляем письмо с ссылкой на подтверждение
+        # 5) Отправляем письмо с ссылкой на подтверждение
         try:
             send_verification_email(email, token)
             logger.info(f"Письмо отправлено: {email}, токен: {token}")
@@ -82,8 +79,8 @@ def create_onboarding_router() -> Router:
             logger.exception(f"Ошибка при отправке письма на {email}: {e}")
             await message.answer("⚠️ Не удалось отправить письмо. Попробуйте позже.")
 
-        # Очистка FSM (пользователь снова стартует командой /start после письма)
+        # 6) Завершаем FSM — пользователь должен снова /start после письма
         await state.clear()
-        logger.debug(f"Состояние очищено для пользователя {message.from_user.id}")
+        logger.debug(f"Состояние очищено для пользователя {user_id}")
 
     return router
