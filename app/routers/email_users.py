@@ -34,6 +34,7 @@ async def list_email_users(
 ):
     require_login(request)
     db = await get_connection()
+    # вернём словари
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     try:
         sql = """
@@ -81,7 +82,7 @@ async def message_user(
     request: Request = None
 ):
     require_login(request)
-    # отправка одному пользователю
+    # отправляем одному пользователю
     db = await get_connection()
     try:
         row = await db.execute(
@@ -198,8 +199,8 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
                     row.get("email"),
                     row.get("name"),
                     int(row.get("right_all") or 0),
-                    int(row.get("right_1")   or 0),
-                    int(row.get("right_2")   or 0),
+                    int(row.get("right_1") or 0),
+                    int(row.get("right_2") or 0),
                 )
             )
         await db.commit()
@@ -213,13 +214,13 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
 async def confirm_upload(
     request: Request,
     csv_b64: str = Form(...),
-    confirm: str   = Form(...)
+    confirm: str = Form(...)
 ):
     require_login(request)
     if confirm != "yes":
         return RedirectResponse("/admin/email-users", status_code=303)
 
-    raw  = base64.b64decode(csv_b64.encode())
+    raw = base64.b64decode(csv_b64.encode())
     text = raw.decode("utf-8-sig")
     new_set = {
         r["email"].strip().lower()
@@ -234,22 +235,19 @@ async def confirm_upload(
         rows = await cur.fetchall()
 
         for row in rows:
-            email     = (row["email"] or "").strip().lower()
-            tg_id     = row["tg_id"]
+            email = (row["email"] or "").strip().lower()
+            tg_id = row["tg_id"]
             bot_token = row["bot_token"]
             if email and email not in new_set and tg_id and bot_token:
-                # 1) уведомляем
                 await send_message_to_bot(
                     bot_token,
                     tg_id,
                     "❌ Ваш доступ к боту был отозван администратором."
                 )
-                # 2) удаляем все следы
-                await db.execute("DELETE FROM telegram_users    WHERE tg_id = ?",      (tg_id,))
-                await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?",(tg_id,))
-                await db.execute("DELETE FROM email_users       WHERE email = ?",      (email,))
+                await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
+                await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
+                await db.execute("DELETE FROM email_users WHERE email = ?", (email,))
 
-        # 3) теперь перезаписываем email_users
         await db.execute("DELETE FROM email_users")
         reader = csv.DictReader(io.StringIO(text))
         for r in reader:
@@ -263,8 +261,8 @@ async def confirm_upload(
                     r.get("email"),
                     r.get("name"),
                     int(r.get("right_all") or 0),
-                    int(r.get("right_1")   or 0),
-                    int(r.get("right_2")   or 0),
+                    int(r.get("right_1") or 0),
+                    int(r.get("right_2") or 0),
                 )
             )
 
@@ -305,11 +303,11 @@ async def delete_user(tg_id: int, request: Request):
     except Exception as e:
         logger.warning(f"[delete] не удалось отправить уведомление {tg_id}: {e}")
 
-    # 3) удаляем все следы пользователя
+    # 3) удаляем все следы
     db2 = await get_connection()
     try:
-        await db2.execute("DELETE FROM telegram_users    WHERE tg_id = ?",      (tg_id,))
-        await db2.execute("DELETE FROM enterprise_users WHERE telegram_id = ?",(tg_id,))
+        await db2.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
+        await db2.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
         await db2.execute(
             "DELETE FROM email_users WHERE email IN (SELECT email FROM telegram_users WHERE tg_id = ?)",
             (tg_id,)
