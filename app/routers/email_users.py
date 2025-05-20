@@ -226,10 +226,9 @@ async def confirm_upload(
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
-    # Найдём bot_token до удаления из таблицы!
     bot_token = None
 
-    # Пробуем сначала через enterprise_users
+    # 1. Пробуем через enterprise_users
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
         cur2 = await db2.execute("""
@@ -242,8 +241,11 @@ async def delete_user(tg_id: int, request: Request):
         row2 = await cur2.fetchone()
         if row2 and row2["bot_token"]:
             bot_token = row2["bot_token"]
+            logger.info(f"Нашли bot_token через enterprise_users: {bot_token}")
+        else:
+            logger.info("bot_token не найден через enterprise_users")
 
-    # Если не нашли, ищем bot_token в telegram_users ДО удаления!
+    # 2. Пробуем через telegram_users ДО удаления
     if not bot_token:
         async with aiosqlite.connect(DB_PATH) as db2:
             db2.row_factory = aiosqlite.Row
@@ -254,9 +256,14 @@ async def delete_user(tg_id: int, request: Request):
             row2 = await cur2.fetchone()
             if row2 and row2["bot_token"]:
                 bot_token = row2["bot_token"]
+                logger.info(f"Нашли bot_token через telegram_users: {bot_token}")
+            else:
+                logger.info("bot_token не найден через telegram_users")
 
-    # Сначала отправляем сообщение!
-    if bot_token:
+    # 3. Если всё равно нет bot_token — ЛОГГИРУЕМ и не шлём ничего!
+    if not bot_token:
+        logger.error(f"Не удалось найти bot_token для пользователя {tg_id}, сообщение не отправлено!")
+    else:
         try:
             bot = AiogramBot(token=bot_token)
             logger.info(f"Отправляю сообщение об удалении пользователю {tg_id} через бота {bot_token}")
@@ -267,7 +274,7 @@ async def delete_user(tg_id: int, request: Request):
         except Exception as e:
             logger.warning(f"Не удалось отправить сообщение об удалении пользователю {tg_id}: {e}")
 
-    # Только теперь удаляем пользователя из БД
+    # 4. Только теперь удаляем пользователя из БД!
     db = await get_connection()
     try:
         await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
