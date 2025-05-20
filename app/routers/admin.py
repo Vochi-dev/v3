@@ -8,7 +8,7 @@ import io
 import base64
 from datetime import datetime
 
-import aiosqlite                          # ← добавлено
+import aiosqlite
 from fastapi import (
     APIRouter, Request, Form, status, HTTPException,
     File, UploadFile
@@ -20,7 +20,7 @@ from fastapi.templating import Jinja2Templates
 from telegram import Bot
 from telegram.error import TelegramError
 
-from app.config import ADMIN_PASSWORD, DB_PATH  # ← добавлено DB_PATH
+from app.config import ADMIN_PASSWORD, DB_PATH
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
 from app.services.enterprise import send_message_to_bot
@@ -263,13 +263,15 @@ async def send_message(number: str, request: Request):
 async def email_users_page(request: Request):
     """
     Теперь показывает ВСЕ записи из email_users (даже без tg_id),
-    подтягивает tg_id (если есть) и Unit (если зарегистрирован в enterprise_users).
+    подтягивает tg_id (если есть) и Unit (approved-запись из enterprise_users).
     """
     require_login(request)
     logger.debug("Display email_users page")
 
-    db = await get_connection()
-    db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
+    # подключаем sqlite напрямую, чтобы использовать row_factory=Row
+    db = await aiosqlite.connect(DB_PATH)
+    db.row_factory = aiosqlite.Row
+
     sql = """
         SELECT
           eu.number               AS number,
@@ -281,12 +283,16 @@ async def email_users_page(request: Request):
           tu.tg_id                AS tg_id,
           COALESCE(ent.name, '')  AS enterprise_name
         FROM email_users eu
-        LEFT JOIN telegram_users tu ON tu.email = eu.email
-        LEFT JOIN enterprise_users ue ON ue.telegram_id = tu.tg_id
-        LEFT JOIN enterprises ent ON ent.number = ue.enterprise_id
+        LEFT JOIN telegram_users tu
+          ON tu.email = eu.email
+        LEFT JOIN enterprise_users ue
+          ON ue.telegram_id = tu.tg_id
+         AND ue.status = 'approved'
+        LEFT JOIN enterprises ent
+          ON ent.number = ue.enterprise_id
         ORDER BY eu.number, eu.email
     """
-    logger.debug("Executing SQL: %s", sql)
+    logger.debug("Executing SQL: %s", sql.replace("\n", " "))
     cur = await db.execute(sql)
     rows = await cur.fetchall()
     logger.debug("Fetched %d email_users rows", len(rows))
@@ -374,7 +380,6 @@ async def upload_email_users(
             await db2.close()
 
         return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
-
 
     # ——— Шаг 2: подтверждение удаления старых ———
     raw = base64.b64decode(csv_b64.encode())
