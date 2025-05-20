@@ -26,16 +26,10 @@ templates = Jinja2Templates(directory="app/templates")
 logger = logging.getLogger("email_users")
 logger.setLevel(logging.DEBUG)
 
-
 @router.get("", response_class=HTMLResponse)
 async def list_email_users(request: Request):
-    """
-    Показывает ВСЕ записи из email_users (даже новые из CSV),
-    подтягивает tg_id (если есть) и Unit из enterprise_users→enterprises.
-    """
     require_login(request)
     db = await get_connection()
-    # чтобы строки были dict-like по именам колонок
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     try:
         sql = """
@@ -51,13 +45,11 @@ async def list_email_users(request: Request):
             FROM email_users eu
             LEFT JOIN telegram_users tu
               ON tu.email = eu.email
-            -- приоритет 1: одобренные в enterprise_users
             LEFT JOIN enterprise_users ue_app
               ON ue_app.telegram_id = tu.tg_id
               AND ue_app.status = 'approved'
             LEFT JOIN enterprises ent_app
               ON ent_app.number = ue_app.enterprise_id
-            -- приоритет 2: по bot_token
             LEFT JOIN enterprises ent_bot
               ON ent_bot.bot_token = tu.bot_token
             ORDER BY eu.number, eu.email
@@ -74,7 +66,6 @@ async def list_email_users(request: Request):
         {"request": request, "email_users": rows}
     )
 
-
 @router.post("/upload", response_class=HTMLResponse)
 async def upload_email_users(
     request: Request,
@@ -84,13 +75,11 @@ async def upload_email_users(
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Файл должен быть в формате CSV")
 
-    # Читаем CSV
     content = await file.read()
     text = content.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
     new_emails = {row["email"].strip().lower() for row in reader if row.get("email")}
 
-    # Берём текущие email_users + telegram_users
     db = await get_connection()
     try:
         cur = await db.execute("""
@@ -106,7 +95,6 @@ async def upload_email_users(
     for r in old:
         email = (r["email"] or "").strip().lower()
         if email and email not in new_emails:
-            # Узнаём unit по bot_token
             unit = ""
             if r["bot_token"]:
                 db2 = await get_connection()
@@ -126,7 +114,6 @@ async def upload_email_users(
             })
 
     if to_remove:
-        # Если кто-то выпадет — показываем confirmation
         csv_b64 = base64.b64encode(text.encode()).decode()
         return templates.TemplateResponse(
             "confirm_sync.html",
@@ -134,7 +121,6 @@ async def upload_email_users(
             status_code=status.HTTP_200_OK
         )
 
-    # Иначе — сразу обновляем email_users
     db = await get_connection()
     try:
         await db.execute("DELETE FROM email_users")
@@ -160,7 +146,6 @@ async def upload_email_users(
 
     return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
-
 @router.post("/upload/confirm", response_class=RedirectResponse)
 async def confirm_upload(
     request: Request,
@@ -177,7 +162,6 @@ async def confirm_upload(
     except Exception:
         raise HTTPException(status_code=400, detail="Неверные данные CSV")
 
-    # Новый набор e-mail
     new_set = {
         r["email"].strip().lower()
         for r in csv.DictReader(io.StringIO(text))
@@ -186,7 +170,6 @@ async def confirm_upload(
 
     db = await get_connection()
     try:
-        # 1) Удаляем из telegram_users пропавшие e-mail, уведомляем
         cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
         rows = await cur.fetchall()
         for row in rows:
@@ -206,7 +189,6 @@ async def confirm_upload(
                     except Exception as e:
                         logger.warning(f"Ошибка при отправке сообщения об удалении {tg_id}: {e}")
 
-        # 2) Пересинхронизируем email_users
         await db.execute("DELETE FROM email_users")
         await db.commit()
         reader = csv.DictReader(io.StringIO(text))
@@ -231,12 +213,11 @@ async def confirm_upload(
 
     return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
-
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
-    # 1. Сначала найдём bot_token в telegram_users
+    # 1. Сначала ищем bot_token в telegram_users
     bot_token = None
     email = None
 
@@ -254,7 +235,7 @@ async def delete_user(tg_id: int, request: Request):
         else:
             logger.info("bot_token не найден через telegram_users")
 
-    # 2. Пробуем через enterprise_users только если не нашли (но по твоей логике такого не бывает)
+    # 2. Если всё равно не нашли — пробуем enterprise_users (должно быть пусто в твоей структуре)
     if not bot_token:
         async with aiosqlite.connect(DB_PATH) as db2:
             db2.row_factory = aiosqlite.Row
@@ -272,7 +253,7 @@ async def delete_user(tg_id: int, request: Request):
             else:
                 logger.info("bot_token не найден через enterprise_users")
 
-    # 3. Если bot_token есть — отправляем сообщение!
+    # 3. Отправляем сервисное сообщение, если нашли бот
     if bot_token:
         try:
             bot = AiogramBot(token=bot_token)
