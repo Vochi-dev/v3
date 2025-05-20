@@ -422,7 +422,7 @@ async def upload_email_users(
 
     db = await get_connection()
     try:
-        cur = await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")
+        cur = await db. execute("SELECT email, tg_id, bot_token FROM telegram_users")
         for email, tg_id, bot_token in await cur.fetchall():
             if email.strip().lower() not in new_set:
                 logger.debug("Deleting telegram_user %s", email)
@@ -460,20 +460,6 @@ async def upload_email_users(
 
     return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
-
-@router.post("/email-users/upload/confirm", response_class=RedirectResponse)
-async def upload_confirmed(
-    request: Request,
-    csv_b64: str = Form(...),
-    confirm: str = Form(...)
-):
-    # просто перенаправляем на основной обработчик
-    return await upload_email_users(request, file=None, confirm=confirm, csv_b64=csv_b64)
-
-
-# ——————————————————————————————————————————————————————————————————————————
-# Удаление и отправка сообщений пользователям
-# ——————————————————————————————————————————————————————————————————————————
 
 @router.post("/email-users/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
@@ -521,8 +507,9 @@ async def send_admin_message(tg_id: int, request: Request, message: str = Form(.
     """
     require_login(request)
 
-    # сначала — проверяем approved-запись
     bot_token = None
+
+    # Сначала — ищем токен по одобренным enterprise_users
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
         cur2 = await db2.execute("""
@@ -536,7 +523,7 @@ async def send_admin_message(tg_id: int, request: Request, message: str = Form(.
         if row2:
             bot_token = row2["bot_token"]
 
-    # если нет — берём из telegram_users
+    # Если не найдено — берём из telegram_users
     if not bot_token:
         async with aiosqlite.connect(DB_PATH) as db3:
             db3.row_factory = aiosqlite.Row
