@@ -33,16 +33,16 @@ CREATE TABLE IF NOT EXISTS email_users (
 /* ---- telegram_users ---- */
 CREATE TABLE IF NOT EXISTS telegram_users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    telegram_id   INTEGER,
+    tg_id         INTEGER UNIQUE,
     enterprise_id INTEGER NOT NULL,
     email         TEXT    NOT NULL,
     token         TEXT,
     verified      INTEGER DEFAULT 0,   -- 0/1
+    bot_token     TEXT,
     updated_at    TEXT,
     FOREIGN KEY (enterprise_id) REFERENCES enterprises(id)
 );
 """
-
 
 async def main() -> None:
     # создаём папку под БД, если нужно
