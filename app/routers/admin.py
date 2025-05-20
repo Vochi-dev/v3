@@ -263,12 +263,11 @@ async def send_message(number: str, request: Request):
 async def email_users_page(request: Request):
     """
     Теперь показывает ВСЕ записи из email_users (даже без tg_id),
-    подтягивает tg_id (если есть) и Unit (approved-запись из enterprise_users).
+    подтягивает tg_id (если есть) и Unit (название предприятия) из enterprise_users.
     """
     require_login(request)
     logger.debug("Display email_users page")
 
-    # подключаем sqlite напрямую, чтобы использовать row_factory=Row
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
 
@@ -287,7 +286,6 @@ async def email_users_page(request: Request):
           ON tu.email = eu.email
         LEFT JOIN enterprise_users ue
           ON ue.telegram_id = tu.tg_id
-         AND ue.status = 'approved'
         LEFT JOIN enterprises ent
           ON ent.number = ue.enterprise_id
         ORDER BY eu.number, eu.email
