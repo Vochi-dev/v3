@@ -23,7 +23,8 @@
   <table>
     <thead>
       <tr>
-        <th>ID Telegram</th>
+        <!-- заголовок кликабельный для групповой отправки -->
+        <th><a href="?group=1">ID Telegram</a></th>
         <th>e-mail</th>
         <th>Имя</th>
         <th>Все права</th>
@@ -58,6 +59,7 @@
           </td>
         </tr>
 
+        {# форма отправки индивидуального сообщения #}
         {% if selected_tg and u.tg_id == selected_tg %}
           <tr class="message-form">
             <td colspan="8">
@@ -81,6 +83,30 @@
           </tr>
         {% endif %}
       {% endfor %}
+
+      {# форма групповой отправки #}
+      {% if group_mode %}
+        <tr class="message-form">
+          <td colspan="8">
+            <form
+              action="/admin/email-users/message-group"
+              method="post"
+              onsubmit="return confirm('Вы уверены, что хотите отправить сообщение всем пользователям?');"
+            >
+              <label>Сообщение всем пользователям:</label>
+              <input
+                type="text"
+                name="message"
+                placeholder="Введите текст…"
+                style="width:70%;"
+                required
+              />
+              <button type="submit">Отправить всем</button>
+              <a href="/admin/email-users">Отмена</a>
+            </form>
+          </td>
+        </tr>
+      {% endif %}
     </tbody>
   </table>
 
