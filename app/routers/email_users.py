@@ -7,7 +7,6 @@ import logging
 from typing import List, Dict
 
 import aiosqlite
-import aiohttp
 from fastapi import (
     APIRouter, Request, status, HTTPException,
     UploadFile, File, Form
@@ -188,13 +187,12 @@ async def confirm_upload(
             if email.strip().lower() not in new_set:
                 await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
                 try:
-                    async with aiohttp.ClientSession() as session:
-                        bot = AiogramBot(token=bot_token, session=session)
-                        logger.info(f"Отправляю сообщение об удалении пользователю {tg_id} через бота {bot_token}")
-                        await bot.send_message(
-                            chat_id=int(tg_id),
-                            text="⛔️ Ваш доступ был отозван администратором."
-                        )
+                    bot = AiogramBot(token=bot_token)
+                    logger.info(f"Отправляю сообщение об удалении пользователю {tg_id} через бота {bot_token}")
+                    await bot.send_message(
+                        chat_id=int(tg_id),
+                        text="⛔️ Ваш доступ был отозван администратором."
+                    )
                 except Exception as e:
                     logger.warning(f"Ошибка при отправке сообщения об удалении {tg_id}: {e}")
 
@@ -227,58 +225,51 @@ async def confirm_upload(
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
-
     bot_token = None
 
-    # 1. Пробуем через enterprise_users
-    async with aiosqlite.connect(DB_PATH) as db2:
-        db2.row_factory = aiosqlite.Row
-        cur2 = await db2.execute("""
+    # 1. Пробуем через enterprise_users + enterprises (самый точный)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("""
             SELECT e.bot_token
-            FROM enterprise_users u
-            JOIN enterprises e ON u.enterprise_id = e.number
-            WHERE u.telegram_id = ?
-            AND u.status = 'approved'
+              FROM enterprise_users u
+              JOIN enterprises e ON u.enterprise_id = e.number
+             WHERE u.telegram_id = ?
+               AND u.status = 'approved'
         """, (tg_id,))
-        row2 = await cur2.fetchone()
-        if row2 and row2["bot_token"]:
-            bot_token = row2["bot_token"]
-            logger.info(f"Нашли bot_token через enterprise_users: {bot_token}")
-        else:
-            logger.info("bot_token не найден через enterprise_users")
+        row = await cur.fetchone()
+        if row and row["bot_token"]:
+            bot_token = row["bot_token"]
+            logger.info(f"[delete_user] bot_token найден через enterprise_users: {bot_token}")
 
-    # 2. Пробуем через telegram_users ДО удаления
+    # 2. Если не нашли, ищем напрямую в telegram_users
     if not bot_token:
-        async with aiosqlite.connect(DB_PATH) as db2:
-            db2.row_factory = aiosqlite.Row
-            cur2 = await db2.execute(
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
                 "SELECT bot_token FROM telegram_users WHERE tg_id = ?",
                 (tg_id,)
             )
-            row2 = await cur2.fetchone()
-            if row2 and row2["bot_token"]:
-                bot_token = row2["bot_token"]
-                logger.info(f"Нашли bot_token через telegram_users: {bot_token}")
-            else:
-                logger.info("bot_token не найден через telegram_users")
+            row = await cur.fetchone()
+            if row and row["bot_token"]:
+                bot_token = row["bot_token"]
+                logger.info(f"[delete_user] bot_token найден через telegram_users: {bot_token}")
 
-    # 3. Если всё равно нет bot_token — ЛОГГИРУЕМ и не шлём ничего!
+    # 3. Если токен так и не найден — логируем и ничего не отправляем!
     if not bot_token:
-        logger.error(f"Не удалось найти bot_token для пользователя {tg_id}, сообщение не отправлено!")
+        logger.error(f"[delete_user] Не найден bot_token для tg_id={tg_id}, сообщение не отправлено.")
     else:
         try:
-            # ЯВНО создаём aiohttp-сессию, чтобы гарантировать отправку!
-            async with aiohttp.ClientSession() as session:
-                bot = AiogramBot(token=bot_token, session=session)
-                logger.info(f"Отправляю сообщение об удалении пользователю {tg_id} через бота {bot_token}")
-                await bot.send_message(
-                    chat_id=tg_id,
-                    text="❌ Ваш доступ к боту был отозван администратором."
-                )
+            bot = AiogramBot(token=bot_token)
+            logger.info(f"[delete_user] Отправляю сообщение об удалении пользователю {tg_id} через {bot_token}")
+            await bot.send_message(
+                chat_id=tg_id,
+                text="❌ Ваш доступ к боту был отозван администратором."
+            )
         except Exception as e:
-            logger.warning(f"Не удалось отправить сообщение об удалении пользователю {tg_id}: {e}")
+            logger.error(f"[delete_user] Ошибка при отправке сообщения {tg_id}: {e}")
 
-    # 4. Только теперь удаляем пользователя из БД!
+    # 4. Удаляем пользователя из БД (после отправки!)
     db = await get_connection()
     try:
         await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
