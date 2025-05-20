@@ -1,6 +1,7 @@
-# app/routers/admin.py
 # -*- coding: utf-8 -*-
-
+#
+# Админский роутер для FastAPI
+# ——————————————————————————————————————————————————————————————————————————
 import logging
 import subprocess
 import csv
@@ -37,6 +38,10 @@ def require_login(request: Request):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
 
+# ——————————————————————————————————————————————————————————————————————————
+# Авторизация
+# ——————————————————————————————————————————————————————————————————————————
+
 @router.get("", response_class=HTMLResponse)
 async def root_redirect(request: Request):
     if request.cookies.get("auth") == "1":
@@ -62,6 +67,10 @@ async def login(request: Request, password: str = Form(...)):
     return resp
 
 
+# ——————————————————————————————————————————————————————————————————————————
+# Дашборд
+# ——————————————————————————————————————————————————————————————————————————
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     require_login(request)
@@ -75,6 +84,10 @@ async def dashboard(request: Request):
         {"request": request, "enterprise_count": row[0]}
     )
 
+
+# ——————————————————————————————————————————————————————————————————————————
+# CRUD для предприятий
+# ——————————————————————————————————————————————————————————————————————————
 
 @router.get("/enterprises", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
@@ -266,9 +279,17 @@ async def email_users_page(request: Request):
     подтягивает tg_id (если есть) и определяет Unit:
       — сначала по approved записи в enterprise_users,
       — иначе по bot_token из telegram_users.
+    А также по query-param `selected` отображает форму отправки сообщения.
     """
     require_login(request)
     logger.debug("Display email_users page")
+
+    # получаем параметр selected из URL, если кликнули на tg_id
+    selected_param = request.query_params.get("selected")
+    try:
+        selected_tg = int(selected_param) if selected_param else None
+    except ValueError:
+        selected_tg = None
 
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
@@ -290,14 +311,14 @@ async def email_users_page(request: Request):
         LEFT JOIN telegram_users tu
           ON tu.email = eu.email
 
-        -- первый приоритет: официальная связь через enterprise_users
+        -- приоритет 1: одобренные в enterprise_users
         LEFT JOIN enterprise_users ue_app
           ON ue_app.telegram_id = tu.tg_id
           AND ue_app.status = 'approved'
         LEFT JOIN enterprises ent_app
           ON ent_app.number = ue_app.enterprise_id
 
-        -- второй приоритет: на основе bot_token
+        -- приоритет 2: по bot_token
         LEFT JOIN enterprises ent_bot
           ON ent_bot.bot_token = tu.bot_token
 
@@ -311,7 +332,11 @@ async def email_users_page(request: Request):
 
     return templates.TemplateResponse(
         "email_users.html",
-        {"request": request, "email_users": rows}
+        {
+            "request": request,
+            "email_users": rows,
+            "selected_tg": selected_tg,
+        }
     )
 
 
@@ -364,7 +389,7 @@ async def upload_email_users(
                 status_code=status.HTTP_200_OK
             )
 
-        # нет удалений — сразу перезаписать email_users
+        # без удалений — сразу синхронизируем email_users
         db2 = await get_connection()
         try:
             await db2.execute("DELETE FROM email_users")
@@ -446,8 +471,13 @@ async def upload_confirmed(
     csv_b64: str = Form(...),
     confirm: str = Form(...)
 ):
+    # просто перенаправляем на основной обработчик
     return await upload_email_users(request, file=None, confirm=confirm, csv_b64=csv_b64)
 
+
+# ——————————————————————————————————————————————————————————————————————————
+# Удаление и отправка сообщений пользователям
+# ——————————————————————————————————————————————————————————————————————————
 
 @router.post("/email-users/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
@@ -458,9 +488,10 @@ async def delete_user(tg_id: int, request: Request):
         db2.row_factory = aiosqlite.Row
         cur2 = await db2.execute("""
             SELECT e.bot_token
-            FROM enterprise_users u
-            JOIN enterprises e ON u.enterprise_id = e.number
-            WHERE u.telegram_id = ?
+              FROM enterprise_users u
+              JOIN enterprises e ON u.enterprise_id = e.number
+             WHERE u.telegram_id = ?
+               AND u.status = 'approved'
         """, (tg_id,))
         row2 = await cur2.fetchone()
         if row2:
@@ -483,5 +514,48 @@ async def delete_user(tg_id: int, request: Request):
             )
         except Exception:
             pass
+
+    return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/email-users/message/{tg_id}", response_class=RedirectResponse)
+async def send_admin_message(tg_id: int, request: Request, message: str = Form(...)):
+    """
+    Отправка произвольного сообщения Telegram-пользователю.
+    """
+    require_login(request)
+
+    # Сначала — по enterprise_users со статусом approved
+    bot_token = None
+    async with aiosqlite.connect(DB_PATH) as db2:
+        db2.row_factory = aiosqlite.Row
+        cur2 = await db2.execute("""
+            SELECT e.bot_token
+              FROM enterprise_users u
+              JOIN enterprises e ON u.enterprise_id = e.number
+             WHERE u.telegram_id = ?
+               AND u.status = 'approved'
+        """, (tg_id,))
+        row2 = await cur2.fetchone()
+        if row2:
+            bot_token = row2["bot_token"]
+
+    # Если не найдено — берем из telegram_users
+    if not bot_token:
+        async with aiosqlite.connect(DB_PATH) as db2:
+            cur3 = await db2.execute(
+                "SELECT bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,)
+            )
+            row3 = await cur3.fetchone()
+            bot_token = row3["bot_token"] if row3 else None
+
+    if not bot_token:
+        raise HTTPException(status_code=500, detail="Не удалось определить токен бота для пользователя")
+
+    try:
+        await send_message_to_bot(bot_token, tg_id, message)
+    except Exception as e:
+        logger.exception(f"Не удалось отправить сообщение {tg_id}: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось отправить сообщение")
 
     return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
