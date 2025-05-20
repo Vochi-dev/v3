@@ -284,7 +284,7 @@ async def email_users_page(request: Request):
     require_login(request)
     logger.debug("Display email_users page")
 
-    # получаем параметр selected из URL, если кликнули на tg_id
+    # получить выбранный tg_id из параметров URL
     selected_param = request.query_params.get("selected")
     try:
         selected_tg = int(selected_param) if selected_param else None
@@ -307,21 +307,17 @@ async def email_users_page(request: Request):
                    ent_bot.name,
                    '')               AS enterprise_name
         FROM email_users eu
-
         LEFT JOIN telegram_users tu
           ON tu.email = eu.email
-
         -- приоритет 1: одобренные в enterprise_users
         LEFT JOIN enterprise_users ue_app
           ON ue_app.telegram_id = tu.tg_id
           AND ue_app.status = 'approved'
         LEFT JOIN enterprises ent_app
           ON ent_app.number = ue_app.enterprise_id
-
         -- приоритет 2: по bot_token
         LEFT JOIN enterprises ent_bot
           ON ent_bot.bot_token = tu.bot_token
-
         ORDER BY eu.number, eu.email
     """
     logger.debug("Executing SQL: %s", sql.replace("\n", " "))
@@ -525,7 +521,7 @@ async def send_admin_message(tg_id: int, request: Request, message: str = Form(.
     """
     require_login(request)
 
-    # Сначала — по enterprise_users со статусом approved
+    # сначала — проверяем approved-запись
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
@@ -540,14 +536,16 @@ async def send_admin_message(tg_id: int, request: Request, message: str = Form(.
         if row2:
             bot_token = row2["bot_token"]
 
-    # Если не найдено — берем из telegram_users
+    # если нет — берём из telegram_users
     if not bot_token:
-        async with aiosqlite.connect(DB_PATH) as db2:
-            cur3 = await db2.execute(
+        async with aiosqlite.connect(DB_PATH) as db3:
+            db3.row_factory = aiosqlite.Row
+            cur3 = await db3.execute(
                 "SELECT bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,)
             )
             row3 = await cur3.fetchone()
-            bot_token = row3["bot_token"] if row3 else None
+            if row3:
+                bot_token = row3["bot_token"]
 
     if not bot_token:
         raise HTTPException(status_code=500, detail="Не удалось определить токен бота для пользователя")
