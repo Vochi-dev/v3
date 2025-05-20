@@ -226,8 +226,9 @@ async def confirm_upload(
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
-    # Найдём bot_token по enterprise_users
     bot_token = None
+
+    # Сначала ищем bot_token через enterprise_users (как было)
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
         cur2 = await db2.execute("""
@@ -237,8 +238,20 @@ async def delete_user(tg_id: int, request: Request):
             WHERE u.telegram_id = ?
         """, (tg_id,))
         row2 = await cur2.fetchone()
-        if row2:
+        if row2 and row2["bot_token"]:
             bot_token = row2["bot_token"]
+
+    # Если не нашли, ищем bot_token в telegram_users (гарантировано будет!)
+    if not bot_token:
+        async with aiosqlite.connect(DB_PATH) as db2:
+            db2.row_factory = aiosqlite.Row
+            cur2 = await db2.execute(
+                "SELECT bot_token FROM telegram_users WHERE tg_id = ?",
+                (tg_id,)
+            )
+            row2 = await cur2.fetchone()
+            if row2 and row2["bot_token"]:
+                bot_token = row2["bot_token"]
 
     db = await get_connection()
     try:
@@ -255,7 +268,7 @@ async def delete_user(tg_id: int, request: Request):
                 chat_id=tg_id,
                 text="❌ Ваш доступ к боту был отозван администратором."
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Не удалось отправить сообщение об удалении пользователю {tg_id}: {e}")
 
     return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
