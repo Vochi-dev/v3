@@ -10,7 +10,7 @@ import asyncio
 from pathlib import Path
 import aiosqlite
 
-from app.config import DB_PATH, TELEGRAM_BOT_TOKEN
+from app.config import settings
 
 SQL_SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -33,12 +33,11 @@ CREATE TABLE IF NOT EXISTS email_users (
 /* ---- telegram_users ---- */
 CREATE TABLE IF NOT EXISTS telegram_users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    tg_id         INTEGER UNIQUE,
+    telegram_id   INTEGER,
     enterprise_id INTEGER NOT NULL,
     email         TEXT    NOT NULL,
     token         TEXT,
     verified      INTEGER DEFAULT 0,   -- 0/1
-    bot_token     TEXT,
     updated_at    TEXT,
     FOREIGN KEY (enterprise_id) REFERENCES enterprises(id)
 );
@@ -46,9 +45,9 @@ CREATE TABLE IF NOT EXISTS telegram_users (
 
 async def main() -> None:
     # создаём папку под БД, если нужно
-    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+    Path(settings.DB_PATH).parent.mkdir(parents=True, exist_ok=True)
 
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(settings.DB_PATH) as db:
         await db.executescript(SQL_SCHEMA)
 
         # --- upsert test enterprise ---
@@ -58,7 +57,7 @@ async def main() -> None:
                  VALUES ('Test Enterprise', ?)
             ON CONFLICT(bot_token) DO UPDATE SET name = excluded.name
             """,
-            (TELEGRAM_BOT_TOKEN,),
+            (settings.TELEGRAM_BOT_TOKEN,),
         )
 
         # --- upsert test email user ---
@@ -70,12 +69,12 @@ async def main() -> None:
              WHERE bot_token = ?
             ON CONFLICT(email) DO NOTHING
             """,
-            (TELEGRAM_BOT_TOKEN,),
+            (settings.TELEGRAM_BOT_TOKEN,),
         )
 
         await db.commit()
 
-    print(f"✅ База {DB_PATH} инициализирована/обновлена")
+    print(f"✅ База {settings.DB_PATH} инициализирована/обновлена")
 
 
 if __name__ == "__main__":
