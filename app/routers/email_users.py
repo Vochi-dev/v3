@@ -75,7 +75,7 @@ async def upload_email_users(
     file: UploadFile = File(...),
 ):
     require_login(request)
-    # ... (здесь без изменений код загрузки CSV) ...
+    # ... (код загрузки CSV без изменений) ...
 
 
 @router.post("/upload/confirm", response_class=RedirectResponse)
@@ -85,7 +85,7 @@ async def confirm_upload(
     confirm: str   = Form(...)
 ):
     require_login(request)
-    # ... (здесь без изменений код подтверждения синхронизации) ...
+    # ... (код подтверждения синхронизации без изменений) ...
 
 
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
@@ -94,7 +94,7 @@ async def delete_user(tg_id: int, request: Request):
 
     bot_token = None
 
-    # 1. Попытаемся получить bot_token из telegram_users
+    # 1. Сначала пытаемся получить bot_token из telegram_users
     async with aiosqlite.connect(DB_PATH) as db1:
         db1.row_factory = aiosqlite.Row
         cur1 = await db1.execute(
@@ -122,7 +122,7 @@ async def delete_user(tg_id: int, request: Request):
                 bot_token = row2["bot_token"]
                 logger.info(f"bot_token найден в enterprise_users: {bot_token}")
 
-    # 3. Отправляем уведомление пользователю, если токен есть
+    # 3. Отправляем уведомление об отзыве доступа, если bot_token есть
     if bot_token:
         bot = Bot(token=bot_token)
         try:
@@ -134,12 +134,12 @@ async def delete_user(tg_id: int, request: Request):
         except TelegramError as e:
             logger.warning(f"Не удалось отправить уведомление пользователю {tg_id}: {e}")
         finally:
-            # обязательно закрываем сессию
+            # Закрываем HTTP-сессию бота
             await bot.session.close()
     else:
         logger.error(f"bot_token для пользователя {tg_id} не найден — сообщение не отправлено")
 
-    # 4. Фактическое удаление из БД
+    # 4. Наконец, удаляем пользователя из БД
     db = await get_connection()
     try:
         await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
