@@ -125,15 +125,14 @@ async def email_already_verified(email: str) -> bool:
 
 async def upsert_telegram_user(tg_id: int, email: str, token: str, bot_token: str):
     """
-    Вставляет или обновляет запись в telegram_users.
-    Использует поле tg_id как PK.
+    Вставляет или обновляет запись в telegram_users по первичному ключу tg_id.
     """
     async with aiosqlite.connect(settings.DB_PATH) as db:
         await db.execute(
             """
-            INSERT INTO telegram_users (telegram_id, email, token, verified, bot_token)
+            INSERT INTO telegram_users (tg_id, email, token, verified, bot_token)
             VALUES (?, ?, ?, 0, ?)
-            ON CONFLICT(telegram_id) DO UPDATE SET
+            ON CONFLICT(tg_id) DO UPDATE SET
                 email     = excluded.email,
                 token     = excluded.token,
                 verified  = 0,
@@ -156,9 +155,9 @@ async def mark_verified(token: str) -> tuple[bool, int | None]:
 
     # 2) обновим запись telegram_users
     async with aiosqlite.connect(settings.DB_PATH) as db:
-        # извлечём telegram_id
+        # извлечём tg_id
         async with db.execute(
-            "SELECT telegram_id FROM telegram_users WHERE email = ?", 
+            "SELECT tg_id FROM telegram_users WHERE email = ?",
             (email,)
         ) as cur:
             row = await cur.fetchone()
@@ -167,7 +166,7 @@ async def mark_verified(token: str) -> tuple[bool, int | None]:
         tg_id = row[0]
         # установим verified = 1
         await db.execute(
-            "UPDATE telegram_users SET verified = 1 WHERE telegram_id = ?", 
+            "UPDATE telegram_users SET verified = 1 WHERE tg_id = ?",
             (tg_id,)
         )
         await db.commit()
