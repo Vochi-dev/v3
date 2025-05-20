@@ -7,6 +7,7 @@ import logging
 from typing import List, Dict
 
 import aiosqlite
+import aiohttp
 from fastapi import (
     APIRouter, Request, status, HTTPException,
     UploadFile, File, Form
@@ -187,12 +188,13 @@ async def confirm_upload(
             if email.strip().lower() not in new_set:
                 await db.execute("DELETE FROM telegram_users WHERE email = ?", (email,))
                 try:
-                    bot = AiogramBot(token=bot_token)
-                    logger.info(f"Отправляю сообщение об удалении пользователю {tg_id} через бота {bot_token}")
-                    await bot.send_message(
-                        chat_id=int(tg_id),
-                        text="⛔️ Ваш доступ был отозван администратором."
-                    )
+                    async with aiohttp.ClientSession() as session:
+                        bot = AiogramBot(token=bot_token, session=session)
+                        logger.info(f"Отправляю сообщение об удалении пользователю {tg_id} через бота {bot_token}")
+                        await bot.send_message(
+                            chat_id=int(tg_id),
+                            text="⛔️ Ваш доступ был отозван администратором."
+                        )
                 except Exception as e:
                     logger.warning(f"Ошибка при отправке сообщения об удалении {tg_id}: {e}")
 
@@ -265,12 +267,14 @@ async def delete_user(tg_id: int, request: Request):
         logger.error(f"Не удалось найти bot_token для пользователя {tg_id}, сообщение не отправлено!")
     else:
         try:
-            bot = AiogramBot(token=bot_token)
-            logger.info(f"Отправляю сообщение об удалении пользователю {tg_id} через бота {bot_token}")
-            await bot.send_message(
-                chat_id=tg_id,
-                text="❌ Ваш доступ к боту был отозван администратором."
-            )
+            # ЯВНО создаём aiohttp-сессию, чтобы гарантировать отправку!
+            async with aiohttp.ClientSession() as session:
+                bot = AiogramBot(token=bot_token, session=session)
+                logger.info(f"Отправляю сообщение об удалении пользователю {tg_id} через бота {bot_token}")
+                await bot.send_message(
+                    chat_id=tg_id,
+                    text="❌ Ваш доступ к боту был отозван администратором."
+                )
         except Exception as e:
             logger.warning(f"Не удалось отправить сообщение об удалении пользователю {tg_id}: {e}")
 
