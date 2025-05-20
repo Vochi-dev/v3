@@ -18,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 from app.config import DB_PATH
 from app.routers.admin import require_login
 from app.services.db import get_connection
-from app.services.enterprise import send_message_to_bot  # <--- импортируем
+from app.services.enterprise import send_message_to_bot  # <-- используем его для отправки
 
 router = APIRouter(prefix="/admin/email-users", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -65,14 +65,14 @@ async def list_email_users(request: Request):
     )
 
 
-# ... ваши upload / confirm handlers без изменений ...
+# (Upload и confirm_upload остаются без изменений)
 
 
 @router.post("/delete/{tg_id}", response_class=RedirectResponse)
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
-    # 1) Получаем bot_token из telegram_users
+    # 1. Найти bot_token в telegram_users
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db1:
         db1.row_factory = aiosqlite.Row
@@ -85,7 +85,7 @@ async def delete_user(tg_id: int, request: Request):
         bot_token = row1["bot_token"]
         logger.info(f"[delete] bot_token найден в telegram_users: {bot_token}")
 
-    # 2) Если не нашли — пробуем enterprise_users
+    # 2. Если не найден — поиск в enterprise_users
     if not bot_token:
         async with aiosqlite.connect(DB_PATH) as db2:
             db2.row_factory = aiosqlite.Row
@@ -101,24 +101,24 @@ async def delete_user(tg_id: int, request: Request):
             bot_token = row2["bot_token"]
             logger.info(f"[delete] bot_token найден в enterprise_users: {bot_token}")
 
-    # 3) Отправляем уведомление через send_message_to_bot
+    # 3. Отправить уведомление
     if bot_token:
         try:
-            sent = await send_message_to_bot(
+            success = await send_message_to_bot(
                 bot_token,
                 tg_id,
                 "❌ Ваш доступ к боту был отозван администратором."
             )
-            if sent:
-                logger.info(f"[delete] Уведомление об удалении успешно отправлено пользователю {tg_id}")
+            if success:
+                logger.info(f"[delete] Уведомление успешно отправлено пользователю {tg_id}")
             else:
                 logger.warning(f"[delete] Не удалось отправить уведомление пользователю {tg_id}")
         except Exception as e:
             logger.error(f"[delete] Ошибка при отправке уведомления пользователю {tg_id}: {e}")
     else:
-        logger.error(f"[delete] Не найден bot_token, уведомление не отправлено")
+        logger.error(f"[delete] bot_token для пользователя {tg_id} не найден — сообщение не отправлено")
 
-    # 4) Удаляем из БД
+    # 4. Удаляем пользователя из БД
     db = await get_connection()
     try:
         await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
