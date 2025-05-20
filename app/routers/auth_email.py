@@ -22,7 +22,6 @@ async def verify_email(request: Request, token: str | None = None):
     URL: /verify-email?token=...
     """
     if not token:
-        # Токен отсутствует
         return templates.TemplateResponse(
             "verify_result.html",
             {
@@ -34,11 +33,9 @@ async def verify_email(request: Request, token: str | None = None):
         )
 
     try:
-        # Попытка проверить токен и зарегистрировать пользователя
         await verify_token_and_register_user(token)
         logger.info(f"Email подтверждён, токен={token}")
     except RuntimeError as e:
-        # Неправильный или просроченный токен
         logger.warning(f"Не удалось подтвердить токен {token}: {e}")
         return templates.TemplateResponse(
             "verify_result.html",
@@ -50,14 +47,12 @@ async def verify_email(request: Request, token: str | None = None):
             status_code=400
         )
     except Exception as e:
-        # Любая другая ошибка
         logger.exception(f"Ошибка при подтверждении токена {token}: {e}")
         raise HTTPException(
             status_code=500,
             detail="Внутренняя ошибка сервера при подтверждении e-mail."
         )
 
-    # Успех
     return templates.TemplateResponse(
         "verify_result.html",
         {
