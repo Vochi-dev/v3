@@ -11,21 +11,10 @@
     .danger { color: #dc3545; text-decoration: none; }
     .message-form td { background: #f9f9f9; }
   </style>
-  <script>
-    function toggleMessageForm(id) {
-      const form = document.getElementById('msg-' + id);
-      const all = document.querySelectorAll('.msg-form');
-      all.forEach(f => {
-        if (f !== form) f.style.display = 'none';
-      });
-      if (form) {
-        form.style.display = form.style.display === 'table-row' ? 'none' : 'table-row';
-      }
-    }
-  </script>
 </head>
 <body>
   <h1>Пользователи по e-mail</h1>
+  <p style="color:red; font-weight:bold;">DEBUG: group_mode = {{ group_mode }}</p>
 
   <form action="/admin/email-users/upload" method="post" enctype="multipart/form-data">
     <input type="file" name="file" accept=".csv" required>
@@ -36,9 +25,7 @@
     <thead>
       <tr>
         <th>
-          <a href="?group=1{% if selected_tg %}&selected={{ selected_tg }}{% endif %}">
-            ID Telegram
-          </a>
+          <button type="button" id="toggle-group-message">ID Telegram</button>
         </th>
         <th>e-mail</th>
         <th>Имя</th>
@@ -48,30 +35,29 @@
         <th>Unit</th>
         <th>Удалить</th>
       </tr>
-
-      {% if group_mode %}
-        <tr class="message-form">
-          <td colspan="8">
-            <form
-              action="/admin/email-users/message-group"
-              method="post"
-              onsubmit="return confirm('Отправить сообщение всем пользователям?');"
-            >
-              <label>Сообщение всему списку:</label>
-              <input type="text" name="message" placeholder="Введите текст…" style="width:70%;" required>
-              <button type="submit">Отправить всем</button>
-              <a href="/admin/email-users">Отмена</a>
-            </form>
-          </td>
-        </tr>
-      {% endif %}
     </thead>
     <tbody>
+      <!-- Group message form toggled by JS -->
+      <tr class="message-form" id="group-message-form" style="display: none;">
+        <td colspan="8">
+          <form
+            action="/admin/email-users/message-group"
+            method="post"
+            onsubmit="return confirm('Отправить сообщение всем пользователям?');"
+          >
+            <label>Сообщение всему списку:</label>
+            <input type="text" name="message" placeholder="Введите текст…" style="width:70%;" required>
+            <button type="submit">Отправить всем</button>
+            <a href="/admin/email-users">Отмена</a>
+          </form>
+        </td>
+      </tr>
+
       {% for u in email_users %}
         <tr>
           <td>
             {% if u.tg_id %}
-              <a href="javascript:void(0);" onclick="toggleMessageForm({{ u.tg_id }})">
+              <a href="?selected={{ u.tg_id }}">
                 {{ u.tg_id }}
               </a>
             {% else %}
@@ -93,18 +79,18 @@
           </td>
         </tr>
 
-        {% if u.tg_id %}
-          <tr class="message-form msg-form" id="msg-{{ u.tg_id }}" style="display:none;">
+        {% if selected_tg and u.tg_id == selected_tg %}
+          <tr class="message-form">
             <td colspan="8">
               <form
-                action="/admin/email-users/message/{{ u.tg_id }}"
+                action="/admin/email-users/message/{{ selected_tg }}"
                 method="post"
-                onsubmit="return confirm('Отправить сообщение пользователю {{ u.tg_id }}?');"
+                onsubmit="return confirm('Отправить сообщение пользователю {{ selected_tg }}?');"
               >
-                <label>Сообщение пользователю {{ u.tg_id }}:</label>
+                <label>Сообщение пользователю {{ selected_tg }}:</label>
                 <input type="text" name="message" placeholder="Введите текст…" style="width:70%;" required>
                 <button type="submit">Отправить</button>
-                <a href="javascript:void(0);" onclick="toggleMessageForm({{ u.tg_id }})">Отмена</a>
+                <a href="/admin/email-users">Отмена</a>
               </form>
             </td>
           </tr>
@@ -114,5 +100,15 @@
   </table>
 
   <p><a href="/admin/dashboard">← Назад на дашборд</a></p>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const btn = document.getElementById('toggle-group-message');
+      const formRow = document.getElementById('group-message-form');
+      btn.addEventListener('click', () => {
+        formRow.style.display = formRow.style.display === 'none' ? '' : 'none';
+      });
+    });
+  </script>
 </body>
 </html>
