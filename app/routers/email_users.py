@@ -5,7 +5,7 @@ import csv
 import io
 import base64
 import logging
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import aiosqlite
 from fastapi import (
@@ -29,12 +29,12 @@ logger.setLevel(logging.DEBUG)
 @router.get("", response_class=HTMLResponse)
 async def list_email_users(
     request: Request,
-    selected: int | None = None,
-    group:    int | None = None,   # теперь принимаем целое число
+    selected: Optional[int] = None,
+    group: Optional[int] = None,
 ):
     require_login(request)
     db = await get_connection()
-    # вернём словари
+    # вернуть список словарей
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     try:
         sql = """
@@ -67,10 +67,10 @@ async def list_email_users(
     return templates.TemplateResponse(
         "email_users.html",
         {
-            "request":     request,
+            "request": request,
             "email_users": rows,
             "selected_tg": selected,
-            "group_mode":  (group == 1),    # показываем форму только при ?group=1
+            "group_mode": (group == 1),
         }
     )
 
@@ -82,7 +82,6 @@ async def message_user(
     request: Request = None
 ):
     require_login(request)
-    # отправляем одному пользователю
     db = await get_connection()
     try:
         cur = await db.execute(
@@ -93,7 +92,7 @@ async def message_user(
     finally:
         await db.close()
 
-    if not rec or not rec["bot_token"]:
+    if not rec or not rec.get("bot_token"):
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     await send_message_to_bot(rec["bot_token"], tg_id, message)
@@ -106,7 +105,6 @@ async def message_group(
     message: str = Form(...)
 ):
     require_login(request)
-    # отправляем всем подтверждённым пользователям
     db = await get_connection()
     try:
         cur = await db.execute(
@@ -117,8 +115,8 @@ async def message_group(
         await db.close()
 
     for r in rows:
-        tg_id = r["tg_id"]
-        bot_token = r["bot_token"]
+        tg_id = r.get("tg_id")
+        bot_token = r.get("bot_token")
         if tg_id and bot_token:
             try:
                 await send_message_to_bot(bot_token, tg_id, message)
@@ -152,10 +150,10 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
 
     to_remove: List[Dict] = []
     for r in old:
-        email = (r["email"] or "").strip().lower()
-        if email and email not in new_emails and r["tg_id"]:
+        email = (r.get("email") or "").strip().lower()
+        if email and email not in new_emails and r.get("tg_id"):
             unit = ""
-            if r["bot_token"]:
+            if r.get("bot_token"):
                 db2 = await get_connection()
                 try:
                     cur2 = await db2.execute(
@@ -177,14 +175,13 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
         return templates.TemplateResponse(
             "confirm_sync.html",
             {
-                "request":   request,
+                "request": request,
                 "to_remove": to_remove,
-                "csv_b64":   csv_b64
+                "csv_b64": csv_b64
             },
             status_code=status.HTTP_200_OK
         )
 
-    # Если нечего удалять — сразу заливаем новый CSV
     db = await get_connection()
     try:
         await db.execute("DELETE FROM email_users")
@@ -200,8 +197,8 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
                     row.get("email"),
                     row.get("name"),
                     int(row.get("right_all") or 0),
-                    int(row.get("right_1")   or 0),
-                    int(row.get("right_2")   or 0),
+                    int(row.get("right_1") or 0),
+                    int(row.get("right_2") or 0),
                 )
             )
         await db.commit()
@@ -245,9 +242,9 @@ async def confirm_upload(
                     tg_id,
                     "❌ Ваш доступ к боту был отозван администратором."
                 )
-                await db.execute("DELETE FROM telegram_users WHERE tg_id = ?",      (tg_id,))
+                await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
                 await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
-                await db.execute("DELETE FROM email_users WHERE email = ?",          (email,))
+                await db.execute("DELETE FROM email_users WHERE email = ?", (email,))
 
         await db.execute("DELETE FROM email_users")
         reader = csv.DictReader(io.StringIO(text))
@@ -262,8 +259,8 @@ async def confirm_upload(
                     r.get("email"),
                     r.get("name"),
                     int(r.get("right_all") or 0),
-                    int(r.get("right_1")   or 0),
-                    int(r.get("right_2")   or 0),
+                    int(r.get("right_1") or 0),
+                    int(r.get("right_2") or 0),
                 )
             )
 
@@ -278,7 +275,6 @@ async def confirm_upload(
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
-    # 1) достаём bot_token
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -293,7 +289,6 @@ async def delete_user(tg_id: int, request: Request):
         logger.error(f"[delete] bot_token не найден для tg_id={tg_id}")
         return RedirectResponse("/admin/email-users", status_code=303)
 
-    # 2) отправляем уведомление
     try:
         await send_message_to_bot(
             bot_token,
@@ -304,11 +299,10 @@ async def delete_user(tg_id: int, request: Request):
     except Exception as e:
         logger.warning(f"[delete] не удалось отправить уведомление {tg_id}: {e}")
 
-    # 3) удаляем все следы пользователя
     db2 = await get_connection()
     try:
-        await db2.execute("DELETE FROM telegram_users    WHERE tg_id = ?",      (tg_id,))
-        await db2.execute("DELETE FROM enterprise_users WHERE telegram_id = ?",(tg_id,))
+        await db2.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
+        await db2.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
         await db2.execute(
             "DELETE FROM email_users WHERE email IN (SELECT email FROM telegram_users WHERE tg_id = ?)",
             (tg_id,)
