@@ -30,7 +30,7 @@ logger.setLevel(logging.DEBUG)
 async def list_email_users(
     request: Request,
     selected: Optional[int] = None,
-    group: Optional[int] = None,  # <-- принимаем ?group=1
+    group: Optional[str] = None,  # ← параметр теперь строка
 ):
     require_login(request)
 
@@ -70,7 +70,7 @@ async def list_email_users(
             "request": request,
             "email_users": rows,
             "selected_tg": selected,
-            "group_mode": (group == 1),  # <-- True только при ?group=1
+            "group_mode": (str(group) == "1"),  # ← исправлено
         }
     )
 
