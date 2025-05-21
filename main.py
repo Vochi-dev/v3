@@ -1,7 +1,7 @@
 import logging
 import asyncio
 import contextlib
-from fastapi import FastAPI, Request, Form, HTTPException, status
+from fastapi import FastAPI, Request, Form, HTTPException, status, Body
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -37,6 +37,16 @@ from app.routers.auth_email import router as auth_email_router     # /verify-ema
 
 # Импортируем dispatcher с логикой /start и e-mail
 from app.telegram.dispatcher import setup_dispatcher
+
+# Обработчики Asterisk
+from app.services.calls import (
+    process_start,
+    process_dial,
+    process_bridge,
+    process_hangup
+)
+import aiosqlite
+from app.config import DB_PATH
 
 # --- Настройка логирования ---
 logging.basicConfig(
@@ -385,3 +395,46 @@ async def shutdown_event():
     logger.info("Shutting down bots gracefully...")
     for task in asyncio.all_tasks():
         task.cancel()
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Asterisk webhooks
+# ────────────────────────────────────────────────────────────────────────────────
+
+async def _resolve_chat_id(token: str) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            "SELECT chat_id FROM enterprises WHERE bot_token = ?", (token,)
+        )
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Unknown bot token")
+    return int(row["chat_id"])
+
+@app.post("/start")
+async def asterisk_start(body: dict = Body(...)):
+    token = body.get("Token")
+    chat_id = await _resolve_chat_id(token)
+    bot = Bot(token=token)
+    return await process_start(bot, chat_id, body)
+
+@app.post("/dial")
+async def asterisk_dial(body: dict = Body(...)):
+    token = body.get("Token")
+    chat_id = await _resolve_chat_id(token)
+    bot = Bot(token=token)
+    return await process_dial(bot, chat_id, body)
+
+@app.post("/bridge")
+async def asterisk_bridge(body: dict = Body(...)):
+    token = body.get("Token")
+    chat_id = await _resolve_chat_id(token)
+    bot = Bot(token=token)
+    return await process_bridge(bot, chat_id, body)
+
+@app.post("/hangup")
+async def asterisk_hangup(body: dict = Body(...)):
+    token = body.get("Token")
+    chat_id = await _resolve_chat_id(token)
+    bot = Bot(token=token)
+    return await process_hangup(bot, chat_id, body)
