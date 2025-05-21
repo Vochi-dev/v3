@@ -206,41 +206,16 @@ async def confirm_upload(
     return RedirectResponse("/admin/email-users", status_code=303)
 
 
-# === Новый механизм DELETE ===
+# === Упрощённый DELETE ===
 
-@router.post("/delete/{tg_id}", response_class=HTMLResponse)
-async def delete_user_confirm(tg_id: int, request: Request):
-    require_login(request)
-    db = await get_connection()
-    db.row_factory = aiosqlite.Row
-    try:
-        user = await (await db.execute(
-            "SELECT email, tg_id FROM telegram_users WHERE tg_id = ?", (tg_id,)
-        )).fetchone()
-    finally:
-        await db.close()
-
-    if not user:
-        return RedirectResponse("/admin/email-users", status_code=303)
-
-    return templates.TemplateResponse(
-        "confirm_delete.html",
-        {"request": request, "user": dict(user)}
-    )
-
-
-@router.post("/delete/confirm", response_class=RedirectResponse)
-async def delete_user_execute(
-    request: Request,
-    tg_id: int = Form(...),
-    confirm: str = Form(...)
+@router.post("/delete/{tg_id}")
+async def delete_user(
+    tg_id: int,
+    request: Request
 ):
     require_login(request)
 
-    if confirm != "yes":
-        return RedirectResponse("/admin/email-users", status_code=303)
-
-    # 1) Забираем email и token ДО удаления
+    # 1) Забираем email и bot_token
     db = await get_connection()
     db.row_factory = aiosqlite.Row
     try:
@@ -248,7 +223,7 @@ async def delete_user_execute(
             "SELECT email, bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,)
         )).fetchone()
         if not row:
-            return RedirectResponse("/admin/email-users", status_code=303)
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
         email, bot_token = row["email"], row["bot_token"]
     finally:
         await db.close()
@@ -257,7 +232,7 @@ async def delete_user_execute(
     if bot_token:
         await send_message_to_bot(bot_token, tg_id, "❌ Ваш доступ отозван администратором.")
 
-    # 3) Удаляем водной транзакцией в правильном порядке
+    # 3) Удаляем сразу из всех таблиц
     db2 = await get_connection()
     try:
         await db2.execute("DELETE FROM email_users WHERE email = ?", (email,))
