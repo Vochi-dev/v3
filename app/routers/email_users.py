@@ -30,9 +30,12 @@ logger.setLevel(logging.DEBUG)
 async def list_email_users(
     request: Request,
     selected: Optional[int] = None,
-    group: Optional[str] = Query(None),
+    group: Optional[str] = Query(default="", alias="group"),
 ):
     require_login(request)
+
+    group_mode = group == "1"
+    logger.debug(f"group_mode computed: {group_mode}")
 
     db = await get_connection()
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
@@ -70,7 +73,7 @@ async def list_email_users(
             "request": request,
             "email_users": rows,
             "selected_tg": selected,
-            "group_mode": (group == "1"),
+            "group_mode": group_mode,
         }
     )
 
