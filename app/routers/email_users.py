@@ -280,8 +280,7 @@ async def confirm_upload(
 
     return RedirectResponse("/admin/email-users", status_code=303)
 
-
-# DELETE HANDLERS
+# DELETE Handlers
 
 @router.post("/delete/{tg_id}", response_class=HTMLResponse)
 async def delete_user_confirm(tg_id: int, request: Request):
@@ -300,7 +299,6 @@ async def delete_user_confirm(tg_id: int, request: Request):
         "confirm_delete.html",
         {"request": request, "user": dict(user)}
     )
-
 
 @router.post("/delete/confirm", response_class=RedirectResponse)
 async def delete_user_execute(
@@ -327,4 +325,4 @@ async def delete_user_execute(
         await db.commit()
     finally:
         await db.close()
-    return RedirectResponse("/admin/email-users", status_code=03)
+    return RedirectResponse("/admin/email-users", status_code=303)
