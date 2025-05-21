@@ -331,7 +331,7 @@ async def toggle_enterprise(request: Request, number: str):
         enterprise.get("ip", ""),
         enterprise.get("secret", ""),
         enterprise.get("host", ""),
-        enterprise.get("name2", ""),
+        enterprise.get("name2", ""),  
         active=new_status
     )
 
@@ -391,25 +391,6 @@ async def admin_root():
     return RedirectResponse(url="/admin/enterprises")
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Asterisk Webhooks (по полю name2 из enterprises)
-# ────────────────────────────────────────────────────────────────────────────────
-
-async def _resolve_enterprise(bot_token_asterisk: str) -> tuple[str, int]:
-    """
-    Ищет в enterprises запись по name2 = Asterisk-Token,
-    возвращает (telegram_bot_token, chat_id).
-    """
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        cur = await db.execute(
-            "SELECT bot_token, chat_id FROM enterprises WHERE name2 = ?", (bot_token_asterisk,)
-        )
-        row = await cur.fetchone()
-    if not row:
-        raise HTTPException(status_code=404, detail=f"Enterprise not found for Asterisk token {bot_token_asterisk}")
-    return row["bot_token"], int(row["chat_id"])
-
-# ────────────────────────────────────────────────────────────────────────────────
 # Asterisk Webhooks: рассылаем события всем одобренным пользователям юнита
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -429,7 +410,7 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
         ent = await cur.fetchone()
         if not ent:
             raise HTTPException(status_code=404, detail="Unknown enterprise token")
-        number = int(ent["number"])    # <-- приводим к int
+        number = ent["number"]        # <-- use string here
         bot_token = ent["bot_token"]
 
         # всех approved пользователей
