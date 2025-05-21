@@ -188,7 +188,7 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
         reader = csv.DictReader(io.StringIO(text))
         for row in reader:
             await db.execute(
-                "INSERT INTO email_users(number, email, name, right_all, right_1, right_2) VALUES (?, ?, ?, ?, ?, ?)"​,
+                "INSERT INTO email_users(number, email, name, right_all, right_1, right_2) VALUES (?, ?, ?, ?, ?, ?)",
                 (
                     row.get("number"),
                     row.get("email"),
