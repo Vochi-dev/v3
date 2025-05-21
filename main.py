@@ -229,7 +229,7 @@ async def update_enterprise_post(
                 error = f"Предприятие с дополнительным именем '{name2}' уже существует"
                 break
             if ent['ip'] == ip:
-                error = f"Предприятие с IP {ip} уже существует"
+                error = f"Предприятие с IP {ip} already exists"
                 break
     else:
         error = None
@@ -390,51 +390,59 @@ async def toggle_bots_service():
 async def admin_root():
     return RedirectResponse(url="/admin/enterprises")
 
+# ────────────────────────────────────────────────────────────────────────────────
+# Asterisk Webhooks (по полю name2 из enterprises)
+# ────────────────────────────────────────────────────────────────────────────────
+
+async def _resolve_enterprise(bot_token_asterisk: str) -> tuple[str, int]:
+    """
+    Ищет в enterprises запись по name2 = Asterisk-Token,
+    возвращает (telegram_bot_token, chat_id).
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            "SELECT bot_token, chat_id FROM enterprises WHERE name2 = ?", (bot_token_asterisk,)
+        )
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Enterprise not found for Asterisk token {bot_token_asterisk}")
+    return row["bot_token"], int(row["chat_id"])
+
+@app.post("/start")
+async def asterisk_start(body: dict = Body(...)):
+    token_asterisk = body.get("Token")
+    bot_token, chat_id = await _resolve_enterprise(token_asterisk)
+    bot = Bot(token=bot_token)
+    result = await process_start(bot, chat_id, body)
+    return JSONResponse(result)
+
+@app.post("/dial")
+async def asterisk_dial(body: dict = Body(...)):
+    token_asterisk = body.get("Token")
+    bot_token, chat_id = await _resolve_enterprise(token_asterisk)
+    bot = Bot(token=bot_token)
+    result = await process_dial(bot, chat_id, body)
+    return JSONResponse(result)
+
+@app.post("/bridge")
+async def asterisk_bridge(body: dict = Body(...)):
+    token_asterisk = body.get("Token")
+    bot_token, chat_id = await _resolve_enterprise(token_asterisk)
+    bot = Bot(token=bot_token)
+    result = await process_bridge(bot, chat_id, body)
+    return JSONResponse(result)
+
+@app.post("/hangup")
+async def asterisk_hangup(body: dict = Body(...)):
+    token_asterisk = body.get("Token")
+    bot_token, chat_id = await _resolve_enterprise(token_asterisk)
+    bot = Bot(token=bot_token)
+    result = await process_hangup(bot, chat_id, body)
+    return JSONResponse(result)
+
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down bots gracefully...")
     for task in asyncio.all_tasks():
         task.cancel()
-
-# ────────────────────────────────────────────────────────────────────────────────
-# Asterisk webhooks
-# ────────────────────────────────────────────────────────────────────────────────
-
-async def _resolve_chat_id(token: str) -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        cur = await db.execute(
-            "SELECT chat_id FROM enterprises WHERE bot_token = ?", (token,)
-        )
-        row = await cur.fetchone()
-    if not row:
-        raise HTTPException(status_code=404, detail="Unknown bot token")
-    return int(row["chat_id"])
-
-@app.post("/start")
-async def asterisk_start(body: dict = Body(...)):
-    token = body.get("Token")
-    chat_id = await _resolve_chat_id(token)
-    bot = Bot(token=token)
-    return await process_start(bot, chat_id, body)
-
-@app.post("/dial")
-async def asterisk_dial(body: dict = Body(...)):
-    token = body.get("Token")
-    chat_id = await _resolve_chat_id(token)
-    bot = Bot(token=token)
-    return await process_dial(bot, chat_id, body)
-
-@app.post("/bridge")
-async def asterisk_bridge(body: dict = Body(...)):
-    token = body.get("Token")
-    chat_id = await _resolve_chat_id(token)
-    bot = Bot(token=token)
-    return await process_bridge(bot, chat_id, body)
-
-@app.post("/hangup")
-async def asterisk_hangup(body: dict = Body(...)):
-    token = body.get("Token")
-    chat_id = await _resolve_chat_id(token)
-    bot = Bot(token=token)
-    return await process_hangup(bot, chat_id, body)
