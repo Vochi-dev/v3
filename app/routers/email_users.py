@@ -10,7 +10,7 @@ from typing import List, Dict, Optional
 import aiosqlite
 from fastapi import (
     APIRouter, Request, status,
-    HTTPException, UploadFile, File, Form
+    HTTPException, UploadFile, File, Form, Query
 )
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -30,12 +30,12 @@ logger.setLevel(logging.DEBUG)
 async def list_email_users(
     request: Request,
     selected: Optional[int] = None,
-    group: Optional[str] = "",
+    group: Optional[str] = Query(default=None, alias="group"),
 ):
     require_login(request)
 
-    group_mode = group == "1"
-    logger.debug(f"group_mode computed: {group_mode}")
+    group_mode = (group == "1")
+    logger.debug(f"DEBUG: group_mode = {group_mode} ({type(group_mode).__name__})")
 
     db = await get_connection()
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
