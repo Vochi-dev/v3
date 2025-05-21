@@ -14,7 +14,8 @@
 </head>
 <body>
   <h1>Пользователи по e-mail</h1>
-  <p style="color:red; font-weight:bold;">DEBUG: group_mode = {{ group_mode }}</p>
+  {% set group_mode = group_mode if group_mode is defined else false %}
+  <p style="color:red; font-weight:bold;">DEBUG: group_mode = {{ group_mode }} ({{ group_mode.__class__.__name__ }})</p>
 
   <form action="/admin/email-users/upload" method="post" enctype="multipart/form-data">
     <input type="file" name="file" accept=".csv" required>
