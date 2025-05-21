@@ -37,7 +37,8 @@
         <th>Unit</th>
         <th>Удалить</th>
       </tr>
-
+    </thead>
+    <tbody>
       {% if group_mode %}
         <tr class="message-form">
           <td colspan="8">
@@ -54,8 +55,7 @@
           </td>
         </tr>
       {% endif %}
-    </thead>
-    <tbody>
+
       {% for u in email_users %}
         <tr>
           <td>
