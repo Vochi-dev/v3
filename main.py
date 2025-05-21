@@ -429,7 +429,7 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
         ent = await cur.fetchone()
         if not ent:
             raise HTTPException(status_code=404, detail="Unknown enterprise token")
-        number = ent["number"]
+        number = int(ent["number"])    # <-- приводим к int
         bot_token = ent["bot_token"]
 
         # всех approved пользователей
@@ -456,7 +456,7 @@ async def _dispatch_to_all(
     results = []
     for chat_id in tg_ids:
         try:
-            res = await handler(bot, chat_id, body)
+            await handler(bot, chat_id, body)
             results.append({"chat_id": chat_id, "status": "ok"})
         except Exception as e:
             logger.error(f"Asterisk dispatch to {chat_id} failed: {e}")
@@ -478,7 +478,6 @@ async def asterisk_bridge(body: dict = Body(...)):
 @app.post("/hangup")
 async def asterisk_hangup(body: dict = Body(...)):
     return JSONResponse(await _dispatch_to_all(process_hangup, body))
-
 
 @app.on_event("shutdown")
 async def shutdown_event():
