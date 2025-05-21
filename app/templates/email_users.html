@@ -11,13 +11,21 @@
     .danger { color: #dc3545; text-decoration: none; }
     .message-form td { background: #f9f9f9; }
   </style>
+  <script>
+    function toggleMessageForm(id) {
+      const form = document.getElementById('msg-' + id);
+      const all = document.querySelectorAll('.msg-form');
+      all.forEach(f => {
+        if (f !== form) f.style.display = 'none';
+      });
+      if (form) {
+        form.style.display = form.style.display === 'table-row' ? 'none' : 'table-row';
+      }
+    }
+  </script>
 </head>
 <body>
   <h1>Пользователи по e-mail</h1>
-  <p style="color:red; font-weight:bold;">
-    DEBUG: group_mode = {{ group_mode }}<br>
-    Query params = {{ request.query_params }}
-  </p>
 
   <form action="/admin/email-users/upload" method="post" enctype="multipart/form-data">
     <input type="file" name="file" accept=".csv" required>
@@ -63,7 +71,7 @@
         <tr>
           <td>
             {% if u.tg_id %}
-              <a href="?selected={{ u.tg_id }}{% if group_mode %}&group=1{% endif %}">
+              <a href="javascript:void(0);" onclick="toggleMessageForm({{ u.tg_id }})">
                 {{ u.tg_id }}
               </a>
             {% else %}
@@ -85,18 +93,18 @@
           </td>
         </tr>
 
-        {% if selected_tg and u.tg_id == selected_tg %}
-          <tr class="message-form">
+        {% if u.tg_id %}
+          <tr class="message-form msg-form" id="msg-{{ u.tg_id }}" style="display:none;">
             <td colspan="8">
               <form
-                action="/admin/email-users/message/{{ selected_tg }}"
+                action="/admin/email-users/message/{{ u.tg_id }}"
                 method="post"
-                onsubmit="return confirm('Отправить сообщение пользователю {{ selected_tg }}?');"
+                onsubmit="return confirm('Отправить сообщение пользователю {{ u.tg_id }}?');"
               >
-                <label>Сообщение пользователю {{ selected_tg }}:</label>
+                <label>Сообщение пользователю {{ u.tg_id }}:</label>
                 <input type="text" name="message" placeholder="Введите текст…" style="width:70%;" required>
                 <button type="submit">Отправить</button>
-                <a href="/admin/email-users{% if group_mode %}?group=1{% endif %}">Отмена</a>
+                <a href="javascript:void(0);" onclick="toggleMessageForm({{ u.tg_id }})">Отмена</a>
               </form>
             </td>
           </tr>
