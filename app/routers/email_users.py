@@ -75,7 +75,7 @@ async def message_user(
         await db.close()
 
     if not rec or not rec.get("bot_token"):
-        raise HTTPException(404, "Пользователь не найден")
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     await send_message_to_bot(rec["bot_token"], tg_id, message)
     return RedirectResponse("/admin/email-users", status_code=303)
@@ -99,7 +99,7 @@ async def message_group(request: Request, message: str = Form(...)):
             try:
                 await send_message_to_bot(bot_token, tg_id, message)
             except Exception as e:
-                logger.warning(f"Не удалось групповое сообщение {tg_id}: {e}")
+                logger.warning(f"Не удалось отправить групповое сообщение {tg_id}: {e}")
 
     return RedirectResponse("/admin/email-users", status_code=303)
 
@@ -108,7 +108,7 @@ async def message_group(request: Request, message: str = Form(...)):
 async def upload_email_users(request: Request, file: UploadFile = File(...)):
     require_login(request)
     if not file.filename.lower().endswith(".csv"):
-        raise HTTPException(400, "Только CSV")
+        raise HTTPException(status_code=400, detail="Только CSV")
 
     text = (await file.read()).decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
@@ -142,7 +142,11 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
     if to_remove:
         return templates.TemplateResponse(
             "confirm_sync.html",
-            {"request": request, "to_remove": to_remove, "csv_b64": base64.b64encode(text.encode()).decode()},
+            {
+                "request": request,
+                "to_remove": to_remove,
+                "csv_b64": base64.b64encode(text.encode()).decode()
+            },
             status_code=status.HTTP_200_OK
         )
 
@@ -151,9 +155,14 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
         await db.execute("DELETE FROM email_users")
         for row in csv.DictReader(io.StringIO(text)):
             await db.execute(
-                "INSERT INTO email_users(number, email, name, right_all, right_1, right_2) VALUES (?, ?, ?, ?, ?, ?)",
-                (row.get("number"), row.get("email"), row.get("name"),
-                 int(row.get("right_all") or 0), int(row.get("right_1") or 0), int(row.get("right_2") or 0))
+                "INSERT INTO email_users(number, email, name, right_all, right_1, right_2)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    row.get("number"), row.get("email"), row.get("name"),
+                    int(row.get("right_all") or 0),
+                    int(row.get("right_1") or 0),
+                    int(row.get("right_2") or 0),
+                )
             )
         await db.commit()
     finally:
@@ -163,7 +172,11 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
 
 
 @router.post("/upload/confirm", response_class=RedirectResponse)
-async def confirm_upload(request: Request, csv_b64: str = Form(...), confirm: str = Form(...)):
+async def confirm_upload(
+    request: Request,
+    csv_b64: str = Form(...),
+    confirm: str = Form(...)
+):
     require_login(request)
     if confirm != "yes":
         return RedirectResponse("/admin/email-users", status_code=303)
@@ -174,11 +187,14 @@ async def confirm_upload(request: Request, csv_b64: str = Form(...), confirm: st
     db = await get_connection()
     db.row_factory = aiosqlite.Row
     try:
-        rows = await (await db.execute("SELECT email, tg_id, bot_token FROM telegram_users")).fetchall()
+        rows = await (await db.execute(
+            "SELECT email, tg_id, bot_token FROM telegram_users"
+        )).fetchall()
+
         for r in rows:
             email, tg_id, bot_token = r["email"], r["tg_id"], r["bot_token"]
             if email and email not in new_set and tg_id and bot_token:
-                await send_message_to_bot(bot_token, tg_id, "❌ Доступ отозван.")
+                await send_message_to_bot(bot_token, tg_id, "❌ Ваш доступ отозван администратором.")
                 await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
                 await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
                 await db.execute("DELETE FROM email_users WHERE email = ?", (email,))
@@ -189,9 +205,45 @@ async def confirm_upload(request: Request, csv_b64: str = Form(...), confirm: st
     return RedirectResponse("/admin/email-users", status_code=303)
 
 
-@router.post("/delete/{tg_id}")
-async def delete_user(tg_id: int, request: Request):
+#
+# DELETE Handlers — полностью копируют логику CSV-удаления
+#
+
+# 1) Показываем страницу подтверждения
+@router.post("/delete/{tg_id}", response_class=HTMLResponse)
+async def delete_user_confirm(tg_id: int, request: Request):
     require_login(request)
+
+    db = await get_connection()
+    db.row_factory = aiosqlite.Row
+    try:
+        user = await (await db.execute(
+            "SELECT email, tg_id FROM telegram_users WHERE tg_id = ?", (tg_id,)
+        )).fetchone()
+    finally:
+        await db.close()
+
+    if not user:
+        return RedirectResponse("/admin/email-users", status_code=303)
+
+    return templates.TemplateResponse(
+        "confirm_delete.html",
+        {"request": request, "user": dict(user)}
+    )
+
+
+# 2) После «Да» — уведомляем и удаляем из трёх таблиц
+@router.post("/delete/confirm", response_class=RedirectResponse)
+async def delete_user_execute(
+    request: Request,
+    tg_id: int = Form(...),
+    confirm: str = Form(...)
+):
+    require_login(request)
+    if confirm != "yes":
+        return RedirectResponse("/admin/email-users", status_code=303)
+
+    # Получаем email и bot_token
     db = await get_connection()
     db.row_factory = aiosqlite.Row
     try:
@@ -199,24 +251,22 @@ async def delete_user(tg_id: int, request: Request):
             "SELECT email, bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,)
         )).fetchone()
         if not row:
-            raise HTTPException(404, "Нет такого пользователя")
-        email, token = row["email"], row["bot_token"]
+            return RedirectResponse("/admin/email-users", status_code=303)
+        email, bot_token = row["email"], row["bot_token"]
     finally:
         await db.close()
 
-    logger.debug(f"[delete_user] fetched email={email}, token={'yes' if token else 'no'}")
+    # Шлём уведомление
+    if bot_token:
+        await send_message_to_bot(bot_token, tg_id, "❌ Ваш доступ отозван администратором.")
 
-    if token:
-        await send_message_to_bot(token, tg_id, "❌ Ваш доступ отозван администратором.")
-        logger.debug("[delete_user] notification sent")
-
+    # Удаляем из email_users, enterprise_users и telegram_users
     db2 = await get_connection()
     try:
         await db2.execute("DELETE FROM email_users WHERE email = ?", (email,))
         await db2.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
         await db2.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
         await db2.commit()
-        logger.debug("[delete_user] deletions committed")
     finally:
         await db2.close()
 
