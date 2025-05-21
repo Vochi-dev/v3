@@ -77,7 +77,7 @@
                 <label>Сообщение пользователю {{ selected_tg }}:</label>
                 <input type="text" name="message" placeholder="Введите текст…" style="width:70%;" required>
                 <button type="submit">Отправить</button>
-                <a href="/admin/email-users">Отмена</a>
+                <a href="/admin/email-users{% if group_mode %}?group=1{% endif %}">Отмена</a>
               </form>
             </td>
           </tr>
