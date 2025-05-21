@@ -30,11 +30,11 @@ logger.setLevel(logging.DEBUG)
 async def list_email_users(
     request: Request,
     selected: Optional[int] = None,
-    group: Optional[str] = Query(default=None, alias="group"),
+    group: str = Query(default="", alias="group"),
 ):
     require_login(request)
 
-    group_mode = (group == "1")
+    group_mode = group == "1"
     logger.debug(f"DEBUG: group_mode = {group_mode} ({type(group_mode).__name__})")
 
     db = await get_connection()
