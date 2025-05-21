@@ -52,15 +52,10 @@ async def list_email_users(
           tu.tg_id                AS tg_id,
           COALESCE(ent_app.name, ent_bot.name, '') AS enterprise_name
         FROM email_users eu
-        LEFT JOIN telegram_users tu
-          ON tu.email = eu.email
-        LEFT JOIN enterprise_users ue_app
-          ON ue_app.telegram_id = tu.tg_id
-          AND ue_app.status = 'approved'
-        LEFT JOIN enterprises ent_app
-          ON ent_app.number = ue_app.enterprise_id
-        LEFT JOIN enterprises ent_bot
-          ON ent_bot.bot_token = tu.bot_token
+        LEFT JOIN telegram_users tu ON tu.email = eu.email
+        LEFT JOIN enterprise_users ue_app ON ue_app.telegram_id = tu.tg_id AND ue_app.status = 'approved'
+        LEFT JOIN enterprises ent_app ON ent_app.number = ue_app.enterprise_id
+        LEFT JOIN enterprises ent_bot ON ent_bot.bot_token = tu.bot_token
         ORDER BY eu.number, eu.email
         """
         cur = await db.execute(sql)
@@ -70,12 +65,7 @@ async def list_email_users(
 
     return templates.TemplateResponse(
         "email_users.html",
-        {
-            "request": request,
-            "email_users": rows,
-            "selected_tg": selected,
-            "group_mode": group_mode,
-        }
+        {"request": request, "email_users": rows, "selected_tg": selected, "group_mode": group_mode}
     )
 
 
@@ -89,8 +79,7 @@ async def message_user(
     db = await get_connection()
     try:
         cur = await db.execute(
-            "SELECT bot_token FROM telegram_users WHERE tg_id = ?",
-            (tg_id,)
+            "SELECT bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,)
         )
         rec = await cur.fetchone()
     finally:
@@ -112,12 +101,9 @@ async def message_group(
     db = await get_connection()
     try:
         cur = await db.execute(
-            """
-            SELECT tu.tg_id, tu.bot_token
-            FROM telegram_users tu
-            INNER JOIN email_users eu ON tu.email = eu.email
-            WHERE tu.verified = 1
-            """
+            "SELECT tu.tg_id, tu.bot_token FROM telegram_users tu"
+            " INNER JOIN email_users eu ON tu.email = eu.email"
+            " WHERE tu.verified = 1"
         )
         rows = await cur.fetchall()
     finally:
@@ -147,11 +133,8 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
     db = await get_connection()
     try:
         cur = await db.execute(
-            """
-            SELECT eu.email, tu.tg_id, tu.bot_token
-            FROM email_users eu
-            LEFT JOIN telegram_users tu ON tu.email = eu.email
-            """
+            "SELECT eu.email, tu.tg_id, tu.bot_token FROM email_users eu"
+            " LEFT JOIN telegram_users tu ON tu.email = eu.email"
         )
         old = await cur.fetchall()
     finally:
@@ -165,7 +148,9 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
             if r.get("bot_token"):
                 db2 = await get_connection()
                 try:
-                    cur2 = await db2.execute("SELECT name FROM enterprises WHERE bot_token = ?", (r["bot_token"],))
+                    cur2 = await db2.execute(
+                        "SELECT name FROM enterprises WHERE bot_token = ?", (r["bot_token"],)
+                    )
                     row2 = await cur2.fetchone()
                     unit = row2["name"] if row2 else ""
                 finally:
@@ -186,7 +171,8 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
         reader = csv.DictReader(io.StringIO(text))
         for row in reader:
             await db.execute(
-                "INSERT INTO email_users(number, email, name, right_all, right_1, right_2) VALUES (?, ?, ?, ?, ?, ?)"\,
+                "INSERT INTO email_users(number, email, name, right_all, right_1, right_2)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
                 (
                     row.get("number"),
                     row.get("email"),
@@ -236,8 +222,12 @@ async def confirm_upload(
         reader = csv.DictReader(io.StringIO(text))
         for r in reader:
             await db.execute(
-                "INSERT INTO email_users(number, email, name, right_all, right_1, right_2) VALUES (?, ?, ?, ?, ?, ?)"\,
-                (r.get("number"), r.get("email"), r.get("name"), int(r.get("right_all") or 0), int(r.get("right_1") or 0), int(r.get("right_2") or 0))
+                "INSERT INTO email_users(number, email, name, right_all, right_1, right_2)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    r.get("number"), r.get("email"), r.get("name"),
+                    int(r.get("right_all") or 0), int(r.get("right_1") or 0), int(r.get("right_2") or 0)
+                )
             )
         await db.commit()
     finally:
@@ -254,7 +244,9 @@ async def delete_user_confirm(tg_id: int, request: Request):
     db = await get_connection()
     db.row_factory = aiosqlite.Row
     try:
-        user = await (await db.execute("SELECT email, tg_id FROM telegram_users WHERE tg_id = ?", (tg_id,))).fetchone()
+        user = await (await db.execute(
+            "SELECT email, tg_id FROM telegram_users WHERE tg_id = ?", (tg_id,)
+        )).fetchone()
     finally:
         await db.close()
     if not user:
@@ -278,7 +270,9 @@ async def delete_user_execute(
     db = await get_connection()
     db.row_factory = aiosqlite.Row
     try:
-        row = await (await db.execute("SELECT email, bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,))).fetchone()
+        row = await (await db.execute(
+            "SELECT email, bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,)
+        )).fetchone()
         if not row:
             return RedirectResponse("/admin/email-users", status_code=303)
         email = row['email']
