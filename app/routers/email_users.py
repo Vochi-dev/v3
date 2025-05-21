@@ -30,7 +30,7 @@ logger.setLevel(logging.DEBUG)
 async def list_email_users(
     request: Request,
     selected: Optional[int] = None,
-    group: Optional[str] = Query(default=None, alias="group"),
+    group: str = Query(default="", alias="group"),
 ):
     require_login(request)
 
