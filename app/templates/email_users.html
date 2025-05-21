@@ -1,3 +1,4 @@
+<!-- app/templates/email_users.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -10,7 +11,6 @@
     th { background: #f0f0f0; }
     .danger { color: #dc3545; text-decoration: none; }
     .message-form td { background: #f9f9f9; }
-    a.button { margin-left: 1rem; text-decoration: none; color: #007bff; }
   </style>
 </head>
 <body>
@@ -24,8 +24,11 @@
   <table>
     <thead>
       <tr>
-        <!-- клик по заголовку включает групповой режим -->
-        <th><a href="?group=1">ID Telegram</a></th>
+        <th>
+          <a href="?group=1{% if selected_tg %}&selected={{ selected_tg }}{% endif %}">
+            ID Telegram
+          </a>
+        </th>
         <th>e-mail</th>
         <th>Имя</th>
         <th>Все права</th>
@@ -37,76 +40,66 @@
     </thead>
     <tbody>
       {% for u in email_users %}
-      <tr>
-        <td>
-          {% if u.tg_id %}
-            <a href="?selected={{ u.tg_id }}{% if group_mode %}&group=1{% endif %}">{{ u.tg_id }}</a>
-          {% else %}
-            —
-          {% endif %}
-        </td>
-        <td>{{ u.email }}</td>
-        <td>{{ u.name or '' }}</td>
-        <td>{{ u.right_all }}</td>
-        <td>{{ u.right_1 }}</td>
-        <td>{{ u.right_2 }}</td>
-        <td>{{ u.enterprise_name or '—' }}</td>
-        <td>
-          {% if u.tg_id %}
-            <form action="/admin/email-users/delete/{{ u.tg_id }}" method="post" style="display:inline">
-              <button type="submit" class="danger">Delete</button>
-            </form>
-          {% endif %}
-        </td>
-      </tr>
+        <tr>
+          <td>
+            {% if u.tg_id %}
+              <a href="?selected={{ u.tg_id }}{% if group_mode %}&group=1{% endif %}">
+                {{ u.tg_id }}
+              </a>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>{{ u.email }}</td>
+          <td>{{ u.name or '' }}</td>
+          <td>{{ u.right_all }}</td>
+          <td>{{ u.right_1 }}</td>
+          <td>{{ u.right_2 }}</td>
+          <td>{{ u.enterprise_name or '—' }}</td>
+          <td>
+            {% if u.tg_id %}
+              <form action="/admin/email-users/delete/{{ u.tg_id }}" method="post" style="display:inline">
+                <button type="submit" class="danger">Delete</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
 
-      {# Форма индивидуальной отправки, если выбран этот tg_id #}
-      {% if selected_tg and u.tg_id == selected_tg %}
-      <tr class="message-form">
-        <td colspan="8">
-          <form
-            action="/admin/email-users/message/{{ selected_tg }}"
-            method="post"
-            onsubmit="return confirm('Вы уверены, что хотите отправить сообщение пользователю {{ selected_tg }}?');"
-          >
-            <label>Сообщение пользователю {{ selected_tg }}:</label>
-            <input
-              type="text"
-              name="message"
-              placeholder="Введите текст…"
-              style="width:70%;"
-              required
-            />
-            <button type="submit">Отправить</button>
-            <a href="/admin/email-users" class="button">Отмена</a>
-          </form>
-        </td>
-      </tr>
-      {% endif %}
+        {# индивидуальная форма #}
+        {% if selected_tg and u.tg_id == selected_tg %}
+          <tr class="message-form">
+            <td colspan="8">
+              <form
+                action="/admin/email-users/message/{{ selected_tg }}"
+                method="post"
+                onsubmit="return confirm('Отправить сообщение пользователю {{ selected_tg }}?');"
+              >
+                <label>Сообщение пользователю {{ selected_tg }}:</label>
+                <input type="text" name="message" placeholder="Введите текст…" style="width:70%;" required>
+                <button type="submit">Отправить</button>
+                <a href="/admin/email-users">Отмена</a>
+              </form>
+            </td>
+          </tr>
+        {% endif %}
       {% endfor %}
 
-      {# Форма групповой отправки, если мы в режиме group_mode #}
+      {# групповая форма #}
       {% if group_mode %}
-      <tr class="message-form">
-        <td colspan="8">
-          <form
-            action="/admin/email-users/message-group"
-            method="post"
-            onsubmit="return confirm('Вы уверены, что хотите отправить сообщение всем пользователям?');"
-          >
-            <label>Сообщение всем пользователям:</label>
-            <input
-              type="text"
-              name="message"
-              placeholder="Введите текст…"
-              style="width:70%;"
-              required
-            />
-            <button type="submit">Отправить всем</button>
-            <a href="/admin/email-users" class="button">Отмена</a>
-          </form>
-        </td>
-      </tr>
+        <tr class="message-form">
+          <td colspan="8">
+            <form
+              action="/admin/email-users/message-group"
+              method="post"
+              onsubmit="return confirm('Отправить сообщение всем пользователям?');"
+            >
+              <label>Сообщение всему списку:</label>
+              <input type="text" name="message" placeholder="Введите текст…" style="width:70%;" required>
+              <button type="submit">Отправить всем</button>
+              <a href="/admin/email-users">Отмена</a>
+            </form>
+          </td>
+        </tr>
       {% endif %}
     </tbody>
   </table>
