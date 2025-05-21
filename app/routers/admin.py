@@ -465,6 +465,9 @@ async def upload_email_users(
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
+    # ——— Точно такая же логика удаления и уведомления, что и при CSV-sync ———
+
+    # 1) Получаем токен предприятия (приоритет) для уведомления
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db2:
         db2.row_factory = aiosqlite.Row
@@ -479,23 +482,38 @@ async def delete_user(tg_id: int, request: Request):
         if row2:
             bot_token = row2["bot_token"]
 
+    # 2) Узнаём email и доп. токен из telegram_users
     db = await get_connection()
+    db.row_factory = aiosqlite.Row
     try:
-        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
-        await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
-        await db.commit()
+        rec = await db.execute("SELECT email, bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,))
+        row = await rec.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        email = row["email"]
+        # если enterprise-токен не нашёлся, берём из telegram_users
+        if not bot_token:
+            bot_token = row["bot_token"]
     finally:
         await db.close()
 
+    # 3) Уведомляем пользователя тем же сообщением
     if bot_token:
         try:
             bot = Bot(token=bot_token)
             await bot.send_message(
-                chat_id=tg_id,
-                text="❌ Ваш доступ к боту был отозван администратором."
+                chat_id=int(tg_id),
+                text="❌ Доступ отозван администратором."
             )
-        except Exception:
-            pass
+        except TelegramError:
+            logger.debug("Failed notifying via Bot API %s", tg_id)
+
+    # 4) Полное удаление пользователя из всех таблиц
+    async with aiosqlite.connect(DB_PATH) as db3:
+        await db3.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
+        await db3.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
+        await db3.execute("DELETE FROM email_users WHERE email = ?", (email,))
+        await db3.commit()
 
     return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
 
