@@ -110,9 +110,8 @@ async def message_group(
 ):
     require_login(request)
     db = await get_connection()
+    # Чтобы получать кортежи с совпадающими полями, оставляем row_factory по умолчанию
     try:
-        # Выбираем только подтверждённых пользователей из таблицы telegram_users,
-        # которые также есть в email_users
         cur = await db.execute(
             """
             SELECT tu.tg_id, tu.bot_token
@@ -126,9 +125,7 @@ async def message_group(
     finally:
         await db.close()
 
-    for r in rows:
-        tg_id = r.get("tg_id")
-        bot_token = r.get("bot_token")
+    for tg_id, bot_token in rows:
         if tg_id and bot_token:
             try:
                 await send_message_to_bot(bot_token, tg_id, message)
