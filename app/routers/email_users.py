@@ -111,8 +111,16 @@ async def message_group(
     require_login(request)
     db = await get_connection()
     try:
+        # Выбираем только подтверждённых пользователей из таблицы telegram_users,
+        # которые также есть в email_users
         cur = await db.execute(
-            "SELECT tg_id, bot_token FROM telegram_users WHERE verified = 1"
+            """
+            SELECT tu.tg_id, tu.bot_token
+            FROM telegram_users tu
+            INNER JOIN email_users eu
+              ON tu.email = eu.email
+            WHERE tu.verified = 1
+            """
         )
         rows = await cur.fetchall()
     finally:
@@ -143,11 +151,13 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
 
     db = await get_connection()
     try:
-        cur = await db.execute("""
+        cur = await db.execute(
+            """
             SELECT eu.email, tu.tg_id, tu.bot_token
             FROM email_users eu
             LEFT JOIN telegram_users tu ON tu.email = eu.email
-        """)
+            """
+        )
         old = await cur.fetchall()
     finally:
         await db.close()
