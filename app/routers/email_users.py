@@ -5,7 +5,7 @@ import csv
 import io
 import base64
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 import aiosqlite
 from fastapi import (
@@ -29,12 +29,11 @@ logger.setLevel(logging.DEBUG)
 @router.get("", response_class=HTMLResponse)
 async def list_email_users(
     request: Request,
-    selected: Optional[int] = None,
-    group: Optional[bool] = None,
+    selected: int | None = None,
+    group: int | None = None,  # теперь int
 ):
     require_login(request)
     db = await get_connection()
-    # вернём словари
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     try:
         sql = """
@@ -70,7 +69,7 @@ async def list_email_users(
             "request": request,
             "email_users": rows,
             "selected_tg": selected,
-            "group_mode": bool(group),
+            "group_mode": (group == 1),  # true только при group=1
         }
     )
 
@@ -82,14 +81,13 @@ async def message_user(
     request: Request = None
 ):
     require_login(request)
-    # отправляем одному пользователю
     db = await get_connection()
     try:
-        row = await db.execute(
+        cur = await db.execute(
             "SELECT bot_token FROM telegram_users WHERE tg_id = ?",
             (tg_id,)
         )
-        rec = await row.fetchone()
+        rec = await cur.fetchone()
     finally:
         await db.close()
 
@@ -97,10 +95,7 @@ async def message_user(
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     await send_message_to_bot(rec["bot_token"], tg_id, message)
-    return RedirectResponse(
-        url=f"/admin/email-users?selected={tg_id}",
-        status_code=status.HTTP_303_SEE_OTHER
-    )
+    return RedirectResponse("/admin/email-users", status_code=303)
 
 
 @router.post("/message-group", response_class=RedirectResponse)
@@ -111,7 +106,6 @@ async def message_group(
     require_login(request)
     db = await get_connection()
     try:
-        # отдаем только подтверждённых (verified=1)
         cur = await db.execute(
             "SELECT tg_id, bot_token FROM telegram_users WHERE verified = 1"
         )
@@ -128,10 +122,7 @@ async def message_group(
             except Exception as e:
                 logger.warning(f"Не удалось отправить групповое сообщение {tg_id}: {e}")
 
-    return RedirectResponse(
-        url="/admin/email-users?group=1",
-        status_code=status.HTTP_303_SEE_OTHER
-    )
+    return RedirectResponse("/admin/email-users", status_code=303)
 
 
 @router.post("/upload", response_class=HTMLResponse)
@@ -190,7 +181,6 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
             status_code=status.HTTP_200_OK
         )
 
-    # Если нечего удалять — сразу заливаем новый CSV
     db = await get_connection()
     try:
         await db.execute("DELETE FROM email_users")
@@ -284,7 +274,6 @@ async def confirm_upload(
 async def delete_user(tg_id: int, request: Request):
     require_login(request)
 
-    # 1) достаём bot_token
     bot_token = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -299,7 +288,6 @@ async def delete_user(tg_id: int, request: Request):
         logger.error(f"[delete] bot_token не найден для tg_id={tg_id}")
         return RedirectResponse("/admin/email-users", status_code=303)
 
-    # 2) отправляем уведомление
     try:
         await send_message_to_bot(
             bot_token,
@@ -310,7 +298,6 @@ async def delete_user(tg_id: int, request: Request):
     except Exception as e:
         logger.warning(f"[delete] не удалось отправить уведомление {tg_id}: {e}")
 
-    # 3) удаляем все следы
     db2 = await get_connection()
     try:
         await db2.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
