@@ -43,7 +43,11 @@ from app.services.calls import (
     process_start,
     process_dial,
     process_bridge,
-    process_hangup
+    process_hangup,
+    create_resend_loop,
+    dial_cache,
+    bridge_store,
+    active_bridges,
 )
 import aiosqlite
 from app.config import DB_PATH
@@ -54,15 +58,13 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-# --- Создаём FastAPI с debug=True для расширенного логирования ---
-app = FastAPI(debug=True)
-
-# Повышаем уровень логирования для uvicorn и fastapi
 logging.getLogger("uvicorn").setLevel(logging.DEBUG)
 logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
 logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
 fastapi_logger.setLevel(logging.DEBUG)
+
+# --- Создаём FastAPI с debug=True для расширенного логирования ---
+app = FastAPI(debug=True)
 
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -235,7 +237,7 @@ async def update_enterprise_post(
         error = None
 
     if error:
-        enterprise = {
+        ent_data = {
             "number": number,
             "name": name,
             "secret": secret,
@@ -249,7 +251,7 @@ async def update_enterprise_post(
             "enterprise_form.html",
             {
                 "request": request,
-                "enterprise": enterprise,
+                "enterprise": ent_data,
                 "action": "edit",
                 "error": error,
             },
@@ -275,173 +277,90 @@ async def send_message_api(number: str, request: Request):
         raise HTTPException(status_code=400, detail="Сообщение не может быть пустым")
 
     enterprise = await get_enterprise_by_number(number)
-    logger.debug(f"Enterprise data retrieved for #{number}: {enterprise}")
-
     if not enterprise:
-        logger.error(f"Enterprise #{number} not found in database")
+        logger.error(f"Enterprise #{number} not found")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
-
     if not isinstance(enterprise, dict):
         enterprise = dict(enterprise)
 
-    bot_token = enterprise.get('bot_token', "")
-    chat_id = enterprise.get('chat_id', "")
-
+    bot_token = enterprise.get("bot_token", "")
+    chat_id = enterprise.get("chat_id", "")
     if not bot_token.strip():
-        logger.error(f"Enterprise #{number} has no bot_token or it is empty")
         raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
-
     if not chat_id.strip():
-        logger.error(f"Enterprise #{number} has no chat_id or it is empty")
-        raise HTTPException(status_code=400, detail="У предприятия отсутствует chat_id для отправки")
+        raise HTTPException(status_code=400, detail="У предприятия отсутствует chat_id")
 
     try:
         success = await send_message_to_bot(bot_token, chat_id, message)
-        if success:
-            logger.info(f"Message sent successfully to enterprise #{number}")
-        else:
-            logger.error(f"send_message_to_bot returned False for enterprise #{number}")
+        if not success:
             raise HTTPException(status_code=500, detail="Не удалось отправить сообщение боту")
     except Exception as e:
-        logger.exception(f"Failed to send message to bot {number}: {e}")
+        logger.exception(f"Failed to send message: {e}")
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение")
 
     return {"detail": "Сообщение отправлено"}
 
 @app.post("/admin/enterprises/{number}/toggle")
 async def toggle_enterprise(request: Request, number: str):
-    logger.info(f"toggle_enterprise called for #{number}")
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
-        logger.error(f"Enterprise #{number} not found on toggle")
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
-
     if not isinstance(enterprise, dict):
         enterprise = dict(enterprise)
 
-    current_active = enterprise.get("active", 0)
-    new_status = 0 if current_active else 1
-    logger.debug(f"Enterprise #{number} current_active={current_active}, toggling to {new_status}")
-
+    current = enterprise.get("active", 0)
+    new = 0 if current else 1
     await update_enterprise(
         number,
-        enterprise.get("name", ""),
-        enterprise.get("bot_token", ""),
-        enterprise.get("chat_id", ""),
-        enterprise.get("ip", ""),
-        enterprise.get("secret", ""),
-        enterprise.get("host", ""),
-        enterprise.get("name2", ""),  
-        active=new_status
+        enterprise["name"],
+        enterprise["bot_token"],
+        enterprise["chat_id"],
+        enterprise["ip"],
+        enterprise["secret"],
+        enterprise["host"],
+        enterprise["name2"],
+        active=new
     )
-
-    bot_token = enterprise.get("bot_token", "")
-    chat_id = enterprise.get("chat_id", "")
-    bot = Bot(token=bot_token)
-    text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
+    bot = Bot(token=enterprise["bot_token"])
+    text = f"✅ Сервис {'активирован' if new else 'деактивирован'}"
     try:
-        await bot.send_message(chat_id=int(chat_id), text=text)
-        logger.info(f"Sent toggle message to bot {number}: {text}")
-    except TelegramError as e:
-        logger.error(f"Toggle bot notification failed for #{number}: {e}")
-
+        await bot.send_message(chat_id=int(enterprise["chat_id"]), text=text)
+    except TelegramError:
+        pass
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
-async def start_bot(enterprise_number: str, token: str):
-    bot = AiogramBot(
-        token=token,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-    )
-    dp = await setup_dispatcher(bot, enterprise_number)
-
-    try:
-        logger.info(f"Starting bot for enterprise {enterprise_number}")
-        await dp.start_polling(bot)
-    except TelegramAPIError as e:
-        logger.error(f"Telegram API error on bot {enterprise_number}: {e}")
-    finally:
-        await bot.session.close()
-
-async def start_all_bots():
-    tokens = await get_all_bot_tokens()
-    tasks = []
-    for enterprise_number, token in tokens.items():
-        if not token or not token.strip():
-            logger.info(f"Enterprise #{enterprise_number} has no bot_token, skipping start_bot")
-            continue
-        tasks.append(asyncio.create_task(start_bot(enterprise_number, token)))
-    await asyncio.gather(*tasks)
-
-@app.on_event("startup")
-async def on_startup():
-    logger.info("Starting all telegram bots in background task...")
-    asyncio.create_task(start_all_bots())
-
-@app.get("/service/bots_status")
-async def bots_status():
-    return {"running": True}
-
-@app.post("/service/toggle_bots")
-async def toggle_bots_service():
-    logger.info("toggle_bots_service called - пока не реализовано")
-    return {"detail": "Сервис переключения ботов не реализован"}
-
-@app.get("/admin")
-async def admin_root():
-    return RedirectResponse(url="/admin/enterprises")
-
 # ────────────────────────────────────────────────────────────────────────────────
-# Asterisk Webhooks: рассылаем события всем одобренным пользователям юнита
+# Asterisk Webhooks: рассылка всем approved
 # ────────────────────────────────────────────────────────────────────────────────
-
-async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
-    """
-    По Asterisk-Token (поле name2 в enterprises) возвращает:
-      - bot_token для Telegram
-      - список всех approved telegram_id из enterprise_users
-    """
+async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str,int,list[int]]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        # находим enterprise
         cur = await db.execute(
-            "SELECT number, bot_token FROM enterprises WHERE name2 = ?",
-            (asterisk_token,)
+            "SELECT number, bot_token, chat_id FROM enterprises WHERE name2 = ?",
+            (asterisk_token,),
         )
         ent = await cur.fetchone()
         if not ent:
             raise HTTPException(status_code=404, detail="Unknown enterprise token")
-        number = ent["number"]        # <-- use string here
-        bot_token = ent["bot_token"]
-
-        # всех approved пользователей
+        token, admin_chat = ent["bot_token"], int(ent["chat_id"])
         cur = await db.execute(
-            """
-            SELECT telegram_id
-              FROM enterprise_users
-             WHERE enterprise_id = ?
-               AND status = 'approved'
-            """,
-            (number,)
+            "SELECT telegram_id FROM enterprise_users WHERE enterprise_id = ? AND status='approved'",
+            (ent["number"],),
         )
         rows = await cur.fetchall()
-        tg_ids = [r["telegram_id"] for r in rows]
-    return bot_token, tg_ids
+    return token, admin_chat, [int(r["telegram_id"]) for r in rows]
 
-async def _dispatch_to_all(
-    handler,  # process_start / process_dial / process_bridge / process_hangup
-    body: dict
-):
-    token = body.get("Token")
-    bot_token, tg_ids = await _get_bot_and_recipients(token)
-    bot = Bot(token=bot_token)
+async def _dispatch_to_all(handler, body: dict):
+    token, admin_chat, users = await _get_bot_and_recipients(body.get("Token"))
+    bot = Bot(token=token)
     results = []
-    for chat_id in tg_ids:
+    for uid in users:
         try:
-            await handler(bot, chat_id, body)
-            results.append({"chat_id": chat_id, "status": "ok"})
+            await handler(bot, uid, body)
+            results.append({"chat_id": uid, "status": "ok"})
         except Exception as e:
-            logger.error(f"Asterisk dispatch to {chat_id} failed: {e}")
-            results.append({"chat_id": chat_id, "status": "error", "error": str(e)})
+            logger.error(f"Dispatch to {uid} failed: {e}")
+            results.append({"chat_id": uid, "status": "error", "error": str(e)})
     return {"delivered": results}
 
 @app.post("/start")
@@ -460,8 +379,43 @@ async def asterisk_bridge(body: dict = Body(...)):
 async def asterisk_hangup(body: dict = Body(...)):
     return JSONResponse(await _dispatch_to_all(process_hangup, body))
 
+# ────────────────────────────────────────────────────────────────────────────────
+# Запуск ботов и resend loops
+# ────────────────────────────────────────────────────────────────────────────────
+async def start_bot_with_resend(ent_number: str, token: str, chat_id: int):
+    aiobot = AiogramBot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    dp = await setup_dispatcher(aiobot, ent_number)
+    # запускаем цикл переотправки активных мостов
+    asyncio.create_task(create_resend_loop(dial_cache, bridge_store, active_bridges, aiobot, chat_id))
+    try:
+        await dp.start_polling(aiobot)
+    except TelegramAPIError as e:
+        logger.error(f"Bot {ent_number} API error: {e}")
+    finally:
+        await aiobot.session.close()
+
+@app.on_event("startup")
+async def on_startup():
+    enterprises = await get_all_enterprises()
+    for ent in enterprises:
+        tok = ent["bot_token"] or ""
+        if not tok.strip():
+            continue
+        asyncio.create_task(start_bot_with_resend(ent["number"], tok, int(ent["chat_id"])))
+
 @app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down bots gracefully...")
+async def on_shutdown():
     for task in asyncio.all_tasks():
         task.cancel()
+
+@app.get("/service/bots_status")
+async def bots_status():
+    return {"running": True}
+
+@app.post("/service/toggle_bots")
+async def toggle_bots_service():
+    return {"detail": "Not implemented"}
+
+@app.get("/admin")
+async def admin_root():
+    return RedirectResponse(url="/admin/enterprises")
