@@ -14,7 +14,10 @@
 </head>
 <body>
   <h1>Пользователи по e-mail</h1>
-  <p style="color:red; font-weight:bold;">DEBUG: group_mode = {{ group_mode }}</p>
+  <p style="color:red; font-weight:bold;">
+    DEBUG: group_mode = {{ group_mode }}<br>
+    Query params = {{ request.query_params }}
+  </p>
 
   <form action="/admin/email-users/upload" method="post" enctype="multipart/form-data">
     <input type="file" name="file" accept=".csv" required>
@@ -37,8 +40,6 @@
         <th>Unit</th>
         <th>Удалить</th>
       </tr>
-    </thead>
-    <tbody>
 
       {% if group_mode %}
         <tr class="message-form">
@@ -56,7 +57,8 @@
           </td>
         </tr>
       {% endif %}
-
+    </thead>
+    <tbody>
       {% for u in email_users %}
         <tr>
           <td>
