@@ -24,6 +24,7 @@ router = APIRouter(prefix="/admin/email-users", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
 logger = logging.getLogger("email_users")
 logger.setLevel(logging.DEBUG)
+logger.debug(f"=== LOADED email_users.py AT {__file__} ===")
 
 
 @router.get("", response_class=HTMLResponse)
@@ -39,23 +40,16 @@ async def list_email_users(
     db = await get_connection()
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     try:
-        sql = """
-        SELECT
-          eu.number, eu.email, eu.name,
-          eu.right_all, eu.right_1, eu.right_2,
-          tu.tg_id,
-          COALESCE(ent_app.name, ent_bot.name, '') AS enterprise_name
-        FROM email_users eu
-        LEFT JOIN telegram_users tu ON tu.email = eu.email
-        LEFT JOIN enterprise_users ue_app
-          ON ue_app.telegram_id = tu.tg_id AND ue_app.status = 'approved'
-        LEFT JOIN enterprises ent_app
-          ON ent_app.number = ue_app.enterprise_id
-        LEFT JOIN enterprises ent_bot
-          ON ent_bot.bot_token = tu.bot_token
-        ORDER BY eu.number, eu.email
-        """
-        rows = await (await db.execute(sql)).fetchall()
+        rows = await (await db.execute(
+            "SELECT eu.number, eu.email, eu.name, eu.right_all, eu.right_1, eu.right_2,"
+            " tu.tg_id, COALESCE(ent_app.name, ent_bot.name, '') AS enterprise_name"
+            " FROM email_users eu"
+            " LEFT JOIN telegram_users tu ON tu.email = eu.email"
+            " LEFT JOIN enterprise_users ue_app ON ue_app.telegram_id = tu.tg_id AND ue_app.status='approved'"
+            " LEFT JOIN enterprises ent_app ON ent_app.number = ue_app.enterprise_id"
+            " LEFT JOIN enterprises ent_bot ON ent_bot.bot_token = tu.bot_token"
+            " ORDER BY eu.number, eu.email"
+        )).fetchall()
     finally:
         await db.close()
 
@@ -81,24 +75,21 @@ async def message_user(
         await db.close()
 
     if not rec or not rec.get("bot_token"):
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        raise HTTPException(404, "Пользователь не найден")
 
     await send_message_to_bot(rec["bot_token"], tg_id, message)
     return RedirectResponse("/admin/email-users", status_code=303)
 
 
 @router.post("/message-group", response_class=RedirectResponse)
-async def message_group(
-    request: Request,
-    message: str = Form(...)
-):
+async def message_group(request: Request, message: str = Form(...)):
     require_login(request)
     db = await get_connection()
     try:
         rows = await (await db.execute(
-            "SELECT tu.tg_id, tu.bot_token FROM telegram_users tu "
-            "INNER JOIN email_users eu ON tu.email = eu.email "
-            "WHERE tu.verified = 1"
+            "SELECT tu.tg_id, tu.bot_token FROM telegram_users tu"
+            " INNER JOIN email_users eu ON tu.email = eu.email"
+            " WHERE tu.verified = 1"
         )).fetchall()
     finally:
         await db.close()
@@ -108,7 +99,7 @@ async def message_group(
             try:
                 await send_message_to_bot(bot_token, tg_id, message)
             except Exception as e:
-                logger.warning(f"Не удалось отправить групповое сообщение {tg_id}: {e}")
+                logger.warning(f"Не удалось групповое сообщение {tg_id}: {e}")
 
     return RedirectResponse("/admin/email-users", status_code=303)
 
@@ -117,7 +108,7 @@ async def message_group(
 async def upload_email_users(request: Request, file: UploadFile = File(...)):
     require_login(request)
     if not file.filename.lower().endswith(".csv"):
-        raise HTTPException(400, "Файл должен быть в формате CSV")
+        raise HTTPException(400, "Только CSV")
 
     text = (await file.read()).decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
@@ -126,16 +117,16 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
     db = await get_connection()
     try:
         old = await (await db.execute(
-            "SELECT eu.email, tu.tg_id, tu.bot_token FROM email_users eu "
-            "LEFT JOIN telegram_users tu ON tu.email = eu.email"
+            "SELECT eu.email, tu.tg_id, tu.bot_token FROM email_users eu"
+            " LEFT JOIN telegram_users tu ON tu.email = eu.email"
         )).fetchall()
     finally:
         await db.close()
 
-    to_remove: List[Dict] = []
+    to_remove = []
     for r in old:
-        email = (r.get("email") or "").strip().lower()
-        if email and email not in new_emails and r.get("tg_id"):
+        em = (r.get("email") or "").strip().lower()
+        if em and em not in new_emails and r.get("tg_id"):
             unit = ""
             if r.get("bot_token"):
                 db2 = await get_connection()
@@ -161,12 +152,8 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
         for row in csv.DictReader(io.StringIO(text)):
             await db.execute(
                 "INSERT INTO email_users(number, email, name, right_all, right_1, right_2) VALUES (?, ?, ?, ?, ?, ?)",
-                (
-                    row.get("number"), row.get("email"), row.get("name"),
-                    int(row.get("right_all") or 0),
-                    int(row.get("right_1") or 0),
-                    int(row.get("right_2") or 0)
-                )
+                (row.get("number"), row.get("email"), row.get("name"),
+                 int(row.get("right_all") or 0), int(row.get("right_1") or 0), int(row.get("right_2") or 0))
             )
         await db.commit()
     finally:
@@ -176,11 +163,7 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
 
 
 @router.post("/upload/confirm", response_class=RedirectResponse)
-async def confirm_upload(
-    request: Request,
-    csv_b64: str = Form(...),
-    confirm: str = Form(...)
-):
+async def confirm_upload(request: Request, csv_b64: str = Form(...), confirm: str = Form(...)):
     require_login(request)
     if confirm != "yes":
         return RedirectResponse("/admin/email-users", status_code=303)
@@ -195,7 +178,7 @@ async def confirm_upload(
         for r in rows:
             email, tg_id, bot_token = r["email"], r["tg_id"], r["bot_token"]
             if email and email not in new_set and tg_id and bot_token:
-                await send_message_to_bot(bot_token, tg_id, "❌ Ваш доступ к боту был отозван администратором.")
+                await send_message_to_bot(bot_token, tg_id, "❌ Доступ отозван.")
                 await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
                 await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
                 await db.execute("DELETE FROM email_users WHERE email = ?", (email,))
@@ -206,16 +189,9 @@ async def confirm_upload(
     return RedirectResponse("/admin/email-users", status_code=303)
 
 
-# === Упрощённый DELETE ===
-
 @router.post("/delete/{tg_id}")
-async def delete_user(
-    tg_id: int,
-    request: Request
-):
+async def delete_user(tg_id: int, request: Request):
     require_login(request)
-
-    # 1) Забираем email и bot_token
     db = await get_connection()
     db.row_factory = aiosqlite.Row
     try:
@@ -223,22 +199,24 @@ async def delete_user(
             "SELECT email, bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,)
         )).fetchone()
         if not row:
-            raise HTTPException(status_code=404, detail="Пользователь не найден")
-        email, bot_token = row["email"], row["bot_token"]
+            raise HTTPException(404, "Нет такого пользователя")
+        email, token = row["email"], row["bot_token"]
     finally:
         await db.close()
 
-    # 2) Уведомляем пользователя
-    if bot_token:
-        await send_message_to_bot(bot_token, tg_id, "❌ Ваш доступ отозван администратором.")
+    logger.debug(f"[delete_user] fetched email={email}, token={'yes' if token else 'no'}")
 
-    # 3) Удаляем сразу из всех таблиц
+    if token:
+        await send_message_to_bot(token, tg_id, "❌ Ваш доступ отозван администратором.")
+        logger.debug("[delete_user] notification sent")
+
     db2 = await get_connection()
     try:
         await db2.execute("DELETE FROM email_users WHERE email = ?", (email,))
         await db2.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
         await db2.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
         await db2.commit()
+        logger.debug("[delete_user] deletions committed")
     finally:
         await db2.close()
 
