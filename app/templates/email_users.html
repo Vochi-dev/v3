@@ -14,6 +14,7 @@
 </head>
 <body>
   <h1>Пользователи по e-mail</h1>
+  <p style="color:red; font-weight:bold;">DEBUG: group_mode = {{ group_mode }}</p>
 
   <form action="/admin/email-users/upload" method="post" enctype="multipart/form-data">
     <input type="file" name="file" accept=".csv" required>
@@ -37,7 +38,6 @@
         <th>Удалить</th>
       </tr>
 
-      {# групповой режим — форма под заголовком #}
       {% if group_mode %}
         <tr class="message-form">
           <td colspan="8">
@@ -82,7 +82,6 @@
           </td>
         </tr>
 
-        {# индивидуальная форма #}
         {% if selected_tg and u.tg_id == selected_tg %}
           <tr class="message-form">
             <td colspan="8">
