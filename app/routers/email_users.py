@@ -30,11 +30,11 @@ logger.setLevel(logging.DEBUG)
 async def list_email_users(
     request: Request,
     selected: Optional[int] = None,
-    group: Optional[int] = None,
+    group: Optional[int] = None,  # <-- принимаем ?group=1
 ):
     require_login(request)
+
     db = await get_connection()
-    # вернуть список словарей
     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
     try:
         sql = """
@@ -70,7 +70,7 @@ async def list_email_users(
             "request": request,
             "email_users": rows,
             "selected_tg": selected,
-            "group_mode": (group == 1),
+            "group_mode": (group == 1),  # <-- True только при ?group=1
         }
     )
 

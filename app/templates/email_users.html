@@ -9,7 +9,7 @@
     table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
     th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
     th { background: #f0f0f0; }
-    .danger { color: #dc3545; }
+    .danger { color: #dc3545; text-decoration: none; }
     .message-form td { background: #f9f9f9; }
   </style>
 </head>
@@ -25,7 +25,6 @@
     <thead>
       <tr>
         <th>
-          <!-- Кликабельный заголовок для групповой отправки -->
           <a href="?group=1{% if selected_tg %}&selected={{ selected_tg }}{% endif %}">
             ID Telegram
           </a>
@@ -66,7 +65,7 @@
           </td>
         </tr>
 
-        {# Форма индивидуальной отправки #}
+        {# индивидуальная форма #}
         {% if selected_tg and u.tg_id == selected_tg %}
           <tr class="message-form">
             <td colspan="8">
@@ -85,7 +84,7 @@
         {% endif %}
       {% endfor %}
 
-      {# Форма групповой отправки #}
+      {# групповая форма #}
       {% if group_mode %}
         <tr class="message-form">
           <td colspan="8">
