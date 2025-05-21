@@ -360,3 +360,38 @@ async def create_resend_loop(dial_cache_arg, bridge_store_arg, active_bridges_ar
                 )
             except BadRequest as e:
                 logging.error(f"[resend_loop] failed for {uid}: {e}. text={safe_text!r}")
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
+    """
+    По Asterisk-Token (поле name2 в enterprises) возвращает:
+      - bot_token для Telegram
+      - список всех approved telegram_id из enterprise_users
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        # находим enterprise
+        cur = await db.execute(
+            "SELECT number, bot_token FROM enterprises WHERE name2 = ?",
+            (asterisk_token,)
+        )
+        ent = await cur.fetchone()
+        if not ent:
+            raise HTTPException(status_code=404, detail="Unknown enterprise token")
+        number     = ent["number"]     # <-- тут теперь строка '0201'
+        bot_token  = ent["bot_token"]
+
+        # всех approved пользователей
+        cur = await db.execute(
+            """
+            SELECT telegram_id
+              FROM enterprise_users
+             WHERE enterprise_id = ?
+               AND status = 'approved'
+            """,
+            (number,)               # и сюда передаём ту же строку
+        )
+        rows = await cur.fetchall()
+        tg_ids = [r["telegram_id"] for r in rows]
+    return bot_token, tg_ids
