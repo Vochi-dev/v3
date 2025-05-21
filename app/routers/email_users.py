@@ -115,8 +115,7 @@ async def message_group(
             """
             SELECT tu.tg_id, tu.bot_token
             FROM telegram_users tu
-            INNER JOIN email_users eu
-              ON tu.email = eu.email
+            INNER JOIN email_users eu ON tu.email = eu.email
             WHERE tu.verified = 1
             """
         )
@@ -167,28 +166,19 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
                 db2 = await get_connection()
                 try:
                     cur2 = await db2.execute(
-                        "SELECT name FROM enterprises WHERE bot_token = ?",
-                        (r["bot_token"],)
+                        "SELECT name FROM enterprises WHERE bot_token = ?", (r["bot_token"],)
                     )
                     row2 = await cur2.fetchone()
                     unit = row2["name"] if row2 else ""
                 finally:
                     await db2.close()
-            to_remove.append({
-                "tg_id": r["tg_id"],
-                "email": r["email"],
-                "enterprise_name": unit
-            })
+            to_remove.append({"tg_id": r["tg_id"], "email": r["email"], "enterprise_name": unit})
 
     if to_remove:
         csv_b64 = base64.b64encode(text.encode()).decode()
         return templates.TemplateResponse(
             "confirm_sync.html",
-            {
-                "request": request,
-                "to_remove": to_remove,
-                "csv_b64": csv_b64
-            },
+            {"request": request, "to_remove": to_remove, "csv_b64": csv_b64},
             status_code=status.HTTP_200_OK
         )
 
@@ -198,10 +188,7 @@ async def upload_email_users(request: Request, file: UploadFile = File(...)):
         reader = csv.DictReader(io.StringIO(text))
         for row in reader:
             await db.execute(
-                """
-                INSERT INTO email_users(number, email, name, right_all, right_1, right_2)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
+                "INSERT INTO email_users(number, email, name, right_all, right_1, right_2) VALUES (?, ?, ?, ?, ?, ?)"​,
                 (
                     row.get("number"),
                     row.get("email"),
@@ -230,11 +217,7 @@ async def confirm_upload(
 
     raw = base64.b64decode(csv_b64.encode())
     text = raw.decode("utf-8-sig")
-    new_set = {
-        r["email"].strip().lower()
-        for r in csv.DictReader(io.StringIO(text))
-        if r.get("email")
-    }
+    new_set = {r["email"].strip().lower() for r in csv.DictReader(io.StringIO(text)) if r.get("email")}
 
     db = await get_connection()
     db.row_factory = aiosqlite.Row
@@ -247,38 +230,26 @@ async def confirm_upload(
             tg_id = row["tg_id"]
             bot_token = row["bot_token"]
             if email and email not in new_set and tg_id and bot_token:
-                await send_message_to_bot(
-                    bot_token,
-                    tg_id,
-                    "❌ Ваш доступ к боту был отозван администратором."
-                )
+                await send_message_to_bot(bot_token, tg_id, "❌ Ваш доступ к боту был отозван администратором.")
                 await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
                 await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
                 await db.execute("DELETE FROM email_users WHERE email = ?", (email,))
-
         await db.execute("DELETE FROM email_users")
         reader = csv.DictReader(io.StringIO(text))
         for r in reader:
             await db.execute(
-                """
-                INSERT INTO email_users(number, email, name, right_all, right_1, right_2)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
+                "INSERT INTO email_users(number, email, name, right_all, right_1, right_2) VALUES (?, ?, ?, ?, ?, ?)"​,
                 (
-                    r.get("number"),
-                    r.get("email"),
-                    r.get("name"),
-                    int(r.get("right_all") or 0),
-                    int(r.get("right_1") or 0),
-                    int(r.get("right_2") or 0),
+                    r.get("number"), r.get("email"), r.get("name"),
+                    int(r.get("right_all") or 0), int(r.get("right_1") or 0), int(r.get("right_2") or 0)
                 )
             )
-
         await db.commit()
     finally:
         await db.close()
 
     return RedirectResponse("/admin/email-users", status_code=303)
+
 
 # DELETE Handlers
 
@@ -288,9 +259,7 @@ async def delete_user_confirm(tg_id: int, request: Request):
     db = await get_connection()
     db.row_factory = aiosqlite.Row
     try:
-        user = await (await db.execute(
-            "SELECT email, tg_id FROM telegram_users WHERE tg_id = ?", (tg_id,)
-        )).fetchone()
+        user = await (await db.execute("SELECT email, tg_id FROM telegram_users WHERE tg_id = ?", (tg_id,))).fetchone()
     finally:
         await db.close()
     if not user:
@@ -309,20 +278,34 @@ async def delete_user_execute(
     require_login(request)
     if confirm != 'yes':
         return RedirectResponse("/admin/email-users", status_code=303)
+
+    # Получаем email и token до удаления
     db = await get_connection()
     db.row_factory = aiosqlite.Row
     try:
-        row = await (await db.execute(
-            "SELECT bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,)
-        )).fetchone()
-        if row and row['bot_token']:
-            await send_message_to_bot(row['bot_token'], tg_id, "❌ Ваш доступ отозван администратором.")
-        await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
-        await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
-        await db.execute(
-            "DELETE FROM email_users WHERE email IN (SELECT email FROM telegram_users WHERE tg_id = ?)", (tg_id,)
-        )
-        await db.commit()
+        row = await (await db.execute("SELECT email, bot_token FROM telegram_users WHERE tg_id = ?", (tg_id,))).fetchone()
+        if not row:
+            return RedirectResponse("/admin/email-users", status_code=303)
+        email = row['email']
+        bot_token = row['bot_token']
     finally:
         await db.close()
+
+    # Уведомляем пользователя
+    if bot_token:
+        await send_message_to_bot(bot_token, tg_id, "❌ Ваш доступ отозван администратором.")
+
+    # Удаляем в правильном порядке
+    db2 = await get_connection()
+    try:
+        # 1) Удаляем из email_users
+        await db2.execute("DELETE FROM email_users WHERE email = ?", (email,))
+        # 2) Удаляем из enterprise_users
+        await db2.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
+        # 3) Удаляем из telegram_users
+        await db2.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
+        await db2.commit()
+    finally:
+        await db2.close()
+
     return RedirectResponse("/admin/email-users", status_code=303)
