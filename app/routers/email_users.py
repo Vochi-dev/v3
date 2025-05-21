@@ -5,7 +5,7 @@ import csv
 import io
 import base64
 import logging
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import aiosqlite
 from fastapi import (
@@ -29,8 +29,8 @@ logger.setLevel(logging.DEBUG)
 @router.get("", response_class=HTMLResponse)
 async def list_email_users(
     request: Request,
-    selected: int | None = None,
-    group: bool | None = None,
+    selected: Optional[int] = None,
+    group: Optional[bool] = None,
 ):
     require_login(request)
     db = await get_connection()
@@ -97,7 +97,10 @@ async def message_user(
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     await send_message_to_bot(rec["bot_token"], tg_id, message)
-    return RedirectResponse("/admin/email-users", status_code=303)
+    return RedirectResponse(
+        url=f"/admin/email-users?selected={tg_id}",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 @router.post("/message-group", response_class=RedirectResponse)
@@ -108,6 +111,7 @@ async def message_group(
     require_login(request)
     db = await get_connection()
     try:
+        # отдаем только подтверждённых (verified=1)
         cur = await db.execute(
             "SELECT tg_id, bot_token FROM telegram_users WHERE verified = 1"
         )
@@ -124,7 +128,10 @@ async def message_group(
             except Exception as e:
                 logger.warning(f"Не удалось отправить групповое сообщение {tg_id}: {e}")
 
-    return RedirectResponse("/admin/email-users", status_code=303)
+    return RedirectResponse(
+        url="/admin/email-users?group=1",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 @router.post("/upload", response_class=HTMLResponse)
