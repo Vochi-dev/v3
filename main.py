@@ -50,7 +50,7 @@ from app.services.calls import (
 import aiosqlite
 from app.config import DB_PATH
 
-# TG ID супер-пользователя (берётся из .env)
+# TG ID супер-пользователя (берётся из .env, но не через pydantic Settings)
 SUPERUSER_TG_ID = int(os.getenv("SUPERUSER_TG_ID", "0"))
 
 # --- Настройка логирования ---
@@ -177,13 +177,15 @@ async def add_enterprise_form(request: Request):
             "enterprise_form.html",
             {
                 "request": request,
-                "enterprise": {"number": number, "name": name, "secret": secret,
-                               "bot_token": bot_token, "chat_id": chat_id,
-                               "ip": ip, "host": host, "name2": name2},
+                "enterprise": {
+                    "number": number, "name": name, "secret": secret,
+                    "bot_token": bot_token, "chat_id": chat_id,
+                    "ip": ip, "host": host, "name2": name2
+                },
                 "action": "add",
-                "error": error
+                "error": error,
             },
-            status_code=status.HTTP_400_BAD_REQUEST
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
 
     await add_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
@@ -231,13 +233,15 @@ async def update_enterprise_post(
             "enterprise_form.html",
             {
                 "request": request,
-                "enterprise": {"number": number, "name": name, "secret": secret,
-                               "bot_token": bot_token, "chat_id": chat_id,
-                               "ip": ip, "host": host, "name2": name2},
+                "enterprise": {
+                    "number": number, "name": name, "secret": secret,
+                    "bot_token": bot_token, "chat_id": chat_id,
+                    "ip": ip, "host": host, "name2": name2
+                },
                 "action": "edit",
-                "error": error
+                "error": error,
             },
-            status_code=status.HTTP_400_BAD_REQUEST
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
 
     await update_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
@@ -310,7 +314,6 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
 
 async def _send_to_unit(asterisk_token: str, text: str) -> list[dict]:
     bot_token, tg_ids = await _get_bot_and_recipients(asterisk_token)
-    # обязательно уведомим супер-пользователя
     if SUPERUSER_TG_ID and SUPERUSER_TG_ID not in tg_ids:
         tg_ids.append(SUPERUSER_TG_ID)
     bot = Bot(token=bot_token)
@@ -354,11 +357,6 @@ async def asterisk_hangup(body: dict = Body(...)):
     delivered = await _send_to_unit(body.get("Token"), text)
     return JSONResponse({"delivered": delivered})
 
-@app.on_event("startup")
-async def on_startup():
-    logger.info("Starting all telegram bots in background task...")
-    asyncio.create_task(start_all_bots())
-
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down bots gracefully...")
@@ -378,7 +376,12 @@ async def start_bot(enterprise_number: str, token: str):
 async def start_all_bots():
     tokens = await get_all_bot_tokens()
     tasks = []
-    for enterprise_number, token in tokens.items():
+    for ent_num, token in tokens.items():
         if token and token.strip():
-            tasks.append(asyncio.create_task(start_bot(enterprise_number, token)))
+            tasks.append(asyncio.create_task(start_bot(ent_num, token)))
     await asyncio.gather(*tasks)
+
+@app.on_event("startup")
+async def on_startup():
+    logger.info("Starting all telegram bots in background task...")
+    asyncio.create_task(start_all_bots())
