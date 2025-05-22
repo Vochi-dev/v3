@@ -409,7 +409,26 @@ async def _dispatch_to_all(
 
 @app.post("/start")
 async def asterisk_start(body: dict = Body(...)):
-    return JSONResponse(await _dispatch_to_all(process_start, body))
+    # 1. Достаём bot_token и список пользователей
+    token = body.get("Token")
+    bot_token, tg_ids = await _get_bot_and_recipients(token)
+
+    # 2. Формируем текст (пример, повтори ту же логику из process_start если нужно более сложный)
+    caller = body.get("Caller", "")
+    text = f"🛎️ Входящий звонок\n💰 {caller}"
+
+    # 3. Шлём каждому напрямую, без reply_to_message_id
+    bot = Bot(token=bot_token)
+    results = []
+    for chat_id in tg_ids:
+        try:
+            await bot.send_message(chat_id=int(chat_id), text=text, parse_mode="HTML")
+            results.append({"chat_id": chat_id, "status": "ok"})
+        except Exception as e:
+            logger.error(f"Asterisk direct dispatch to {chat_id} failed: {e}")
+            results.append({"chat_id": chat_id, "status": "error", "error": str(e)})
+
+    return JSONResponse({"delivered": results})
 
 @app.post("/dial")
 async def asterisk_dial(body: dict = Body(...)):
