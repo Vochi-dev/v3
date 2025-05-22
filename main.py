@@ -356,6 +356,7 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
     """
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
+
         # 1) Получаем bot_token у предприятия по name2
         cur = await db.execute(
             "SELECT bot_token FROM enterprises WHERE name2 = ?",
@@ -366,16 +367,21 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
             raise HTTPException(status_code=404, detail="Unknown enterprise token")
         bot_token = ent["bot_token"]
 
-        # 2) Выбираем всех пользователей из telegram_users, у которых тот же bot_token и verified=1
+        # 2) Вытаскиваем всех tg_id у которых тот же bot_token и verified=1
         cur = await db.execute(
-            "SELECT tg_id FROM telegram_users WHERE bot_token = ? AND verified = 1",
+            """
+            SELECT tu.tg_id
+              FROM telegram_users AS tu
+             WHERE tu.bot_token = ?
+               AND tu.verified = 1
+            """,
             (bot_token,)
         )
         rows = await cur.fetchall()
 
-    # Преобразуем tg_id в int
     tg_ids = [int(r["tg_id"]) for r in rows]
     return bot_token, tg_ids
+
 
 
 
