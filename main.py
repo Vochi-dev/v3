@@ -352,11 +352,11 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
     """
     По Asterisk-Token (поле name2 в enterprises) возвращает:
       - bot_token для Telegram
-      - список всех verified telegram_id из telegram_users
+      - список всех verified tg_id из telegram_users (связь по bot_token)
     """
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        # 1) ищем предприятие по name2
+        # 1) Получаем bot_token у предприятия по name2
         cur = await db.execute(
             "SELECT bot_token FROM enterprises WHERE name2 = ?",
             (asterisk_token,)
@@ -366,20 +366,17 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
             raise HTTPException(status_code=404, detail="Unknown enterprise token")
         bot_token = ent["bot_token"]
 
-        # 2) по bot_token в telegram_users получаем всех проверенных юзеров
+        # 2) Выбираем всех пользователей из telegram_users, у которых тот же bot_token и verified=1
         cur = await db.execute(
-            """
-            SELECT tg_id
-              FROM telegram_users
-             WHERE bot_token = ?
-               AND verified = 1
-            """,
+            "SELECT tg_id FROM telegram_users WHERE bot_token = ? AND verified = 1",
             (bot_token,)
         )
         rows = await cur.fetchall()
-    # собираем и возвращаем список целых ID
+
+    # Преобразуем tg_id в int
     tg_ids = [int(r["tg_id"]) for r in rows]
     return bot_token, tg_ids
+
 
 
 async def _dispatch_to_all(
