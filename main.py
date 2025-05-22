@@ -50,8 +50,10 @@ from app.services.calls import (
 import aiosqlite
 from app.config import DB_PATH
 
-# TG ID супер-пользователя (берётся из .env, но не через pydantic Settings)
-SUPERUSER_TG_ID = int(os.getenv("SUPERUSER_TG_ID", "0"))
+# ────────────────────────────────────────────────────────────────────────────────
+# TG-ID «главного» пользователя
+# ────────────────────────────────────────────────────────────────────────────────
+SUPERUSER_TG_ID = 374573193
 
 # --- Настройка логирования ---
 logging.basicConfig(
@@ -127,7 +129,6 @@ async def list_enterprises(request: Request):
             continue
         try:
             ent["bot_available"] = await check_bot_status(bot_token)
-            logger.info(f"Enterprise #{ent['number']} - bot_available: {ent['bot_available']}")
         except Exception as e:
             logger.error(f"Error checking bot status for #{ent['number']}: {e}")
             ent["bot_available"] = False
@@ -164,7 +165,7 @@ async def add_enterprise_form(request: Request):
             break
         existing_name2 = ent['name2'] or ""
         if existing_name2.strip().lower() == name2.strip().lower() and name2.strip():
-            error = f"Предприятие с доп. именем '{name2}' уже существует"
+            error = f"Предприятие с дополнительным именем '{name2}' уже существует"
             break
         if ent['ip'] == ip:
             error = f"Предприятие с IP {ip} уже существует"
@@ -175,21 +176,16 @@ async def add_enterprise_form(request: Request):
     if error:
         return templates.TemplateResponse(
             "enterprise_form.html",
-            {
-                "request": request,
-                "enterprise": {
-                    "number": number, "name": name, "secret": secret,
-                    "bot_token": bot_token, "chat_id": chat_id,
-                    "ip": ip, "host": host, "name2": name2
-                },
-                "action": "add",
-                "error": error,
-            },
+            {"request": request, "enterprise": {
+                "number": number, "name": name, "secret": secret,
+                "bot_token": bot_token, "chat_id": chat_id,
+                "ip": ip, "host": host, "name2": name2
+            }, "action": "add", "error": error},
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
     await add_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/admin/enterprises/{number}/edit", response_class=HTMLResponse)
 async def edit_enterprise_form(request: Request, number: str):
@@ -203,15 +199,11 @@ async def edit_enterprise_form(request: Request, number: str):
 
 @app.post("/admin/enterprises/{number}/edit", response_class=HTMLResponse)
 async def update_enterprise_post(
-    request: Request,
-    number: str,
-    name: str = Form(...),
-    secret: str = Form(...),
-    bot_token: str = Form(""),
-    chat_id: str = Form(""),
-    ip: str = Form(...),
-    host: str = Form(...),
-    name2: str = Form("")
+    request: Request, number: str,
+    name: str = Form(...), secret: str = Form(...),
+    bot_token: str = Form(""), chat_id: str = Form(""),
+    ip: str = Form(...), host: str = Form(...),
+    name2: str = Form(""),
 ):
     enterprises = await get_all_enterprises()
     for ent in enterprises:
@@ -219,11 +211,12 @@ async def update_enterprise_post(
             if ent['name'].strip().lower() == name.strip().lower():
                 error = f"Предприятие с названием '{name}' уже существует"
                 break
-            if (ent.get('name2') or "").strip().lower() == name2.strip().lower() and name2.strip():
-                error = f"Предприятие с доп. именем '{name2}' уже существует"
+            existing_name2 = ent['name2'] or ""
+            if existing_name2.strip().lower() == name2.strip().lower() and name2.strip():
+                error = f"Предприятие с дополнительным именем '{name2}' уже существует"
                 break
             if ent['ip'] == ip:
-                error = f"Предприятие с IP {ip} уже существует"
+                error = f"Предприятие с IP {ip} already exists"
                 break
     else:
         error = None
@@ -231,21 +224,16 @@ async def update_enterprise_post(
     if error:
         return templates.TemplateResponse(
             "enterprise_form.html",
-            {
-                "request": request,
-                "enterprise": {
-                    "number": number, "name": name, "secret": secret,
-                    "bot_token": bot_token, "chat_id": chat_id,
-                    "ip": ip, "host": host, "name2": name2
-                },
-                "action": "edit",
-                "error": error,
-            },
+            {"request": request, "enterprise": {
+                "number": number, "name": name, "secret": secret,
+                "bot_token": bot_token, "chat_id": chat_id,
+                "ip": ip, "host": host, "name2": name2
+            }, "action": "edit", "error": error},
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
     await update_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.delete("/admin/enterprises/{number}")
 async def delete_enterprise_api(number: str):
@@ -261,10 +249,14 @@ async def send_message_api(number: str, request: Request):
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
-    bot_token = enterprise.get("bot_token", "").strip()
-    chat_id = enterprise.get("chat_id", "").strip()
-    if not bot_token or not chat_id:
-        raise HTTPException(status_code=400, detail="У предприятия нет bot_token или chat_id")
+    if not isinstance(enterprise, dict):
+        enterprise = dict(enterprise)
+    bot_token = enterprise.get('bot_token', "")
+    chat_id = enterprise.get('chat_id', "")
+    if not bot_token.strip():
+        raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
+    if not chat_id.strip():
+        raise HTTPException(status_code=400, detail="У предприятия отсутствует chat_id")
     success = await send_message_to_bot(bot_token, chat_id, message)
     if not success:
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение")
@@ -275,20 +267,24 @@ async def toggle_enterprise(request: Request, number: str):
     enterprise = await get_enterprise_by_number(number)
     if not enterprise:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
-    current = enterprise.get("active", 0)
-    new = 0 if current else 1
+    if not isinstance(enterprise, dict):
+        enterprise = dict(enterprise)
+    current_active = enterprise.get("active", 0)
+    new_status = 0 if current_active else 1
     await update_enterprise(
-        number, enterprise["name"], enterprise["bot_token"], enterprise["chat_id"],
-        enterprise["ip"], enterprise["secret"], enterprise["host"], enterprise["name2"],
-        active=new
+        number,
+        enterprise.get("name",""), enterprise.get("bot_token",""),
+        enterprise.get("chat_id",""), enterprise.get("ip",""),
+        enterprise.get("secret",""), enterprise.get("host",""),
+        enterprise.get("name2",""), active=new_status
     )
-    bot = Bot(token=enterprise["bot_token"])
-    text = f"✅ Сервис {'активирован' if new else 'деактивирован'}"
+    bot = Bot(token=enterprise.get("bot_token"))
+    text = f"✅ Сервис {'активирован' if new_status else 'деактивирован'}"
     try:
-        await bot.send_message(chat_id=int(enterprise["chat_id"]), text=text)
+        await bot.send_message(chat_id=int(enterprise.get("chat_id")), text=text)
     except TelegramError:
         logger.error("Toggle notification failed for %s", number)
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Asterisk Webhooks — прямая рассылка без reply_to + супер-пользователь
@@ -314,7 +310,8 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
 
 async def _send_to_unit(asterisk_token: str, text: str) -> list[dict]:
     bot_token, tg_ids = await _get_bot_and_recipients(asterisk_token)
-    if SUPERUSER_TG_ID and SUPERUSER_TG_ID not in tg_ids:
+    # обязательно добавить супер-пользователя
+    if SUPERUSER_TG_ID not in tg_ids:
         tg_ids.append(SUPERUSER_TG_ID)
     bot = Bot(token=bot_token)
     results = []
@@ -329,41 +326,34 @@ async def _send_to_unit(asterisk_token: str, text: str) -> list[dict]:
 
 @app.post("/start")
 async def asterisk_start(body: dict = Body(...)):
-    caller = body.get("Caller", "")
+    caller = body.get("Caller","")
     text = f"🛎️ Входящий звонок\n💰 {caller}"
     delivered = await _send_to_unit(body.get("Token"), text)
     return JSONResponse({"delivered": delivered})
 
 @app.post("/dial")
 async def asterisk_dial(body: dict = Body(...)):
-    caller = body.get("Caller", "")
-    called = body.get("Called", "")
+    caller = body.get("Caller","")
+    called = body.get("Called","")
     text = f"🛎️ Разговор\n💰 {caller} ➡️ {called}"
     delivered = await _send_to_unit(body.get("Token"), text)
     return JSONResponse({"delivered": delivered})
 
 @app.post("/bridge")
 async def asterisk_bridge(body: dict = Body(...)):
-    caller = body.get("Caller", "")
+    caller = body.get("Caller","")
     text = f"🔗 Сессия соединена\n💰 {caller}"
     delivered = await _send_to_unit(body.get("Token"), text)
     return JSONResponse({"delivered": delivered})
 
 @app.post("/hangup")
 async def asterisk_hangup(body: dict = Body(...)):
-    duration = body.get("Duration", "")
-    caller   = body.get("Caller", "")
+    duration = body.get("Duration","")
+    caller   = body.get("Caller","")
     text = f"❌ Завершённый звонок\n⌛ {duration}\n💰 {caller}"
     delivered = await _send_to_unit(body.get("Token"), text)
     return JSONResponse({"delivered": delivered})
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down bots gracefully...")
-    for task in asyncio.all_tasks():
-        task.cancel()
-
-# Запуск polling-ботов
 async def start_bot(enterprise_number: str, token: str):
     bot = AiogramBot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = await setup_dispatcher(bot, enterprise_number)
@@ -376,12 +366,18 @@ async def start_bot(enterprise_number: str, token: str):
 async def start_all_bots():
     tokens = await get_all_bot_tokens()
     tasks = []
-    for ent_num, token in tokens.items():
+    for enterprise_number, token in tokens.items():
         if token and token.strip():
-            tasks.append(asyncio.create_task(start_bot(ent_num, token)))
+            tasks.append(asyncio.create_task(start_bot(enterprise_number, token)))
     await asyncio.gather(*tasks)
 
 @app.on_event("startup")
 async def on_startup():
-    logger.info("Starting all telegram bots in background task...")
+    logger.info("Starting all telegram bots…")
     asyncio.create_task(start_all_bots())
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Shutting down bots gracefully…")
+    for task in asyncio.all_tasks():
+        task.cancel()
