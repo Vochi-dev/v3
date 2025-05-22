@@ -345,56 +345,61 @@ async def toggle_enterprise(request: Request, number: str):
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Asterisk Webhooks: рассылаем события всем approved + основной чат
+# Asterisk Webhooks: рассылаем события всем approved-пользователям по bot_token
 # ────────────────────────────────────────────────────────────────────────────────
-async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, int, list[int]]:
+
+async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
+    """
+    По Asterisk-Token (поле name2 в enterprises) возвращает:
+      - bot_token для Telegram
+      - список всех verified telegram_id из telegram_users
+    """
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
+        # 1) ищем предприятие по name2
         cur = await db.execute(
-            "SELECT number, bot_token, chat_id FROM enterprises WHERE name2 = ?", (asterisk_token,)
+            "SELECT bot_token FROM enterprises WHERE name2 = ?",
+            (asterisk_token,)
         )
         ent = await cur.fetchone()
-    if not ent:
-        raise HTTPException(status_code=404, detail="Unknown enterprise token")
-    number     = ent["number"]
-    token      = ent["bot_token"]
-    main_chat  = int(ent["chat_id"])
-    # вот тут — приведение enterprise_id к INTEGER:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+        if not ent:
+            raise HTTPException(status_code=404, detail="Unknown enterprise token")
+        bot_token = ent["bot_token"]
+
+        # 2) по bot_token в telegram_users получаем всех проверенных юзеров
         cur = await db.execute(
-            "SELECT telegram_id "
-            "  FROM enterprise_users "
-            " WHERE CAST(enterprise_id AS INTEGER) = ? "
-            "   AND status = 'approved'",
-            (int(number),)
+            """
+            SELECT tg_id
+              FROM telegram_users
+             WHERE bot_token = ?
+               AND verified = 1
+            """,
+            (bot_token,)
         )
         rows = await cur.fetchall()
-    users = [int(r["telegram_id"]) for r in rows]
-    return token, main_chat, users
+    # собираем и возвращаем список целых ID
+    tg_ids = [int(r["tg_id"]) for r in rows]
+    return bot_token, tg_ids
+
 
 async def _dispatch_to_all(
-    handler, body: dict
+    handler,  # process_start / process_dial / process_bridge / process_hangup
+    body: dict
 ):
-    token, main_chat, users = await _get_bot_and_recipients(body.get("Token"))
-    bot = Bot(token=token)
+    token = body.get("Token")
+    bot_token, tg_ids = await _get_bot_and_recipients(token)
+    bot = Bot(token=bot_token)
     results = []
-    # сначала основной чат
-    try:
-        await handler(bot, main_chat, body)
-        results.append({"chat_id": main_chat, "status": "ok"})
-    except Exception as e:
-        logger.error("Dispatch to main_chat failed: %s", e)
-        results.append({"chat_id": main_chat, "status": "error", "error": str(e)})
-    # потом одобренным пользователям
-    for uid in users:
+
+    for chat_id in tg_ids:
         try:
-            await handler(bot, uid, body)
-            results.append({"chat_id": uid, "status": "ok"})
+            await handler(bot, chat_id, body)
+            results.append({"chat_id": chat_id, "status": "ok"})
         except Exception as e:
-            logger.error("Dispatch to %s failed: %s", uid, e)
-            results.append({"chat_id": uid, "status": "error", "error": str(e)})
+            logger.error(f"Asterisk dispatch to {chat_id} failed: {e}")
+            results.append({"chat_id": chat_id, "status": "error", "error": str(e)})
     return {"delivered": results}
+
 
 @app.post("/start")
 async def asterisk_start(body: dict = Body(...)):
@@ -411,6 +416,7 @@ async def asterisk_bridge(body: dict = Body(...)):
 @app.post("/hangup")
 async def asterisk_hangup(body: dict = Body(...)):
     return JSONResponse(await _dispatch_to_all(process_hangup, body))
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
