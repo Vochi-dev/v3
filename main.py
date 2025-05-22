@@ -344,20 +344,13 @@ async def toggle_enterprise(request: Request, number: str):
 
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
-# ────────────────────────────────────────────────────────────────────────────────
-# Asterisk Webhooks: рассылаем события всем approved-пользователям по bot_token
-# ────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────
+# Asterisk Webhooks — прямая рассылка без reply_to
+# ────────────────────────────────────────────────────
 
 async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
-    """
-    По Asterisk-Token (поле name2 в enterprises) возвращает:
-      - bot_token для Telegram
-      - список всех verified tg_id из telegram_users (связь по bot_token)
-    """
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-
-        # 1) Получаем bot_token у предприятия по name2
         cur = await db.execute(
             "SELECT bot_token FROM enterprises WHERE name2 = ?",
             (asterisk_token,)
@@ -366,58 +359,15 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
         if not ent:
             raise HTTPException(status_code=404, detail="Unknown enterprise token")
         bot_token = ent["bot_token"]
-
-        # 2) Вытаскиваем всех tg_id у которых тот же bot_token и verified=1
         cur = await db.execute(
-            """
-            SELECT tu.tg_id
-              FROM telegram_users AS tu
-             WHERE tu.bot_token = ?
-               AND tu.verified = 1
-            """,
+            "SELECT tg_id FROM telegram_users WHERE bot_token = ? AND verified = 1",
             (bot_token,)
         )
         rows = await cur.fetchall()
+    return bot_token, [int(r["tg_id"]) for r in rows]
 
-    tg_ids = [int(r["tg_id"]) for r in rows]
-    return bot_token, tg_ids
-
-
-
-
-async def _dispatch_to_all(
-    handler,  # process_start / process_dial / process_bridge / process_hangup
-    body: dict
-):
-    token = body.get("Token")
-    bot_token, tg_ids = await _get_bot_and_recipients(token)
-    bot = Bot(token=bot_token)
-    results = []
-
-    # отправляем всем одобренным пользователям без reply_to
-    for chat_id in tg_ids:
-        try:
-            await handler(bot, chat_id, body)
-            results.append({"chat_id": chat_id, "status": "ok"})
-        except Exception as e:
-            logger.error(f"Asterisk dispatch to {chat_id} failed: {e}")
-            results.append({"chat_id": chat_id, "status": "error", "error": str(e)})
-
-    return {"delivered": results}
-
-
-
-@app.post("/start")
-async def asterisk_start(body: dict = Body(...)):
-    # 1. Достаём bot_token и список пользователей
-    token = body.get("Token")
-    bot_token, tg_ids = await _get_bot_and_recipients(token)
-
-    # 2. Формируем текст (пример, повтори ту же логику из process_start если нужно более сложный)
-    caller = body.get("Caller", "")
-    text = f"🛎️ Входящий звонок\n💰 {caller}"
-
-    # 3. Шлём каждому напрямую, без reply_to_message_id
+async def _send_to_unit(asterisk_token: str, text: str) -> list[dict]:
+    bot_token, tg_ids = await _get_bot_and_recipients(asterisk_token)
     bot = Bot(token=bot_token)
     results = []
     for chat_id in tg_ids:
@@ -425,22 +375,46 @@ async def asterisk_start(body: dict = Body(...)):
             await bot.send_message(chat_id=int(chat_id), text=text, parse_mode="HTML")
             results.append({"chat_id": chat_id, "status": "ok"})
         except Exception as e:
-            logger.error(f"Asterisk direct dispatch to {chat_id} failed: {e}")
+            logger.error(f"Asterisk dispatch to {chat_id} failed: {e}")
             results.append({"chat_id": chat_id, "status": "error", "error": str(e)})
+    return results
 
-    return JSONResponse({"delivered": results})
+@app.post("/start")
+async def asterisk_start(body: dict = Body(...)):
+    caller = body.get("Caller", "")
+    text = f"🛎️ Входящий звонок\n💰 {caller}"
+    delivered = await _send_to_unit(body.get("Token"), text)
+    return JSONResponse({"delivered": delivered})
 
 @app.post("/dial")
 async def asterisk_dial(body: dict = Body(...)):
-    return JSONResponse(await _dispatch_to_all(process_dial, body))
+    caller = body.get("Caller", "")
+    called = body.get("Called", "")
+    text = f"🛎️ Разговор\n💰 {caller} ➡️ {called}"
+    delivered = await _send_to_unit(body.get("Token"), text)
+    return JSONResponse({"delivered": delivered})
 
 @app.post("/bridge")
 async def asterisk_bridge(body: dict = Body(...)):
-    return JSONResponse(await _dispatch_to_all(process_bridge, body))
+    caller = body.get("Caller", "")
+    text = f"🔗 Сессия соединена\n💰 {caller}"
+    delivered = await _send_to_unit(body.get("Token"), text)
+    return JSONResponse({"delivered": delivered})
 
 @app.post("/hangup")
 async def asterisk_hangup(body: dict = Body(...)):
-    return JSONResponse(await _dispatch_to_all(process_hangup, body))
+    duration = body.get("Duration", "")
+    caller   = body.get("Caller", "")
+    text = f"❌ Завершённый звонок\n⌛ {duration}\n💰 {caller}"
+    delivered = await _send_to_unit(body.get("Token"), text)
+    return JSONResponse({"delivered": delivered})
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Shutting down bots gracefully...")
+    for task in asyncio.all_tasks():
+        task.cancel()
+
 
 
 @app.on_event("shutdown")
