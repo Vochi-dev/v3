@@ -409,12 +409,32 @@ async def asterisk_hangup(body: dict = Body(...)):
     delivered = await _send_to_unit(body.get("Token"), text)
     return JSONResponse({"delivered": delivered})
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down bots gracefully...")
-    for task in asyncio.all_tasks():
-        task.cancel()
 
+async def start_bot(enterprise_number: str, token: str):
+    bot = AiogramBot(
+        token=token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
+    dp = await setup_dispatcher(bot, enterprise_number)
+    try:
+        logger.info(f"Starting bot for enterprise {enterprise_number}")
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()
+
+async def start_all_bots():
+    tokens = await get_all_bot_tokens()
+    tasks = []
+    for enterprise_number, token in tokens.items():
+        if not token or not token.strip():
+            continue
+        tasks.append(asyncio.create_task(start_bot(enterprise_number, token)))
+    await asyncio.gather(*tasks)
+
+@app.on_event("startup")
+async def on_startup():
+    logger.info("Starting all telegram bots in background task...")
+    asyncio.create_task(start_all_bots())
 
 
 @app.on_event("shutdown")
