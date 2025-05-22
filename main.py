@@ -394,6 +394,7 @@ async def _dispatch_to_all(
     bot = Bot(token=bot_token)
     results = []
 
+    # отправляем всем одобренным пользователям без reply_to
     for chat_id in tg_ids:
         try:
             await handler(bot, chat_id, body)
@@ -401,7 +402,9 @@ async def _dispatch_to_all(
         except Exception as e:
             logger.error(f"Asterisk dispatch to {chat_id} failed: {e}")
             results.append({"chat_id": chat_id, "status": "error", "error": str(e)})
+
     return {"delivered": results}
+
 
 
 @app.post("/start")
