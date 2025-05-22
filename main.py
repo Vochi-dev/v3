@@ -345,7 +345,7 @@ async def toggle_enterprise(request: Request, number: str):
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Asterisk Webhooks: рассылаем события всем approved + в основнной чат
+# Asterisk Webhooks: рассылаем события всем approved + основной чат
 # ────────────────────────────────────────────────────────────────────────────────
 async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, int, list[int]]:
     async with aiosqlite.connect(DB_PATH) as db:
@@ -356,14 +356,18 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, int, list[i
         ent = await cur.fetchone()
     if not ent:
         raise HTTPException(status_code=404, detail="Unknown enterprise token")
-    number = ent["number"]
-    token = ent["bot_token"]
-    main_chat = int(ent["chat_id"])
+    number     = ent["number"]
+    token      = ent["bot_token"]
+    main_chat  = int(ent["chat_id"])
+    # вот тут — приведение enterprise_id к INTEGER:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
-            "SELECT telegram_id FROM enterprise_users WHERE enterprise_id = ? AND status = 'approved'",
-            (number,),
+            "SELECT telegram_id "
+            "  FROM enterprise_users "
+            " WHERE CAST(enterprise_id AS INTEGER) = ? "
+            "   AND status = 'approved'",
+            (int(number),)
         )
         rows = await cur.fetchall()
     users = [int(r["telegram_id"]) for r in rows]
@@ -375,14 +379,14 @@ async def _dispatch_to_all(
     token, main_chat, users = await _get_bot_and_recipients(body.get("Token"))
     bot = Bot(token=token)
     results = []
-    # 1) в основной чат предприятия
+    # сначала основной чат
     try:
         await handler(bot, main_chat, body)
         results.append({"chat_id": main_chat, "status": "ok"})
     except Exception as e:
         logger.error("Dispatch to main_chat failed: %s", e)
         results.append({"chat_id": main_chat, "status": "error", "error": str(e)})
-    # 2) во всех approved пользователей
+    # потом одобренным пользователям
     for uid in users:
         try:
             await handler(bot, uid, body)
