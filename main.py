@@ -1,9 +1,7 @@
 import logging
 import asyncio
-import contextlib
-import os
 
-from fastapi import FastAPI, Request, Form, HTTPException, status, Body
+from fastapi import FastAPI, Request, Body, HTTPException, status, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -31,27 +29,20 @@ from aiogram.exceptions import TelegramAPIError
 from aiogram.client.default import DefaultBotProperties
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Подключаем админ-маршруты
+# Импортируем ваши готовые Asterisk-обработчики из папки app/services/calls
 # ────────────────────────────────────────────────────────────────────────────────
-from app.routers import admin           # /admin/*
-from app.routers.email_users import router as email_users_router   # /admin/email-users
-from app.routers.auth_email import router as auth_email_router     # /verify-email/{token}
-
-# Импортируем dispatcher с логикой /start и e-mail
-from app.telegram.dispatcher import setup_dispatcher
-
-# Обработчики Asterisk
 from app.services.calls import (
     process_start,
     process_dial,
     process_bridge,
     process_hangup
 )
+
 import aiosqlite
 from app.config import DB_PATH
 
 # ────────────────────────────────────────────────────────────────────────────────
-# TG-ID «главного» пользователя
+# TG-ID «главного» пользователя (чтобы он всегда получал уведомления)
 # ────────────────────────────────────────────────────────────────────────────────
 SUPERUSER_TG_ID = 374573193
 
@@ -62,21 +53,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --- Создаём FastAPI с debug=True для расширенного логирования ---
-app = FastAPI(debug=True)
-
-# Повышаем уровень логирования для uvicorn и fastapi
+# Меняем уровень логирования uvicorn/fastapi на DEBUG
 logging.getLogger("uvicorn").setLevel(logging.DEBUG)
 logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
 logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
 fastapi_logger.setLevel(logging.DEBUG)
 
+# --- Создаём FastAPI с debug=True для расширенного логирования ---
+app = FastAPI(debug=True)
+
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+
 # ────────────────────────────────────────────────────────────────────────────────
-# Регистрируем роутеры
+# Регистрируем роутеры административной части (CRUD для предприятий и т.п.)
 # ────────────────────────────────────────────────────────────────────────────────
+from app.routers import admin           # /admin/*
+from app.routers.email_users import router as email_users_router   # /admin/email-users
+from app.routers.auth_email import router as auth_email_router     # /verify-email/{token}
+
 app.include_router(admin.router)
 app.include_router(email_users_router)
 app.include_router(auth_email_router)
@@ -147,11 +143,11 @@ async def add_enterprise_form(request: Request):
         )
     form = await request.form()
     number = form.get("number", "")
-    name = form.get("name", "")
+    name   = form.get("name", "")
     secret = form.get("secret", "")
     bot_token = form.get("bot_token", "")
-    chat_id = form.get("chat_id", "")
-    ip = form.get("ip", "")
+    chat_id   = form.get("chat_id", "")
+    ip   = form.get("ip", "")
     host = form.get("host", "")
     name2 = form.get("name2", "")
 
@@ -252,7 +248,7 @@ async def send_message_api(number: str, request: Request):
     if not isinstance(enterprise, dict):
         enterprise = dict(enterprise)
     bot_token = enterprise.get('bot_token', "")
-    chat_id = enterprise.get('chat_id', "")
+    chat_id   = enterprise.get('chat_id', "")
     if not bot_token.strip():
         raise HTTPException(status_code=400, detail="У предприятия отсутствует токен бота")
     if not chat_id.strip():
@@ -286,11 +282,16 @@ async def toggle_enterprise(request: Request, number: str):
         logger.error("Toggle notification failed for %s", number)
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
+
 # ────────────────────────────────────────────────────────────────────────────────
-# Asterisk Webhooks — прямая рассылка без reply_to + супер-пользователь
+# Asterisk Webhooks — // ТЕПЕРЬ ЭТО НЕ «заглушки», а реальные вызовы ваших сервисных функций
 # ────────────────────────────────────────────────────────────────────────────────
 
 async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
+    """
+    Возвращает bot_token и список целевых chat_id по asterisk_token.
+    Добавляет в список SUPERUSER_TG_ID, если его там нет.
+    """
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
@@ -301,58 +302,77 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
         if not ent:
             raise HTTPException(status_code=404, detail="Unknown enterprise token")
         bot_token = ent["bot_token"]
+
         cur = await db.execute(
             "SELECT tg_id FROM telegram_users WHERE bot_token = ? AND verified = 1",
             (bot_token,)
         )
         rows = await cur.fetchall()
-    return bot_token, [int(r["tg_id"]) for r in rows]
 
-async def _send_to_unit(asterisk_token: str, text: str) -> list[dict]:
-    bot_token, tg_ids = await _get_bot_and_recipients(asterisk_token)
-    # обязательно добавить супер-пользователя
+    tg_ids = [int(r["tg_id"]) for r in rows]
+    # гарантируем, что SUPERUSER_TG_ID там есть всегда
     if SUPERUSER_TG_ID not in tg_ids:
         tg_ids.append(SUPERUSER_TG_ID)
+    return bot_token, tg_ids
+
+
+async def _dispatch_to_all(handler, body: dict):
+    """
+    Универсальный диспетчер: получает функцию handler (process_start, process_dial и т. д.),
+    вызывает её для каждого chat_id, возвращает результат в формате {"delivered": [...]}
+    """
+    token = body.get("Token")
+    bot_token, tg_ids = await _get_bot_and_recipients(token)
     bot = Bot(token=bot_token)
     results = []
+
     for chat_id in tg_ids:
         try:
-            await bot.send_message(chat_id=int(chat_id), text=text, parse_mode="HTML")
+            # вызываем, например, process_start(bot, chat_id, body)
+            await handler(bot, chat_id, body)
             results.append({"chat_id": chat_id, "status": "ok"})
         except Exception as e:
             logger.error(f"Asterisk dispatch to {chat_id} failed: {e}")
             results.append({"chat_id": chat_id, "status": "error", "error": str(e)})
-    return results
+    return {"delivered": results}
+
 
 @app.post("/start")
 async def asterisk_start(body: dict = Body(...)):
-    caller = body.get("Caller","")
-    text = f"🛎️ Входящий звонок\n💰 {caller}"
-    delivered = await _send_to_unit(body.get("Token"), text)
-    return JSONResponse({"delivered": delivered})
+    """
+    Теперь при POST /start мы не просто строим текст,
+    а вызываем process_start из app/services/calls/start.py
+    """
+    return JSONResponse(await _dispatch_to_all(process_start, body))
+
 
 @app.post("/dial")
 async def asterisk_dial(body: dict = Body(...)):
-    caller = body.get("Caller","")
-    called = body.get("Called","")
-    text = f"🛎️ Разговор\n💰 {caller} ➡️ {called}"
-    delivered = await _send_to_unit(body.get("Token"), text)
-    return JSONResponse({"delivered": delivered})
+    """
+    При POST /dial вызываем process_dial из app/services/calls/dial.py
+    """
+    return JSONResponse(await _dispatch_to_all(process_dial, body))
+
 
 @app.post("/bridge")
 async def asterisk_bridge(body: dict = Body(...)):
-    caller = body.get("Caller","")
-    text = f"🔗 Сессия соединена\n💰 {caller}"
-    delivered = await _send_to_unit(body.get("Token"), text)
-    return JSONResponse({"delivered": delivered})
+    """
+    При POST /bridge вызываем process_bridge из app/services/calls/bridge.py
+    """
+    return JSONResponse(await _dispatch_to_all(process_bridge, body))
+
 
 @app.post("/hangup")
 async def asterisk_hangup(body: dict = Body(...)):
-    duration = body.get("Duration","")
-    caller   = body.get("Caller","")
-    text = f"❌ Завершённый звонок\n⌛ {duration}\n💰 {caller}"
-    delivered = await _send_to_unit(body.get("Token"), text)
-    return JSONResponse({"delivered": delivered})
+    """
+    При POST /hangup вызываем process_hangup из app/services/calls/hangup.py
+    """
+    return JSONResponse(await _dispatch_to_all(process_hangup, body))
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Запуск внутренних Aiogram-ботов (не связано напрямую с Asterisk)
+# ────────────────────────────────────────────────────────────────────────────────
 
 async def start_bot(enterprise_number: str, token: str):
     bot = AiogramBot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
