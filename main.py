@@ -23,10 +23,8 @@ from app.services.db import get_all_bot_tokens
 from telegram import Bot
 from telegram.error import TelegramError
 
-from aiogram import Bot as AiogramBot
-from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramAPIError
-from aiogram.client.default import DefaultBotProperties
+import aiosqlite
+from app.config import DB_PATH
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Импортируем ваши готовые Asterisk-обработчики из папки app/services/calls
@@ -37,9 +35,6 @@ from app.services.calls import (
     process_bridge,
     process_hangup
 )
-
-import aiosqlite
-from app.config import DB_PATH
 
 # ────────────────────────────────────────────────────────────────────────────────
 # TG-ID «главного» пользователя (чтобы он всегда получал уведомления)
@@ -284,13 +279,13 @@ async def toggle_enterprise(request: Request, number: str):
 
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Asterisk Webhooks — // ТЕПЕРЬ ЭТО НЕ «заглушки», а реальные вызовы ваших сервисных функций
+# Asterisk Webhooks — // Используем ваши реальные обработчики
 # ────────────────────────────────────────────────────────────────────────────────
 
 async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
     """
     Возвращает bot_token и список целевых chat_id по asterisk_token.
-    Добавляет в список SUPERUSER_TG_ID, если его там нет.
+    Гарантирует, что SUPERUSER_TG_ID там есть всегда.
     """
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -310,7 +305,6 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
         rows = await cur.fetchall()
 
     tg_ids = [int(r["tg_id"]) for r in rows]
-    # гарантируем, что SUPERUSER_TG_ID там есть всегда
     if SUPERUSER_TG_ID not in tg_ids:
         tg_ids.append(SUPERUSER_TG_ID)
     return bot_token, tg_ids
@@ -328,7 +322,6 @@ async def _dispatch_to_all(handler, body: dict):
 
     for chat_id in tg_ids:
         try:
-            # вызываем, например, process_start(bot, chat_id, body)
             await handler(bot, chat_id, body)
             results.append({"chat_id": chat_id, "status": "ok"})
         except Exception as e:
@@ -340,8 +333,7 @@ async def _dispatch_to_all(handler, body: dict):
 @app.post("/start")
 async def asterisk_start(body: dict = Body(...)):
     """
-    Теперь при POST /start мы не просто строим текст,
-    а вызываем process_start из app/services/calls/start.py
+    При POST /start вызываем process_start из app/services/calls/start.py
     """
     return JSONResponse(await _dispatch_to_all(process_start, body))
 
@@ -371,33 +363,36 @@ async def asterisk_hangup(body: dict = Body(...)):
 
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Запуск внутренних Aiogram-ботов (не связано напрямую с Asterisk)
+# Раздел, связанный с запуском Aiogram-ботов, временно отключён,
+# чтобы не было ошибки NameError для setup_dispatcher.
+# Если вы хотите вернуть этот функционал, убедитесь, что
+# у вас есть функция setup_dispatcher и соответствующие импорты.
 # ────────────────────────────────────────────────────────────────────────────────
 
-async def start_bot(enterprise_number: str, token: str):
-    bot = AiogramBot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dp = await setup_dispatcher(bot, enterprise_number)
-    try:
-        logger.info(f"Starting bot for enterprise {enterprise_number}")
-        await dp.start_polling(bot)
-    finally:
-        await bot.session.close()
+# async def start_bot(enterprise_number: str, token: str):
+#     bot = AiogramBot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+#     dp = await setup_dispatcher(bot, enterprise_number)
+#     try:
+#         logger.info(f"Starting bot for enterprise {enterprise_number}")
+#         await dp.start_polling(bot)
+#     finally:
+#         await bot.session.close()
 
-async def start_all_bots():
-    tokens = await get_all_bot_tokens()
-    tasks = []
-    for enterprise_number, token in tokens.items():
-        if token and token.strip():
-            tasks.append(asyncio.create_task(start_bot(enterprise_number, token)))
-    await asyncio.gather(*tasks)
+# async def start_all_bots():
+#     tokens = await get_all_bot_tokens()
+#     tasks = []
+#     for enterprise_number, token in tokens.items():
+#         if token and token.strip():
+#             tasks.append(asyncio.create_task(start_bot(enterprise_number, token)))
+#     await asyncio.gather(*tasks)
 
-@app.on_event("startup")
-async def on_startup():
-    logger.info("Starting all telegram bots…")
-    asyncio.create_task(start_all_bots())
+# @app.on_event("startup")
+# async def on_startup():
+#     logger.info("Starting all telegram bots…")
+#     asyncio.create_task(start_all_bots())
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down bots gracefully…")
-    for task in asyncio.all_tasks():
-        task.cancel()
+# @app.on_event("shutdown")
+# async def shutdown_event():
+#     logger.info("Shutting down bots gracefully…")
+#     for task in asyncio.all_tasks():
+#         task.cancel()
