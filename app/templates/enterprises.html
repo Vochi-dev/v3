@@ -99,6 +99,23 @@
     .toggle-button.inactive {
       color: #dc3545;
     }
+    .copy-notification {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #28a745;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      display: none;
+      animation: fadeInOut 2s ease-in-out;
+    }
+    @keyframes fadeInOut {
+      0% { opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { opacity: 0; }
+    }
   </style>
 </head>
 <body>
@@ -113,6 +130,10 @@
   <div>
     <a href="/admin/enterprises/add" class="button">Добавить предприятие</a>
     <a href="/admin/dashboard" class="button">Назад</a>
+  </div>
+
+  <div id="copyNotification" class="copy-notification">
+    Скопировано!
   </div>
 
   <table>
@@ -136,10 +157,10 @@
         <td>{{ ent.name }}</td>
         <td class="name2-cell">{{ ent.name2 or '' }}</td>
         <td class="copy-cell">
-          <button class="copy-button" onclick="navigator.clipboard.writeText('{{ ent.secret }}')">📋</button>
+          <button class="copy-button" onclick="copyWithNotification('{{ ent.secret }}', 'Secret')">📋</button>
         </td>
         <td class="copy-cell">
-          <button class="copy-button" onclick="navigator.clipboard.writeText('{{ ent.bot_token }}')">📋</button>
+          <button class="copy-button" onclick="copyWithNotification('{{ ent.bot_token }}', 'Token')">📋</button>
         </td>
         <td class="active-cell">
           {% if ent.bot_available %}
@@ -225,6 +246,26 @@
       } catch (e) {
         alert("Ошибка при выполнении запроса: " + e.message);
       }
+    }
+
+    function showCopyNotification(text) {
+      const notification = document.getElementById('copyNotification');
+      notification.textContent = `${text} скопирован!`;
+      notification.style.display = 'block';
+      
+      setTimeout(() => {
+        notification.style.display = 'none';
+      }, 2000);
+    }
+
+    function copyWithNotification(text, type) {
+      navigator.clipboard.writeText(text)
+        .then(() => {
+          showCopyNotification(type);
+        })
+        .catch(err => {
+          alert('Ошибка при копировании: ' + err);
+        });
     }
   </script>
 </body>
