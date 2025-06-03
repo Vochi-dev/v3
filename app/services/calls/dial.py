@@ -3,6 +3,7 @@ from telegram import Bot
 from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
+from app.services.asterisk_logs import save_asterisk_log
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,     # (в dial мы не используем, но можно оставить)
@@ -24,6 +25,9 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
       6. Обновляет call_pair_message_map и hangup_message_map.
       7. Сохраняет запись в БД (await save_telegram_message).
     """
+
+    # Сохраняем лог в asterisk_logs
+    await save_asterisk_log(data)
 
     uid = data.get("UniqueId", "")
     # Берём номер из разных ключей на случай, если Asterisk шлёт не всегда "Phone"

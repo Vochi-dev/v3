@@ -12,6 +12,13 @@ DEFAULT_DB_PATH = str(Path(__file__).parent.parent / "asterisk_events.db")
 DB_PATH = os.environ.get("DB_PATH") or DEFAULT_DB_PATH
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "SuperS3cret!")
 
+# PostgreSQL конфигурация
+POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = int(os.environ.get("POSTGRES_PORT", 5432))
+POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "r/Yskqh/ZbZuvjb2b3ahfg==")
+POSTGRES_DB = os.environ.get("POSTGRES_DB", "postgres")
+
 # ───────── Pydantic-класс для settings ─────────
 class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str
@@ -27,6 +34,13 @@ class Settings(BaseSettings):
     VERIFY_URL_BASE: str
     DB_PATH: str = DB_PATH
     ADMIN_PASSWORD: str = ADMIN_PASSWORD
+    
+    # PostgreSQL настройки
+    POSTGRES_HOST: str = POSTGRES_HOST
+    POSTGRES_PORT: int = POSTGRES_PORT
+    POSTGRES_USER: str = POSTGRES_USER
+    POSTGRES_PASSWORD: str = POSTGRES_PASSWORD
+    POSTGRES_DB: str = POSTGRES_DB
 
     class Config:
         env_file = ".env"

@@ -3,6 +3,7 @@ from telegram import Bot
 from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
+from app.services.asterisk_logs import save_asterisk_log
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
@@ -22,6 +23,9 @@ async def process_bridge(bot: Bot, chat_id: int, data: dict):
     — сохраняет в active_bridges для повторной отправки,
     — отправляет и сохраняет историю.
     """
+    # Сохраняем лог в asterisk_logs
+    await save_asterisk_log(data)
+
     uid       = data.get("UniqueId", "")
     caller    = data.get("CallerIDNum", "")
     connected = data.get("ConnectedLineNum", "")
@@ -72,7 +76,7 @@ async def process_bridge(bot: Bot, chat_id: int, data: dict):
     }
 
     # Сохраняем в БД
-    save_telegram_message(
+    await save_telegram_message(
         sent.message_id,
         "bridge",
         data.get("Token", ""),
