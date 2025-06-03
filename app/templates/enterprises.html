@@ -60,6 +60,13 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      -webkit-text-security: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      text-decoration: none !important;
+      /* Отключаем автоматическое определение телефонов/ссылок */
+      -webkit-text-fill-color: inherit;
+      pointer-events: none;
     }
     td.active-cell {
       width: 60px;
