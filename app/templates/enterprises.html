@@ -102,13 +102,15 @@
     .copy-notification {
       position: fixed;
       bottom: 20px;
-      right: 20px;
+      left: 20px;
       background: #28a745;
       color: white;
       padding: 10px 20px;
       border-radius: 5px;
       display: none;
       animation: fadeInOut 2s ease-in-out;
+      z-index: 1000;
+      font-size: 0.9rem;
     }
     @keyframes fadeInOut {
       0% { opacity: 0; }
@@ -157,10 +159,10 @@
         <td>{{ ent.name }}</td>
         <td class="name2-cell">{{ ent.name2 or '' }}</td>
         <td class="copy-cell">
-          <button class="copy-button" onclick="copyWithNotification('{{ ent.secret }}', 'Secret')">📋</button>
+          <button class="copy-button" onclick="copyWithNotification('{{ ent.secret }}', 'Secret', '{{ ent.name }}')">📋</button>
         </td>
         <td class="copy-cell">
-          <button class="copy-button" onclick="copyWithNotification('{{ ent.bot_token }}', 'Token')">📋</button>
+          <button class="copy-button" onclick="copyWithNotification('{{ ent.bot_token }}', 'Token', '{{ ent.name }}')">📋</button>
         </td>
         <td class="active-cell">
           {% if ent.bot_available %}
@@ -248,9 +250,9 @@
       }
     }
 
-    function showCopyNotification(text) {
+    function showCopyNotification(text, enterpriseName) {
       const notification = document.getElementById('copyNotification');
-      notification.textContent = `${text} скопирован!`;
+      notification.textContent = `${text} предприятия "${enterpriseName}" скопирован!`;
       notification.style.display = 'block';
       
       setTimeout(() => {
@@ -258,10 +260,10 @@
       }, 2000);
     }
 
-    function copyWithNotification(text, type) {
+    function copyWithNotification(text, type, enterpriseName) {
       navigator.clipboard.writeText(text)
         .then(() => {
-          showCopyNotification(type);
+          showCopyNotification(type, enterpriseName);
         })
         .catch(err => {
           alert('Ошибка при копировании: ' + err);
