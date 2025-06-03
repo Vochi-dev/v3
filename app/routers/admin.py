@@ -63,7 +63,13 @@ async def login(request: Request, password: str = Form(...)):
             status_code=status.HTTP_401_UNAUTHORIZED
         )
     resp = RedirectResponse("/admin/dashboard", status_code=status.HTTP_303_SEE_OTHER)
-    resp.set_cookie("auth", "1", httponly=True)
+    resp.set_cookie(
+        "auth", "1",
+        httponly=True,
+        secure=True,  # Только HTTPS
+        samesite="lax",  # Защита от CSRF
+        max_age=2592000,  # 30 дней в секундах
+    )
     return resp
 
 
