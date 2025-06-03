@@ -186,6 +186,35 @@
     .banned-ip-item:last-child {
       border-bottom: none;
     }
+    .search-container {
+      margin: 1rem 0;
+    }
+    .search-input {
+      padding: 0.2rem 0.4rem;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+      max-width: 120px;
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+    }
+    th.search-header {
+      padding: 0;
+      width: 120px;
+      max-width: 120px;
+    }
+    td.name-cell {
+      width: 120px;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -225,7 +254,13 @@
     <thead>
       <tr>
         <th>№</th>
-        <th>Name</th>
+        <th class="search-header">
+          <input type="text" 
+                 class="search-input" 
+                 id="nameFilter" 
+                 placeholder="Name"
+                 oninput="filterEnterprises()">
+        </th>
         <th>Name2</th>
         <th>Secret</th>
         <th>Token</th>
@@ -239,7 +274,7 @@
       {% for ent in enterprises|sort(attribute='number', reverse=false) %}
       <tr>
         <td>{{ ent.number }}</td>
-        <td>{{ ent.name }}</td>
+        <td class="name-cell">{{ ent.name }}</td>
         <td class="name2-cell">{{ ent.name2 or '' }}</td>
         <td class="copy-cell">
           <button class="copy-button" onclick="copyWithNotification('{{ ent.secret }}', 'Secret', '{{ ent.name }}')">📋</button>
@@ -397,6 +432,22 @@
 
     // Загружаем количество забаненных IP при загрузке страницы
     document.addEventListener('DOMContentLoaded', refreshBannedCount);
+
+    function filterEnterprises() {
+      const searchText = document.getElementById('nameFilter').value.toLowerCase();
+      const rows = document.querySelectorAll('table tbody tr');
+      
+      rows.forEach(row => {
+        const nameCell = row.children[1]; // индекс 1 - столбец Name
+        const name = nameCell.textContent.toLowerCase();
+        
+        if (name.startsWith(searchText)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
   </script>
 </body>
 </html>
