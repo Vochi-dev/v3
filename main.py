@@ -21,6 +21,7 @@ from app.services.database import (
 from app.services.enterprise import send_message_to_bot
 from app.services.bot_status import check_bot_status
 from app.services.db import get_all_bot_tokens
+from app.services.postgres import init_pool, close_pool
 
 from telegram import Bot
 from telegram.error import TelegramError
@@ -115,10 +116,12 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 from app.routers import admin           # /admin/*
 from app.routers.email_users import router as email_users_router   # /admin/email-users
 from app.routers.auth_email import router as auth_email_router     # /verify-email/{token}
+from app.routers import asterisk
 
 app.include_router(admin.router)
 app.include_router(email_users_router)
 app.include_router(auth_email_router)
+app.include_router(asterisk.router)
 
 # --- Обработчик ошибок валидации запросов (422) ---
 @app.exception_handler(RequestValidationError)
@@ -471,3 +474,13 @@ async def asterisk_hangup(body: dict = Body(...)):
 #     logger.info("Shutting down bots gracefully…")
 #     for task in asyncio.all_tasks():
 #         task.cancel()
+
+@app.on_event("startup")
+async def startup():
+    """Инициализация при запуске приложения"""
+    await init_pool()
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Очистка при остановке приложения"""
+    await close_pool()

@@ -1,1 +1,3 @@
 aiogram==2.25.2
+asyncpg==0.29.0  # Асинхронный драйвер PostgreSQL
+psycopg2-binary==2.9.9  # Для работы с PostgreSQL через SQLAlchemy

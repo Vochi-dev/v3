@@ -3,6 +3,7 @@ from telegram import Bot
 from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
+from app.services.asterisk_logs import save_asterisk_log
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
@@ -22,6 +23,9 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
       5. Сохраняем message_id в bridge_store, обновляем history-структуры.
       6. await save_telegram_message для записи в БД.
     """
+
+    # Сохраняем лог в asterisk_logs
+    await save_asterisk_log(data)
 
     # ───────── Шаг 1. Вывод в stdout всего payload ─────────
     print(f"[process_start] RAW DATA = {data!r}")
