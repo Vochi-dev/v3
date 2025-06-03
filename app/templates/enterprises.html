@@ -54,6 +54,17 @@
       width: 60px;
       padding: 0;
     }
+    td.name2-cell {
+      width: 100px;
+      max-width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    td.active-cell {
+      width: 60px;
+      padding: 0;
+    }
     .status-active { color: green; font-weight: bold; }
     .status-inactive { color: red; font-weight: bold; }
     .action-icon {
@@ -68,6 +79,24 @@
     }
     #service-buttons {
       margin-bottom: 0.5rem;
+    }
+    .toggle-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      padding: 0;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .toggle-button.active {
+      color: #28a745;
+    }
+    .toggle-button.inactive {
+      color: #dc3545;
     }
   </style>
 </head>
@@ -90,13 +119,12 @@
       <tr>
         <th>№</th>
         <th>Name</th>
+        <th>Name2</th>
         <th>Secret</th>
         <th>Token</th>
-        <th>Acive</th>
+        <th>Active</th>
         <th>Связь</th>
-        <th>ID</th>
         <th>IP</th>
-        <th>Доп. имя</th>
         <th>RUN</th>
       </tr>
     </thead>
@@ -105,20 +133,18 @@
       <tr>
         <td>{{ ent.number }}</td>
         <td>{{ ent.name }}</td>
+        <td class="name2-cell">{{ ent.name2 or '' }}</td>
         <td class="copy-cell">
           <button class="copy-button" onclick="navigator.clipboard.writeText('{{ ent.secret }}')">📋</button>
         </td>
         <td class="copy-cell">
           <button class="copy-button" onclick="navigator.clipboard.writeText('{{ ent.bot_token }}')">📋</button>
         </td>
-        <td>
+        <td class="active-cell">
           {% if ent.bot_available %}
             <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
-              <button
-                type="submit"
-                class="button {% if not ent.active %}red{% else %}green{% endif %}"
-              >
-                {% if ent.active %}Отключить{% else %}Включить{% endif %}
+              <button type="submit" class="toggle-button {% if ent.active %}active{% else %}inactive{% endif %}">
+                ⚡
               </button>
             </form>
           {% else %}
@@ -132,9 +158,7 @@
             <span class="status-inactive">Ошибка</span>
           {% endif %}
         </td>
-        <td>{{ ent.chat_id }}</td>
         <td>{{ ent.ip }}</td>
-        <td>{{ ent.name2 or '' }}</td>
         <td>
           <a href="/admin/enterprises/{{ ent.number }}/edit" title="Редактировать" class="action-icon">✎</a>
           <span title="Удалить" class="action-icon" onclick="confirmDelete('{{ ent.number }}')">🗑</span>
@@ -145,7 +169,7 @@
       </tr>
       {% else %}
       <tr>
-        <td colspan="10">Нет предприятий</td>
+        <td colspan="9">Нет предприятий</td>
       </tr>
       {% endfor %}
     </tbody>
