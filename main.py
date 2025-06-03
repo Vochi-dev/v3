@@ -1,5 +1,7 @@
 import logging
 import asyncio
+from logging.handlers import RotatingFileHandler
+import os
 
 from fastapi import FastAPI, Request, Body, HTTPException, status, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -41,18 +43,64 @@ from app.services.calls import (
 # ────────────────────────────────────────────────────────────────────────────────
 SUPERUSER_TG_ID = 374573193
 
-# --- Настройка логирования ---
+# Создаем директорию для логов, если её нет
+os.makedirs("logs", exist_ok=True)
+
+# Настройка основного логгера
+main_handler = RotatingFileHandler(
+    "logs/app.log",
+    maxBytes=10*1024*1024,  # 10MB
+    backupCount=5,
+    encoding="utf-8"
+)
+main_handler.setFormatter(
+    logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+)
+
+# Настройка логгера для FastAPI/Uvicorn
+uvicorn_handler = RotatingFileHandler(
+    "logs/uvicorn.log",
+    maxBytes=10*1024*1024,  # 10MB
+    backupCount=5,
+    encoding="utf-8"
+)
+uvicorn_handler.setFormatter(
+    logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+)
+
+# Настройка логгера для доступа
+access_handler = RotatingFileHandler(
+    "logs/access.log",
+    maxBytes=10*1024*1024,  # 10MB
+    backupCount=5,
+    encoding="utf-8"
+)
+access_handler.setFormatter(
+    logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+)
+
+# Конфигурация логгеров
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    handlers=[main_handler]
 )
 logger = logging.getLogger(__name__)
 
-# Меняем уровень логирования uvicorn/fastapi на DEBUG
-logging.getLogger("uvicorn").setLevel(logging.DEBUG)
-logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
-logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
+# Настройка логгеров uvicorn
+uvicorn_logger = logging.getLogger("uvicorn")
+uvicorn_logger.setLevel(logging.DEBUG)
+uvicorn_logger.addHandler(uvicorn_handler)
+
+uvicorn_error_logger = logging.getLogger("uvicorn.error")
+uvicorn_error_logger.setLevel(logging.DEBUG)
+uvicorn_error_logger.addHandler(uvicorn_handler)
+
+uvicorn_access_logger = logging.getLogger("uvicorn.access")
+uvicorn_access_logger.setLevel(logging.DEBUG)
+uvicorn_access_logger.addHandler(access_handler)
+
 fastapi_logger.setLevel(logging.DEBUG)
+fastapi_logger.addHandler(main_handler)
 
 # --- Создаём FastAPI с debug=True для расширенного логирования ---
 app = FastAPI(debug=True)
@@ -90,14 +138,41 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        logger.info("Incoming request: %s %s", request.method, request.url)
+        start_time = asyncio.get_event_loop().time()
+        
+        # Логируем детали запроса
+        logger.info(
+            "Request: %s %s [Client: %s, User-Agent: %s]",
+            request.method,
+            request.url,
+            request.client.host if request.client else "Unknown",
+            request.headers.get("user-agent", "Unknown")
+        )
+        
         try:
             response = await call_next(request)
-        except Exception:
-            logger.exception("Exception during request processing")
+            
+            # Логируем успешный ответ
+            process_time = (asyncio.get_event_loop().time() - start_time) * 1000
+            logger.info(
+                "Response: %d [%0.2fms] %s %s",
+                response.status_code,
+                process_time,
+                request.method,
+                request.url
+            )
+            
+            return response
+            
+        except Exception as e:
+            # Логируем ошибки
+            logger.exception(
+                "Error processing request: %s %s - %s",
+                request.method,
+                request.url,
+                str(e)
+            )
             raise
-        logger.info("Response status: %d for %s %s", response.status_code, request.method, request.url)
-        return response
 
 app.add_middleware(LoggingMiddleware)
 
