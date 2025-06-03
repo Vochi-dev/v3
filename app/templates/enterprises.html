@@ -50,7 +50,6 @@
     <button class="button" onclick="serviceAction('/service/restart_main', 'Основной сервис перезапущен')">🔄 Перезапустить сервис</button>
     <button class="button" onclick="serviceAction('/service/restart_all', 'Все сервисы перезапущены')">🔁 Полная перезагрузка</button>
     <button class="button" onclick="serviceAction('/service/restart_bots', 'Сервисы ботов перезапущены')">🤖 Перезапустить ботов</button>
-    <button id="toggle-bots-btn" class="button" onclick="toggleBots()">⏳ Проверка статуса ботов...</button>
   </div>
 
   <div>
@@ -174,59 +173,6 @@
         alert("Ошибка при выполнении запроса: " + e.message);
       }
     }
-
-    async function toggleBots() {
-      try {
-        const response = await fetch('/service/bots_status');
-        const data = await response.json();
-        const btn = document.getElementById('toggle-bots-btn');
-
-        if (data.running) {
-          const stopResp = await fetch('/service/toggle_bots', { method: 'POST' });
-          if (stopResp.ok) {
-            alert('Сервисы ботов остановлены');
-            btn.classList.remove('green');
-            btn.classList.add('red');
-            btn.innerText = '🔴 Боты выключены';
-          } else {
-            alert('Ошибка при остановке ботов');
-          }
-        } else {
-          const startResp = await fetch('/service/toggle_bots', { method: 'POST' });
-          if (startResp.ok) {
-            alert('Сервисы ботов запущены');
-            btn.classList.remove('red');
-            btn.classList.add('green');
-            btn.innerText = '🟢 Боты работают';
-          } else {
-            alert('Ошибка при запуске ботов');
-          }
-        }
-      } catch (e) {
-        alert("Ошибка при переключении ботов: " + e.message);
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', async () => {
-      try {
-        const response = await fetch('/service/bots_status');
-        const data = await response.json();
-        const btn = document.getElementById('toggle-bots-btn');
-
-        if (data.running) {
-          btn.classList.add('green');
-          btn.innerText = '🟢 Боты работают';
-        } else {
-          btn.classList.add('red');
-          btn.innerText = '🔴 Боты выключены';
-        }
-      } catch (e) {
-        const btn = document.getElementById('toggle-bots-btn');
-        btn.classList.add('red');
-        btn.innerText = '⚠️ Не удалось получить статус';
-        console.error("Ошибка при получении статуса ботов:", e);
-      }
-    });
   </script>
 </body>
 </html>
