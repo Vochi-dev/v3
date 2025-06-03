@@ -91,6 +91,7 @@
       padding: 0;
       margin: 0 auto;
       width: 100%;
+      transition: color 0.2s;
     }
     .toggle-button.active {
       color: #28a745;
@@ -143,8 +144,8 @@
         <td class="active-cell">
           {% if ent.bot_available %}
             <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
-              <button type="submit" class="toggle-button {% if ent.active %}active{% else %}inactive{% endif %}">
-                ⚡
+              <button type="submit" class="toggle-button {% if ent.active %}active{% else %}inactive{% endif %}" title="{% if ent.active %}Активен{% else %}Неактивен{% endif %}">
+                {% if ent.active %}🟢{% else %}🔴{% endif %}
               </button>
             </form>
           {% else %}
