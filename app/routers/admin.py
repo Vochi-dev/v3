@@ -12,7 +12,7 @@ from datetime import datetime
 import aiosqlite
 from fastapi import (
     APIRouter, Request, Form, status, HTTPException,
-    File, UploadFile
+    File, UploadFile, Depends
 )
 from fastapi.responses import (
     HTMLResponse, RedirectResponse, JSONResponse
@@ -26,6 +26,7 @@ from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
 from app.services.enterprise import send_message_to_bot
 from app.services.database import update_enterprise
+from app.services.fail2ban import get_banned_ips, get_banned_count
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -568,3 +569,14 @@ async def send_admin_message(tg_id: int, request: Request, message: str = Form(.
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение")
 
     return RedirectResponse("/admin/email-users", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.get("/banned_ips")
+async def get_banned_ip_list():
+    """Get list of banned IPs with country information"""
+    return await get_banned_ips()
+
+@router.get("/banned_count")
+async def get_banned_ip_count():
+    """Get count of banned IPs"""
+    return {"count": await get_banned_count()}
