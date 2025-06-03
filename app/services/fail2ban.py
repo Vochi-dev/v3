@@ -6,18 +6,29 @@ from typing import List, Dict
 async def get_banned_ips() -> List[Dict[str, str]]:
     """Get list of banned IPs from fail2ban with country information"""
     try:
-        # Get banned IPs from fail2ban
-        result = subprocess.run(['fail2ban-client', 'status', 'asterisk-webhook'], 
+        # Get list of all jails first
+        result = subprocess.run(['fail2ban-client', 'status'], 
                               capture_output=True, text=True)
         
-        # Parse the output to get IPs
-        output = result.stdout
-        banned_ips = []
-        for line in output.split('\n'):
-            if 'Banned IP list:' in line:
-                ips = line.split(':')[1].strip().split()
-                banned_ips.extend(ips)
+        # Parse jails from output
+        jails = []
+        for line in result.stdout.split('\n'):
+            if line.startswith('Jail list:'): 
+                jails = line.split(':')[1].strip().split()
                 break
+        
+        # Get banned IPs from all jails
+        banned_ips = set()  # используем set для уникальных IP
+        for jail in jails:
+            result = subprocess.run(['fail2ban-client', 'status', jail], 
+                                  capture_output=True, text=True)
+            
+            output = result.stdout
+            for line in output.split('\n'):
+                if 'Banned IP list:' in line:
+                    ips = line.split(':')[1].strip().split()
+                    banned_ips.update(ips)  # добавляем уникальные IP
+                    break
         
         # Get country information for each IP
         banned_info = []
@@ -54,16 +65,33 @@ async def get_banned_ips() -> List[Dict[str, str]]:
         return []
 
 async def get_banned_count() -> int:
-    """Get count of banned IPs from fail2ban"""
+    """Get total count of banned IPs from all jails"""
     try:
-        result = subprocess.run(['fail2ban-client', 'status', 'asterisk-webhook'], 
+        # Get list of all jails first
+        result = subprocess.run(['fail2ban-client', 'status'], 
                               capture_output=True, text=True)
         
-        output = result.stdout
-        for line in output.split('\n'):
-            if 'Currently banned:' in line:
-                return int(line.split(':')[1].strip())
-        return 0
+        # Parse jails from output
+        jails = []
+        for line in result.stdout.split('\n'):
+            if line.startswith('Jail list:'): 
+                jails = line.split(':')[1].strip().split()
+                break
+        
+        # Get total banned count from all jails
+        total_banned = 0
+        for jail in jails:
+            result = subprocess.run(['fail2ban-client', 'status', jail], 
+                                  capture_output=True, text=True)
+            
+            output = result.stdout
+            for line in output.split('\n'):
+                if 'Currently banned:' in line:
+                    count = int(line.split(':')[1].strip())
+                    total_banned += count
+                    break
+                    
+        return total_banned
     except Exception as e:
         print(f"Error getting banned count: {e}")
         return 0 
