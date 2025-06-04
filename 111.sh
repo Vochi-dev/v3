@@ -11,7 +11,8 @@ case "${1:-start}" in
       --host 0.0.0.0 \
       --port 8001 \
       --reload \
-      --log-level debug &
+      --log-level debug \
+      --log-config log_config.json &
 
     UVICORN_PID=$!
     echo "$UVICORN_PID" > .uvicorn.pid

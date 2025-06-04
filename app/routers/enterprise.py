@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import os
 from fastapi import APIRouter, Request, Form, status, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+import sys
 
 from app.services.database import (
     get_all_enterprises,
@@ -15,12 +17,23 @@ from app.services.database import (
 )
 from app.services.enterprise import send_message_to_bot
 from app.services.bot_status import check_bot_status
+from app.services.postgres import (
+    update_enterprise as postgres_update_enterprise,
+    get_enterprise_by_number
+)
+
+# Настройка логгера
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+if not logger.handlers:
+    logger.addHandler(console_handler)
 
 router = APIRouter(prefix="/enterprises", tags=["enterprises"])
 templates = Jinja2Templates(directory="app/templates")
-logger = logging.getLogger("enterprise")
-logger.setLevel(logging.DEBUG)
-
 
 @router.get("", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
@@ -78,7 +91,7 @@ async def edit_form(request: Request, number: str):
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
     return templates.TemplateResponse(
         "enterprise_form.html",
-        {"request": request, "action": "edit", "enterprise": ent}
+        {"request": request, "action": "edit", "enterprise": dict(ent) if ent else {}}
     )
 
 
@@ -94,10 +107,32 @@ async def edit(
     host: str = Form(...),
     name2: str = Form(""),
 ):
+    print(f"EDIT: Начало обновления предприятия {number}", file=sys.stderr, flush=True)
+    print(f"EDIT: Параметры: name={name}, ip={ip}, host={host}, name2={name2}", file=sys.stderr, flush=True)
+    
     ent = await get_enterprise_by_number(number)
     if not ent:
+        print(f"EDIT: Предприятие {number} не найдено", file=sys.stderr, flush=True)
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
-    await update_enterprise(number, name, bot_token, chat_id, ip, secret, host, name2)
+    
+    try:
+        print("EDIT: Вызываем postgres_update_enterprise", file=sys.stderr, flush=True)
+        await postgres_update_enterprise(
+            number=number,
+            name=name,
+            bot_token=bot_token,
+            chat_id=chat_id,
+            ip=ip,
+            secret=secret,
+            host=host,
+            name2=name2
+        )
+        print(f"EDIT: Предприятие {number} успешно обновлено", file=sys.stderr, flush=True)
+    except Exception as e:
+        print(f"EDIT ERROR: {str(e)}", file=sys.stderr, flush=True)
+        # Также передаем ошибку в HTTPException для отображения пользователю, если необходимо
+        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}") 
+    
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 

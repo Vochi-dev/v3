@@ -93,187 +93,195 @@ async def dashboard(request: Request):
 
 
 # ——————————————————————————————————————————————————————————————————————————
-# CRUD для предприятий
+# CRUD для предприятий (Закомментировано, чтобы использовать реализацию из app/routers/enterprise.py)
 # ——————————————————————————————————————————————————————————————————————————
 
-@router.get("/enterprises", response_class=HTMLResponse)
-async def list_enterprises(request: Request):
-    require_login(request)
-    logger.debug("Listing enterprises")
-    db = await get_connection()
-    db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
-    cur = await db.execute("""
-        SELECT number, name, bot_token, active,
-               chat_id, ip, secret, host, name2
-          FROM enterprises
-         ORDER BY CAST(number AS INTEGER) ASC
-    """)
-    rows = await cur.fetchall()
-    await db.close()
-
-    enterprises_with_status = []
-    for ent in rows:
-        try:
-            ent["bot_available"] = await check_bot_status(ent["bot_token"])
-        except Exception:
-            ent["bot_available"] = False
-        enterprises_with_status.append(ent)
-
-    try:
-        result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
-        bots_running = bool(result.stdout.strip())
-    except Exception:
-        bots_running = False
-
-    return templates.TemplateResponse(
-        "enterprises.html",
-        {
-            "request": request,
-            "enterprises": enterprises_with_status,
-            "service_running": True,
-            "bots_running": bots_running,
-        }
-    )
-
-
-@router.get("/enterprises/add", response_class=HTMLResponse)
-async def add_enterprise_form(request: Request):
-    require_login(request)
-    return templates.TemplateResponse(
-        "enterprise_form.html",
-        {"request": request, "action": "add", "enterprise": {}}
-    )
-
-
-@router.post("/enterprises/add", response_class=RedirectResponse)
-async def add_enterprise(
-    request: Request,
-    number: str = Form(...),
-    name: str = Form(...),
-    bot_token: str = Form(...),
-    chat_id: str = Form(...),
-    ip: str = Form(...),
-    secret: str = Form(...),
-    host: str = Form(...),
-    name2: str = Form("")
-):
-    require_login(request)
-    created_at = datetime.utcnow().isoformat()
-    db = await get_connection()
-    try:
-        await db.execute(
-            """
-            INSERT INTO enterprises(
-              number, name, bot_token, chat_id,
-              ip, secret, host, created_at, name2
-            ) VALUES (?,?,?,?,?,?,?,?,?)
-            """,
-            (number, name, bot_token, chat_id, ip, secret, host, created_at, name2)
-        )
-        await db.commit()
-    finally:
-        await db.close()
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.get("/enterprises/{number}/edit", response_class=HTMLResponse)
-async def edit_enterprise_form(request: Request, number: str):
-    require_login(request)
-    db = await get_connection()
-    db.row_factory = None
-    cur = await db.execute(
-        """
-        SELECT number, name, bot_token, active,
-               chat_id, ip, secret, host, name2
-          FROM enterprises
-         WHERE number = ?
-        """,
-        (number,)
-    )
-    ent = await cur.fetchone()
-    await db.close()
-    if not ent:
-        raise HTTPException(status_code=404, detail="Enterprise not found")
-    ent_dict = {
-        "number": ent[0], "name": ent[1], "bot_token": ent[2],
-        "active": ent[3], "chat_id": ent[4], "ip": ent[5],
-        "secret": ent[6], "host": ent[7], "name2": ent[8],
-    }
-    return templates.TemplateResponse(
-        "enterprise_form.html",
-        {"request": request, "action": "edit", "enterprise": ent_dict}
-    )
-
-
-@router.post("/enterprises/{number}/edit", response_class=RedirectResponse)
-async def edit_enterprise(
-    request: Request,
-    number: str,
-    name: str = Form(...),
-    bot_token: str = Form(""),
-    chat_id: str = Form(""),
-    ip: str = Form(...),
-    secret: str = Form(...),
-    host: str = Form(...),
-    name2: str = Form("")
-):
-    require_login(request)
-    db = await get_connection()
-    try:
-        await db.execute(
-            """
-            UPDATE enterprises
-               SET name=?, bot_token=?,
-                   chat_id=?, ip=?, secret=?, host=?, name2=?
-             WHERE number=?
-            """,
-            (name, bot_token, chat_id, ip, secret, host, name2, number)
-        )
-        await db.commit()
-    finally:
-        await db.close()
-    return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.delete("/enterprises/{number}", response_class=JSONResponse)
-async def delete_enterprise(number: str, request: Request):
-    require_login(request)
-    db = await get_connection()
-    await db.execute("DELETE FROM enterprises WHERE number = ?", (number,))
-    await db.commit()
-    await db.close()
-    return JSONResponse({"detail": "Enterprise deleted"})
-
-
-@router.post("/enterprises/{number}/send_message", response_class=JSONResponse)
-async def send_message(number: str, request: Request):
-    require_login(request)
-    data = await request.json()
-    message = data.get("message")
-    if not message:
-        return JSONResponse({"detail": "Message is required"}, status_code=400)
-
-    db = await get_connection()
-    db.row_factory = None
-    cur = await db.execute(
-        "SELECT bot_token, chat_id FROM enterprises WHERE number = ?", (number,)
-    )
-    row = await cur.fetchone()
-    await db.close()
-
-    if not row:
-        return JSONResponse({"detail": "Enterprise not found"}, status_code=404)
-
-    bot_token, chat_id = row
-    try:
-        success = await send_message_to_bot(bot_token, chat_id, message)
-        if success:
-            return JSONResponse({"detail": "Message sent"})
-        else:
-            return JSONResponse({"detail": "Failed to send message"}, status_code=500)
-    except Exception:
-        return JSONResponse({"detail": "Failed to send message"}, status_code=500)
-
+# @router.get("/enterprises", response_class=HTMLResponse)
+# async def list_enterprises(request: Request):
+#     require_login(request)
+#     logger.debug("Listing enterprises")
+#     db = await get_connection()
+#     db.row_factory = lambda c, r: {c.description[i][0]: r[i] for i in range(len(r))}
+#     cur = await db.execute("""
+#         SELECT number, name, bot_token, active,
+#                chat_id, ip, secret, host, name2
+#           FROM enterprises
+#          ORDER BY CAST(number AS INTEGER) ASC
+#     """)
+#     rows = await cur.fetchall()
+#     await db.close()
+# 
+#     enterprises_with_status = []
+#     for ent in rows:
+#         try:
+#             ent["bot_available"] = await check_bot_status(ent["bot_token"])
+#         except Exception:
+#             ent["bot_available"] = False
+#         enterprises_with_status.append(ent)
+# 
+#     try:
+#         result = subprocess.run(["pgrep", "-fl", "bot.py"], capture_output=True, text=True)
+#         bots_running = bool(result.stdout.strip())
+#     except Exception:
+#         bots_running = False
+# 
+#     return templates.TemplateResponse(
+#         "enterprises.html",
+#         {
+#             "request": request,
+#             "enterprises": enterprises_with_status,
+#             "service_running": True,
+#             "bots_running": bots_running,
+#         }
+#     )
+# 
+# 
+# @router.get("/enterprises/add", response_class=HTMLResponse)
+# async def add_enterprise_form(request: Request):
+#     require_login(request)
+#     return templates.TemplateResponse(
+#         "enterprise_form.html",
+#         {"request": request, "action": "add", "enterprise": {}}
+#     )
+# 
+# 
+# @router.post("/enterprises/add", response_class=RedirectResponse)
+# async def add_enterprise(
+#     request: Request,
+#     number: str = Form(...),
+#     name: str = Form(...),
+#     bot_token: str = Form(...),
+#     chat_id: str = Form(...),
+#     ip: str = Form(...),
+#     secret: str = Form(...),
+#     host: str = Form(...),
+#     name2: str = Form("")
+# ):
+#     require_login(request)
+#     created_at = datetime.utcnow().isoformat()
+#     db = await get_connection()
+#     try:
+#         await db.execute(
+#             """
+#             INSERT INTO enterprises(
+#               number, name, bot_token, chat_id,
+#               ip, secret, host, created_at, name2
+#             ) VALUES (?,?,?,?,?,?,?,?,?)
+#             """,
+#             (number, name, bot_token, chat_id, ip, secret, host, created_at, name2)
+#         )
+#         await db.commit()
+#     finally:
+#         await db.close()
+#     return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
+# 
+# 
+# @router.get("/enterprises/{number}/edit", response_class=HTMLResponse)
+# async def edit_enterprise_form(request: Request, number: str):
+#     require_login(request)
+#     db = await get_connection()
+#     db.row_factory = None # Use tuple factory for this specific query
+#     cur = await db.execute(
+#         """
+#         SELECT number, name, bot_token, active,
+#                chat_id, ip, secret, host, name2
+#           FROM enterprises
+#          WHERE number = ?
+#         """,
+#         (number,)
+#     )
+#     ent_tuple = await cur.fetchone()
+#     await db.close()
+#     if not ent_tuple:
+#         raise HTTPException(status_code=404, detail="Enterprise not found")
+#     # Convert tuple to dict manually or ensure row_factory was set for dicts if preferred
+#     ent_dict = {
+#         "number": ent_tuple[0], "name": ent_tuple[1], "bot_token": ent_tuple[2],
+#         "active": ent_tuple[3], "chat_id": ent_tuple[4], "ip": ent_tuple[5],
+#         "secret": ent_tuple[6], "host": ent_tuple[7], "name2": ent_tuple[8],
+#     }
+#     return templates.TemplateResponse(
+#         "enterprise_form.html",
+#         {"request": request, "action": "edit", "enterprise": ent_dict}
+#     )
+# 
+# 
+# @router.post("/enterprises/{number}/edit", response_class=RedirectResponse)
+# async def edit_enterprise(
+#     request: Request,
+#     number: str,
+#     name: str = Form(...),
+#     bot_token: str = Form(""),
+#     chat_id: str = Form(""),
+#     ip: str = Form(...),
+#     secret: str = Form(...),
+#     host: str = Form(...),
+#     name2: str = Form("")
+# ):
+#     require_login(request)
+#     # logger.debug(f"Updating enterprise {number} with data: name={name}, bot_token={bot_token}, chat_id={chat_id}, ip={ip}, secret={secret}, host={host}, name2={name2}")
+#     # # Используем импортированную функцию update_enterprise, которая должна работать с PostgreSQL
+#     # # Это предположение, что app.services.database.update_enterprise сконфигурирована для PG
+#     # await update_enterprise(
+#     #     number=number, name=name, bot_token=bot_token, chat_id=chat_id,
+#     #     ip=ip, secret=secret, host=host, name2=name2
+#     # )
+#     # # Код ниже для SQLite, если update_enterprise выше не работает или не то
+#     db = await get_connection()
+#     try:
+#         await db.execute(
+#             """UPDATE enterprises
+#                SET name=?, bot_token=?,
+#                    chat_id=?, ip=?, secret=?, host=?, name2=?
+#              WHERE number=?""",
+#             (name, bot_token, chat_id, ip, secret, host, name2, number)
+#         )
+#         await db.commit()
+#     except aiosqlite.Error as e:
+#         logger.error(f"SQLite error during update of enterprise {number}: {e}")
+#         # Optionally re-raise or handle more gracefully
+#         raise HTTPException(status_code=500, detail=f"Database error: {e}")
+#     finally:
+#         await db.close()
+#     return RedirectResponse("/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
+# 
+# 
+# @router.delete("/enterprises/{number}", response_class=JSONResponse)
+# async def delete_enterprise(number: str, request: Request): # Added request for require_login
+#     require_login(request)
+#     db = await get_connection()
+#     try:
+#         await db.execute("DELETE FROM enterprises WHERE number=?", (number,))
+#         await db.commit()
+#     finally:
+#         await db.close()
+#     return JSONResponse({"message": "Enterprise deleted"})
+# 
+# 
+# @router.post("/enterprises/{number}/send_message", response_class=JSONResponse)
+# async def send_message(number: str, request: Request):
+#     require_login(request)
+#     payload = await request.json()
+#     message_text = payload.get("message")
+#     if not message_text:
+#         raise HTTPException(status_code=400, detail="Message cannot be empty")
+# 
+#     db = await get_connection()
+#     db.row_factory = aiosqlite.Row # Ensure dict-like rows
+#     cur = await db.execute("SELECT bot_token, chat_id FROM enterprises WHERE number=?", (number,))
+#     ent = await cur.fetchone()
+#     await db.close()
+# 
+#     if not ent:
+#         raise HTTPException(status_code=404, detail="Enterprise not found")
+#     if not ent["bot_token"] or not ent["chat_id"]:
+#         raise HTTPException(status_code=400, detail="Enterprise bot_token or chat_id is missing")
+# 
+#     success = await send_message_to_bot(ent["bot_token"], ent["chat_id"], message_text)
+#     if success:
+#         return JSONResponse({"message": "Message sent successfully"})
+#     else:
+#         raise HTTPException(status_code=500, detail="Failed to send message")
 
 # ——————————————————————————————————————————————————————————————————————————
 # Работа с email_users
@@ -580,3 +588,12 @@ async def get_banned_ip_list():
 async def get_banned_ip_count():
     """Get count of banned IPs"""
     return {"count": await get_banned_count()}
+
+@router.delete("/enterprises/all", response_class=JSONResponse)
+async def delete_all_enterprises(request: Request):
+    require_login(request)
+    db = await get_connection()
+    await db.execute("DELETE FROM enterprises;")
+    await db.commit()
+    await db.close()
+    return JSONResponse({"detail": "All enterprises deleted"})
