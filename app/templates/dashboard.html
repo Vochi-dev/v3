@@ -4,9 +4,46 @@
   <meta charset="UTF-8">
   <title>Панель администратора</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; }
-
-    /* общий стиль кнопок */
+    body { font-family: sans-serif; padding: 0; margin:0; background-color: #f4f6f9; }
+    .content-wrapper {
+      padding: 10px; /* Общий отступ для контейнера карточек, как margin у карточек */
+    }
+    .enterprise-grid {
+      display: flex; /* Используем flex для расположения в ряд */
+      flex-wrap: wrap; /* Разрешаем перенос карточек */
+      /* gap уже не нужен, так как у карточек есть margin-right и margin-bottom */
+      /* margin-top: 1rem; убираем, так как content-wrapper дает отступ */
+    }
+    .enterprise-card {
+      background-color: #f2dede; /* rgb(242, 222, 222) */
+      border-radius: 5px;
+      width: 150px;
+      height: 81px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+      padding: 0; /* Убираем внутренние отступы, так как позиционирование текста будет через margin */
+      box-sizing: border-box; /* Чтобы padding и border не влияли на заданные width/height */
+      display: flex; /* Используем flex для позиционирования внутреннего блока с текстом */
+      flex-direction: column; /* Чтобы элементы внутри шли друг под другом (на будущее) */
+      /* justify-content: flex-start; по умолчанию */
+      /* text-align: left; -- будет у дочернего элемента */
+    }
+    .enterprise-card .name-container {
+        /* color: #2196f3;  rgb(33, 150, 243) - это синий, не подходит для красной карточки */
+        margin-left: 15px;
+        margin-top: 4px; /* Отступ сверху для блока с названием */
+        /* Остальные стили для этого блока (если он нужен) могут быть здесь */
+    }
+    .enterprise-card .name {
+      font-size: 16px;
+      color: #a94442; /* Красноватый цвет для текста, как на образце карточек (bootstrap danger text color) */
+      margin: 0; /* Убираем стандартные отступы у <p> */
+      padding: 0; /* Убедимся, что нет лишних отступов */
+      line-height: 1.2; /* Для лучшего контроля высоты строки, если имя длинное */
+      /* font-weight: 500; -- убрал, так как в примере его нет для этого элемента */
+      /* cursor: pointer; -- если не кликабельно, то не нужно */
+    }
+    /* Старые стили кнопки, если они еще где-то используются */
     .button {
       display: inline-block;
       padding: 0.5rem 1rem;
@@ -18,34 +55,45 @@
       cursor: pointer;
       text-decoration: none;
     }
-
-    /* делаем nav списки в ряд */
-    nav ul {
-      list-style: none;
-      padding: 0;
-      margin: 1.5rem 0;
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-    nav li {
-      margin: 0;
-    }
   </style>
 </head>
 <body>
-  <h1>Добро пожаловать!</h1>
+  {% include 'shared/header.html' %}
+  <div class="content-wrapper">
+    <!-- <h1>Добро пожаловать!</h1> -->
 
-  {% include 'control_buttons.html' %}
+    {% include 'control_buttons.html' %} <!-- Этот файл уже содержит только комментарии -->
 
-  <nav>
-    <ul>
-      <li><a href="/admin/enterprises" class="button">Управление предприятиями</a></li>
-      <li><a href="/admin/requests"    class="button">Заявки на подключение</a></li>
-      <li><a href="/admin/email-users" class="button">Таблица пользователей</a></li>
-    </ul>
-  </nav>
+    <!-- Удаляем старую навигацию -->
+    <!-- <nav>
+      <ul>
+        <li><a href="/admin/enterprises" class="button">Управление предприятиями</a></li>
+        
+      </ul>
+    </nav> -->
 
-  <p>Общее количество предприятий: <strong>{{ enterprise_count }}</strong></p>
+    <!-- <p>Общее количество предприятий: <strong>{{ enterprise_count }}</strong></p> -->
+
+    {% if error %}
+        <div class="error-message" style="color: red; background: #ffebee; border: 1px solid #e57373; padding: 10px; border-radius: 4px; margin-bottom: 1rem;">
+            <strong>Ошибка при загрузке дашборда:</strong> {{ error }}
+        </div>
+    {% endif %}
+
+    <div class="enterprise-grid">
+      {% if enterprises %}
+        {% for enterprise in enterprises %}
+          <div class="enterprise-card">
+            <div class="name-container">
+                <p class="name">{{ enterprise.name }}</p>
+            </div>
+            <!-- Другая информация будет здесь -->
+          </div>
+        {% endfor %}
+      {% else %}
+        <p>Нет активных предприятий для отображения.</p>
+      {% endif %}
+    </div>
+  </div>
 </body>
 </html>

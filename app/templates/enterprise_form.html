@@ -6,39 +6,42 @@
   <style>
     body {
       font-family: sans-serif;
-      padding: 2rem;
+      padding: 0; /* Убираем отступы body */
+      margin: 0; /* Убираем отступы body */
       background-color: #f9f9f9;
       color: #333;
+      font-size: 14px;
     }
+    .content-wrapper { padding: 1rem; } /* Добавляем отступы для контента */
     form {
-      max-width: 600px;
+      max-width: 1100px;
       background: white;
-      padding: 2rem;
+      padding: 1rem;
       border-radius: 6px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     label {
       display: block;
-      margin-top: 1rem;
+      margin-bottom: 0.1rem;
       font-weight: 600;
     }
-    input[type="text"], input[type="password"] {
+    input[type="text"], input[type="password"], input[type="number"], input[type="file"] {
       width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.3rem;
+      padding: 0.3rem;
+      margin-top: 0.1rem;
       border: 1px solid #ccc;
       border-radius: 4px;
       box-sizing: border-box;
-      font-size: 1rem;
+      font-size: 0.95rem;
     }
     input[readonly] {
       background-color: #eee;
       cursor: not-allowed;
     }
     .button {
-      margin-top: 2rem;
-      padding: 0.75rem 1.5rem;
-      font-size: 1.1rem;
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
       cursor: pointer;
       border: none;
       background-color: #007bff;
@@ -60,59 +63,419 @@
     }
     a.back-link {
       display: inline-block;
-      margin-top: 1.5rem;
+      margin-top: 0.8rem;
       text-decoration: none;
       color: #007bff;
       font-weight: 600;
+      font-size: 0.9rem;
     }
     a.back-link:hover {
       text-decoration: underline;
     }
+    h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.8rem;
+    }
+    .form-container-columns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+    .form-column-main {
+      flex: 2;
+      min-width: 300px;
+    }
+    .form-column-main .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.8rem;
+    }
+    .form-column-main .form-group {
+      margin-bottom: 0.6rem;
+    }
+    .form-column-main .checkbox-group {
+      margin-top: 0.8rem;
+      padding: 0.6rem;
+      border: 1px solid #eee;
+      border-radius: 4px;
+    }
+    .form-column-main .checkbox-group legend {
+      font-weight: 600;
+      padding: 0 0.3rem;
+    }
+    .form-column-main .checkbox-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.2rem;
+    }
+    .form-column-main .checkbox-item input[type="checkbox"] {
+      margin-right: 0.5rem;
+      transform: scale(0.9);
+    }
+    .form-column-main .checkbox-item label {
+      margin-bottom: 0;
+      font-weight: normal;
+    }
+    .form-column-gateways {
+      flex: 1;
+      min-width: 320px;
+      border: 1px solid #e0e0e0;
+      padding: 1rem;
+      border-radius: 4px;
+      background-color: #fdfdfd;
+    }
+    .form-column-gateways h2 {
+        margin-top: 0;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: #333;
+    }
+    .gateway-entry {
+      border: 1px solid #e9e9e9;
+      padding: 0.8rem;
+      margin-bottom: 1rem;
+      border-radius: 4px;
+      background-color: #fff;
+      position: relative;
+    }
+    .gateway-entry h4 {
+      margin-top: 0;
+      margin-bottom: 0.7rem;
+      font-size: 1.1rem;
+      color: #555;
+      border-bottom: 1px solid #f0f0f0;
+      padding-bottom: 0.4rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-right: 30px;
+    }
+    .gateway-entry .form-group {
+        margin-bottom: 0.5rem;
+    }
+    .button-small {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.85rem;
+      text-decoration: none;
+      background-color: #6c757d;
+      color: white;
+      border-radius: 3px;
+      margin-left: 0.5rem;
+      display: inline-block;
+      border: none;
+      cursor: pointer;
+    }
+    .button-small.remove-gateway-button {
+        background-color: #dc3545;
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+    .button-small.remove-gateway-button:hover {
+        background-color: #c82333;
+    }
+    .button-small:hover {
+      background-color: #5a6268;
+    }
+    .config-file-info {
+        font-size: 0.85rem;
+        color: #555;
+        display: block;
+        margin-top: 0.3rem;
+    }
+    #add-gateway-button {
+        margin-top: 0.5rem;
+    }
+    /* Скрытый шаблон для шлюза */
+    #gateway-template { 
+        display: none; 
+    }
   </style>
 </head>
 <body>
-  <h1>{% if action == 'add' %}Добавить предприятие{% else %}Редактировать предприятие{% endif %}</h1>
+  {% include 'shared/header.html' %}
+  <div class="content-wrapper">
+    <h1>{% if action == 'add' %}Добавить предприятие{% else %}Редактировать предприятие: {{ enterprise.name or enterprise.number }}{% endif %}</h1>
 
-  {% if error %}
-    <div class="error">{{ error }}</div>
-  {% endif %}
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
 
-  <form method="post"
-        action="{% if action == 'add' %}/admin/enterprises/add{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}">
-    <label for="number">Номер</label>
-    <input id="number" type="text" name="number" required
-           {% if action == 'edit' %}
-             value="{{ enterprise.number }}" readonly
-           {% else %}
-             value="{{ enterprise.number or '' }}"
-           {% endif %}>
+    <form method="post"
+          action="{% if action == 'add' %}/admin/enterprises/add{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}" enctype="multipart/form-data">
+      <div class="form-container-columns">
+        <div class="form-column-main">
+          <div class="form-grid">
+            <div class="form-group"> <!-- 1. Номер -->
+              <label for="number">Номер</label>
+              <input id="number" type="text" name="number" required
+                     {% if action == 'edit' %}
+                       value="{{ enterprise.number }}" readonly
+                     {% else %}
+                       value="{{ enterprise.number or '' }}"
+                     {% endif %}>
+            </div>
 
-    <label for="name">Название</label>
-    <input id="name" type="text" name="name" required value="{{ enterprise.name or '' }}">
+            <div class="form-group"> <!-- 2. Предприятие активно (enabled) -->
+              <label for="is_enabled">Предприятие активно (enabled)</label>
+              <input id="is_enabled" type="checkbox" name="is_enabled" value="true" {% if enterprise.is_enabled %}checked{% endif %}>
+            </div>
 
-    <label for="secret">Secret</label>
-    <input id="secret" type="text" name="secret" required value="{{ enterprise.secret or '' }}">
+            <div class="form-group"> <!-- 3. Название -->
+              <label for="name">Название</label>
+              <input id="name" type="text" name="name" required value="{{ enterprise.name or '' }}">
+            </div>
+            
+            <div class="form-group"> <!-- 4. Доп. имя (name2) -->
+              <label for="name2">Доп. имя (name2)</label>
+              <input id="name2" type="text" name="name2" value="{{ enterprise.name2 or '' }}">
+            </div>
 
-    <label for="bot_token">Bot Token</label>
-    <input id="bot_token" type="text" name="bot_token" value="{{ enterprise.bot_token or '' }}">
+            <div class="form-group"> <!-- 5. Secret -->
+              <label for="secret">Secret</label>
+              <input id="secret" type="text" name="secret" required value="{{ enterprise.secret or '' }}">
+            </div>
 
-    <label for="chat_id">Chat ID</label>
-    <input id="chat_id" type="text" name="chat_id" value="{{ enterprise.chat_id or '' }}">
+            <div class="form-group"> <!-- 6. Bot Token -->
+              <label for="bot_token">Bot Token</label>
+              <input id="bot_token" type="text" name="bot_token" value="{{ enterprise.bot_token or '' }}">
+            </div>
 
-    <label for="ip">IP</label>
-    <input id="ip" type="text" name="ip" required value="{{ enterprise.ip or '' }}">
+            <div class="form-group"> <!-- 7. Chat ID -->
+              <label for="chat_id">Chat ID</label>
+              <input id="chat_id" type="text" name="chat_id" value="{{ enterprise.chat_id or '374573193' }}">
+            </div>
 
-    <label for="host">Host</label>
-    <input id="host" type="text" name="host" required value="{{ enterprise.host or '' }}">
+            <div class="form-group"> <!-- 8. IP -->
+              <label for="ip">IP</label>
+              <input id="ip" type="text" name="ip" required value="{{ enterprise.ip or '' }}">
+            </div>
 
-    <label for="name2">Доп. имя (name2)</label>
-    <input id="name2" type="text" name="name2" value="{{ enterprise.name2 or '' }}">
+            <div class="form-group"> <!-- 9. Host -->
+              <label for="host">Host</label>
+              <input id="host" type="text" name="host" required value="{{ enterprise.host or '' }}">
+            </div>
+            
+            <div class="form-group"> <!-- 10. Домен -->
+              <label for="custom_domain">Домен</label>
+              <input id="custom_domain" type="text" name="custom_domain" value="{{ enterprise.custom_domain or '' }}">
+            </div>
 
-    <button class="button" type="submit">
-      {% if action == 'add' %}Добавить{% else %}Сохранить{% endif %}
-    </button>
-  </form>
+            <div class="form-group"> <!-- 11. Порт (для домена) -->
+              <label for="custom_port">Порт (для домена)</label>
+              <input id="custom_port" type="number" name="custom_port" value="{{ enterprise.custom_port or '' }}">
+            </div>
 
-  <a href="/admin/enterprises" class="back-link">← Назад к списку предприятий</a>
+            <div class="form-group"> <!-- 12. Кол-во схем -->
+              <label for="scheme_count">Кол-во схем</label>
+              <input id="scheme_count" type="number" name="scheme_count" value="{{ enterprise.scheme_count or 3 }}">
+            </div>
+
+            <div class="form-group"> <!-- 13. Кол-во GSM-линий -->
+              <label for="gsm_line_count">Кол-во GSM-линий</label>
+              <input id="gsm_line_count" type="number" name="gsm_line_count" value="{{ enterprise.gsm_line_count or 8 }}">
+            </div>
+          </div>
+
+          <fieldset class="checkbox-group">
+            <legend>Дополнительные параметры</legend>
+            <div class="checkbox-item">
+              <input id="parameter_option_1" type="checkbox" name="parameter_option_1" value="true" {% if enterprise.parameter_option_1 %}checked{% endif %}>
+              <label for="parameter_option_1">Параметр 1</label>
+            </div>
+            <div class="checkbox-item">
+              <input id="parameter_option_2" type="checkbox" name="parameter_option_2" value="true" {% if enterprise.parameter_option_2 %}checked{% endif %}>
+              <label for="parameter_option_2">Параметр 2</label>
+            </div>
+            <div class="checkbox-item">
+              <input id="parameter_option_3" type="checkbox" name="parameter_option_3" value="true" {% if enterprise.parameter_option_3 %}checked{% endif %}>
+              <label for="parameter_option_3">Параметр 3</label>
+            </div>
+            <div class="checkbox-item">
+              <input id="parameter_option_4" type="checkbox" name="parameter_option_4" value="true" {% if enterprise.parameter_option_4 %}checked{% endif %}>
+              <label for="parameter_option_4">Параметр 4</label>
+            </div>
+            <div class="checkbox-item">
+              <input id="parameter_option_5" type="checkbox" name="parameter_option_5" value="true" {% if enterprise.parameter_option_5 %}checked{% endif %}>
+              <label for="parameter_option_5">Параметр 5</label>
+            </div>
+             <div class="checkbox-item">
+              <input id="active" type="checkbox" name="active" value="true" {% if enterprise.active == 1 or enterprise.active == True %}checked{% endif %}>
+              <label for="active">Активен (бот)</label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="form-column-gateways">
+          <h2>Шлюзы</h2>
+          <div id="gateways-container">
+          </div>
+          <button type="button" id="add-gateway-button" class="button">Добавить шлюз</button>
+        </div>
+      </div>
+
+      <button class="button" type="submit">
+        {% if action == 'add' %}Добавить{% else %}Сохранить{% endif %}
+      </button>
+    </form>
+
+    <a href="/admin/enterprises" class="back-link">← Назад к списку предприятий</a>
+  </div>
+
+  <!-- Скрытый шаблон для одного шлюза -->
+  <div id="gateway-template" class="gateway-entry">
+    <button type="button" class="button-small remove-gateway-button" title="Удалить шлюз">X</button>
+    <h4>
+      <span>Шлюз <span class="gateway-number"></span></span>
+      <div class="gateway-actions" style="display: flex; align-items: center;">
+        <input type="checkbox" name="gateways[NEW_INDEX][custom_boolean_flag]" id="gateway_reboot_NEW_INDEX" value="true" style="width: auto; margin-right: 5px;">
+        <label for="gateway_reboot_NEW_INDEX" style="display: inline; font-weight: normal; margin-right: 10px;">Reboot</label>
+      </div>
+    </h4>
+    <input type="hidden" name="gateways[NEW_INDEX][id]" value="">
+    
+    <div class="form-group">
+      <label for="gateway_name_NEW_INDEX">Наименование</label>
+      <input id="gateway_name_NEW_INDEX" type="text" name="gateways[NEW_INDEX][gateway_name]" value="">
+    </div>
+    <div class="form-group">
+      <label for="gateway_lines_NEW_INDEX">Кол-во линий</label>
+      <input id="gateway_lines_NEW_INDEX" type="number" name="gateways[NEW_INDEX][line_count]" value="">
+    </div>
+    <div class="form-group">
+      <label for="gateway_config_file_NEW_INDEX">Загрузить конфиг</label>
+      <input id="gateway_config_file_NEW_INDEX" type="file" name="gateways[NEW_INDEX][config_file]"/>
+      <span class="config-file-info-container"></span> {# Контейнер для информации о файле и кнопки выгрузки #}
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const gatewaysContainer = document.getElementById('gateways-container');
+      const addGatewayButton = document.getElementById('add-gateway-button');
+      const gatewayTemplate = document.getElementById('gateway-template');
+      const maxGateways = 10;
+      let gatewayCounter = 0;
+
+      // Загружаем существующие шлюзы
+      const existingGateways = {{ gateways | tojson | safe }};
+
+      function createGatewayElement(gatewayData, index) {
+        const templateNode = gatewayTemplate.cloneNode(true);
+        templateNode.id = '';
+        templateNode.style.display = '';
+        
+        const newIndex = index !== undefined ? index : gatewayCounter;
+
+        templateNode.querySelector('.gateway-number').textContent = newIndex + 1;
+        
+        const gatewayIdInput = templateNode.querySelector('input[name="gateways[NEW_INDEX][id]"]');
+        gatewayIdInput.name = `gateways[${newIndex}][id]`;
+        gatewayIdInput.value = gatewayData && gatewayData.id ? gatewayData.id : '';
+
+        const nameInput = templateNode.querySelector('input[name="gateways[NEW_INDEX][gateway_name]"]');
+        nameInput.name = `gateways[${newIndex}][gateway_name]`;
+        nameInput.id = `gateway_name_${newIndex}`;
+        nameInput.value = gatewayData && gatewayData.gateway_name ? gatewayData.gateway_name : '';
+        templateNode.querySelector('label[for="gateway_name_NEW_INDEX"]').htmlFor = `gateway_name_${newIndex}`;
+
+        const linesInput = templateNode.querySelector('input[name="gateways[NEW_INDEX][line_count]"]');
+        linesInput.name = `gateways[${newIndex}][line_count]`;
+        linesInput.id = `gateway_lines_${newIndex}`;
+        linesInput.value = gatewayData && gatewayData.line_count ? gatewayData.line_count : '';
+        templateNode.querySelector('label[for="gateway_lines_NEW_INDEX"]').htmlFor = `gateway_lines_${newIndex}`;
+
+        const fileInput = templateNode.querySelector('input[name="gateways[NEW_INDEX][config_file]"]');
+        fileInput.name = `gateways[${newIndex}][config_file]`;
+        fileInput.id = `gateway_config_file_${newIndex}`;
+        templateNode.querySelector('label[for="gateway_config_file_NEW_INDEX"]').htmlFor = `gateway_config_file_${newIndex}`;
+
+        const configFileInfoContainer = templateNode.querySelector('.config-file-info-container');
+        if (gatewayData && gatewayData.config_backup_original_name) {
+            let uploadedAt = 'дата неизвестна';
+            if (gatewayData.config_backup_uploaded_at) {
+                const d = new Date(gatewayData.config_backup_uploaded_at);
+                if (!isNaN(d.getTime())) { // Проверяем, что дата валидна
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const hours = String(d.getHours()).padStart(2, '0');
+                    const minutes = String(d.getMinutes()).padStart(2, '0');
+                    uploadedAt = `${year}-${month}-${day} ${hours}:${minutes}`;
+                } else {
+                    console.error("Invalid date received:", gatewayData.config_backup_uploaded_at);
+                }
+            }
+            const enterpriseNumberInput = document.getElementById('number');
+            const enterpriseNumber = enterpriseNumberInput ? enterpriseNumberInput.value : '{{ enterprise.number or "" }}';
+            
+            configFileInfoContainer.innerHTML = 
+                `<span class="config-file-info">Текущий файл: ${gatewayData.config_backup_original_name} (от ${uploadedAt})</span>\n                 <a href="/admin/enterprises/${enterpriseNumber}/gateways/${gatewayData.id}/download_config" class="button-small download-config-button">Выгрузить</a>`;
+        }
+
+        const rebootCheckbox = templateNode.querySelector('input[name="gateways[NEW_INDEX][custom_boolean_flag]"]');
+        rebootCheckbox.name = `gateways[${newIndex}][custom_boolean_flag]`;
+        rebootCheckbox.id = `gateway_reboot_${newIndex}`;
+        rebootCheckbox.checked = gatewayData && gatewayData.custom_boolean_flag ? true : false;
+
+        const rebootLabel = templateNode.querySelector('label[for="gateway_reboot_NEW_INDEX"]');
+        rebootLabel.htmlFor = `gateway_reboot_${newIndex}`;
+
+        templateNode.querySelector('.remove-gateway-button').addEventListener('click', function () {
+            templateNode.remove();
+            updateGatewayNumbers();
+            checkMaxGateways();
+        });
+        
+        return templateNode;
+      }
+
+      function updateGatewayNumbers() {
+        const gatewayEntries = gatewaysContainer.querySelectorAll('.gateway-entry');
+        gatewayCounter = gatewayEntries.length;
+        gatewayEntries.forEach((entry, idx) => {
+            entry.dataset.index = idx;
+            entry.querySelector('.gateway-number').textContent = idx + 1;
+            
+            entry.querySelectorAll('[name*="[NEW_INDEX]"]').forEach(el => {
+                el.name = el.name.replace(/NEW_INDEX/g, idx);
+            });
+            entry.querySelectorAll('[id*="[NEW_INDEX]"]').forEach(el => {
+                el.id = el.id.replace(/NEW_INDEX/g, idx);
+            });
+            entry.querySelectorAll('label[for*="[NEW_INDEX]"]').forEach(el => {
+                el.htmlFor = el.htmlFor.replace(/NEW_INDEX/g, idx);
+            });
+        });
+      }
+      
+      function checkMaxGateways(){
+        addGatewayButton.disabled = gatewaysContainer.children.length >= maxGateways;
+      }
+
+      addGatewayButton.addEventListener('click', function () {
+        if (gatewaysContainer.children.length < maxGateways) {
+          const newGatewayElement = createGatewayElement(null, gatewaysContainer.children.length);
+          gatewaysContainer.appendChild(newGatewayElement);
+          updateGatewayNumbers(); 
+          checkMaxGateways();
+        }
+      });
+
+      if (existingGateways && existingGateways.length > 0) {
+        existingGateways.forEach((gw, idx) => {
+          const gatewayElement = createGatewayElement(gw, idx);
+          gatewaysContainer.appendChild(gatewayElement);
+        });
+      }
+      updateGatewayNumbers(); 
+      checkMaxGateways(); 
+      
+      if (gatewaysContainer.children.length === 0) {
+          addGatewayButton.click(); 
+      }
+
+    });
+  </script>
 </body>
 </html>

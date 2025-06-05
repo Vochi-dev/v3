@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <title>Список предприятий</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; }
+    body { font-family: sans-serif; padding: 0; margin:0; }
+    .content-wrapper { padding: 2rem; }
     .button {
       display: inline-block;
       padding: 0.2rem 0.4rem;
@@ -225,104 +226,107 @@
   </style>
 </head>
 <body>
-  <h1>Список предприятий</h1>
+  {% include 'shared/header.html' %}
+  <div class="content-wrapper">
+    <h1>Список предприятий</h1>
 
-  <div class="banned-info">
-    <span>Забанено: <span class="banned-count" onclick="showBannedIPs()">0</span></span>
-    <span class="refresh-icon" onclick="refreshBannedCount()" title="Обновить">🔄</span>
-  </div>
+    <div class="banned-info">
+      <span>Забанено: <span class="banned-count" onclick="showBannedIPs()">0</span></span>
+      <span class="refresh-icon" onclick="refreshBannedCount()" title="Обновить">🔄</span>
+    </div>
 
-  <div id="bannedModal" class="modal">
-    <div class="modal-content">
-      <span class="close-modal" onclick="closeBannedModal()">&times;</span>
-      <h2>Список забаненных IP-адресов</h2>
-      <div id="bannedIpList" class="banned-ip-list">
-        <!-- Здесь будет список IP -->
+    <div id="bannedModal" class="modal">
+      <div class="modal-content">
+        <span class="close-modal" onclick="closeBannedModal()">&times;</span>
+        <h2>Список забаненных IP-адресов</h2>
+        <div id="bannedIpList" class="banned-ip-list">
+          <!-- Здесь будет список IP -->
+        </div>
       </div>
     </div>
-  </div>
 
-  <div id="service-buttons">
-    <button class="button" onclick="serviceAction('/service/restart_main', 'Основной сервис перезапущен')">🔄 Перезапустить сервис</button>
-    <button class="button" onclick="serviceAction('/service/restart_all', 'Все сервисы перезапущены')">🔁 Полная перезагрузка</button>
-    <button class="button" onclick="serviceAction('/service/restart_bots', 'Сервисы ботов перезапущены')">🤖 Перезапустить ботов</button>
-  </div>
+    <div id="service-buttons">
+      <button class="button" onclick="serviceAction('/service/restart_main', 'Основной сервис перезапущен')">🔄 Перезапустить сервис</button>
+      <button class="button" onclick="serviceAction('/service/restart_all', 'Все сервисы перезапущены')">🔁 Полная перезагрузка</button>
+      <button class="button" onclick="serviceAction('/service/restart_bots', 'Сервисы ботов перезапущены')">🤖 Перезапустить ботов</button>
+    </div>
 
-  <div>
-    <a href="/admin/enterprises/add" class="button">Добавить предприятие</a>
-    <a href="/admin/dashboard" class="button">Назад</a>
-  </div>
+    <div>
+      <a href="/admin/enterprises/add" class="button">Добавить предприятие</a>
+      <a href="/admin/dashboard" class="button">Назад</a>
+    </div>
 
-  <div id="copyNotification" class="copy-notification">
-    Скопировано!
-  </div>
+    <div id="copyNotification" class="copy-notification">
+      Скопировано!
+    </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>№</th>
-        <th class="search-header">
-          <input type="text" 
-                 class="search-input" 
-                 id="nameFilter" 
-                 placeholder="Name"
-                 oninput="filterEnterprises()">
-        </th>
-        <th>Name2</th>
-        <th>Secret</th>
-        <th>Token</th>
-        <th>Active</th>
-        <th>Связь</th>
-        <th>IP</th>
-        <th>RUN</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for ent in enterprises|sort(attribute='number', reverse=false) %}
-      <tr>
-        <td>{{ ent.number }}</td>
-        <td class="name-cell">{{ ent.name }}</td>
-        <td class="name2-cell">{{ ent.name2 or '' }}</td>
-        <td class="copy-cell">
-          <button class="copy-button" onclick="copyWithNotification('{{ ent.secret }}', 'Secret', '{{ ent.name }}')">📋</button>
-        </td>
-        <td class="copy-cell">
-          <button class="copy-button" onclick="copyWithNotification('{{ ent.bot_token }}', 'Token', '{{ ent.name }}')">📋</button>
-        </td>
-        <td class="active-cell">
-          {% if ent.bot_available %}
-            <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
-              <button type="submit" class="toggle-button {% if ent.active %}active{% else %}inactive{% endif %}" title="{% if ent.active %}Активен{% else %}Неактивен{% endif %}">
-                {% if ent.active %}🟢{% else %}🔴{% endif %}
-              </button>
-            </form>
-          {% else %}
-            <!-- Нет кнопки, если бот недоступен -->
-          {% endif %}
-        </td>
-        <td>
-          {% if ent.bot_available %}
-            <span class="status-active">Доступен</span>
-          {% else %}
-            <span class="status-inactive">Ошибка</span>
-          {% endif %}
-        </td>
-        <td>{{ ent.ip }}</td>
-        <td>
-          <a href="/admin/enterprises/{{ ent.number }}/edit" title="Редактировать" class="action-icon">✎</a>
-          <span title="Удалить" class="action-icon" onclick="confirmDelete('{{ ent.number }}')">🗑</span>
-          {% if ent.bot_available %}
-            <span title="Отправить сообщение" class="action-icon" onclick="openMessageDialog('{{ ent.number }}')">✉</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="9">Нет предприятий</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    <table>
+      <thead>
+        <tr>
+          <th>№</th>
+          <th class="search-header">
+            <input type="text" 
+                   class="search-input" 
+                   id="nameFilter" 
+                   placeholder="Name"
+                   oninput="filterEnterprises()">
+          </th>
+          <th>Name2</th>
+          <th>Secret</th>
+          <th>Token</th>
+          <th>Active</th>
+          <th>Связь</th>
+          <th>IP</th>
+          <th>RUN</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ent in enterprises|sort(attribute='number', reverse=false) %}
+        <tr>
+          <td>{{ ent.number }}</td>
+          <td class="name-cell">{{ ent.name }}</td>
+          <td class="name2-cell">{{ ent.name2 or '' }}</td>
+          <td class="copy-cell">
+            <button class="copy-button" onclick="copyWithNotification('{{ ent.secret }}', 'Secret', '{{ ent.name }}')">📋</button>
+          </td>
+          <td class="copy-cell">
+            <button class="copy-button" onclick="copyWithNotification('{{ ent.bot_token }}', 'Token', '{{ ent.name }}')">📋</button>
+          </td>
+          <td class="active-cell">
+            {% if ent.bot_available %}
+              <form method="post" action="/admin/enterprises/{{ ent.number }}/toggle" style="display:inline;">
+                <button type="submit" class="toggle-button {% if ent.active %}active{% else %}inactive{% endif %}" title="{% if ent.active %}Активен{% else %}Неактивен{% endif %}">
+                  {% if ent.active %}🟢{% else %}🔴{% endif %}
+                </button>
+              </form>
+            {% else %}
+              <!-- Нет кнопки, если бот недоступен -->
+            {% endif %}
+          </td>
+          <td>
+            {% if ent.bot_available %}
+              <span class="status-active">Доступен</span>
+            {% else %}
+              <span class="status-inactive">Ошибка</span>
+            {% endif %}
+          </td>
+          <td>{{ ent.ip }}</td>
+          <td>
+            <a href="/admin/enterprises/{{ ent.number }}/edit" title="Редактировать" class="action-icon">✎</a>
+            <span title="Удалить" class="action-icon" onclick="confirmDelete('{{ ent.number }}')">🗑</span>
+            {% if ent.bot_available %}
+              <span title="Отправить сообщение" class="action-icon" onclick="openMessageDialog('{{ ent.number }}')">✉</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9">Нет предприятий</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
   <script>
     function confirmDelete(number) {
