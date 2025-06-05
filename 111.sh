@@ -24,17 +24,26 @@ case "${1:-start}" in
     if [[ -f .uvicorn.pid ]]; then
       PID=$(<.uvicorn.pid)
       echo "🛑 Останавливаем uvicorn (PID=${PID}) и его группу..."
-      kill -TERM -"$PID" || true
+      # Убиваем всю группу процессов, лидером которой является наш PID
+      kill -TERM -"$PID" || true 
       rm -f .uvicorn.pid
       echo "✅ uvicorn группа PID=${PID} остановлена"
     else
       # fallback: ищем по pgrep
-      PID=$(pgrep -f "uvicorn main:app" | head -n1 || true)
+      # Ищем PID родительского процесса uvicorn, а не дочерних от reloader
+      PID=$(pgrep -f "uvicorn main:app --host 0.0.0.0 --port 8001" | head -n1 || true)
       if [[ -n "$PID" ]]; then
         echo "🛑 Файла .uvicorn.pid нет — убиваем по найденному PID=${PID}"
+        # Получаем PGID (Process Group ID) для этого PID
         PGID=$(ps -o pgid= "$PID" | tr -d ' ')
-        kill -TERM -"$PGID" || true
-        echo "✅ uvicorn группа PID=${PID} остановлена"
+        if [[ -n "$PGID" ]]; then
+            kill -TERM -"$PGID" || true
+            echo "✅ uvicorn группа PGID=${PGID} (для PID=${PID}) остановлена"
+        else
+            # Если PGID не удалось получить, пробуем убить сам PID
+            kill -TERM "$PID" || true
+            echo "✅ uvicorn PID=${PID} остановлен (PGID не найден)"
+        fi
       else
         echo "⚠️  Процесс uvicorn не найден"
       fi
@@ -44,10 +53,13 @@ case "${1:-start}" in
     echo "🧹 Чистим порт 8001..."
     if command -v fuser &>/dev/null; then
       fuser -k 8001/tcp || true
-    else
+    elif command -v lsof &>/dev/null; then # Добавлена проверка на lsof, если fuser нет
       lsof -ti:8001 | xargs -r kill -9 || true
+    else
+        echo "⚠️  Команды fuser и lsof не найдены. Невозможно принудительно очистить порт."
     fi
     echo "✅ Порт 8001 свободен"
+    exit 0 # Для команды stop всегда выходим с кодом 0, если дошли сюда
     ;;
 
   restart)
@@ -60,4 +72,4 @@ case "${1:-start}" in
     echo "Использование: $0 {start|stop|restart}"
     exit 1
     ;;
-esac
+esac 

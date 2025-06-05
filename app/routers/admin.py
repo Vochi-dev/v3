@@ -12,7 +12,7 @@ from datetime import datetime
 import aiosqlite
 from fastapi import (
     APIRouter, Request, Form, status, HTTPException,
-    File, UploadFile, Depends
+    File, UploadFile, Depends, Query
 )
 from fastapi.responses import (
     HTMLResponse, RedirectResponse, JSONResponse
@@ -27,6 +27,7 @@ from app.services.bot_status import check_bot_status
 from app.services.enterprise import send_message_to_bot
 from app.services.database import update_enterprise
 from app.services.fail2ban import get_banned_ips, get_banned_count
+from app.services.postgres import get_all_enterprises as get_all_enterprises_postgresql
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -79,17 +80,37 @@ async def login(request: Request, password: str = Form(...)):
 # ——————————————————————————————————————————————————————————————————————————
 
 @router.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    require_login(request)
-    db = await get_connection()
-    db.row_factory = None
-    cur = await db.execute("SELECT COUNT(*) AS cnt FROM enterprises")
-    row = await cur.fetchone()
-    await db.close()
-    return templates.TemplateResponse(
-        "dashboard.html",
-        {"request": request, "enterprise_count": row[0]}
-    )
+async def admin_dashboard(request: Request):
+    try:
+        all_enterprises = await get_all_enterprises_postgresql()
+        # Фильтруем предприятия: оставляем только активные (где active == True)
+        active_enterprises = [ent for ent in all_enterprises if ent.get('active') is True]
+        # Сортируем по номеру (предполагаем, что number можно преобразовать в int для корректной числовой сортировки)
+        # Если number всегда числовой и хранится как строка, лучше явно преобразовывать или убедиться, что БД сортирует корректно
+        # Функция get_all_enterprises уже сортирует по CAST(number AS INTEGER) ASC, так что дополнительная сортировка не нужна,
+        # если фильтрация не нарушает порядок.
+        # Но для надежности, если вдруг get_all_enterprises изменится, можно раскомментировать:
+        # active_enterprises.sort(key=lambda x: int(x['number']))
+
+        return templates.TemplateResponse(
+            "dashboard.html",
+            {
+                "request": request,
+                "enterprises": active_enterprises # Передаем отфильтрованные и отсортированные предприятия
+            }
+        )
+    except Exception as e:
+        # Логирование ошибки можно добавить здесь
+        print(f"Error in admin_dashboard: {e}")
+        # Можно вернуть страницу с ошибкой или пустой список
+        return templates.TemplateResponse(
+            "dashboard.html",
+            {
+                "request": request,
+                "enterprises": [],
+                "error": str(e)
+            }
+        )
 
 
 # ——————————————————————————————————————————————————————————————————————————

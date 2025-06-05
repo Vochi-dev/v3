@@ -108,6 +108,7 @@ app = FastAPI(debug=True)
 
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/tmpl_static", StaticFiles(directory="app/templates"), name="tmpl_static")
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -123,7 +124,7 @@ app.include_router(admin.router)
 app.include_router(email_users_router)
 app.include_router(auth_email_router)
 app.include_router(asterisk.router)
-app.include_router(enterprise_pg_router, prefix="/admin", tags=["enterprises_postgresql"])
+app.include_router(enterprise_pg_router, tags=["enterprises_postgresql"])
 
 # --- Обработчик ошибок валидации запросов (422) ---
 @app.exception_handler(RequestValidationError)

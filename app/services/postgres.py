@@ -59,7 +59,11 @@ async def get_all_enterprises():
     async with pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT number, name, bot_token, chat_id, ip, secret, host, 
-                   created_at, name2, active
+                   created_at, name2, active, is_enabled,
+                   scheme_count, gsm_line_count, 
+                   parameter_option_1, parameter_option_2, parameter_option_3,
+                   parameter_option_4, parameter_option_5,
+                   custom_domain, custom_port
             FROM enterprises
             ORDER BY CAST(number AS INTEGER) ASC
         """)
@@ -72,7 +76,11 @@ async def get_enterprise_by_number(number: str):
     async with pool.acquire() as conn:
         sql_query = """
             SELECT number, name, bot_token, chat_id, ip, secret, host,
-                   created_at, name2, active
+                   created_at, name2, active, is_enabled,
+                   scheme_count, gsm_line_count, 
+                   parameter_option_1, parameter_option_2, parameter_option_3,
+                   parameter_option_4, parameter_option_5,
+                   custom_domain, custom_port
             FROM enterprises
             WHERE number = $1
             LIMIT 1
@@ -88,49 +96,89 @@ async def get_enterprise_by_number(number: str):
             return None
 
 async def add_enterprise(number: str, name: str, bot_token: str, chat_id: str,
-                        ip: str, secret: str, host: str, name2: str = ''):
+                        ip: str, secret: str, host: str, name2: str = '',
+                        is_enabled: bool = True,
+                        active: bool = True,
+                        scheme_count: Optional[int] = None, 
+                        gsm_line_count: Optional[int] = None,
+                        parameter_option_1: bool = False, 
+                        parameter_option_2: bool = False,
+                        parameter_option_3: bool = False, 
+                        parameter_option_4: bool = False,
+                        parameter_option_5: bool = False,
+                        custom_domain: Optional[str] = None,
+                        custom_port: Optional[int] = None):
     """Добавляет новое предприятие"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO enterprises (
                 number, name, bot_token, chat_id, ip, secret, host, 
-                created_at, name2
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                created_at, name2, is_enabled, scheme_count, gsm_line_count,
+                parameter_option_1, parameter_option_2, parameter_option_3,
+                parameter_option_4, parameter_option_5, custom_domain, custom_port,
+                active
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         """, number, name, bot_token, chat_id, ip, secret, host,
-        datetime.utcnow(), name2)
+        datetime.utcnow(), name2, is_enabled, scheme_count, gsm_line_count,
+        parameter_option_1, parameter_option_2, parameter_option_3,
+        parameter_option_4, parameter_option_5, custom_domain, custom_port,
+        active)
 
 def debug_log(message):
     os.system(f'echo "{message}" >> /root/asterisk-webhook/debug.txt')
 
 async def update_enterprise(number: str, name: str, bot_token: str, chat_id: str,
                           ip: str, secret: str, host: str, name2: str = '',
-                          active: Optional[int] = None):
+                          active: Optional[bool] = None,
+                          is_enabled: Optional[bool] = None,
+                          scheme_count: Optional[int] = None, 
+                          gsm_line_count: Optional[int] = None,
+                          parameter_option_1: bool = False, 
+                          parameter_option_2: bool = False,
+                          parameter_option_3: bool = False, 
+                          parameter_option_4: bool = False,
+                          parameter_option_5: bool = False,
+                          custom_domain: Optional[str] = None,
+                          custom_port: Optional[int] = None):
     """Обновляет информацию о предприятии"""
     print(f"POSTGRES: Начало обновления предприятия {number}")
     print(f"POSTGRES: Параметры: name={name}, ip={ip}, host={host}, name2={name2}")
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
-            if active is None:
-                print(f"POSTGRES: Выполняем UPDATE без active для предприятия {number}")
-                result = await conn.execute("""
-                    UPDATE enterprises
-                    SET name = $1, bot_token = $2, chat_id = $3,
-                        ip = $4, secret = $5, host = $6, name2 = $7
-                    WHERE number = $8
-                """, name, bot_token, chat_id, ip, secret, host, name2, number)
-                print(f"POSTGRES: Результат UPDATE: {result}")
-            else:
-                print(f"POSTGRES: Выполняем UPDATE с active={active} для предприятия {number}")
-                result = await conn.execute("""
-                    UPDATE enterprises
-                    SET name = $1, bot_token = $2, chat_id = $3,
-                        ip = $4, secret = $5, host = $6, name2 = $7,
-                        active = $8
-                    WHERE number = $9
-                """, name, bot_token, chat_id, ip, secret, host, name2, active, number)
-                print(f"POSTGRES: Результат UPDATE: {result}")
+            update_fields = {
+                "name": name, "bot_token": bot_token, "chat_id": chat_id,
+                "ip": ip, "secret": secret, "host": host, "name2": name2,
+                "scheme_count": scheme_count, "gsm_line_count": gsm_line_count,
+                "parameter_option_1": parameter_option_1,
+                "parameter_option_2": parameter_option_2,
+                "parameter_option_3": parameter_option_3,
+                "parameter_option_4": parameter_option_4,
+                "parameter_option_5": parameter_option_5,
+                "custom_domain": custom_domain, "custom_port": custom_port
+            }
+            if active is not None:
+                update_fields["active"] = active
+            if is_enabled is not None:
+                update_fields["is_enabled"] = is_enabled
+
+            set_clauses = []
+            values = []
+            for i, (key, value) in enumerate(update_fields.items()):
+                set_clauses.append(f"{key} = ${i+1}")
+                values.append(value)
+            
+            values.append(number) # Для WHERE number = $N
+
+            sql_query = f"""
+                UPDATE enterprises
+                SET {", ".join(set_clauses)}
+                WHERE number = ${len(values)}
+            """
+            print(f"POSTGRES: Выполняем UPDATE для предприятия {number} с запросом: {sql_query} и значениями: {values}")
+            result = await conn.execute(sql_query, *values)
+            print(f"POSTGRES: Результат UPDATE: {result}")
     except Exception as e:
         print(f"POSTGRES ERROR: {str(e)}")
         raise
@@ -147,13 +195,18 @@ async def get_enterprises_with_tokens():
     async with pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT number, name, bot_token, chat_id, ip, secret, host,
-                   created_at, name2, active
+                   created_at, name2, active, is_enabled,
+                   scheme_count, gsm_line_count, 
+                   parameter_option_1, parameter_option_2, parameter_option_3,
+                   parameter_option_4, parameter_option_5,
+                   custom_domain, custom_port
             FROM enterprises
             WHERE bot_token IS NOT NULL 
               AND chat_id IS NOT NULL 
               AND TRIM(bot_token) != '' 
               AND TRIM(chat_id) != ''
-              AND active = 1
+              AND active = TRUE
+              AND is_enabled = TRUE
             ORDER BY CAST(number AS INTEGER) ASC
         """)
         return [dict(row) for row in rows]
@@ -181,7 +234,11 @@ async def get_enterprise_by_name2_suffix(name2_suffix: str) -> Optional[Dict]:
         
     async with pool.acquire() as conn:
         sql_query = """
-            SELECT number, name, bot_token, chat_id, name2, active
+            SELECT number, name, bot_token, chat_id, name2, active, is_enabled,
+                   scheme_count, gsm_line_count, 
+                   parameter_option_1, parameter_option_2, parameter_option_3,
+                   parameter_option_4, parameter_option_5,
+                   custom_domain, custom_port
             FROM enterprises
             WHERE name2 LIKE $1
             ORDER BY id ASC  -- Или другая логика сортировки, если нужно выбрать конкретное из нескольких
@@ -196,3 +253,142 @@ async def get_enterprise_by_name2_suffix(name2_suffix: str) -> Optional[Dict]:
             return dict(row)
         else:
             return None 
+
+async def get_gateways_by_enterprise_number(enterprise_number: str) -> List[Dict]:
+    """Получает список шлюзов для указанного предприятия."""
+    logger.debug(f"POSTGRES_GET_GATEWAYS: Вызвана для enterprise_number: '{enterprise_number}'")
+    pool = await get_pool()
+    if not pool:
+        logger.error("POSTGRES_GET_GATEWAYS ERROR: Пул не инициализирован")
+        return []
+        
+    async with pool.acquire() as conn:
+        sql_query = """
+            SELECT id, enterprise_number, gateway_name, line_count, 
+                   config_backup_original_name, config_backup_uploaded_at,
+                   custom_boolean_flag
+            FROM goip
+            WHERE enterprise_number = $1
+            ORDER BY id ASC
+        """
+        try:
+            rows = await conn.fetch(sql_query, enterprise_number)
+            logger.debug(f"POSTGRES_GET_GATEWAYS: Найдено {len(rows)} шлюзов для предприятия {enterprise_number}")
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"POSTGRES_GET_GATEWAYS ERROR: Ошибка при выполнении запроса для {enterprise_number}: {e}")
+            return []
+
+async def get_goip_gateway_by_id(gateway_id: int) -> Optional[Dict]:
+    """Получает шлюз по его ID."""
+    logger.debug(f"POSTGRES_GET_GATEWAY_BY_ID: Вызвана для ID: {gateway_id}")
+    pool = await get_pool()
+    if not pool:
+        logger.error("POSTGRES_GET_GATEWAY_BY_ID ERROR: Пул не инициализирован")
+        return None
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT * FROM goip WHERE id = $1", gateway_id)
+        if row:
+            return dict(row)
+        return None
+
+async def add_goip_gateway(enterprise_number: str, gateway_name: str, line_count: Optional[int],
+                           config_backup_filename: Optional[str] = None, 
+                           config_backup_original_name: Optional[str] = None,
+                           config_backup_uploaded_at: Optional[datetime] = None,
+                           custom_boolean_flag: Optional[bool] = False) -> int:
+    """Добавляет новый шлюз и возвращает его ID."""
+    logger.debug(f"POSTGRES_ADD_GOIP_GATEWAY: Добавление шлюза для предприятия {enterprise_number}, имя: {gateway_name}, flag: {custom_boolean_flag}")
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        sql_query = """
+            INSERT INTO goip (enterprise_number, gateway_name, line_count, 
+                              config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
+                              created_at, custom_boolean_flag)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id
+        """
+        try:
+            gateway_id = await conn.fetchval(
+                sql_query, enterprise_number, gateway_name, line_count,
+                config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
+                datetime.utcnow(), custom_boolean_flag
+            )
+            logger.info(f"POSTGRES_ADD_GOIP_GATEWAY: Шлюз успешно добавлен с ID: {gateway_id} для предприятия {enterprise_number}")
+            return gateway_id
+        except Exception as e:
+            logger.error(f"POSTGRES_ADD_GOIP_GATEWAY ERROR: Ошибка при добавлении шлюза для {enterprise_number}: {e}")
+            # В случае ошибки с уникальным ключом (enterprise_number, gateway_name) будет asyncpg.exceptions.UniqueViolationError
+            raise # Передаем исключение дальше, чтобы обработать его в роутере (например, показать пользователю)
+
+
+async def update_goip_gateway(gateway_id: int, gateway_name: str, line_count: Optional[int],
+                              config_backup_filename: Optional[str] = None,
+                              config_backup_original_name: Optional[str] = None,
+                              config_backup_uploaded_at: Optional[datetime] = None,
+                              custom_boolean_flag: Optional[bool] = None):
+    """Обновляет информацию о существующем шлюзе."""
+    logger.debug(f"POSTGRES_UPDATE_GOIP_GATEWAY: Обновление шлюза ID: {gateway_id}, имя: {gateway_name}, flag: {custom_boolean_flag}")
+    pool = await get_pool()
+    
+    fields_to_update = {
+        "gateway_name": gateway_name,
+        "line_count": line_count,
+    }
+    if config_backup_filename is not None:
+        fields_to_update["config_backup_filename"] = config_backup_filename
+    if config_backup_original_name is not None:
+        fields_to_update["config_backup_original_name"] = config_backup_original_name
+    if config_backup_uploaded_at is not None:
+        fields_to_update["config_backup_uploaded_at"] = config_backup_uploaded_at
+    if custom_boolean_flag is not None:
+        fields_to_update["custom_boolean_flag"] = custom_boolean_flag
+    
+    if not fields_to_update:
+        logger.debug(f"POSTGRES_UPDATE_GOIP_GATEWAY: Нет полей для обновления шлюза ID: {gateway_id}")
+        return
+
+    set_clauses = []
+    values = []
+    param_idx = 1
+    for key, value in fields_to_update.items():
+        set_clauses.append(f"{key} = ${param_idx}")
+        values.append(value)
+        param_idx += 1
+    
+    values.append(gateway_id) # Для WHERE id = $N
+    
+    sql_query = f"""
+        UPDATE goip
+        SET {", ".join(set_clauses)}
+        WHERE id = ${param_idx}
+    """
+    async with pool.acquire() as conn:
+        try:
+            await conn.execute(sql_query, *values)
+            logger.info(f"POSTGRES_UPDATE_GOIP_GATEWAY: Шлюз ID: {gateway_id} успешно обновлен.")
+        except Exception as e:
+            logger.error(f"POSTGRES_UPDATE_GOIP_GATEWAY ERROR: Ошибка при обновлении шлюза ID: {gateway_id}: {e}")
+            raise
+
+async def delete_goip_gateway(gateway_id: int):
+    """Удаляет шлюз по ID."""
+    logger.debug(f"POSTGRES_DELETE_GOIP_GATEWAY: Удаление шлюза ID: {gateway_id}")
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        try:
+            result = await conn.execute("DELETE FROM goip WHERE id = $1", gateway_id)
+            # result будет содержать, например, 'DELETE 1', если одна строка была удалена
+            if result == "DELETE 1":
+                 logger.info(f"POSTGRES_DELETE_GOIP_GATEWAY: Шлюз ID: {gateway_id} успешно удален.")
+            else:
+                 logger.warning(f"POSTGRES_DELETE_GOIP_GATEWAY: Шлюз ID: {gateway_id} не найден для удаления или удалено 0 строк.")
+        except Exception as e:
+            logger.error(f"POSTGRES_DELETE_GOIP_GATEWAY ERROR: Ошибка при удалении шлюза ID: {gateway_id}: {e}")
+            raise
+
+# Далее существующий код...
+# Например, если следующая функция это:
+# async def some_other_function():
+#    pass
+# Убедитесь, что новые функции вставлены корректно относительно других. 
