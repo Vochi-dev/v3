@@ -9,7 +9,7 @@ case "${1:-start}" in
     # запускаем в отдельной сессии, чтобы потом убить всю группу
     setsid uvicorn main:app \
       --host 0.0.0.0 \
-      --port 8001 \
+      --port 8000 \
       --reload \
       --log-level debug \
       --log-config log_config.json &
@@ -31,7 +31,7 @@ case "${1:-start}" in
     else
       # fallback: ищем по pgrep
       # Ищем PID родительского процесса uvicorn, а не дочерних от reloader
-      PID=$(pgrep -f "uvicorn main:app --host 0.0.0.0 --port 8001" | head -n1 || true)
+      PID=$(pgrep -f "uvicorn main:app --host 0.0.0.0 --port 8000" | head -n1 || true)
       if [[ -n "$PID" ]]; then
         echo "🛑 Файла .uvicorn.pid нет — убиваем по найденному PID=${PID}"
         # Получаем PGID (Process Group ID) для этого PID
@@ -49,16 +49,16 @@ case "${1:-start}" in
       fi
     fi
 
-    # Принудительно очищаем порт 8001
-    echo "🧹 Чистим порт 8001..."
+    # Принудительно очищаем порт 8000
+    echo "🧹 Чистим порт 8000..."
     if command -v fuser &>/dev/null; then
-      fuser -k 8001/tcp || true
+      fuser -k 8000/tcp || true
     elif command -v lsof &>/dev/null; then # Добавлена проверка на lsof, если fuser нет
-      lsof -ti:8001 | xargs -r kill -9 || true
+      lsof -ti:8000 | xargs -r kill -9 || true
     else
         echo "⚠️  Команды fuser и lsof не найдены. Невозможно принудительно очистить порт."
     fi
-    echo "✅ Порт 8001 свободен"
+    echo "✅ Порт 8000 свободен"
     exit 0 # Для команды stop всегда выходим с кодом 0, если дошли сюда
     ;;
 
