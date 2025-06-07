@@ -292,35 +292,104 @@ async def get_goip_gateway_by_id(gateway_id: int) -> Optional[Dict]:
             return dict(row)
         return None
 
+async def _get_next_line_id(conn):
+    """Получает следующий доступный line_id."""
+    max_line_id = await conn.fetchval("SELECT MAX(line_id) FROM gsm_lines")
+    return 1363 if max_line_id is None else max_line_id + 1
+
+async def _get_next_internal_id_details(conn, enterprise_number):
+    """Получает детали для генерации следующего internal_id."""
+    last_internal_id = await conn.fetchval(
+        "SELECT MAX(internal_id) FROM gsm_lines WHERE enterprise_number = $1",
+        enterprise_number
+    )
+    if last_internal_id is None:
+        return 10, 1
+    
+    prefix = int(last_internal_id[:2])
+    line_num = int(last_internal_id[-2:])
+    
+    if line_num == 99:
+        return prefix + 1, 1
+    else:
+        return prefix, line_num + 1
+
+async def create_gsm_lines_for_gateway(conn, gateway_id: int, enterprise_number: str, line_count: int):
+    """Создает записи о GSM-линиях для нового шлюза."""
+    if not line_count or line_count <= 0:
+        return
+
+    try:
+        start_line_id = await _get_next_line_id(conn)
+        id_prefix, start_line_num = await _get_next_internal_id_details(conn, enterprise_number)
+
+        lines_to_insert = []
+        for i in range(line_count):
+            current_line_num = start_line_num + i
+            current_prefix = id_prefix
+            
+            if current_line_num > 99:
+                current_prefix += (current_line_num -1) // 99
+                current_line_num = (current_line_num -1) % 99 + 1
+                
+            line_data = {
+                "goip_id": gateway_id,
+                "enterprise_number": enterprise_number,
+                "line_id": start_line_id + i,
+                "internal_id": f"{current_prefix}{enterprise_number}{current_line_num:02d}",
+                "prefix": str(21 + i),
+                "slot": i + 1,
+            }
+            lines_to_insert.append(line_data)
+
+        # Массовая вставка
+        await conn.executemany("""
+            INSERT INTO gsm_lines (goip_id, enterprise_number, line_id, internal_id, prefix, slot, phone_number, line_name, in_schema, out_schema, shop, serial, redirect)
+            VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+        """, [(
+            d["goip_id"], d["enterprise_number"], d["line_id"], d["internal_id"], d["prefix"], d["slot"]
+        ) for d in lines_to_insert])
+        logger.info(f"Успешно создано {len(lines_to_insert)} линий для шлюза ID {gateway_id}.")
+
+    except Exception as e:
+        logger.error(f"Ошибка при создании GSM-линий для шлюза ID {gateway_id}: {e}")
+        # Тут можно либо пробросить исключение, либо просто залогировать
+        # Если создание линий критично, то нужно пробрасывать, чтобы откатить транзакцию (если она есть)
+        raise
+
 async def add_goip_gateway(enterprise_number: str, gateway_name: str, line_count: Optional[int],
                            config_backup_filename: Optional[str] = None, 
                            config_backup_original_name: Optional[str] = None,
                            config_backup_uploaded_at: Optional[datetime] = None,
                            custom_boolean_flag: Optional[bool] = False) -> int:
-    """Добавляет новый шлюз и возвращает его ID."""
+    """Добавляет новый шлюз, создает для него линии и возвращает его ID."""
     logger.debug(f"POSTGRES_ADD_GOIP_GATEWAY: Добавление шлюза для предприятия {enterprise_number}, имя: {gateway_name}, flag: {custom_boolean_flag}")
     pool = await get_pool()
     async with pool.acquire() as conn:
-        sql_query = """
-            INSERT INTO goip (enterprise_number, gateway_name, line_count, 
-                              config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
-                              created_at, custom_boolean_flag)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id
-        """
-        try:
-            gateway_id = await conn.fetchval(
-                sql_query, enterprise_number, gateway_name, line_count,
-                config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
-                datetime.utcnow(), custom_boolean_flag
-            )
-            logger.info(f"POSTGRES_ADD_GOIP_GATEWAY: Шлюз успешно добавлен с ID: {gateway_id} для предприятия {enterprise_number}")
-            return gateway_id
-        except Exception as e:
-            logger.error(f"POSTGRES_ADD_GOIP_GATEWAY ERROR: Ошибка при добавлении шлюза для {enterprise_number}: {e}")
-            # В случае ошибки с уникальным ключом (enterprise_number, gateway_name) будет asyncpg.exceptions.UniqueViolationError
-            raise # Передаем исключение дальше, чтобы обработать его в роутере (например, показать пользователю)
+        async with conn.transaction(): # Используем транзакцию
+            sql_query = """
+                INSERT INTO goip (enterprise_number, gateway_name, line_count, 
+                                  config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
+                                  created_at, custom_boolean_flag)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                RETURNING id
+            """
+            try:
+                gateway_id = await conn.fetchval(
+                    sql_query, enterprise_number, gateway_name, line_count,
+                    config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
+                    datetime.utcnow(), custom_boolean_flag
+                )
+                logger.info(f"POSTGRES_ADD_GOIP_GATEWAY: Шлюз успешно добавлен с ID: {gateway_id} для предприятия {enterprise_number}")
+                
+                # Создаем GSM линии
+                if line_count and line_count > 0:
+                    await create_gsm_lines_for_gateway(conn, gateway_id, enterprise_number, line_count)
 
+                return gateway_id
+            except Exception as e:
+                logger.error(f"POSTGRES_ADD_GOIP_GATEWAY ERROR: Ошибка при добавлении шлюза для {enterprise_number}: {e}")
+                raise
 
 async def update_goip_gateway(gateway_id: int, gateway_name: str, line_count: Optional[int],
                               config_backup_filename: Optional[str] = None,

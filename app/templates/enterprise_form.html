@@ -6,13 +6,13 @@
   <style>
     body {
       font-family: sans-serif;
-      padding: 0; /* Убираем отступы body */
-      margin: 0; /* Убираем отступы body */
+      padding: 0;
+      margin: 0;
       background-color: #f9f9f9;
       color: #333;
       font-size: 14px;
     }
-    .content-wrapper { padding: 1rem; } /* Добавляем отступы для контента */
+    .content-wrapper { padding: 1rem; }
     form {
       max-width: 1100px;
       background: white;
@@ -186,7 +186,6 @@
     #add-gateway-button {
         margin-top: 0.5rem;
     }
-    /* Скрытый шаблон для шлюза */
     #gateway-template { 
         display: none; 
     }
@@ -201,152 +200,52 @@
       <div class="error">{{ error }}</div>
     {% endif %}
 
-    <form method="post"
-          action="{% if action == 'add' %}/admin/enterprises/add{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}" enctype="multipart/form-data">
+    <form method="post" action="{% if action == 'add' %}/admin/enterprises/add{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}" enctype="multipart/form-data">
       <div class="form-container-columns">
         <div class="form-column-main">
           <div class="form-grid">
-            <div class="form-group"> <!-- 1. Номер -->
-              <label for="number">Номер</label>
-              <input id="number" type="text" name="number" required
-                     {% if action == 'edit' %}
-                       value="{{ enterprise.number }}" readonly
-                     {% else %}
-                       value="{{ enterprise.number or '' }}"
-                     {% endif %}>
-            </div>
-
-            <div class="form-group"> <!-- 2. Предприятие активно (enabled) -->
-              <label for="is_enabled">Предприятие активно (enabled)</label>
-              <input id="is_enabled" type="checkbox" name="is_enabled" value="true" {% if enterprise.is_enabled %}checked{% endif %}>
-            </div>
-
-            <div class="form-group"> <!-- 3. Название -->
-              <label for="name">Название</label>
-              <input id="name" type="text" name="name" required value="{{ enterprise.name or '' }}">
-            </div>
-            
-            <div class="form-group"> <!-- 4. Доп. имя (name2) -->
-              <label for="name2">Доп. имя (name2)</label>
-              <input id="name2" type="text" name="name2" value="{{ enterprise.name2 or '' }}">
-            </div>
-
-            <div class="form-group"> <!-- 5. Secret -->
-              <label for="secret">Secret</label>
-              <input id="secret" type="text" name="secret" required value="{{ enterprise.secret or '' }}">
-            </div>
-
-            <div class="form-group"> <!-- 6. Bot Token -->
-              <label for="bot_token">Bot Token</label>
-              <input id="bot_token" type="text" name="bot_token" value="{{ enterprise.bot_token or '' }}">
-            </div>
-
-            <div class="form-group"> <!-- 7. Chat ID -->
-              <label for="chat_id">Chat ID</label>
-              <input id="chat_id" type="text" name="chat_id" value="{{ enterprise.chat_id or '374573193' }}">
-            </div>
-
-            <div class="form-group"> <!-- 8. IP -->
-              <label for="ip">IP</label>
-              <input id="ip" type="text" name="ip" required value="{{ enterprise.ip or '' }}">
-            </div>
-
-            <div class="form-group"> <!-- 9. Host -->
-              <label for="host">Host</label>
-              <input id="host" type="text" name="host" required value="{{ enterprise.host or '' }}">
-            </div>
-            
-            <div class="form-group"> <!-- 10. Домен -->
-              <label for="custom_domain">Домен</label>
-              <input id="custom_domain" type="text" name="custom_domain" value="{{ enterprise.custom_domain or '' }}">
-            </div>
-
-            <div class="form-group"> <!-- 11. Порт (для домена) -->
-              <label for="custom_port">Порт (для домена)</label>
-              <input id="custom_port" type="number" name="custom_port" value="{{ enterprise.custom_port or '' }}">
-            </div>
-
-            <div class="form-group"> <!-- 12. Кол-во схем -->
-              <label for="scheme_count">Кол-во схем</label>
-              <input id="scheme_count" type="number" name="scheme_count" value="{{ enterprise.scheme_count or 3 }}">
-            </div>
-
-            <div class="form-group"> <!-- 13. Кол-во GSM-линий -->
-              <label for="gsm_line_count">Кол-во GSM-линий</label>
-              <input id="gsm_line_count" type="number" name="gsm_line_count" value="{{ enterprise.gsm_line_count or 8 }}">
-            </div>
+            <div class="form-group"><label for="number">Номер</label><input id="number" type="text" name="number" required {% if action == 'edit' %} value="{{ enterprise.number }}" readonly {% else %} value="{{ enterprise.number or '' }}" {% endif %}></div>
+            <div class="form-group"><label for="is_enabled">Предприятие активно (enabled)</label><input id="is_enabled" type="checkbox" name="is_enabled" value="true" {% if enterprise.is_enabled %}checked{% endif %}></div>
+            <div class="form-group"><label for="name">Название</label><input id="name" type="text" name="name" required value="{{ enterprise.name or '' }}"></div>
+            <div class="form-group"><label for="name2">Доп. имя (name2)</label><input id="name2" type="text" name="name2" value="{{ enterprise.name2 or '' }}"></div>
+            <div class="form-group"><label for="secret">Secret</label><input id="secret" type="text" name="secret" required value="{{ enterprise.secret or '' }}"></div>
+            <div class="form-group"><label for="bot_token">Bot Token</label><input id="bot_token" type="text" name="bot_token" value="{{ enterprise.bot_token or '' }}"></div>
+            <div class="form-group"><label for="chat_id">Chat ID</label><input id="chat_id" type="text" name="chat_id" value="{{ enterprise.chat_id or '374573193' }}"></div>
+            <div class="form-group"><label for="ip">IP</label><input id="ip" type="text" name="ip" required value="{{ enterprise.ip or '' }}"></div>
+            <div class="form-group"><label for="host">Host</label><input id="host" type="text" name="host" required value="{{ enterprise.host or '' }}"></div>
+            <div class="form-group"><label for="custom_domain">Домен</label><input id="custom_domain" type="text" name="custom_domain" value="{{ enterprise.custom_domain or '' }}"></div>
+            <div class="form-group"><label for="custom_port">Порт (для домена)</label><input id="custom_port" type="number" name="custom_port" value="{{ enterprise.custom_port or '' }}"></div>
+            <div class="form-group"><label for="scheme_count">Кол-во схем</label><input id="scheme_count" type="number" name="scheme_count" value="{{ enterprise.scheme_count or 3 }}"></div>
+            <div class="form-group"><label for="gsm_line_count">Кол-во GSM-линий</label><input id="gsm_line_count" type="number" name="gsm_line_count" value="{{ enterprise.gsm_line_count or 8 }}"></div>
           </div>
-
           <fieldset class="checkbox-group">
             <legend>Дополнительные параметры</legend>
-            <div class="checkbox-item">
-              <input id="parameter_option_1" type="checkbox" name="parameter_option_1" value="true" {% if enterprise.parameter_option_1 %}checked{% endif %}>
-              <label for="parameter_option_1">Параметр 1</label>
-            </div>
-            <div class="checkbox-item">
-              <input id="parameter_option_2" type="checkbox" name="parameter_option_2" value="true" {% if enterprise.parameter_option_2 %}checked{% endif %}>
-              <label for="parameter_option_2">Параметр 2</label>
-            </div>
-            <div class="checkbox-item">
-              <input id="parameter_option_3" type="checkbox" name="parameter_option_3" value="true" {% if enterprise.parameter_option_3 %}checked{% endif %}>
-              <label for="parameter_option_3">Параметр 3</label>
-            </div>
-            <div class="checkbox-item">
-              <input id="parameter_option_4" type="checkbox" name="parameter_option_4" value="true" {% if enterprise.parameter_option_4 %}checked{% endif %}>
-              <label for="parameter_option_4">Параметр 4</label>
-            </div>
-            <div class="checkbox-item">
-              <input id="parameter_option_5" type="checkbox" name="parameter_option_5" value="true" {% if enterprise.parameter_option_5 %}checked{% endif %}>
-              <label for="parameter_option_5">Параметр 5</label>
-            </div>
-             <div class="checkbox-item">
-              <input id="active" type="checkbox" name="active" value="true" {% if enterprise.active == 1 or enterprise.active == True %}checked{% endif %}>
-              <label for="active">Активен (бот)</label>
-            </div>
+            <div class="checkbox-item"><input id="parameter_option_1" type="checkbox" name="parameter_option_1" value="true" {% if enterprise.parameter_option_1 %}checked{% endif %}><label for="parameter_option_1">Параметр 1</label></div>
+            <div class="checkbox-item"><input id="parameter_option_2" type="checkbox" name="parameter_option_2" value="true" {% if enterprise.parameter_option_2 %}checked{% endif %}><label for="parameter_option_2">Параметр 2</label></div>
+            <div class="checkbox-item"><input id="parameter_option_3" type="checkbox" name="parameter_option_3" value="true" {% if enterprise.parameter_option_3 %}checked{% endif %}><label for="parameter_option_3">Параметр 3</label></div>
+            <div class="checkbox-item"><input id="parameter_option_4" type="checkbox" name="parameter_option_4" value="true" {% if enterprise.parameter_option_4 %}checked{% endif %}><label for="parameter_option_4">Параметр 4</label></div>
+            <div class="checkbox-item"><input id="parameter_option_5" type="checkbox" name="parameter_option_5" value="true" {% if enterprise.parameter_option_5 %}checked{% endif %}><label for="parameter_option_5">Параметр 5</label></div>
+            <div class="checkbox-item"><input id="active" type="checkbox" name="active" value="true" {% if enterprise.active == 1 or enterprise.active == True %}checked{% endif %}><label for="active">Активен (бот)</label></div>
           </fieldset>
         </div>
-
         <div class="form-column-gateways">
           <h2>Шлюзы</h2>
-          <div id="gateways-container">
-          </div>
+          <div id="gateways-container"></div>
           <button type="button" id="add-gateway-button" class="button">Добавить шлюз</button>
         </div>
       </div>
-
-      <button class="button" type="submit">
-        {% if action == 'add' %}Добавить{% else %}Сохранить{% endif %}
-      </button>
+      <button class="button" type="submit">{% if action == 'add' %}Добавить{% else %}Сохранить{% endif %}</button>
     </form>
-
     <a href="/admin/enterprises" class="back-link">← Назад к списку предприятий</a>
   </div>
 
-  <!-- Скрытый шаблон для одного шлюза -->
   <div id="gateway-template" class="gateway-entry">
     <button type="button" class="button-small remove-gateway-button" title="Удалить шлюз">X</button>
-    <h4>
-      <span>Шлюз <span class="gateway-number"></span></span>
-      <div class="gateway-actions" style="display: flex; align-items: center;">
-        <input type="checkbox" name="gateways[NEW_INDEX][custom_boolean_flag]" id="gateway_reboot_NEW_INDEX" value="true" style="width: auto; margin-right: 5px;">
-        <label for="gateway_reboot_NEW_INDEX" style="display: inline; font-weight: normal; margin-right: 10px;">Reboot</label>
-      </div>
-    </h4>
+    <h4><span>Шлюз <span class="gateway-number"></span></span><div class="gateway-actions" style="display: flex; align-items: center;"><input type="checkbox" name="gateways[NEW_INDEX][custom_boolean_flag]" id="gateway_reboot_NEW_INDEX" value="true" style="width: auto; margin-right: 5px;"><label for="gateway_reboot_NEW_INDEX" style="display: inline; font-weight: normal; margin-right: 10px;">Reboot</label></div></h4>
     <input type="hidden" name="gateways[NEW_INDEX][id]" value="">
-    
-    <div class="form-group">
-      <label for="gateway_name_NEW_INDEX">Наименование</label>
-      <input id="gateway_name_NEW_INDEX" type="text" name="gateways[NEW_INDEX][gateway_name]" value="">
-    </div>
-    <div class="form-group">
-      <label for="gateway_lines_NEW_INDEX">Кол-во линий</label>
-      <input id="gateway_lines_NEW_INDEX" type="number" name="gateways[NEW_INDEX][line_count]" value="">
-    </div>
-    <div class="form-group">
-      <label for="gateway_config_file_NEW_INDEX">Загрузить конфиг</label>
-      <input id="gateway_config_file_NEW_INDEX" type="file" name="gateways[NEW_INDEX][config_file]"/>
-      <span class="config-file-info-container"></span> {# Контейнер для информации о файле и кнопки выгрузки #}
-    </div>
+    <div class="form-group"><label for="gateway_name_NEW_INDEX">Наименование</label><input id="gateway_name_NEW_INDEX" type="text" name="gateways[NEW_INDEX][gateway_name]" value=""></div>
+    <div class="form-group"><label for="gateway_lines_NEW_INDEX">Кол-во линий</label><input id="gateway_lines_NEW_INDEX" type="number" name="gateways[NEW_INDEX][line_count]" value=""></div>
+    <div class="form-group"><label for="gateway_config_file_NEW_INDEX">Загрузить конфиг</label><input id="gateway_config_file_NEW_INDEX" type="file" name="gateways[NEW_INDEX][config_file]"/><span class="config-file-info-container"></span></div>
   </div>
 
   <script>
@@ -354,99 +253,69 @@
       const gatewaysContainer = document.getElementById('gateways-container');
       const addGatewayButton = document.getElementById('add-gateway-button');
       const gatewayTemplate = document.getElementById('gateway-template');
-      const maxGateways = 10;
       let gatewayCounter = 0;
-
-      // Загружаем существующие шлюзы
+      const maxGateways = 10;
       const existingGateways = {{ gateways | tojson | safe }};
 
-      function createGatewayElement(gatewayData, index) {
+      function createGatewayElement(gatewayData) {
+        const index = gatewayCounter++;
         const templateNode = gatewayTemplate.cloneNode(true);
-        templateNode.id = '';
-        templateNode.style.display = '';
+        templateNode.id = `gateway-entry-${index}`;
+        templateNode.style.display = 'block';
+
+        templateNode.innerHTML = templateNode.innerHTML.replace(/NEW_INDEX/g, index);
         
-        const newIndex = index !== undefined ? index : gatewayCounter;
-
-        templateNode.querySelector('.gateway-number').textContent = newIndex + 1;
-        
-        const gatewayIdInput = templateNode.querySelector('input[name="gateways[NEW_INDEX][id]"]');
-        gatewayIdInput.name = `gateways[${newIndex}][id]`;
-        gatewayIdInput.value = gatewayData && gatewayData.id ? gatewayData.id : '';
-
-        const nameInput = templateNode.querySelector('input[name="gateways[NEW_INDEX][gateway_name]"]');
-        nameInput.name = `gateways[${newIndex}][gateway_name]`;
-        nameInput.id = `gateway_name_${newIndex}`;
-        nameInput.value = gatewayData && gatewayData.gateway_name ? gatewayData.gateway_name : '';
-        templateNode.querySelector('label[for="gateway_name_NEW_INDEX"]').htmlFor = `gateway_name_${newIndex}`;
-
-        const linesInput = templateNode.querySelector('input[name="gateways[NEW_INDEX][line_count]"]');
-        linesInput.name = `gateways[${newIndex}][line_count]`;
-        linesInput.id = `gateway_lines_${newIndex}`;
-        linesInput.value = gatewayData && gatewayData.line_count ? gatewayData.line_count : '';
-        templateNode.querySelector('label[for="gateway_lines_NEW_INDEX"]').htmlFor = `gateway_lines_${newIndex}`;
-
-        const fileInput = templateNode.querySelector('input[name="gateways[NEW_INDEX][config_file]"]');
-        fileInput.name = `gateways[${newIndex}][config_file]`;
-        fileInput.id = `gateway_config_file_${newIndex}`;
-        templateNode.querySelector('label[for="gateway_config_file_NEW_INDEX"]').htmlFor = `gateway_config_file_${newIndex}`;
-
-        const configFileInfoContainer = templateNode.querySelector('.config-file-info-container');
-        if (gatewayData && gatewayData.config_backup_original_name) {
-            let uploadedAt = 'дата неизвестна';
-            if (gatewayData.config_backup_uploaded_at) {
-                const d = new Date(gatewayData.config_backup_uploaded_at);
-                if (!isNaN(d.getTime())) { // Проверяем, что дата валидна
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    const hours = String(d.getHours()).padStart(2, '0');
-                    const minutes = String(d.getMinutes()).padStart(2, '0');
-                    uploadedAt = `${year}-${month}-${day} ${hours}:${minutes}`;
-                } else {
-                    console.error("Invalid date received:", gatewayData.config_backup_uploaded_at);
-                }
-            }
-            const enterpriseNumberInput = document.getElementById('number');
-            const enterpriseNumber = enterpriseNumberInput ? enterpriseNumberInput.value : '{{ enterprise.number or "" }}';
+        if (gatewayData) {
+            templateNode.querySelector(`input[name="gateways[${index}][id]"]`).value = gatewayData.id || '';
+            templateNode.querySelector(`input[name="gateways[${index}][gateway_name]"]`).value = gatewayData.gateway_name || '';
+            templateNode.querySelector(`input[name="gateways[${index}][line_count]"]`).value = gatewayData.line_count || '';
+            templateNode.querySelector(`input[name="gateways[${index}][custom_boolean_flag]"]`).checked = !!gatewayData.custom_boolean_flag;
             
-            configFileInfoContainer.innerHTML = 
-                `<span class="config-file-info">Текущий файл: ${gatewayData.config_backup_original_name} (от ${uploadedAt})</span>\n                 <a href="/admin/enterprises/${enterpriseNumber}/gateways/${gatewayData.id}/download_config" class="button-small download-config-button">Выгрузить</a>`;
+            const configFileInfoContainer = templateNode.querySelector('.config-file-info-container');
+            if (gatewayData.config_backup_original_name) {
+                let uploadedAt = 'дата неизвестна';
+                if (gatewayData.config_backup_uploaded_at) {
+                    const d = new Date(gatewayData.config_backup_uploaded_at);
+                    if (!isNaN(d.getTime())) uploadedAt = d.toLocaleString();
+                }
+                const enterpriseNumber = document.getElementById('number').value;
+                configFileInfoContainer.innerHTML = 
+                    `<span class="config-file-info">Текущий файл: ${gatewayData.config_backup_original_name} (от ${uploadedAt})</span>
+                     <a href="/admin/enterprises/${enterpriseNumber}/gateways/${gatewayData.id}/download_config" class="button-small">Выгрузить</a>`;
+            }
         }
-
-        const rebootCheckbox = templateNode.querySelector('input[name="gateways[NEW_INDEX][custom_boolean_flag]"]');
-        rebootCheckbox.name = `gateways[${newIndex}][custom_boolean_flag]`;
-        rebootCheckbox.id = `gateway_reboot_${newIndex}`;
-        rebootCheckbox.checked = gatewayData && gatewayData.custom_boolean_flag ? true : false;
-
-        const rebootLabel = templateNode.querySelector('label[for="gateway_reboot_NEW_INDEX"]');
-        rebootLabel.htmlFor = `gateway_reboot_${newIndex}`;
-
+        
         templateNode.querySelector('.remove-gateway-button').addEventListener('click', function () {
             templateNode.remove();
-            updateGatewayNumbers();
-            checkMaxGateways();
+            updateAllGatewayIndices();
         });
         
         return templateNode;
       }
 
-      function updateGatewayNumbers() {
+      function updateAllGatewayIndices() {
         const gatewayEntries = gatewaysContainer.querySelectorAll('.gateway-entry');
-        gatewayCounter = gatewayEntries.length;
-        gatewayEntries.forEach((entry, idx) => {
-            entry.dataset.index = idx;
-            entry.querySelector('.gateway-number').textContent = idx + 1;
+        gatewayCounter = 0;
+        gatewayEntries.forEach((entry) => {
+            const newIndex = gatewayCounter++;
+            const oldIndexMatch = entry.querySelector('[name^="gateways["]').name.match(/\[(\d+)\]/);
+            if (!oldIndexMatch || oldIndexMatch[1] == newIndex) return;
+
+            const oldIndex = oldIndexMatch[1];
             
-            entry.querySelectorAll('[name*="[NEW_INDEX]"]').forEach(el => {
-                el.name = el.name.replace(/NEW_INDEX/g, idx);
+            entry.querySelector('.gateway-number').textContent = newIndex + 1;
+            
+            entry.querySelectorAll('[name^="gateways["]').forEach(el => {
+                el.name = el.name.replace(`[${oldIndex}]`, `[${newIndex}]`);
             });
-            entry.querySelectorAll('[id*="[NEW_INDEX]"]').forEach(el => {
-                el.id = el.id.replace(/NEW_INDEX/g, idx);
+            entry.querySelectorAll('[id*="_"]').forEach(el => {
+                el.id = el.id.replace(`_${oldIndex}`, `_${newIndex}`);
             });
-            entry.querySelectorAll('label[for*="[NEW_INDEX]"]').forEach(el => {
-                el.htmlFor = el.htmlFor.replace(/NEW_INDEX/g, idx);
+            entry.querySelectorAll('label[for*="_"]').forEach(el => {
+                el.htmlFor = el.htmlFor.replace(`_${oldIndex}`, `_${newIndex}`);
             });
         });
+        checkMaxGateways();
       }
       
       function checkMaxGateways(){
@@ -455,26 +324,17 @@
 
       addGatewayButton.addEventListener('click', function () {
         if (gatewaysContainer.children.length < maxGateways) {
-          const newGatewayElement = createGatewayElement(null, gatewaysContainer.children.length);
-          gatewaysContainer.appendChild(newGatewayElement);
-          updateGatewayNumbers(); 
-          checkMaxGateways();
+          gatewaysContainer.appendChild(createGatewayElement(null));
+          updateAllGatewayIndices();
         }
       });
 
       if (existingGateways && existingGateways.length > 0) {
-        existingGateways.forEach((gw, idx) => {
-          const gatewayElement = createGatewayElement(gw, idx);
-          gatewaysContainer.appendChild(gatewayElement);
-        });
+        existingGateways.forEach(gw => gatewaysContainer.appendChild(createGatewayElement(gw)));
+        updateAllGatewayIndices();
+      } else {
+        addGatewayButton.click(); 
       }
-      updateGatewayNumbers(); 
-      checkMaxGateways(); 
-      
-      if (gatewaysContainer.children.length === 0) {
-          addGatewayButton.click(); 
-      }
-
     });
   </script>
 </body>

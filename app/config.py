@@ -65,3 +65,7 @@ required_vars = [
 
 if not all(required_vars):
     raise RuntimeError("Одна или несколько обязательных переменных не заданы в .env")
+
+# Добавляем новые переменные
+POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://user:password@host:port/dbname")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "a_very_secret_key_that_should_be_changed")

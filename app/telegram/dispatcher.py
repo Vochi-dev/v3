@@ -1,4 +1,5 @@
 # app/telegram/dispatcher.py
+# -*- coding: utf-8 -*-
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -35,7 +36,7 @@ async def create_dispatcher(bot: Bot) -> Dispatcher:
 
 
 # --- добавлено для совместимости с main.py ---
-async def setup_dispatcher(bot: Bot, enterprise_number: str) -> Dispatcher:
+async def setup_dispatcher(bot: Bot, enterprise_number: str = None) -> Dispatcher:
     """
     Совместимая обёртка setup_dispatcher для main.py
     """

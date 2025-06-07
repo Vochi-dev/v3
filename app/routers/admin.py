@@ -7,7 +7,7 @@ import subprocess
 import csv
 import io
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import aiosqlite
 from fastapi import (
@@ -20,8 +20,10 @@ from fastapi.responses import (
 from fastapi.templating import Jinja2Templates
 from telegram import Bot
 from telegram.error import TelegramError
+import jwt
+import uuid
 
-from app.config import ADMIN_PASSWORD, DB_PATH
+from app.config import ADMIN_PASSWORD, DB_PATH, JWT_SECRET_KEY
 from app.services.db import get_connection
 from app.services.bot_status import check_bot_status
 from app.services.enterprise import send_message_to_bot
@@ -81,28 +83,21 @@ async def login(request: Request, password: str = Form(...)):
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request):
+    require_login(request)
     try:
         all_enterprises = await get_all_enterprises_postgresql()
         # Фильтруем предприятия: оставляем только активные (где active == True)
         active_enterprises = [ent for ent in all_enterprises if ent.get('active') is True]
-        # Сортируем по номеру (предполагаем, что number можно преобразовать в int для корректной числовой сортировки)
-        # Если number всегда числовой и хранится как строка, лучше явно преобразовывать или убедиться, что БД сортирует корректно
-        # Функция get_all_enterprises уже сортирует по CAST(number AS INTEGER) ASC, так что дополнительная сортировка не нужна,
-        # если фильтрация не нарушает порядок.
-        # Но для надежности, если вдруг get_all_enterprises изменится, можно раскомментировать:
-        # active_enterprises.sort(key=lambda x: int(x['number']))
-
+        
         return templates.TemplateResponse(
             "dashboard.html",
             {
                 "request": request,
-                "enterprises": active_enterprises # Передаем отфильтрованные и отсортированные предприятия
+                "enterprises": active_enterprises 
             }
         )
     except Exception as e:
-        # Логирование ошибки можно добавить здесь
-        print(f"Error in admin_dashboard: {e}")
-        # Можно вернуть страницу с ошибкой или пустой список
+        logger.error(f"Error in admin_dashboard: {e}")
         return templates.TemplateResponse(
             "dashboard.html",
             {
@@ -612,9 +607,28 @@ async def get_banned_ip_count():
 
 @router.delete("/enterprises/all", response_class=JSONResponse)
 async def delete_all_enterprises(request: Request):
+    """Удаляет все предприятия и связанные с ними данные из БД (SQLite)."""
     require_login(request)
-    db = await get_connection()
-    await db.execute("DELETE FROM enterprises;")
-    await db.commit()
-    await db.close()
-    return JSONResponse({"detail": "All enterprises deleted"})
+    try:
+        db = await get_connection()
+        await db.execute("DELETE FROM enterprises")
+        await db.commit()
+        await db.close()
+        return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "All enterprises have been deleted."})
+    except Exception as e:
+        logger.error(f"Failed to delete all enterprises: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete enterprises.")
+
+@router.get("/generate-auth-token/{enterprise_number}", response_class=JSONResponse)
+async def generate_auth_token(enterprise_number: str, request: Request):
+    """Generate a short-lived JWT for auto-login to an enterprise admin panel."""
+    require_login(request) # Ensure only a logged-in admin can do this
+
+    payload = {
+        "exp": datetime.utcnow() + timedelta(seconds=30), # Token is valid for 30 seconds
+        "iat": datetime.utcnow(),
+        "sub": enterprise_number,
+        "is_admin": True
+    }
+    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm="HS256")
+    return {"token": token}
