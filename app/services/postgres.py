@@ -394,19 +394,21 @@ async def add_goip_gateway(enterprise_number: str, gateway_name: str, line_count
             logger.error(f"POSTGRES_ADD_GOIP_GATEWAY ERROR: Ошибка при добавлении шлюза для {enterprise_number}: {e}")
             raise
 
-async def update_goip_gateway(gateway_id: int, gateway_name: str, line_count: Optional[int],
+async def update_goip_gateway(gateway_id: int, gateway_name: Optional[str] = None, line_count: Optional[int] = None,
                               config_backup_filename: Optional[str] = None,
                               config_backup_original_name: Optional[str] = None,
                               config_backup_uploaded_at: Optional[datetime] = None,
                               custom_boolean_flag: Optional[bool] = None):
-    """Обновляет информацию о существующем шлюзе."""
-    logger.debug(f"POSTGRES_UPDATE_GOIP_GATEWAY: Обновление шлюза ID: {gateway_id}, имя: {gateway_name}, flag: {custom_boolean_flag}")
+    """Обновляет информацию о существующем шлюзе. Обновляет только переданные поля."""
+    logger.debug(f"POSTGRES_UPDATE_GOIP_GATEWAY: Обновление шлюза ID: {gateway_id}")
     pool = await get_pool()
     
-    fields_to_update = {
-        "gateway_name": gateway_name,
-        "line_count": line_count,
-    }
+    fields_to_update = {}
+    if gateway_name is not None:
+        fields_to_update["gateway_name"] = gateway_name
+    if line_count is not None:
+        # Эта проверка не даст случайно обновить кол-во линий, если не передано явно
+        fields_to_update["line_count"] = line_count
     if config_backup_filename is not None:
         fields_to_update["config_backup_filename"] = config_backup_filename
     if config_backup_original_name is not None:
@@ -428,7 +430,7 @@ async def update_goip_gateway(gateway_id: int, gateway_name: str, line_count: Op
         values.append(value)
         param_idx += 1
     
-    values.append(gateway_id) # Для WHERE id = $N
+    values.append(gateway_id)
     
     sql_query = f"""
         UPDATE goip
