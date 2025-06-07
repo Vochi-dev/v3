@@ -361,35 +361,38 @@ async def add_goip_gateway(enterprise_number: str, gateway_name: str, line_count
                            config_backup_filename: Optional[str] = None, 
                            config_backup_original_name: Optional[str] = None,
                            config_backup_uploaded_at: Optional[datetime] = None,
-                           custom_boolean_flag: Optional[bool] = False) -> int:
-    """Добавляет новый шлюз, создает для него линии и возвращает его ID."""
-    logger.debug(f"POSTGRES_ADD_GOIP_GATEWAY: Добавление шлюза для предприятия {enterprise_number}, имя: {gateway_name}, flag: {custom_boolean_flag}")
+                           custom_boolean_flag: Optional[bool] = False) -> Dict:
+    """
+    Добавляет новый шлюз в таблицу 'goip' и возвращает созданную запись как словарь.
+    Создание gsm_lines временно отключено.
+    """
+    logger.debug(f"POSTGRES_ADD_GOIP_GATEWAY: Добавление шлюза для предприятия {enterprise_number}, имя: {gateway_name}")
     pool = await get_pool()
     async with pool.acquire() as conn:
-        async with conn.transaction(): # Используем транзакцию
-            sql_query = """
-                INSERT INTO goip (enterprise_number, gateway_name, line_count, 
-                                  config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
-                                  created_at, custom_boolean_flag)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                RETURNING id
-            """
-            try:
-                gateway_id = await conn.fetchval(
-                    sql_query, enterprise_number, gateway_name, line_count,
-                    config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
-                    datetime.utcnow(), custom_boolean_flag
-                )
-                logger.info(f"POSTGRES_ADD_GOIP_GATEWAY: Шлюз успешно добавлен с ID: {gateway_id} для предприятия {enterprise_number}")
-                
-                # Создаем GSM линии
-                if line_count and line_count > 0:
-                    await create_gsm_lines_for_gateway(conn, gateway_id, enterprise_number, line_count)
+        sql_query = """
+            INSERT INTO goip (enterprise_number, gateway_name, line_count, 
+                              config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
+                              created_at, custom_boolean_flag)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING *
+        """
+        try:
+            # Используем fetchrow для получения всей созданной записи
+            new_gateway_record = await conn.fetchrow(
+                sql_query, enterprise_number, gateway_name, line_count,
+                config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
+                datetime.utcnow(), custom_boolean_flag
+            )
+            logger.info(f"POSTGRES_ADD_GOIP_GATEWAY: Шлюз успешно добавлен с ID: {new_gateway_record['id']} для предприятия {enterprise_number}")
+            
+            # Вызов для создания GSM-линий временно отключен по требованию
+            # if line_count and line_count > 0:
+            #     await create_gsm_lines_for_gateway(conn, new_gateway_record['id'], enterprise_number, line_count)
 
-                return gateway_id
-            except Exception as e:
-                logger.error(f"POSTGRES_ADD_GOIP_GATEWAY ERROR: Ошибка при добавлении шлюза для {enterprise_number}: {e}")
-                raise
+            return dict(new_gateway_record)
+        except Exception as e:
+            logger.error(f"POSTGRES_ADD_GOIP_GATEWAY ERROR: Ошибка при добавлении шлюза для {enterprise_number}: {e}")
+            raise
 
 async def update_goip_gateway(gateway_id: int, gateway_name: str, line_count: Optional[int],
                               config_backup_filename: Optional[str] = None,
