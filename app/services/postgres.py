@@ -292,70 +292,83 @@ async def get_goip_gateway_by_id(gateway_id: int) -> Optional[Dict]:
             return dict(row)
         return None
 
-async def _get_next_line_id(conn):
-    """Получает следующий доступный line_id."""
-    max_line_id = await conn.fetchval("SELECT MAX(line_id) FROM gsm_lines")
-    return 1363 if max_line_id is None else max_line_id + 1
+async def _get_max_line_id(conn) -> int:
+    """Вспомогательная функция для получения максимального line_id."""
+    max_id = await conn.fetchval("SELECT MAX(line_id) FROM gsm_lines")
+    return max_id if max_id is not None else 1362 # Возвращаем 1362, чтобы первая линия была 1363
 
-async def _get_next_internal_id_details(conn, enterprise_number):
-    """Получает детали для генерации следующего internal_id."""
+async def _get_last_internal_id_details(conn, enterprise_number: str) -> tuple[int, int]:
+    """
+    Получает детали последнего internal_id для предприятия.
+    Возвращает кортеж (номер_блока, номер_линии_в_блоке).
+    """
     last_internal_id = await conn.fetchval(
-        "SELECT MAX(internal_id) FROM gsm_lines WHERE enterprise_number = $1",
+        "SELECT internal_id FROM gsm_lines WHERE enterprise_number = $1 ORDER BY internal_id DESC LIMIT 1",
         enterprise_number
     )
-    if last_internal_id is None:
-        return 10, 1
-    
-    prefix = int(last_internal_id[:2])
-    line_num = int(last_internal_id[-2:])
-    
-    if line_num == 99:
-        return prefix + 1, 1
-    else:
-        return prefix, line_num + 1
+    if not last_internal_id:
+        return 10, 0 # Если линий нет, начинаем с 10-го блока, 0-й линии
 
-async def create_gsm_lines_for_gateway(conn, gateway_id: int, enterprise_number: str, line_count: int):
-    """Создает записи о GSM-линиях для нового шлюза."""
-    if not line_count or line_count <= 0:
-        return
+    # Парсим ID: первые 2 символа - блок, остальное - номер предприятия и линии
+    block_part_str = last_internal_id[:2]
+    rest_part_str = last_internal_id[2:]
+    
+    # Из оставшейся части убираем номер предприятия, чтобы получить номер линии
+    line_in_block_str = rest_part_str.replace(enterprise_number, '', 1)
 
     try:
-        start_line_id = await _get_next_line_id(conn)
-        id_prefix, start_line_num = await _get_next_internal_id_details(conn, enterprise_number)
+        block_part = int(block_part_str)
+        line_in_block = int(line_in_block_str)
+        return block_part, line_in_block
+    except (ValueError, TypeError):
+        # В случае ошибки парсинга, возвращаем значения по умолчанию
+        return 10, 0
 
-        lines_to_insert = []
-        for i in range(line_count):
-            current_line_num = start_line_num + i
-            current_prefix = id_prefix
-            
-            if current_line_num > 99:
-                current_prefix += (current_line_num -1) // 99
-                current_line_num = (current_line_num -1) % 99 + 1
+async def _add_gsm_line(conn, goip_id, enterprise_number, line_id, internal_id, prefix, goip_name):
+    """Добавляет одну запись в gsm_lines, включая имя шлюза."""
+    await conn.execute(
+        """
+        INSERT INTO gsm_lines (goip_id, enterprise_number, line_id, internal_id, prefix, goip_name)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        """,
+        goip_id, enterprise_number, line_id, internal_id, prefix, goip_name
+    )
+
+async def create_gsm_lines_for_gateway(gateway_id: int, gateway_name: str, enterprise_number: str, line_count: int):
+    """Создает все GSM-линии для нового шлюза."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # Получаем начальные значения для ID
+            next_line_id = await _get_max_line_id(conn) + 1
+            block, last_line_in_block = await _get_last_internal_id_details(conn, enterprise_number)
+
+            for i in range(line_count):
+                # 1. Генерируем line_id и форматируем его
+                current_line_id = str(next_line_id + i).zfill(7)
+
+                # 2. Генерируем internal_id
+                last_line_in_block += 1
+                if last_line_in_block > 99:
+                    block += 1
+                    last_line_in_block = 1
                 
-            line_data = {
-                "goip_id": gateway_id,
-                "enterprise_number": enterprise_number,
-                "line_id": start_line_id + i,
-                "internal_id": f"{current_prefix}{enterprise_number}{current_line_num:02d}",
-                "prefix": str(21 + i),
-                "slot": i + 1,
-            }
-            lines_to_insert.append(line_data)
+                line_in_block_str = str(last_line_in_block).zfill(2)
+                current_internal_id = f"{block}{enterprise_number}{line_in_block_str}"
 
-        # Массовая вставка
-        await conn.executemany("""
-            INSERT INTO gsm_lines (goip_id, enterprise_number, line_id, internal_id, prefix, slot, phone_number, line_name, in_schema, out_schema, shop, serial, redirect)
-            VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-        """, [(
-            d["goip_id"], d["enterprise_number"], d["line_id"], d["internal_id"], d["prefix"], d["slot"]
-        ) for d in lines_to_insert])
-        logger.info(f"Успешно создано {len(lines_to_insert)} линий для шлюза ID {gateway_id}.")
+                # 3. Генерируем prefix
+                current_prefix = 21 + i
 
-    except Exception as e:
-        logger.error(f"Ошибка при создании GSM-линий для шлюза ID {gateway_id}: {e}")
-        # Тут можно либо пробросить исключение, либо просто залогировать
-        # Если создание линий критично, то нужно пробрасывать, чтобы откатить транзакцию (если она есть)
-        raise
+                # 4. Добавляем линию в БД
+                await _add_gsm_line(
+                    conn,
+                    gateway_id,
+                    enterprise_number,
+                    current_line_id,
+                    current_internal_id,
+                    str(current_prefix),
+                    gateway_name
+                )
 
 async def add_goip_gateway(enterprise_number: str, gateway_name: str, line_count: Optional[int],
                            config_backup_filename: Optional[str] = None, 
