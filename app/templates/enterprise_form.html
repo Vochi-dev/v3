@@ -189,6 +189,17 @@
     #gateway-template { 
         display: none; 
     }
+    .save-gateway-button {
+      background-color: #28a745;
+      margin-top: 0.5rem;
+    }
+    .save-gateway-button:hover {
+      background-color: #218838;
+    }
+    .save-gateway-button:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -230,22 +241,25 @@
         </div>
         <div class="form-column-gateways">
           <h2>Шлюзы</h2>
-          <div id="gateways-container"></div>
+          <div id="gateways-container">
+              <!-- Существующие шлюзы будут вставлены сюда скриптом -->
+          </div>
           <button type="button" id="add-gateway-button" class="button">Добавить шлюз</button>
         </div>
       </div>
-      <button class="button" type="submit">{% if action == 'add' %}Добавить{% else %}Сохранить{% endif %}</button>
+      <button class="button" type="submit">{% if action == 'add' %}Добавить{% else %}Сохранить предприятие{% endif %}</button>
     </form>
     <a href="/admin/enterprises" class="back-link">← Назад к списку предприятий</a>
   </div>
 
-  <div id="gateway-template" class="gateway-entry">
+  <div id="gateway-template" class="gateway-entry" style="display: none;">
     <button type="button" class="button-small remove-gateway-button" title="Удалить шлюз">X</button>
-    <h4><span>Шлюз <span class="gateway-number"></span></span><div class="gateway-actions" style="display: flex; align-items: center;"><input type="checkbox" name="gateways[NEW_INDEX][custom_boolean_flag]" id="gateway_reboot_NEW_INDEX" value="true" style="width: auto; margin-right: 5px;"><label for="gateway_reboot_NEW_INDEX" style="display: inline; font-weight: normal; margin-right: 10px;">Reboot</label></div></h4>
-    <input type="hidden" name="gateways[NEW_INDEX][id]" value="">
-    <div class="form-group"><label for="gateway_name_NEW_INDEX">Наименование</label><input id="gateway_name_NEW_INDEX" type="text" name="gateways[NEW_INDEX][gateway_name]" value=""></div>
-    <div class="form-group"><label for="gateway_lines_NEW_INDEX">Кол-во линий</label><input id="gateway_lines_NEW_INDEX" type="number" name="gateways[NEW_INDEX][line_count]" value=""></div>
-    <div class="form-group"><label for="gateway_config_file_NEW_INDEX">Загрузить конфиг</label><input id="gateway_config_file_NEW_INDEX" type="file" name="gateways[NEW_INDEX][config_file]"/><span class="config-file-info-container"></span></div>
+    <h4><span>Шлюз <span class="gateway-number"></span></span><div class="gateway-actions" style="display: flex; align-items: center;"><input type="checkbox" name="custom_boolean_flag" value="true" style="width: auto; margin-right: 5px;"><label style="display: inline; font-weight: normal; margin-right: 10px;">Reboot</label></div></h4>
+    <input type="hidden" name="id" value="">
+    <div class="form-group"><label>Наименование</label><input type="text" name="gateway_name" value=""></div>
+    <div class="form-group"><label>Кол-во линий</label><input type="number" name="line_count" value=""></div>
+    <div class="form-group"><label>Загрузить конфиг</label><input type="file" name="config_file"/><span class="config-file-info-container"></span></div>
+    <button type="button" class="button button-small save-gateway-button">Сохранить</button>
   </div>
 
   <script>
@@ -255,69 +269,102 @@
       const gatewayTemplate = document.getElementById('gateway-template');
       let gatewayCounter = 0;
       const maxGateways = 10;
-      const existingGateways = {{ gateways | tojson | safe }};
+      const existingGateways = {{ gateways|tojson|safe }};
+      const enterpriseNumber = '{{ enterprise.number }}';
 
       function createGatewayElement(gatewayData) {
-        const index = gatewayCounter++;
+        gatewayCounter++;
         const templateNode = gatewayTemplate.cloneNode(true);
-        templateNode.id = `gateway-entry-${index}`;
+        templateNode.id = `gateway-entry-${gatewayCounter}`;
         templateNode.style.display = 'block';
 
-        templateNode.innerHTML = templateNode.innerHTML.replace(/NEW_INDEX/g, index);
+        const gatewayNumberSpan = templateNode.querySelector('.gateway-number');
+        if (gatewayNumberSpan) {
+          gatewayNumberSpan.textContent = `#${gatewayCounter}`;
+        }
         
         if (gatewayData) {
-            templateNode.querySelector(`input[name="gateways[${index}][id]"]`).value = gatewayData.id || '';
-            templateNode.querySelector(`input[name="gateways[${index}][gateway_name]"]`).value = gatewayData.gateway_name || '';
-            templateNode.querySelector(`input[name="gateways[${index}][line_count]"]`).value = gatewayData.line_count || '';
-            templateNode.querySelector(`input[name="gateways[${index}][custom_boolean_flag]"]`).checked = !!gatewayData.custom_boolean_flag;
-            
-            const configFileInfoContainer = templateNode.querySelector('.config-file-info-container');
-            if (gatewayData.config_backup_original_name) {
-                let uploadedAt = 'дата неизвестна';
-                if (gatewayData.config_backup_uploaded_at) {
-                    const d = new Date(gatewayData.config_backup_uploaded_at);
-                    if (!isNaN(d.getTime())) uploadedAt = d.toLocaleString();
-                }
-                const enterpriseNumber = document.getElementById('number').value;
-                configFileInfoContainer.innerHTML = 
-                    `<span class="config-file-info">Текущий файл: ${gatewayData.config_backup_original_name} (от ${uploadedAt})</span>
-                     <a href="/admin/enterprises/${enterpriseNumber}/gateways/${gatewayData.id}/download_config" class="button-small">Выгрузить</a>`;
+            templateNode.querySelector(`[name="id"]`).value = gatewayData.id || '';
+            templateNode.querySelector(`[name="gateway_name"]`).value = gatewayData.gateway_name || '';
+            templateNode.querySelector(`[name="line_count"]`).value = gatewayData.line_count || '';
+            const rebootCheckbox = templateNode.querySelector(`[name="custom_boolean_flag"]`);
+            if (rebootCheckbox) {
+                rebootCheckbox.checked = gatewayData.custom_boolean_flag === true;
+            }
+            const configInfoContainer = templateNode.querySelector('.config-file-info-container');
+            if (gatewayData.config_backup_original_name && configInfoContainer) {
+                const downloadLink = document.createElement('a');
+                downloadLink.href = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayData.id}/download_config`;
+                downloadLink.textContent = `Скачать: ${gatewayData.config_backup_original_name}`;
+                downloadLink.className = 'config-file-info';
+                configInfoContainer.appendChild(downloadLink);
+            }
+            const saveButton = templateNode.querySelector('.save-gateway-button');
+            if(saveButton) {
+                saveButton.textContent = 'Сохранено';
+                saveButton.disabled = true;
             }
         }
         
-        templateNode.querySelector('.remove-gateway-button').addEventListener('click', function () {
+        const removeButton = templateNode.querySelector('.remove-gateway-button');
+        removeButton.addEventListener('click', function() {
+            // Тут должна быть логика удаления через API, пока просто убираем с формы
             templateNode.remove();
-            updateAllGatewayIndices();
+        });
+
+        const saveButton = templateNode.querySelector('.save-gateway-button');
+        saveButton.addEventListener('click', async function() {
+            const gatewayId = templateNode.querySelector(`[name="id"]`).value;
+            if (gatewayId) {
+                // Логика обновления, пока не реализована
+                alert('Обновление еще не поддерживается.');
+                return;
+            }
+
+            const gatewayName = templateNode.querySelector(`[name="gateway_name"]`).value.trim();
+            const lineCount = templateNode.querySelector(`[name="line_count"]`).value;
+            const customBooleanFlag = templateNode.querySelector(`[name="custom_boolean_flag"]`).checked;
+
+            if (!gatewayName) {
+                alert('Наименование шлюза не может быть пустым.');
+                return;
+            }
+            const lineCountInt = parseInt(lineCount, 10);
+            if (isNaN(lineCountInt) || lineCountInt < 1 || lineCountInt > 32) {
+                alert('Количество линий должно быть числом от 1 до 32.');
+                return;
+            }
+            
+            const dataToSend = {
+                gateway_name: gatewayName,
+                line_count: lineCountInt,
+                custom_boolean_flag: customBooleanFlag
+            };
+
+            try {
+                const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(dataToSend)
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    alert(`Ошибка сохранения: ${result.detail || response.statusText}`);
+                } else {
+                    alert('Шлюз успешно сохранен!');
+                    templateNode.querySelector(`[name="id"]`).value = result.id;
+                    this.textContent = 'Сохранено';
+                    this.disabled = true;
+                }
+            } catch (error) {
+                console.error('Ошибка сохранения шлюза:', error);
+                alert('Произошла сетевая ошибка. Попробуйте снова.');
+            }
         });
         
         return templateNode;
       }
 
-      function updateAllGatewayIndices() {
-        const gatewayEntries = gatewaysContainer.querySelectorAll('.gateway-entry');
-        gatewayCounter = 0;
-        gatewayEntries.forEach((entry) => {
-            const newIndex = gatewayCounter++;
-            const oldIndexMatch = entry.querySelector('[name^="gateways["]').name.match(/\[(\d+)\]/);
-            if (!oldIndexMatch || oldIndexMatch[1] == newIndex) return;
-
-            const oldIndex = oldIndexMatch[1];
-            
-            entry.querySelector('.gateway-number').textContent = newIndex + 1;
-            
-            entry.querySelectorAll('[name^="gateways["]').forEach(el => {
-                el.name = el.name.replace(`[${oldIndex}]`, `[${newIndex}]`);
-            });
-            entry.querySelectorAll('[id*="_"]').forEach(el => {
-                el.id = el.id.replace(`_${oldIndex}`, `_${newIndex}`);
-            });
-            entry.querySelectorAll('label[for*="_"]').forEach(el => {
-                el.htmlFor = el.htmlFor.replace(`_${oldIndex}`, `_${newIndex}`);
-            });
-        });
-        checkMaxGateways();
-      }
-      
       function checkMaxGateways(){
         addGatewayButton.disabled = gatewaysContainer.children.length >= maxGateways;
       }
@@ -325,17 +372,28 @@
       addGatewayButton.addEventListener('click', function () {
         if (gatewaysContainer.children.length < maxGateways) {
           gatewaysContainer.appendChild(createGatewayElement(null));
-          updateAllGatewayIndices();
+          checkMaxGateways();
         }
       });
-
+      
       if (existingGateways && existingGateways.length > 0) {
         existingGateways.forEach(gw => gatewaysContainer.appendChild(createGatewayElement(gw)));
-        updateAllGatewayIndices();
+        checkMaxGateways();
       } else {
-        addGatewayButton.click(); 
+        addGatewayButton.click();
       }
     });
   </script>
+  
+  <script>
+      document.addEventListener('DOMContentLoaded', function() {
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.has('enterprise_saved')) {
+              alert('Данные предприятия успешно сохранены!');
+              window.history.replaceState({}, document.title, window.location.pathname);
+          }
+      });
+  </script>
+
 </body>
 </html>

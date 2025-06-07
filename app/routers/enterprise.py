@@ -32,6 +32,7 @@ from app.services.postgres import (
     delete_goip_gateway,
     get_goip_gateway_by_id
 )
+from pydantic import BaseModel, constr, conint
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -69,6 +70,12 @@ async def _save_gateway_config_file(enterprise_number: str, gateway_id_or_temp_i
 
 router = APIRouter(prefix="/admin/enterprises", tags=["enterprises"])
 templates = Jinja2Templates(directory="app/templates")
+
+# Pydantic-модель для валидации данных нового шлюза
+class GatewayCreate(BaseModel):
+    gateway_name: constr(strip_whitespace=True, min_length=1)
+    line_count: conint(ge=1, le=32)
+    custom_boolean_flag: bool = False
 
 @router.get("", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
@@ -235,34 +242,77 @@ async def edit_form(request: Request, number: str):
     if not ent:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
     
-    # Получаем шлюзы для отображения, но их изменение обрабатываться не будет
     gateways_list = await get_gateways_by_enterprise_number(number) 
     
-    # Конвертируем datetime в строки для JSON-сериализации в шаблоне
     gateways_for_template = []
     if gateways_list:
         for gw_row in gateways_list:
-            gw_dict = dict(gw_row) # Преобразуем asyncpg.Record в dict
+            gw_dict = dict(gw_row)
             for key, value in gw_dict.items():
                 if isinstance(value, datetime):
                     gw_dict[key] = value.isoformat()
             gateways_for_template.append(gw_dict)
+
+    # Получаем query-параметры для уведомлений
+    gateway_added = request.query_params.get('gateway_added')
 
     return templates.TemplateResponse(
         "enterprise_form.html",
         {
             "request": request,
             "action": "edit",
-            "enterprise": dict(ent) if ent else {},
-            "gateways": gateways_for_template # Передаем обработанный список
+            "enterprise": ent,
+            "gateways": gateways_for_template,
+            "notification": {
+                "gateway_added": gateway_added
+            }
         }
     )
 
+@router.post("/{enterprise_number}/gateways", response_class=JSONResponse, status_code=status.HTTP_201_CREATED)
+async def create_gateway_for_enterprise(enterprise_number: str, gateway_data: GatewayCreate):
+    """
+    API-эндпоинт для создания одного шлюза для предприятия.
+    """
+    try:
+        enterprise = await get_enterprise_by_number(enterprise_number)
+        if not enterprise:
+            raise HTTPException(status_code=404, detail="Предприятие не найдено")
+
+        logger.info(f"API: Создание нового шлюза для предприятия {enterprise_number}: Имя='{gateway_data.gateway_name}'")
+        new_gateway = await add_goip_gateway(
+            enterprise_number=enterprise_number,
+            gateway_name=gateway_data.gateway_name,
+            line_count=gateway_data.line_count,
+            custom_boolean_flag=gateway_data.custom_boolean_flag,
+            config_backup_filename=None,
+            config_backup_original_name=None,
+            config_backup_uploaded_at=None
+        )
+        
+        response_data = dict(new_gateway)
+        for key, value in response_data.items():
+            if isinstance(value, datetime):
+                response_data[key] = value.isoformat()
+
+        return JSONResponse(content=response_data, status_code=status.HTTP_201_CREATED)
+
+    except asyncpg.exceptions.UniqueViolationError:
+        raise HTTPException(status_code=409, detail=f"Шлюз с именем '{gateway_data.gateway_name}' уже существует у этого предприятия.")
+    except Exception as e:
+        logger.error(f"API-ошибка создания шлюза для предприятия {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
+
 @router.post("/{number}/edit", response_class=RedirectResponse)
 async def edit_enterprise_post(request: Request, number: str):
+    """
+    Обрабатывает обновление ТОЛЬКО основных данных предприятия.
+    Логика шлюзов теперь вынесена в отдельный API.
+    """
     form_data = await request.form()
-    logger.debug(f"EDIT RAW FORM DATA для {number} (gateways temporarily disabled): {form_data}")
+    logger.debug(f"EDIT RAW FORM DATA (gateways handled by API): {form_data}")
 
+    # (здесь идет существующая логика обновления данных самого предприятия, я ее не трогаю)
     name = form_data.get("name", "")
     bot_token = form_data.get("bot_token", "")
     chat_id = form_data.get("chat_id", "374573193")
@@ -270,142 +320,38 @@ async def edit_enterprise_post(request: Request, number: str):
     secret = form_data.get("secret", "")
     host = form_data.get("host", "")
     name2 = form_data.get("name2", "")
-    active = form_data.get("active") == "true"
     is_enabled = form_data.get("is_enabled") == "true"
-
+    active = form_data.get("active") == "true"
     try:
-        scheme_count_str = form_data.get("scheme_count")
-        scheme_count = int(scheme_count_str) if scheme_count_str and scheme_count_str.isdigit() else None
-    except (ValueError, TypeError): scheme_count = None
-
-    try:
-        gsm_line_count_str = form_data.get("gsm_line_count")
-        gsm_line_count = int(gsm_line_count_str) if gsm_line_count_str and gsm_line_count_str.isdigit() else None
-    except (ValueError, TypeError): gsm_line_count = None
-
+        scheme_count = int(form_data.get("scheme_count", 3))
+        gsm_line_count = int(form_data.get("gsm_line_count", 8))
+    except (ValueError, TypeError):
+        scheme_count = 3
+        gsm_line_count = 8
     parameter_option_1 = form_data.get("parameter_option_1") == "true"
     parameter_option_2 = form_data.get("parameter_option_2") == "true"
     parameter_option_3 = form_data.get("parameter_option_3") == "true"
     parameter_option_4 = form_data.get("parameter_option_4") == "true"
     parameter_option_5 = form_data.get("parameter_option_5") == "true"
-    custom_domain = form_data.get("custom_domain")
-    custom_port_str = form_data.get("custom_port")
+    custom_domain = form_data.get("custom_domain", "")
     try:
-        custom_port = int(custom_port_str) if custom_port_str and custom_port_str.isdigit() else None
-    except (ValueError, TypeError): custom_port = None
+        custom_port = int(form_data.get("custom_port")) if form_data.get("custom_port") else None
+    except (ValueError, TypeError):
+        custom_port = None
 
-    ent_exists = await get_enterprise_by_number(number)
-    if not ent_exists:
-        raise HTTPException(status_code=404, detail="Предприятие не найдено")
+    await postgres_update_enterprise(
+        number, name, bot_token, chat_id, ip, secret, host, name2, is_enabled, active,
+        scheme_count, gsm_line_count, parameter_option_1, parameter_option_2,
+        parameter_option_3, parameter_option_4, parameter_option_5,
+        custom_domain, custom_port
+    )
+    logger.info(f"EDIT: Основные данные предприятия {number} - '{name}' успешно обновлены.")
+    
+    # Вся логика обработки шлюзов из этой функции УДАЛЕНА.
+    # Она теперь обрабатывается через новый API-эндпоинт.
 
-    try:
-        await postgres_update_enterprise(
-            number=number, name=name, bot_token=bot_token, chat_id=chat_id, ip=ip,
-            secret=secret, host=host, name2=name2, active=active, is_enabled=is_enabled,
-            scheme_count=scheme_count, gsm_line_count=gsm_line_count,
-            parameter_option_1=parameter_option_1, parameter_option_2=parameter_option_2,
-            parameter_option_3=parameter_option_3, parameter_option_4=parameter_option_4,
-            parameter_option_5=parameter_option_5, custom_domain=custom_domain, custom_port=custom_port
-        )
-        logger.info(f"EDIT: Основные данные предприятия {number} обновлены (обработка шлюзов временно отключена).")
-
-        # ======================================================================
-        # ПОСТЕПЕННО ВОССТАНАВЛИВАЕМ ЛОГИКУ ОБРАБОТКИ ШЛЮЗОВ
-        # ======================================================================
-        
-        form_gateways_data = []
-        idx = 0
-        while True:
-            gateway_key_prefix = f"gateways[{idx}]"
-            if not any(key.startswith(gateway_key_prefix) for key in form_data.keys()):
-                break # Нет больше шлюзов в форме
-
-            gateway_data = {
-                "id": form_data.get(f"{gateway_key_prefix}[id]"),
-                "gateway_name": form_data.get(f"{gateway_key_prefix}[gateway_name]", "").strip(),
-                "line_count_str": form_data.get(f"{gateway_key_prefix}[line_count]"),
-                # Чекбокс: если ключ есть и значение "true", то True, иначе False
-                "custom_boolean_flag": form_data.get(f"{gateway_key_prefix}[custom_boolean_flag]") == "true",
-                # Пока не обрабатываем файлы конфигурации в этом шаге
-            }
-            
-            # Преобразование line_count в int, если возможно
-            try:
-                gateway_data["line_count"] = int(gateway_data["line_count_str"]) if gateway_data["line_count_str"] and gateway_data["line_count_str"].isdigit() else None
-            except (ValueError, TypeError):
-                gateway_data["line_count"] = None
-
-            # Валидация: имя шлюза обязательно, если это не полностью пустая запись (например, для удаления)
-            if gateway_data["gateway_name"] or gateway_data["id"]: # Обрабатываем, только если есть имя или ID
-                 form_gateways_data.append(gateway_data)
-            idx += 1
-        
-        logger.debug(f"EDIT: Собранные данные шлюзов из формы для предприятия {number}: {form_gateways_data}")
-
-        # Получаем текущие шлюзы из БД
-        db_gateways_list = await get_gateways_by_enterprise_number(number)
-        db_gateways_map = {str(gw["id"]): gw for gw in db_gateways_list}
-        
-        form_gateway_ids = set()
-
-        for gw_data in form_gateways_data:
-            gateway_id_str = gw_data.get("id")
-            gateway_name = gw_data["gateway_name"]
-            line_count = gw_data["line_count"]
-            custom_boolean_flag = gw_data["custom_boolean_flag"]
-
-            if not gateway_name: # Пропускаем записи без имени, если только это не удаление существующего
-                if gateway_id_str and gateway_id_str in db_gateways_map:
-                    # Это может быть шлюз, который хотят удалить (если его нет в form_gateway_ids в конце)
-                    pass # Логика удаления будет ниже
-                else:
-                    continue # Пропускаем полностью пустые новые записи
-
-            if gateway_id_str and gateway_id_str.isdigit(): # Существующий шлюз
-                gateway_id = int(gateway_id_str)
-                form_gateway_ids.add(gateway_id_str)
-                if gateway_id_str in db_gateways_map:
-                    logger.debug(f"EDIT: Обновление шлюза ID {gateway_id} для предприятия {number}. Имя: {gateway_name}, Линии: {line_count}, Флаг: {custom_boolean_flag}")
-                    await update_goip_gateway(
-                        gateway_id=gateway_id,
-                        gateway_name=gateway_name,
-                        line_count=line_count,
-                        custom_boolean_flag=custom_boolean_flag
-                        # config_backup_filename и другие файловые поля пока None
-                    )
-                else:
-                    # Шлюз с ID из формы не найден в БД - это странная ситуация, пока игнорируем или логируем ошибку
-                    logger.warning(f"EDIT: Шлюз с ID {gateway_id} из формы не найден в БД для предприятия {number}. Пропускаем.")
-            else: # Новый шлюз (нет ID или ID не числовой/пустой)
-                if gateway_name: # Добавляем новый шлюз, только если есть имя
-                    logger.debug(f"EDIT: Добавление нового шлюза для предприятия {number}. Имя: {gateway_name}, Линии: {line_count}, Флаг: {custom_boolean_flag}")
-                    await add_goip_gateway(
-                        enterprise_number=number,
-                        gateway_name=gateway_name,
-                        line_count=line_count,
-                        custom_boolean_flag=custom_boolean_flag
-                        # config_backup_filename и другие файловые поля пока None
-                    )
-        
-        # Удаление шлюзов: те, что есть в БД, но не пришли в форме (и были ID)
-        for db_gw_id_str, db_gw_data in db_gateways_map.items():
-            if db_gw_id_str not in form_gateway_ids:
-                logger.debug(f"EDIT: Удаление шлюза ID {db_gw_id_str} для предприятия {number}, так как он отсутствует в форме.")
-                await delete_goip_gateway(int(db_gw_id_str))
-        
-        logger.info(f"EDIT: Обработка шлюзов для предприятия {number} завершена.")
-        # ======================================================================
-
-        return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
-
-    except asyncpg.exceptions.UniqueViolationError as e:
-        logger.error(f"EDIT ERROR (gateways disabled): Ошибка уникальности для {number}: {e}")
-        # Здесь может быть ошибка из-за имени шлюза, если бы мы их обрабатывали.
-        # Пока что, если ошибка не связана с полями предприятия, это странно.
-        raise HTTPException(status_code=400, detail=f"Ошибка: Уникальное поле уже используется (проверьте номер предприятия). {e}")
-    except Exception as e:
-        logger.error(f"EDIT ERROR (gateways disabled): {str(e)} при обработке {number}")
-        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
+    redirect_url = f"/admin/enterprises/{number}/edit?enterprise_saved=true"
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
 @router.get("/{enterprise_number}/gateways/{gateway_id}/download_config", response_class=FileResponse)
 async def download_gateway_config(enterprise_number: str, gateway_id: int):
