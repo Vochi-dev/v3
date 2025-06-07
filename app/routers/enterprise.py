@@ -29,7 +29,8 @@ from app.services.postgres import (
     add_goip_gateway,
     update_goip_gateway,
     delete_goip_gateway,
-    get_goip_gateway_by_id
+    get_goip_gateway_by_id,
+    create_gsm_lines_for_gateway
 )
 from pydantic import BaseModel, constr, conint
 
@@ -254,7 +255,23 @@ async def create_gateway_for_enterprise(enterprise_number: str, gateway_data: Ga
             line_count=gateway_data.line_count,
             custom_boolean_flag=gateway_data.custom_boolean_flag,
         )
-        return JSONResponse(content=dict(new_gateway), status_code=status.HTTP_201_CREATED)
+
+        # Теперь создаем для него линии
+        if new_gateway and new_gateway.get('id'):
+            await create_gsm_lines_for_gateway(
+                gateway_id=new_gateway['id'],
+                gateway_name=gateway_data.gateway_name,
+                enterprise_number=enterprise_number,
+                line_count=gateway_data.line_count
+            )
+
+        # Конвертируем datetime в строку для JSON-ответа
+        gateway_dict = dict(new_gateway)
+        for key, value in gateway_dict.items():
+            if isinstance(value, datetime):
+                gateway_dict[key] = value.isoformat()
+
+        return JSONResponse(content=gateway_dict, status_code=status.HTTP_201_CREATED)
     except asyncpg.exceptions.UniqueViolationError:
         raise HTTPException(status_code=409, detail=f"Шлюз с именем '{gateway_data.gateway_name}' уже существует у этого предприятия.")
     except Exception as e:
