@@ -20,6 +20,7 @@ from app.services.database import (
 )
 from app.services.enterprise import send_message_to_bot
 from app.services.bot_status import check_bot_status
+from app.services.fail2ban import get_banned_count
 from app.services.postgres import (
     add_enterprise,
     update_enterprise as postgres_update_enterprise,
@@ -73,6 +74,8 @@ templates = Jinja2Templates(directory="app/templates")
 async def list_enterprises(request: Request):
     rows = await get_all_enterprises()
     enterprises = [dict(r) for r in rows]
+    banned_count = await get_banned_count()
+
     for ent in enterprises:
         token = ent.get("bot_token") or ""
         try:
@@ -81,7 +84,11 @@ async def list_enterprises(request: Request):
             ent["bot_available"] = False
     return templates.TemplateResponse(
         "enterprises.html",
-        {"request": request, "enterprises": enterprises}
+        {
+            "request": request,
+            "enterprises": enterprises,
+            "banned_count": banned_count
+        }
     )
 
 @router.get("/add", response_class=HTMLResponse)

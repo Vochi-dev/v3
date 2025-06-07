@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ enterprise.name }} admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/css/intlTelInput.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f8f9fa; margin: 0; padding: 0; }
+        .header { display: flex; align-items: center; background-color: #343a40; color: white; padding: 0.5rem 1rem; border-bottom: 1px solid #ddd; }
+        .header img { height: 32px; margin-right: 15px; }
+        .header h1 { font-size: 1.1rem; margin: 0; font-weight: 400; color: rgba(255, 255, 255, 0.85); }
+        .container { padding: 2rem; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 1200px; border-radius: 8px; }
+        .close-button { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; margin-left: 25px; }
+        .table-container { margin-top: 20px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
+        th { background-color: #f2f2f2; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #dee2e6; margin-bottom: 1rem; }
+        .modal-header h2 { margin: 0; font-size: 1.5rem; }
+        .btn { background-color: #007bff; color: white; border: none; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin-bottom: 1rem; cursor: pointer; border-radius: 5px; }
+        .btn:hover { background-color: #0056b3; }
+        .btn-primary { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        .btn-secondary { background-color: #6c757d; padding: 10px 20px; }
+        .btn-danger { background-color: #dc3545; padding: 10px 20px; }
+        .password-wrapper { position: relative; display: flex; }
+        .password-wrapper input { flex-grow: 1; padding-right: 40px; }
+        .password-wrapper .copy-btn { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); cursor: pointer; border: none; background: transparent; font-size: 1.2rem; padding: 5px; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: .5rem; }
+        .form-group input, .form-group select { width: 100%; padding: .5rem; box-sizing: border-box; }
+        .form-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; }
+        .modal-content.modal-narrow { max-width: 400px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="/static/logo.jpg" alt="Логотип">
+        <h1>{{ enterprise.number }}-{{ enterprise.name }} Панель администратора</h1>
+    </div>
+    <div class="container">
+        <button data-action="show-users" class="btn">Пользователи</button>
+        <p>Здесь будет содержимое админки для предприятия.</p>
+    </div>
+
+    <!-- Users Modal -->
+    <div id="usersModal" class="modal">
+        <div class="modal-content" style="max-width: 90%;">
+            <div class="modal-header">
+                <h2>Пользователи и внутренние линии</h2>
+                <div>
+                    <button data-action="open-create-user" class="btn btn-primary">Создать пользователя</button>
+                    <button data-action="open-create-line" class="btn btn-primary">Создать линию</button>
+                </div>
+                <span data-action="close-modal" class="close-button">&times;</span>
+            </div>
+            <div class="modal-body">
+                <table id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>Номер</th><th>IP регистр.</th><th>Вх. схема</th><th>Исх. схемы</th><th>Имя Фамилия</th><th>Логин</th><th>Роли</th><th>Отделы</th><th>F.Me</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit User Modal -->
+    <div id="createUserModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 id="userModalTitle">Создание пользователя</h2>
+                <span data-action="close-modal" class="close-button">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="createUserForm">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <div class="form-group"><label for="userEmail">Логин/Email</label><input type="email" id="userEmail" name="email" required></div>
+                            <div class="form-group"><label>Роли</label><div><input type="checkbox" id="roleAdmin" name="is_admin" value="true"><label for="roleAdmin">Администратор</label><input type="checkbox" id="roleEmployee" name="is_employee" value="true" checked><label for="roleEmployee">Сотрудник</label></div></div>
+                            <div class="form-group"><label for="userLastName">Фамилия</label><input type="text" id="userLastName" name="last_name" required></div>
+                            <div class="form-group"><label for="userFirstName">Имя</label><input type="text" id="userFirstName" name="first_name" required></div>
+                            <div class="form-group"><label for="userPatronymic">Отчество</label><input type="text" id="userPatronymic" name="patronymic"></div>
+                        </div>
+                        <div>
+                            <div class="form-group"><label for="userPersonalPhone">Внешний номер</label><input type="tel" id="userPersonalPhone" name="personal_phone"></div><hr>
+                            <p>Внутренние номера <button type="button" data-action="add-internal-line" style="cursor: pointer; border-radius: 50%; border: 1px solid #ccc; background-color: #f8f8f8;">+</button></p>
+                            <div id="internalNumbersList"></div><hr>
+                            <p>Отделы</p>
+                        </div>
+                    </div>
+                    <hr><h4>Права</h4><hr><h4>Схема дозвона (Умная переадресация и Follow Me)</h4>
+                    <div class="form-actions">
+                        <button type="button" data-action="delete-user" id="deleteUserBtn" class="btn btn-danger" style="display: none;">Удалить</button>
+                        <div>
+                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                            <button type="button" data-action="close-modal" class="btn btn-secondary">Отмена</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Line Modal -->
+    <div id="createLineModal" class="modal">
+        <div class="modal-content modal-narrow">
+            <div class="modal-header"><h2>Внутренняя линия</h2><span data-action="close-modal" class="close-button">&times;</span></div>
+            <div class="modal-body">
+                <form id="createLineForm">
+                    <div class="form-group"><label for="lineNumberInput">Номер</label><input type="text" id="lineNumberInput" name="phone_number" required><small>Интервал 100-899 (301, 302, 555 недоступны)</small></div>
+                    <div class="form-group"><label for="linePasswordInput">Пароль</label><div class="password-wrapper"><input type="text" id="linePasswordInput" name="password" readonly><button type="button" class="copy-btn" onclick="copyToClipboard('linePasswordInput')">❐</button></div></div>
+                    <div class="form-actions"><button type="submit" class="btn btn-primary">Сохранить</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Select Lines Modal -->
+    <div id="selectLinesModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header"><h2>Внутренние линии</h2><span data-action="close-modal" class="close-button">&times;</span></div>
+            <div class="modal-body">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;"><input type="text" id="filterLineNumber" placeholder="Внутренний номер" style="flex: 1;"><input type="text" id="filterLineManager" placeholder="Менеджер" style="flex: 1;"></div>
+                <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                    <table><thead><tr><th style="width: 50px;"></th><th>Внутренний номер</th><th>Менеджер</th></tr></thead><tbody id="selectLinesTableBody"></tbody></table>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button data-action="go-to-create-line" class="btn btn-primary" style="background-color: #28a745;">Создать</button>
+                <div><button data-action="confirm-line-selection" class="btn btn-primary">OK</button><button type="button" data-action="close-modal" class="btn btn-secondary">Отмена</button></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/js/intlTelInput.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- State and Constants ---
+        const enterpriseNumber = '{{ enterprise.number }}';
+        let currentEditingUser = null;
+        let usersDataCache = null;
+        let allLinesCache = null;
+
+        // --- Element References ---
+        const modals = {
+            users: document.getElementById('usersModal'),
+            createUser: document.getElementById('createUserModal'),
+            createLine: document.getElementById('createLineModal'),
+            selectLines: document.getElementById('selectLinesModal'),
+        };
+        const usersTableBody = document.getElementById('usersTableBody');
+        const selectLinesTableBody = document.getElementById('selectLinesTableBody');
+        const createUserForm = document.getElementById('createUserForm');
+        const createLineForm = document.getElementById('createLineForm');
+        
+        const iti = intlTelInput(document.getElementById('userPersonalPhone'), {
+            nationalMode: false, preferredCountries: ['by', 'ru', 'ua'],
+            utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/js/utils.js"
+        });
+
+        // --- Main Event Delegation ---
+        document.body.addEventListener('click', (e) => {
+            const target = e.target.closest('[data-action]');
+            if (!target) return;
+            
+            const action = target.dataset.action;
+            const targetIsButton = target.tagName === 'BUTTON' || (target.tagName === 'A' && target.dataset.userId);
+            if (targetIsButton) e.preventDefault();
+            
+            switch (action) {
+                case 'show-users': openModal(modals.users); if (!usersDataCache) fetchAndShowUsers(); break;
+                case 'open-create-user': openUserModalForCreate(); break;
+                case 'open-create-line': openCreateLineModal(); break;
+                case 'edit-user': openUserModalForEdit(target.dataset.userId); break;
+                case 'delete-user': deleteUser(); break;
+                case 'add-internal-line': openSelectLinesModal(); break;
+                case 'close-modal': closeModal(target.closest('.modal')); break;
+                case 'confirm-line-selection': confirmLineSelection(); break;
+                case 'go-to-create-line': closeModal(modals.selectLines); openCreateLineModal(); break;
+            }
+        });
+
+        // --- Modal Management ---
+        const openModal = (modalElement) => modalElement && (modalElement.style.display = 'block');
+        const closeModal = (modalElement) => modalElement && (modalElement.style.display = 'none');
+        window.addEventListener('click', (event) => {
+            if (event.target.classList.contains('modal')) closeModal(event.target);
+        });
+
+        // --- Data Fetching and Rendering ---
+        const fetchAndShowUsers = async () => {
+            usersTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center">Загрузка...</td></tr>`;
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/users`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                usersDataCache = await response.json();
+                renderUsersTable();
+            } catch (error) {
+                usersTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center">Ошибка загрузки: ${error.message}</td></tr>`;
+            }
+        };
+        
+        const renderUsersTable = () => {
+            usersTableBody.innerHTML = '';
+            const { users = [], unassigned_phones = [] } = usersDataCache || {};
+            const combinedList = [
+                ...users.map(u => ({...u, type: 'user'})),
+                ...unassigned_phones.map(p => ({ phone_number: p, type: 'unassigned' }))
+            ].sort((a,b) => (getSortKey(a) - getSortKey(b)));
+
+            if (combinedList.length === 0) {
+                usersTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Пользователи и линии не найдены.</td></tr>';
+                return;
+            }
+            
+            combinedList.forEach(item => {
+                if (item.type === 'user') {
+                    const displayPhones = [...(item.internal_phones || []), ...(item.personal_phone ? [formatPhoneNumber(item.personal_phone)] : [])];
+                    if (displayPhones.length === 0) displayPhones.push('');
+                    const numRows = displayPhones.length;
+
+                    displayPhones.forEach((phone, index) => {
+                        const row = usersTableBody.insertRow();
+                        
+                        row.insertCell(0).textContent = phone;
+                        row.insertCell(1).textContent = (index === 0) ? (item.ip_address || '') : '';
+                        row.insertCell(2).textContent = (index === 0) ? (item.in_schema || '') : '';
+                        row.insertCell(3).textContent = (index === 0) ? (item.out_schema || '') : '';
+
+                        if (index === 0) {
+                            const addCellWithRowspan = (content, isHtml = false) => {
+                                const cell = row.insertCell();
+                                if(isHtml) cell.innerHTML = content; else cell.textContent = content;
+                                cell.rowSpan = numRows;
+                            };
+                            addCellWithRowspan(`<a href="#" data-action="edit-user" data-user-id="${item.id}">${item.full_name || ''}</a>`, true);
+                            addCellWithRowspan(item.email || '');
+                            addCellWithRowspan(item.roles || '');
+                            addCellWithRowspan(item.departments || '');
+                            addCellWithRowspan(item.f_me || '');
+                        }
+                    });
+                } else {
+                    const row = usersTableBody.insertRow();
+                    row.insertCell(0).textContent = item.phone_number;
+                    for (let i = 0; i < 8; i++) row.insertCell();
+                }
+            });
+        };
+
+        const getSortKey = (item) => {
+            const num = parseInt(item.type === 'user' ? (item.internal_phones || [])[0] : item.phone_number, 10);
+            return isNaN(num) ? Infinity : num;
+        };
+        
+        const formatPhoneNumber = (e164) => {
+            if (!e164 || !e164.startsWith('+') || e164.length < 10) return e164;
+            if (e164.startsWith('+375')) {
+                return `${e164.slice(0, 4)} (${e164.slice(4, 6)}) ${e164.slice(6, 9)}-${e164.slice(9, 11)}-${e164.slice(11, 13)}`;
+            }
+            return e164;
+        };
+        
+        // --- User Modal Logic ---
+        const openUserModalForCreate = () => {
+            currentEditingUser = null;
+            document.getElementById('userModalTitle').textContent = 'Создание пользователя';
+            createUserForm.reset();
+            document.getElementById('deleteUserBtn').style.display = 'none';
+            document.getElementById('internalNumbersList').innerHTML = '';
+            iti.setNumber("+");
+            openModal(modals.createUser);
+        };
+
+        const openUserModalForEdit = (userId) => {
+            const user = usersDataCache?.users.find(u => u.id == userId);
+            if (!user) { alert("Не удалось найти данные пользователя."); return; }
+            currentEditingUser = user;
+            
+            document.getElementById('userModalTitle').textContent = 'Редактирование пользователя';
+            createUserForm.reset();
+            Object.keys(user).forEach(key => {
+                const el = createUserForm.elements[key];
+                if (el && typeof el.value !== 'undefined') el.value = user[key];
+            });
+            iti.setNumber(user.personal_phone || '+');
+
+            const listContainer = document.getElementById('internalNumbersList');
+            listContainer.innerHTML = '';
+            (user.internal_phones || []).forEach(phone => {
+                listContainer.innerHTML += `<div><input type="hidden" name="internal_phones" value="${phone}">${phone}</div>`;
+            });
+            
+            document.getElementById('deleteUserBtn').style.display = 'inline-block';
+            openModal(modals.createUser);
+        };
+        
+        createUserForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            data.personal_phone = iti.getNumber();
+            data.internal_phones = formData.getAll('internal_phones');
+            
+            const url = currentEditingUser ? `/enterprise/${enterpriseNumber}/users/${currentEditingUser.id}` : `/enterprise/${enterpriseNumber}/users`;
+            const method = currentEditingUser ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `Ошибка HTTP ${response.status}`);
+                }
+
+                closeModal(modals.createUser);
+                await fetchAndShowUsers();
+            } catch (error) {
+                alert(`Не удалось сохранить пользователя: ${error.message}`);
+            }
+        };
+
+        const deleteUser = async () => {
+            if (!currentEditingUser) return;
+            if (!confirm(`Удалить ${currentEditingUser.full_name}? Номера останутся в системе.`)) return;
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/users/${currentEditingUser.id}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                closeModal(modals.createUser);
+                await fetchAndShowUsers();
+            } catch(e) { alert(`Не удалось удалить: ${e.message}`); }
+        };
+
+        // --- Line Modal Logic ---
+        const openCreateLineModal = async () => {
+            createLineForm.reset();
+            openModal(modals.createLine);
+            try {
+                const res = await fetch(`/enterprise/${enterpriseNumber}/internal-phones/next-available`);
+                if(!res.ok) throw new Error();
+                createLineForm.elements.phone_number.value = (await res.json()).next_number;
+            } catch (e) { createLineForm.elements.phone_number.value = 'Ошибка'; }
+            createLineForm.elements.password.value = Math.random().toString(36).slice(-8);
+        };
+        
+        createLineForm.onsubmit = async(e) => {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target).entries());
+            try {
+                const res = await fetch(`/enterprise/${enterpriseNumber}/internal-phones`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                if(!res.ok) throw new Error(await res.text());
+
+                // Invalidate cache to force refetch of all lines
+                allLinesCache = null; 
+                
+                // Close current "Create Line" modal
+                closeModal(modals.createLine);
+
+                // Re-open "Select Lines" modal, which will now fetch the updated list
+                await openSelectLinesModal();
+                
+                // Refresh the main user table in the background as well, so it shows the new unassigned line
+                fetchAndShowUsers(); 
+
+            } catch(e) { alert(`Ошибка создания линии: ${e.message}`); }
+        };
+
+        const openSelectLinesModal = async () => {
+            openModal(modals.selectLines);
+            selectLinesTableBody.innerHTML = '<tr><td colspan="3">Загрузка...</td></tr>';
+            try {
+                if (!allLinesCache) {
+                    const response = await fetch(`/enterprise/${enterpriseNumber}/internal-phones/all`);
+                    if(!response.ok) throw new Error('Failed to fetch');
+                    allLinesCache = await response.json();
+                }
+                renderSelectLinesTable();
+            } catch (e) {
+                selectLinesTableBody.innerHTML = '<tr><td colspan="3">Ошибка загрузки.</td></tr>';
+            }
+        };
+
+        const renderSelectLinesTable = () => {
+            const numFilter = document.getElementById('filterLineNumber').value.toLowerCase();
+            const managerFilter = document.getElementById('filterLineManager').value.toLowerCase();
+            const selectedPhones = new Set(Array.from(createUserForm.querySelectorAll('[name="internal_phones"]') || []).map(i => i.value));
+            
+            selectLinesTableBody.innerHTML = '';
+            (allLinesCache || [])
+                .filter(line => line.phone_number.toLowerCase().includes(numFilter) && (line.manager_name || '').toLowerCase().includes(managerFilter))
+                .forEach(line => {
+                    const isChecked = selectedPhones.has(line.phone_number);
+                    selectLinesTableBody.insertRow().innerHTML = `<td><input type="checkbox" value="${line.phone_number}" ${isChecked ? 'checked' : ''}></td><td>${line.phone_number}</td><td>${line.manager_name || ''}</td>`;
+                });
+        };
+        document.getElementById('filterLineNumber').addEventListener('input', renderSelectLinesTable);
+        document.getElementById('filterLineManager').addEventListener('input', renderSelectLinesTable);
+
+        const confirmLineSelection = () => {
+            const listContainer = document.getElementById('internalNumbersList');
+            listContainer.innerHTML = '';
+            selectLinesTableBody.querySelectorAll('input:checked').forEach(checkbox => {
+                listContainer.innerHTML += `<div><input type="hidden" name="internal_phones" value="${checkbox.value}">${checkbox.value}</div>`;
+            });
+            closeModal(modals.selectLines);
+        };
+
+    });
+    
+    function copyToClipboard(elementId) {
+        const input = document.getElementById(elementId);
+        input.select();
+        try { navigator.clipboard.writeText(input.value); alert('Пароль скопирован'); } catch (err) { alert('Не удалось скопировать пароль.'); }
+    }
+    </script>
+</body>
+</html> 
