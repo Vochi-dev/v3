@@ -81,6 +81,13 @@ class GatewayUpdate(BaseModel):
     gateway_name: constr(strip_whitespace=True, min_length=1)
     custom_boolean_flag: bool = False
 
+class MobileOperatorCreate(BaseModel):
+    name: str
+    shablon: Optional[str] = ""
+
+class MobileOperator(MobileOperatorCreate):
+    id: int
+
 @router.get("", response_class=HTMLResponse)
 async def list_enterprises(request: Request):
     rows = await get_all_enterprises()

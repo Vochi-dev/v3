@@ -474,6 +474,78 @@ async def delete_goip_gateway(gateway_id: int):
             logger.error(f"POSTGRES_DELETE_GOIP_GATEWAY ERROR: Ошибка при удалении шлюза ID: {gateway_id}: {e}")
             raise
 
+# Функции для работы с мобильными операторами
+
+async def get_all_mobile_operators() -> list[dict]:
+    """Возвращает список всех мобильных операторов."""
+    pool = await get_pool()
+    async with pool.acquire() as connection:
+        rows = await connection.fetch("SELECT id, name, shablon FROM mobile ORDER BY id ASC")
+        return [dict(row) for row in rows]
+
+async def add_mobile_operator(name: str, shablon: str) -> Dict:
+    """Добавляет нового мобильного оператора и возвращает его."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "INSERT INTO mobile (name, shablon) VALUES ($1, $2) RETURNING id, name, shablon",
+            name, shablon
+        )
+        return dict(row)
+
+async def update_mobile_operator(operator_id: int, name: str, shablon: str) -> dict:
+    """Обновляет мобильного оператора по ID и возвращает его."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "UPDATE mobile SET name = $1, shablon = $2 WHERE id = $3 RETURNING id, name, shablon",
+            name, shablon, operator_id
+        )
+        return dict(row) if row else None
+
+async def delete_mobile_operator(operator_id: int):
+    """Удаляет мобильного оператора по ID."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("DELETE FROM mobile WHERE id = $1", operator_id)
+
+# --------------------------------------------------------------------------------
+# CRUD операции для SIP
+# --------------------------------------------------------------------------------
+
+async def add_sip_operator(name: str, shablon: str) -> dict:
+    """Добавляет нового SIP оператора и возвращает его."""
+    pool = await get_pool()
+    async with pool.acquire() as connection:
+        row = await connection.fetchrow(
+            "INSERT INTO sip (name, shablon) VALUES ($1, $2) RETURNING id, name, shablon",
+            name, shablon
+        )
+        return dict(row) if row else None
+
+async def get_all_sip_operators() -> list[dict]:
+    """Возвращает список всех SIP операторов."""
+    pool = await get_pool()
+    async with pool.acquire() as connection:
+        rows = await connection.fetch("SELECT id, name, shablon FROM sip ORDER BY id ASC")
+        return [dict(row) for row in rows]
+
+async def update_sip_operator(operator_id: int, name: str, shablon: str) -> dict:
+    """Обновляет данные SIP оператора и возвращает обновленную запись."""
+    pool = await get_pool()
+    async with pool.acquire() as connection:
+        row = await connection.fetchrow(
+            "UPDATE sip SET name = $1, shablon = $2 WHERE id = $3 RETURNING id, name, shablon",
+            name, shablon, operator_id
+        )
+        return dict(row) if row else None
+
+async def delete_sip_operator(operator_id: int):
+    """Удаляет SIP оператора по ID."""
+    pool = await get_pool()
+    async with pool.acquire() as connection:
+        await connection.execute("DELETE FROM sip WHERE id = $1", operator_id)
+
 # Далее существующий код...
 # Например, если следующая функция это:
 # async def some_other_function():
