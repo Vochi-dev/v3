@@ -13,6 +13,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, File
 from fastapi.templating import Jinja2Templates
 import sys
 import asyncpg
+from fastapi import Depends
+from asyncpg.connection import Connection as AsyncConnection
+from sqlalchemy.exc import NoResultFound
+from app.services import postgres as db_services
+from main import templates
+from app.services.postgres import get_db
 
 from app.services.database import (
     get_all_enterprises,
@@ -30,7 +36,9 @@ from app.services.postgres import (
     update_goip_gateway,
     delete_goip_gateway,
     get_goip_gateway_by_id,
-    create_gsm_lines_for_gateway
+    create_gsm_lines_for_gateway,
+    update_gateway_config_backup,
+    get_gsm_lines_by_gateway_name
 )
 from pydantic import BaseModel, constr, conint
 
@@ -166,36 +174,26 @@ async def add_enterprise_post(request: Request):
         raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {e}")
 
 @router.get("/{number}/edit", response_class=HTMLResponse)
-async def edit_form(request: Request, number: str):
-    ent = await get_enterprise_by_number(number)
-    if not ent:
-        raise HTTPException(status_code=404, detail="Предприятие не найдено")
+async def edit_enterprise_get(request: Request, number: str, db: AsyncConnection = Depends(get_db), error: str | None = None):
+    enterprise = await db_services.get_enterprise_by_number(db, number)
+    if not enterprise:
+        raise HTTPException(status_code=404, detail="Enterprise not found")
     
-    gateways_list = await get_gateways_by_enterprise_number(number) 
-    
-    gateways_for_template = []
-    if gateways_list:
-        for gw_row in gateways_list:
-            gw_dict = dict(gw_row)
-            if gw_dict.get('config_backup_uploaded_at') and isinstance(gw_dict['config_backup_uploaded_at'], datetime):
-                gw_dict['config_backup_uploaded_at'] = gw_dict['config_backup_uploaded_at'].isoformat()
-            gateways_for_template.append(gw_dict)
-
-    notification = request.query_params.get('notification')
+    enterprise_dict = dict(enterprise)
 
     return templates.TemplateResponse(
         "enterprise_form.html",
         {
             "request": request,
+            "enterprise": enterprise_dict,
+            "gateways": [],  # Пустой список, будет заполнен через JS
             "action": "edit",
-            "enterprise": ent,
-            "gateways": gateways_for_template,
-            "notification": notification
-        }
+            "error": error,
+        },
     )
 
 @router.post("/{number}/edit", response_class=RedirectResponse)
-async def edit_enterprise_post(request: Request, number: str):
+async def edit_enterprise_post(request: Request, number: str, db: AsyncConnection = Depends(get_db)):
     form_data = await request.form()
     
     # Получаем ID шлюза, который нужно пометить для перезагрузки
@@ -231,7 +229,7 @@ async def edit_enterprise_post(request: Request, number: str):
     
     # Теперь обрабатываем состояние флагов "Reboot" для шлюзов
     if reboot_gateway_id_str:
-        all_gateways = await get_gateways_by_enterprise_number(number)
+        all_gateways = await db_services.get_gateways_by_enterprise_number(db, number)
         reboot_gateway_id = int(reboot_gateway_id_str) if reboot_gateway_id_str.isdigit() else None
         
         for gw in all_gateways:
@@ -373,3 +371,45 @@ async def send_message_api(number: str, request: Request):
     if not success:
         raise HTTPException(status_code=500, detail="Failed to send message")
     return JSONResponse({"detail": "Message sent"})
+
+@router.get("/gateways/{gateway_id}/gsm_lines", response_class=JSONResponse)
+async def get_gateway_gsm_lines(
+    gateway_id: int
+):
+    gateway = await get_goip_gateway_by_id(gateway_id)
+    if not gateway:
+        return JSONResponse(status_code=404, content={"detail": "Gateway not found"})
+
+    gateway_name = gateway.get("gateway_name")
+    if not gateway_name:
+        return JSONResponse(status_code=404, content={"detail": "Gateway name is not set"})
+
+    gsm_lines = await get_gsm_lines_by_gateway_name(gateway_name)
+    
+    lines_data = []
+    for line in gsm_lines:
+        line_dict = dict(line)
+        # Преобразование datetime в строку, если необходимо
+        for key, value in line_dict.items():
+            if isinstance(value, datetime):
+                line_dict[key] = value.isoformat()
+        lines_data.append(line_dict)
+
+    return JSONResponse(content={
+        "lines": lines_data,
+        "gateway_name": gateway_name
+    })
+
+@router.get("/{enterprise_number}/gateways_list", response_class=JSONResponse)
+async def get_gateways_list_for_enterprise(enterprise_number: str, db: AsyncConnection = Depends(get_db)):
+    gateways = await db_services.get_gateways_by_enterprise_number(db, enterprise_number)
+    
+    gateways_data = []
+    for gw in gateways:
+        gw_dict = dict(gw)
+        for key, value in gw_dict.items():
+            if isinstance(value, datetime):
+                gw_dict[key] = value.isoformat()
+        gateways_data.append(gw_dict)
+
+    return JSONResponse(content=gateways_data)

@@ -4,6 +4,7 @@ from datetime import datetime
 import logging
 import sys
 import os
+from fastapi import HTTPException
 
 # Конфигурация логгера
 logger = logging.getLogger(__name__)
@@ -52,6 +53,14 @@ async def close_pool():
         await _pool.close()
         _pool = None
 
+async def get_db():
+    """FastAPI-зависимость для получения соединения из пула."""
+    pool = await get_pool()
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Connection pool is not initialized")
+    async with pool.acquire() as conn:
+        yield conn
+
 # Функции для работы с предприятиями
 async def get_all_enterprises():
     """Получает список всех предприятий"""
@@ -69,31 +78,29 @@ async def get_all_enterprises():
         """)
         return [dict(row) for row in rows]
 
-async def get_enterprise_by_number(number: str):
+async def get_enterprise_by_number(conn: asyncpg.Connection, number: str):
     """Получает предприятие по номеру"""
     print(f"POSTGRES_GET_BY_NUMBER: Вызвана для номера: '{number}' (тип: {type(number)})", file=sys.stderr, flush=True)
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        sql_query = """
-            SELECT number, name, bot_token, chat_id, ip, secret, host,
-                   created_at, name2, active, is_enabled,
-                   scheme_count, gsm_line_count, 
-                   parameter_option_1, parameter_option_2, parameter_option_3,
-                   parameter_option_4, parameter_option_5,
-                   custom_domain, custom_port
-            FROM enterprises
-            WHERE number = $1
-            LIMIT 1
-        """
-        print(f"POSTGRES_GET_BY_NUMBER: Выполняется SQL: {sql_query} с параметром: '{number}'", file=sys.stderr, flush=True)
-        row = await conn.fetchrow(sql_query, number)
-        print(f"POSTGRES_GET_BY_NUMBER: Результат fetchrow: {row} (тип: {type(row)})", file=sys.stderr, flush=True)
-        if row:
-            print(f"POSTGRES_GET_BY_NUMBER: Предприятие найдено, возвращаем dict(row)", file=sys.stderr, flush=True)
-            return dict(row)
-        else:
-            print(f"POSTGRES_GET_BY_NUMBER: Предприятие НЕ найдено, возвращаем None", file=sys.stderr, flush=True)
-            return None
+    sql_query = """
+        SELECT number, name, bot_token, chat_id, ip, secret, host,
+               created_at, name2, active, is_enabled,
+               scheme_count, gsm_line_count, 
+               parameter_option_1, parameter_option_2, parameter_option_3,
+               parameter_option_4, parameter_option_5,
+               custom_domain, custom_port
+        FROM enterprises
+        WHERE number = $1
+        LIMIT 1
+    """
+    print(f"POSTGRES_GET_BY_NUMBER: Выполняется SQL: {sql_query} с параметром: '{number}'", file=sys.stderr, flush=True)
+    row = await conn.fetchrow(sql_query, number)
+    print(f"POSTGRES_GET_BY_NUMBER: Результат fetchrow: {row} (тип: {type(row)})", file=sys.stderr, flush=True)
+    if row:
+        print(f"POSTGRES_GET_BY_NUMBER: Предприятие найдено, возвращаем dict(row)", file=sys.stderr, flush=True)
+        return dict(row)
+    else:
+        print(f"POSTGRES_GET_BY_NUMBER: Предприятие НЕ найдено, возвращаем None", file=sys.stderr, flush=True)
+        return None
 
 async def add_enterprise(number: str, name: str, bot_token: str, chat_id: str,
                         ip: str, secret: str, host: str, name2: str = '',
@@ -221,6 +228,26 @@ async def get_enterprise_number_by_bot_token(bot_token: str) -> str:
         )
         return row['number'] if row else None 
 
+async def get_goip_gateway_by_id(gateway_id: int) -> Optional[Dict]:
+    """Получает шлюз по его ID"""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT * FROM goip WHERE id = $1",
+            gateway_id
+        )
+        return dict(row) if row else None
+
+async def get_gsm_lines_by_gateway_name(gateway_name: str) -> List[Dict]:
+    """Получает список GSM-линий для указанного шлюза по его имени."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM gsm_lines WHERE goip_name = $1 ORDER BY slot ASC",
+            gateway_name
+        )
+        return [dict(row) for row in rows]
+
 async def get_enterprise_by_name2_suffix(name2_suffix: str) -> Optional[Dict]:
     """
     Получает предприятие, у которого поле name2 заканчивается на указанный суффикс.
@@ -252,48 +279,19 @@ async def get_enterprise_by_name2_suffix(name2_suffix: str) -> Optional[Dict]:
         if row:
             return dict(row)
         else:
+            print(f"POSTGRES_GET_BY_NAME2_SUFFIX: Предприятие НЕ найдено, возвращаем None", file=sys.stderr, flush=True)
             return None 
 
-async def get_gateways_by_enterprise_number(enterprise_number: str) -> List[Dict]:
-    """Получает список шлюзов для указанного предприятия."""
-    logger.debug(f"POSTGRES_GET_GATEWAYS: Вызвана для enterprise_number: '{enterprise_number}'")
-    pool = await get_pool()
-    if not pool:
-        logger.error("POSTGRES_GET_GATEWAYS ERROR: Пул не инициализирован")
-        return []
-        
-    async with pool.acquire() as conn:
-        sql_query = """
-            SELECT id, enterprise_number, gateway_name, line_count, 
-                   config_backup_original_name, config_backup_uploaded_at,
-                   custom_boolean_flag
-            FROM goip
-            WHERE enterprise_number = $1
-            ORDER BY id ASC
-        """
-        try:
-            rows = await conn.fetch(sql_query, enterprise_number)
-            logger.debug(f"POSTGRES_GET_GATEWAYS: Найдено {len(rows)} шлюзов для предприятия {enterprise_number}")
-            return [dict(row) for row in rows]
-        except Exception as e:
-            logger.error(f"POSTGRES_GET_GATEWAYS ERROR: Ошибка при выполнении запроса для {enterprise_number}: {e}")
-            return []
-
-async def get_goip_gateway_by_id(gateway_id: int) -> Optional[Dict]:
-    """Получает шлюз по его ID."""
-    logger.debug(f"POSTGRES_GET_GATEWAY_BY_ID: Вызвана для ID: {gateway_id}")
-    pool = await get_pool()
-    if not pool:
-        logger.error("POSTGRES_GET_GATEWAY_BY_ID ERROR: Пул не инициализирован")
-        return None
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT * FROM goip WHERE id = $1", gateway_id)
-        if row:
-            return dict(row)
-        return None
+async def get_gateways_by_enterprise_number(conn: asyncpg.Connection, enterprise_number: str) -> List[Dict]:
+    """Получает все шлюзы для указанного предприятия"""
+    rows = await conn.fetch(
+        "SELECT * FROM goip WHERE enterprise_number = $1 ORDER BY id",
+        enterprise_number
+    )
+    return [dict(row) for row in rows]
 
 async def _get_max_line_id(conn) -> int:
-    """Вспомогательная функция для получения максимального line_id."""
+    """Вспомогательная функция для получения максимального line_id"""
     max_id = await conn.fetchval("SELECT MAX(line_id) FROM gsm_lines")
     return max_id if max_id is not None else 1362 # Возвращаем 1362, чтобы первая линия была 1363
 
@@ -375,109 +373,81 @@ async def add_goip_gateway(enterprise_number: str, gateway_name: str, line_count
                            config_backup_original_name: Optional[str] = None,
                            config_backup_uploaded_at: Optional[datetime] = None,
                            custom_boolean_flag: Optional[bool] = False) -> Dict:
-    """
-    Добавляет новый шлюз в таблицу 'goip' и возвращает созданную запись как словарь.
-    Создание gsm_lines временно отключено.
-    """
-    logger.debug(f"POSTGRES_ADD_GOIP_GATEWAY: Добавление шлюза для предприятия {enterprise_number}, имя: {gateway_name}")
+    """Добавляет новый шлюз GoIP в базу данных."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         sql_query = """
-            INSERT INTO goip (enterprise_number, gateway_name, line_count, 
-                              config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
-                              created_at, custom_boolean_flag)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO goip (
+                enterprise_number, gateway_name, line_count,
+                config_backup_filename, config_backup_original_name,
+                config_backup_uploaded_at, custom_boolean_flag, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *
         """
-        try:
-            # Используем fetchrow для получения всей созданной записи
-            new_gateway_record = await conn.fetchrow(
-                sql_query, enterprise_number, gateway_name, line_count,
-                config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
-                datetime.utcnow(), custom_boolean_flag
-            )
-            logger.info(f"POSTGRES_ADD_GOIP_GATEWAY: Шлюз успешно добавлен с ID: {new_gateway_record['id']} для предприятия {enterprise_number}")
-            
-            # Вызов для создания GSM-линий временно отключен по требованию
-            # if line_count and line_count > 0:
-            #     await create_gsm_lines_for_gateway(conn, new_gateway_record['id'], enterprise_number, line_count)
-
-            return dict(new_gateway_record)
-        except Exception as e:
-            logger.error(f"POSTGRES_ADD_GOIP_GATEWAY ERROR: Ошибка при добавлении шлюза для {enterprise_number}: {e}")
-            raise
+        now = datetime.utcnow()
+        new_gateway_row = await conn.fetchrow(
+            sql_query,
+            enterprise_number, gateway_name, line_count,
+            config_backup_filename, config_backup_original_name,
+            config_backup_uploaded_at, custom_boolean_flag, now, now
+        )
+        return dict(new_gateway_row)
 
 async def update_goip_gateway(gateway_id: int, gateway_name: Optional[str] = None, line_count: Optional[int] = None,
                               config_backup_filename: Optional[str] = None,
                               config_backup_original_name: Optional[str] = None,
                               config_backup_uploaded_at: Optional[datetime] = None,
                               custom_boolean_flag: Optional[bool] = None):
-    """Обновляет информацию о существующем шлюзе. Обновляет только переданные поля."""
-    logger.debug(f"POSTGRES_UPDATE_GOIP_GATEWAY: Обновление шлюза ID: {gateway_id}")
+    """Обновляет существующий шлюз GoIP."""
     pool = await get_pool()
-    
-    fields_to_update = {}
-    if gateway_name is not None:
-        fields_to_update["gateway_name"] = gateway_name
-    if line_count is not None:
-        # Эта проверка не даст случайно обновить кол-во линий, если не передано явно
-        fields_to_update["line_count"] = line_count
-    if config_backup_filename is not None:
-        fields_to_update["config_backup_filename"] = config_backup_filename
-    if config_backup_original_name is not None:
-        fields_to_update["config_backup_original_name"] = config_backup_original_name
-    if config_backup_uploaded_at is not None:
-        fields_to_update["config_backup_uploaded_at"] = config_backup_uploaded_at
-    if custom_boolean_flag is not None:
-        fields_to_update["custom_boolean_flag"] = custom_boolean_flag
-    
-    if not fields_to_update:
-        logger.debug(f"POSTGRES_UPDATE_GOIP_GATEWAY: Нет полей для обновления шлюза ID: {gateway_id}")
-        return
-
-    set_clauses = []
-    values = []
-    param_idx = 1
-    for key, value in fields_to_update.items():
-        set_clauses.append(f"{key} = ${param_idx}")
-        values.append(value)
-        param_idx += 1
-    
-    values.append(gateway_id)
-    
-    sql_query = f"""
-        UPDATE goip
-        SET {", ".join(set_clauses)}
-        WHERE id = ${param_idx}
-    """
     async with pool.acquire() as conn:
-        try:
-            await conn.execute(sql_query, *values)
-            logger.info(f"POSTGRES_UPDATE_GOIP_GATEWAY: Шлюз ID: {gateway_id} успешно обновлен.")
-        except Exception as e:
-            logger.error(f"POSTGRES_UPDATE_GOIP_GATEWAY ERROR: Ошибка при обновлении шлюза ID: {gateway_id}: {e}")
-            raise
+        fields_to_update = {}
+        if gateway_name is not None:
+            fields_to_update['gateway_name'] = gateway_name
+        if line_count is not None:
+            fields_to_update['line_count'] = line_count
+        if config_backup_filename is not None:
+            fields_to_update['config_backup_filename'] = config_backup_filename
+        if config_backup_original_name is not None:
+            fields_to_update['config_backup_original_name'] = config_backup_original_name
+        if config_backup_uploaded_at is not None:
+            fields_to_update['config_backup_uploaded_at'] = config_backup_uploaded_at
+        if custom_boolean_flag is not None:
+            fields_to_update['custom_boolean_flag'] = custom_boolean_flag
+        
+        if not fields_to_update:
+            return 
+            
+        fields_to_update['updated_at'] = datetime.utcnow()
+
+        set_clause = ", ".join([f"{key} = ${i+1}" for i, key in enumerate(fields_to_update.keys())])
+        values = list(fields_to_update.values())
+        
+        sql_query = f"UPDATE goip SET {set_clause} WHERE id = ${len(values) + 1}"
+        
+        values.append(gateway_id)
+        
+        await conn.execute(sql_query, *values)
 
 async def delete_goip_gateway(gateway_id: int):
-    """Удаляет шлюз по ID."""
-    logger.debug(f"POSTGRES_DELETE_GOIP_GATEWAY: Удаление шлюза ID: {gateway_id}")
+    """Удаляет шлюз GoIP и связанные с ним GSM-линии."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        try:
-            result = await conn.execute("DELETE FROM goip WHERE id = $1", gateway_id)
-            # result будет содержать, например, 'DELETE 1', если одна строка была удалена
-            if result == "DELETE 1":
-                 logger.info(f"POSTGRES_DELETE_GOIP_GATEWAY: Шлюз ID: {gateway_id} успешно удален.")
-            else:
-                 logger.warning(f"POSTGRES_DELETE_GOIP_GATEWAY: Шлюз ID: {gateway_id} не найден для удаления или удалено 0 строк.")
-        except Exception as e:
-            logger.error(f"POSTGRES_DELETE_GOIP_GATEWAY ERROR: Ошибка при удалении шлюза ID: {gateway_id}: {e}")
-            raise
+        async with conn.transaction():
+            # Сначала получаем имя шлюза, чтобы удалить связанные линии
+            gateway = await conn.fetchrow("SELECT gateway_name FROM goip WHERE id = $1", gateway_id)
+            if gateway:
+                gateway_name = gateway['gateway_name']
+                # Удаляем GSM-линии
+                await conn.execute("DELETE FROM gsm_lines WHERE goip_name = $1", gateway_name)
+            
+            # Затем удаляем сам шлюз
+            await conn.execute("DELETE FROM goip WHERE id = $1", gateway_id)
 
 # Функции для работы с мобильными операторами
 
 async def get_all_mobile_operators() -> list[dict]:
-    """Возвращает список всех мобильных операторов."""
+    """Получает всех мобильных операторов."""
     pool = await get_pool()
     async with pool.acquire() as connection:
         rows = await connection.fetch("SELECT id, name, shablon FROM mobile ORDER BY id ASC")
@@ -551,3 +521,28 @@ async def delete_sip_operator(operator_id: int):
 # async def some_other_function():
 #    pass
 # Убедитесь, что новые функции вставлены корректно относительно других. 
+
+async def update_gateway_config_backup(gateway_id: int, filename: str, original_filename: str):
+    """Обновляет информацию о файле конфигурации для шлюза."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE goip
+            SET config_backup_filename = $1, 
+                config_backup_original_name = $2,
+                config_backup_uploaded_at = $3
+            WHERE id = $4
+            """,
+            filename,
+            original_filename,
+            datetime.utcnow(),
+            gateway_id
+        )
+
+# async def get_all_mobile_operators() -> list[dict]:
+#     """Получает всех мобильных операторов."""
+#     pool = await get_pool()
+#     async with pool.acquire() as connection:
+#         rows = await connection.fetch("SELECT id, name, shablon FROM mobile ORDER BY id ASC")
+#         return [dict(row) for row in rows] 
