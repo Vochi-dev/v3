@@ -116,7 +116,7 @@
                 const editModalContainer = document.getElementById('edit-line-modal-container');
                 
                 try {
-                    const response = await fetch(`/admin/gsm-lines/${lineId}/edit-modal`);
+                    const response = await fetch(`/admin/gateways/gsm-lines/${lineId}/edit-modal`);
                     if (!response.ok) {
                         throw new Error('Не удалось загрузить окно редактирования.');
                     }

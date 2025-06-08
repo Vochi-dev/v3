@@ -5,6 +5,7 @@ import logging
 import sys
 import os
 from pydantic import BaseModel
+from fastapi import HTTPException
 
 # Конфигурация логгера
 logger = logging.getLogger(__name__)
@@ -203,6 +204,32 @@ async def delete_enterprise(number: str):
     async with pool.acquire() as conn:
         await conn.execute("DELETE FROM enterprises WHERE number = $1", number)
 
+async def delete_goip_gateway(gateway_id: int):
+    """
+    Удаляет шлюз и все связанные с ним GSM-линии в одной транзакции.
+    """
+    print(f"POSTGRES_SERVICE: Попытка удаления шлюза с ID: {gateway_id}")
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            try:
+                # Сначала удаляем связанные линии
+                deleted_lines = await conn.execute("DELETE FROM gsm_lines WHERE goip_id = $1", gateway_id)
+                print(f"POSTGRES_SERVICE: Удалено связанных GSM-линий: {deleted_lines}")
+                
+                # Затем удаляем сам шлюз
+                deleted_gateway = await conn.execute("DELETE FROM goip WHERE id = $1", gateway_id)
+                print(f"POSTGRES_SERVICE: Удален шлюз: {deleted_gateway}")
+
+                if '0' in deleted_gateway:
+                     print(f"POSTGRES_SERVICE: Шлюз с ID {gateway_id} не найден для удаления.")
+                     raise HTTPException(status_code=404, detail="Шлюз не найден.")
+
+            except Exception as e:
+                print(f"POSTGRES_SERVICE: Ошибка при удалении шлюза ID {gateway_id}: {e}")
+                # Транзакция будет автоматически откатана
+                raise HTTPException(status_code=500, detail=f"Ошибка базы данных при удалении шлюза: {e}")
+
 async def get_enterprises_with_tokens():
     """Получает список предприятий с активными токенами"""
     pool = await get_pool()
@@ -269,47 +296,30 @@ async def get_enterprise_by_name2_suffix(name2_suffix: str) -> Optional[Dict]:
             return None 
 
 async def get_gateways_by_enterprise_number(enterprise_number: str) -> List[Dict]:
-    """Получает список шлюзов для указанного предприятия."""
-    logger.debug(f"POSTGRES_GET_GATEWAYS: Вызвана для enterprise_number: '{enterprise_number}'")
+    """Получает список шлюзов для указанного предприятия"""
     pool = await get_pool()
-    if not pool:
-        logger.error("POSTGRES_GET_GATEWAYS ERROR: Пул не инициализирован")
-        return []
-        
     async with pool.acquire() as conn:
-        sql_query = """
-            SELECT id, enterprise_number, gateway_name, line_count, 
-                   config_backup_original_name, config_backup_uploaded_at,
-                   custom_boolean_flag
+        rows = await conn.fetch("""
+            SELECT id, gateway_name, line_count, config_backup_original_name, config_backup_uploaded_at, custom_boolean_flag
             FROM goip
             WHERE enterprise_number = $1
-            ORDER BY id ASC
-        """
-        try:
-            rows = await conn.fetch(sql_query, enterprise_number)
-            logger.debug(f"POSTGRES_GET_GATEWAYS: Найдено {len(rows)} шлюзов для предприятия {enterprise_number}")
-            return [dict(row) for row in rows]
-        except Exception as e:
-            logger.error(f"POSTGRES_GET_GATEWAYS ERROR: Ошибка при выполнении запроса для {enterprise_number}: {e}")
-            return []
+            ORDER BY id
+        """, enterprise_number)
+        return [dict(row) for row in rows]
 
 async def get_goip_gateway_by_id(gateway_id: int) -> Optional[Dict]:
-    """Получает шлюз по его ID."""
-    logger.debug(f"POSTGRES_GET_GATEWAY_BY_ID: Вызвана для ID: {gateway_id}")
+    """Получает шлюз по его ID"""
     pool = await get_pool()
-    if not pool:
-        logger.error("POSTGRES_GET_GATEWAY_BY_ID ERROR: Пул не инициализирован")
-        return None
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT * FROM goip WHERE id = $1", gateway_id)
-        if row:
-            return dict(row)
-        return None
+        row = await conn.fetchrow("""
+            SELECT * FROM goip WHERE id = $1
+        """, gateway_id)
+        return dict(row) if row else None
 
 async def _get_max_line_id(conn) -> int:
     """Вспомогательная функция для получения максимального line_id."""
-    max_id = await conn.fetchval("SELECT MAX(line_id) FROM gsm_lines")
-    return max_id if max_id is not None else 1362 # Возвращаем 1362, чтобы первая линия была 1363
+    max_id = await conn.fetchval("SELECT MAX(CAST(line_id AS INTEGER)) FROM gsm_lines")
+    return max_id if max_id is not None else 1362
 
 async def _get_last_internal_id_details(conn, enterprise_number: str) -> tuple[int, int]:
     """
@@ -338,155 +348,103 @@ async def _get_last_internal_id_details(conn, enterprise_number: str) -> tuple[i
         # В случае ошибки парсинга, возвращаем значения по умолчанию
         return 10, 0
 
-async def _add_gsm_line(conn, goip_id, enterprise_number, line_id, internal_id, prefix, goip_name):
-    """Добавляет одну запись в gsm_lines, включая имя шлюза."""
-    await conn.execute(
-        """
-        INSERT INTO gsm_lines (goip_id, enterprise_number, line_id, internal_id, prefix, goip_name)
+async def _add_gsm_line(conn, goip_id, enterprise_number, line_id, internal_id, prefix):
+    """Добавляет одну GSM линию. Вспомогательная функция. Поле line_name остается NULL."""
+    await conn.execute("""
+        INSERT INTO gsm_lines (goip_id, enterprise_number, line_id, internal_id, prefix, created_at)
         VALUES ($1, $2, $3, $4, $5, $6)
-        """,
-        goip_id, enterprise_number, line_id, internal_id, prefix, goip_name
-    )
+    """, goip_id, enterprise_number, line_id, internal_id, prefix, datetime.utcnow())
 
-async def create_gsm_lines_for_gateway(gateway_id: int, gateway_name: str, enterprise_number: str, line_count: int):
-    """Создает все GSM-линии для нового шлюза."""
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            # Получаем начальные значения для ID
-            next_line_id = await _get_max_line_id(conn) + 1
-            block, last_line_in_block = await _get_last_internal_id_details(conn, enterprise_number)
+async def create_gsm_lines_for_gateway(conn: asyncpg.Connection, gateway_id: int, gateway_name: str, enterprise_number: str, line_count: int):
+    """
+    Создает указанное количество GSM-линий для нового шлюза,
+    ИСПОЛЬЗУЯ СУЩЕСТВУЮЩЕЕ ПОДКЛЮЧЕНИЕ И ТРАНЗАКЦИЮ.
+    """
+    try:
+        # Получаем начальные значения для ID
+        last_line_id = await _get_max_line_id(conn)
+        block, last_line_in_block = await _get_last_internal_id_details(conn, enterprise_number)
+        # Для КАЖДОГО нового шлюза нумерация префиксов начинается с 21.
+        current_prefix = 21
 
-            for i in range(line_count):
-                # 1. Генерируем line_id и форматируем его
-                current_line_id = str(next_line_id + i).zfill(7)
+        for i in range(1, line_count + 1):
+            new_line_id = last_line_id + i
+            
+            # Корректная логика генерации internal_id
+            current_line_in_block = last_line_in_block + i
+            if current_line_in_block > 99:
+                block += 1
+                current_line_in_block = 1
+            
+            line_in_block_str = str(current_line_in_block).zfill(2)
+            new_internal_id = f"{block}{enterprise_number}{line_in_block_str}"
 
-                # 2. Генерируем internal_id
-                last_line_in_block += 1
-                if last_line_in_block > 99:
-                    block += 1
-                    last_line_in_block = 1
-                
-                line_in_block_str = str(last_line_in_block).zfill(2)
-                current_internal_id = f"{block}{enterprise_number}{line_in_block_str}"
+            await _add_gsm_line(
+                conn,
+                gateway_id,
+                enterprise_number,
+                str(new_line_id).zfill(7),
+                new_internal_id,
+                str(current_prefix) # Используем текущий префикс
+            )
+            current_prefix += 1 # Инкрементируем префикс для следующей линии
+    except Exception as e:
+        logger.error(f"Не удалось создать GSM линии для шлюза {gateway_id} внутри транзакции: {e}")
+        # Пробрасываем исключение, чтобы родительская транзакция откатилась
+        raise
 
-                # 3. Генерируем prefix
-                current_prefix = 21 + i
-
-                # 4. Добавляем линию в БД
-                await _add_gsm_line(
-                    conn,
-                    gateway_id,
-                    enterprise_number,
-                    current_line_id,
-                    current_internal_id,
-                    str(current_prefix),
-                    gateway_name
-                )
-
-async def add_goip_gateway(enterprise_number: str, gateway_name: str, line_count: Optional[int],
-                           config_backup_filename: Optional[str] = None, 
-                           config_backup_original_name: Optional[str] = None,
-                           config_backup_uploaded_at: Optional[datetime] = None,
+async def add_goip_gateway(conn: asyncpg.Connection, enterprise_number: str, gateway_name: str, line_count: Optional[int],
                            custom_boolean_flag: Optional[bool] = False) -> Dict:
     """
-    Добавляет новый шлюз в таблицу 'goip' и возвращает созданную запись как словарь.
-    Создание gsm_lines временно отключено.
+    Добавляет новый шлюз, ИСПОЛЬЗУЯ СУЩЕСТВУЮЩЕЕ ПОДКЛЮЧЕНИЕ.
+    Возвращает словарь с данными нового шлюза.
+    Логика создания линий теперь вынесена в роутер.
     """
-    logger.debug(f"POSTGRES_ADD_GOIP_GATEWAY: Добавление шлюза для предприятия {enterprise_number}, имя: {gateway_name}")
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        sql_query = """
-            INSERT INTO goip (enterprise_number, gateway_name, line_count, 
-                              config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
-                              created_at, custom_boolean_flag)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING *
-        """
-        try:
-            # Используем fetchrow для получения всей созданной записи
-            new_gateway_record = await conn.fetchrow(
-                sql_query, enterprise_number, gateway_name, line_count,
-                config_backup_filename, config_backup_original_name, config_backup_uploaded_at,
-                datetime.utcnow(), custom_boolean_flag
-            )
-            logger.info(f"POSTGRES_ADD_GOIP_GATEWAY: Шлюз успешно добавлен с ID: {new_gateway_record['id']} для предприятия {enterprise_number}")
-            
-            # Вызов для создания GSM-линий временно отключен по требованию
-            # if line_count and line_count > 0:
-            #     await create_gsm_lines_for_gateway(conn, new_gateway_record['id'], enterprise_number, line_count)
-
-            return dict(new_gateway_record)
-        except Exception as e:
-            logger.error(f"POSTGRES_ADD_GOIP_GATEWAY ERROR: Ошибка при добавлении шлюза для {enterprise_number}: {e}")
-            raise
+    sql_query = """
+        INSERT INTO goip (enterprise_number, gateway_name, line_count, 
+                                   custom_boolean_flag, created_at)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, gateway_name, line_count, created_at
+    """
+    
+    inserted_gateway = await conn.fetchrow(
+        sql_query,
+        enterprise_number, gateway_name, line_count,
+        custom_boolean_flag,
+        datetime.utcnow()
+    )
+    return dict(inserted_gateway)
 
 async def update_goip_gateway(gateway_id: int, gateway_name: Optional[str] = None, line_count: Optional[int] = None,
                               config_backup_filename: Optional[str] = None,
                               config_backup_original_name: Optional[str] = None,
                               config_backup_uploaded_at: Optional[datetime] = None,
                               custom_boolean_flag: Optional[bool] = None):
-    """Обновляет информацию о существующем шлюзе. Обновляет только переданные поля."""
-    logger.debug(f"POSTGRES_UPDATE_GOIP_GATEWAY: Обновление шлюза ID: {gateway_id}")
-    pool = await get_pool()
-    
-    fields_to_update = {}
-    if gateway_name is not None:
-        fields_to_update["gateway_name"] = gateway_name
-    if line_count is not None:
-        # Эта проверка не даст случайно обновить кол-во линий, если не передано явно
-        fields_to_update["line_count"] = line_count
-    if config_backup_filename is not None:
-        fields_to_update["config_backup_filename"] = config_backup_filename
-    if config_backup_original_name is not None:
-        fields_to_update["config_backup_original_name"] = config_backup_original_name
-    if config_backup_uploaded_at is not None:
-        fields_to_update["config_backup_uploaded_at"] = config_backup_uploaded_at
-    if custom_boolean_flag is not None:
-        fields_to_update["custom_boolean_flag"] = custom_boolean_flag
-    
-    if not fields_to_update:
-        logger.debug(f"POSTGRES_UPDATE_GOIP_GATEWAY: Нет полей для обновления шлюза ID: {gateway_id}")
-        return
-
-    set_clauses = []
-    values = []
-    param_idx = 1
-    for key, value in fields_to_update.items():
-        set_clauses.append(f"{key} = ${param_idx}")
-        values.append(value)
-        param_idx += 1
-    
-    values.append(gateway_id)
-    
-    sql_query = f"""
-        UPDATE goip
-        SET {", ".join(set_clauses)}
-        WHERE id = ${param_idx}
-    """
-    async with pool.acquire() as conn:
-        try:
-            await conn.execute(sql_query, *values)
-            logger.info(f"POSTGRES_UPDATE_GOIP_GATEWAY: Шлюз ID: {gateway_id} успешно обновлен.")
-        except Exception as e:
-            logger.error(f"POSTGRES_UPDATE_GOIP_GATEWAY ERROR: Ошибка при обновлении шлюза ID: {gateway_id}: {e}")
-            raise
-
-async def delete_goip_gateway(gateway_id: int):
-    """Удаляет шлюз по ID."""
-    logger.debug(f"POSTGRES_DELETE_GOIP_GATEWAY: Удаление шлюза ID: {gateway_id}")
+    """Обновляет информацию о шлюзе."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        try:
-            result = await conn.execute("DELETE FROM goip WHERE id = $1", gateway_id)
-            # result будет содержать, например, 'DELETE 1', если одна строка была удалена
-            if result == "DELETE 1":
-                 logger.info(f"POSTGRES_DELETE_GOIP_GATEWAY: Шлюз ID: {gateway_id} успешно удален.")
-            else:
-                 logger.warning(f"POSTGRES_DELETE_GOIP_GATEWAY: Шлюз ID: {gateway_id} не найден для удаления или удалено 0 строк.")
-        except Exception as e:
-            logger.error(f"POSTGRES_DELETE_GOIP_GATEWAY ERROR: Ошибка при удалении шлюза ID: {gateway_id}: {e}")
-            raise
+        update_fields = {}
+        if gateway_name is not None: update_fields['gateway_name'] = gateway_name
+        if line_count is not None: update_fields['line_count'] = line_count
+        if config_backup_filename is not None: update_fields['config_backup_filename'] = config_backup_filename
+        if config_backup_original_name is not None: update_fields['config_backup_original_name'] = config_backup_original_name
+        if config_backup_uploaded_at is not None: update_fields['config_backup_uploaded_at'] = config_backup_uploaded_at
+        if custom_boolean_flag is not None: update_fields['custom_boolean_flag'] = custom_boolean_flag
+        
+        if not update_fields:
+            return None 
+
+        set_clauses = [f"{key} = ${i+1}" for i, key in enumerate(update_fields.keys())]
+        values = list(update_fields.values())
+        
+        query = f"UPDATE goip SET {', '.join(set_clauses)} WHERE id = ${len(values) + 1}"
+        
+        values.append(gateway_id)
+        
+        await conn.execute(query, *values)
+        
+        # Возвращаем обновленные данные
+        return await conn.fetchrow("SELECT * FROM goip WHERE id = $1", gateway_id)
 
 # Функции для работы с мобильными операторами
 
@@ -561,17 +519,23 @@ async def delete_sip_operator(operator_id: int):
         await connection.execute("DELETE FROM sip WHERE id = $1", operator_id)
 
 async def get_gsm_lines_by_gateway_id(gateway_id: int) -> List[Dict]:
-    """Получает список GSM-линий для указанного шлюза по его ID."""
+    """Получает список GSM-линий для указанного шлюза."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT * FROM gsm_lines WHERE goip_id = $1 ORDER BY slot ASC",
+            """
+            SELECT gl.*, gw.gateway_name as goip_name 
+            FROM gsm_lines gl
+            JOIN goip gw ON gl.goip_id = gw.id
+            WHERE gl.goip_id = $1
+            ORDER BY gl.id ASC
+            """,
             gateway_id
         )
         return [dict(row) for row in rows]
 
 async def get_gsm_line_by_id(line_id: int) -> Optional[Dict]:
-    """Получает GSM-линию по её ID."""
+    """Получает одну GSM-линию по ее ID."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM gsm_lines WHERE id = $1", line_id)
