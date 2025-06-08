@@ -220,6 +220,11 @@
     .download-config-link:hover {
         background-color: #0056b3;
     }
+    .gateway-entry h4.gateway-title-collapsible {
+        color: #007bff;
+        cursor: pointer;
+        user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -232,7 +237,9 @@
     {% endif %}
 
     <form id="enterprise-form" method="post" action="{% if action == 'add' %}/admin/enterprises/add{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}" enctype="multipart/form-data">
-      <input type="hidden" name="reboot_gateway_id" id="reboot_gateway_id" value="">
+      
+      <input type="hidden" id="reboot_gateway_id" name="reboot_gateway_id" value="">
+
       <div class="form-container-columns">
         <div class="form-column-main">
           <div class="form-grid">
@@ -250,6 +257,7 @@
             <div class="form-group"><label for="scheme_count">Кол-во схем</label><input id="scheme_count" type="number" name="scheme_count" value="{{ enterprise.scheme_count or 3 }}"></div>
             <div class="form-group"><label for="gsm_line_count">Кол-во GSM-линий</label><input id="gsm_line_count" type="number" name="gsm_line_count" value="{{ enterprise.gsm_line_count or 8 }}"></div>
           </div>
+
           <fieldset class="checkbox-group">
             <legend>Дополнительные параметры</legend>
             <div class="checkbox-item"><input id="parameter_option_1" type="checkbox" name="parameter_option_1" value="true" {% if enterprise.parameter_option_1 %}checked{% endif %}><label for="parameter_option_1">Параметр 1</label></div>
@@ -259,7 +267,9 @@
             <div class="checkbox-item"><input id="parameter_option_5" type="checkbox" name="parameter_option_5" value="true" {% if enterprise.parameter_option_5 %}checked{% endif %}><label for="parameter_option_5">Параметр 5</label></div>
             <div class="checkbox-item"><input id="active" type="checkbox" name="active" value="true" {% if enterprise.active == 1 or enterprise.active == True %}checked{% endif %}><label for="active">Активен (бот)</label></div>
           </fieldset>
+
         </div>
+
         <div class="form-column-gateways">
           <h2>Шлюзы</h2>
           <div id="gateways-container">
@@ -268,282 +278,296 @@
           <button type="button" id="add-gateway-button" class="button">Добавить шлюз</button>
         </div>
       </div>
-      <button class="button" type="submit">{% if action == 'add' %}Добавить{% else %}Сохранить предприятие{% endif %}</button>
-    </form>
-    <a href="/admin/enterprises" class="back-link">← Назад к списку предприятий</a>
-  </div>
 
+      <button class="button" type="submit">{% if action == 'add' %}Добавить{% else %}Сохранить предприятие{% endif %}</button>
+      <a href="/admin/enterprises" class="back-link">← Назад к списку предприятий</a>
+    </form>
+
+  </div>
+  
   <div id="gateway-template" class="gateway-entry" style="display: none;">
     <button type="button" class="button-small remove-gateway-button" title="Удалить шлюз">X</button>
-    <h4><span>Шлюз <span class="gateway-number"></span></span><div class="gateway-actions" style="display: flex; align-items: center;"><input type="checkbox" data-name="custom_boolean_flag" value="true" style="width: auto; margin-right: 5px;"><label style="display: inline; font-weight: normal; margin-right: 10px;">Reboot</label></div></h4>
-    <input type="hidden" data-name="id" value="">
-    <div class="form-group"><label>Наименование</label><input type="text" data-name="gateway_name" value=""></div>
-    <div class="form-group"><label>Кол-во линий</label><input type="number" data-name="line_count" value=""></div>
-    <div class="form-group">
-        <label>Загрузить конфиг</label>
-        <input type="file" data-name="config_file"/>
-        <span class="config-file-info-container"></span>
-        <button type="button" class="button button-small save-config-button" style="display:none;">Сохранить конфиг</button>
-    </div>
-    <div class="gateway-controls">
-      <button type="button" class="button button-small save-gateway-button">Сохранить</button>
-      <a href="#" class="button button-small download-config-link" style="display: none;">Скачать конфиг</a>
+    <h4 class="gateway-title-collapsible">
+        <span>Шлюз <span class="gateway-number"></span></span>
+        <div class="gateway-actions" style="display: flex; align-items: center;">
+            <input type="checkbox" data-name="custom_boolean_flag" value="true" style="width: auto; margin-right: 5px;">
+            <label style="display: inline; font-weight: normal; margin-right: 10px;">Reboot</label>
+        </div>
+    </h4>
+    <div class="gateway-body">
+        <input type="hidden" data-name="id" value="">
+        <div class="form-group"><label>Наименование</label><input type="text" data-name="gateway_name" value=""></div>
+        <div class="form-group"><label>Кол-во линий</label><input type="number" data-name="line_count" value=""></div>
+        <div class="form-group">
+           <label>Загрузить конфиг</label>
+           <input type="file" data-name="config_file"/>
+           <span class="config-file-info-container"></span>
+           <button type="button" class="button button-small save-config-button" style="display:none;">Сохранить конфиг</button>
+        </div>
+        <div class="gateway-controls">
+          <button type="button" class="button button-small save-gateway-button">Сохранить</button>
+          <a href="#" class="button button-small download-config-link" style="display: none;">Скачать конфиг</a>
+       </div>
     </div>
   </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const mainForm = document.getElementById('enterprise-form');
-    const gatewaysContainer = document.getElementById('gateways-container');
-    const addGatewayButton = document.getElementById('add-gateway-button');
-    const gatewayTemplate = document.getElementById('gateway-template');
-    
-    let gatewayCounter = 0;
-    const maxGateways = 10;
-    
-    const action = '{{ action }}';
-    const enterpriseNumber = '{{ enterprise.number }}';
-    const existingGateways = action === 'edit' ? {{ gateways|tojson|safe }} : [];
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+      const mainForm = document.getElementById('enterprise-form');
+      const gatewaysContainer = document.getElementById('gateways-container');
+      const addGatewayButton = document.getElementById('add-gateway-button');
+      const gatewayTemplate = document.getElementById('gateway-template');
+      
+      let gatewayCounter = 0;
+      const maxGateways = 10;
+      
+      const action = '{{ action }}';
+      const enterpriseNumber = '{{ enterprise.number }}';
+      const existingGateways = action === 'edit' ? {{ gateways|tojson|safe }} : [];
 
-    // При отправке главной формы находим, какой шлюз помечен для перезагрузки
-    if (mainForm) {
-        mainForm.addEventListener('submit', function() {
-            const rebootInput = document.getElementById('reboot_gateway_id');
-            const checkedCheckbox = gatewaysContainer.querySelector('input[data-name="custom_boolean_flag"]:checked');
-            
-            if (checkedCheckbox) {
-                const gatewayEntry = checkedCheckbox.closest('.gateway-entry');
-                const gatewayIdInput = gatewayEntry.querySelector('input[data-name="id"]');
-                rebootInput.value = gatewayIdInput.value;
-            } else {
-                // Если ни один не выбран, отправляем специальное значение, чтобы сервер знал, что все флаги нужно снять
-                rebootInput.value = 'none';
+      if (mainForm) {
+          mainForm.addEventListener('submit', function() {
+              const rebootInput = document.getElementById('reboot_gateway_id');
+              const checkedCheckbox = gatewaysContainer.querySelector('input[data-name="custom_boolean_flag"]:checked');
+              
+              if (checkedCheckbox) {
+                  const gatewayEntry = checkedCheckbox.closest('.gateway-entry');
+                  const gatewayIdInput = gatewayEntry.querySelector('input[data-name="id"]');
+                  rebootInput.value = gatewayIdInput.value;
+              } else {
+                  rebootInput.value = 'none';
+              }
+          });
+      }
+
+      gatewaysContainer.addEventListener('change', function(event) {
+          const target = event.target;
+          if (target.matches('input[type="checkbox"][data-name="custom_boolean_flag"]') && target.checked) {
+              const allRebootCheckboxes = gatewaysContainer.querySelectorAll('input[type="checkbox"][data-name="custom_boolean_flag"]');
+              allRebootCheckboxes.forEach(checkbox => {
+                  if (checkbox !== target) {
+                      checkbox.checked = false;
+                  }
+              });
+          }
+      });
+
+      function setupEditModeGateway(templateNode, gatewayData) {
+          const idInput = templateNode.querySelector(`[data-name="id"]`);
+          const nameInput = templateNode.querySelector(`[data-name="gateway_name"]`);
+          const lineCountInput = templateNode.querySelector(`[data-name="line_count"]`);
+          const rebootCheckbox = templateNode.querySelector(`[data-name="custom_boolean_flag"]`);
+          const saveButton = templateNode.querySelector('.save-gateway-button');
+          const removeButton = templateNode.querySelector('.remove-gateway-button');
+          const saveConfigButton = templateNode.querySelector('.save-config-button');
+          const fileInput = templateNode.querySelector('[data-name="config_file"]');
+          const configInfoContainer = templateNode.querySelector('.config-file-info-container');
+          const downloadLink = templateNode.querySelector('.download-config-link');
+
+          function updateConfigFileInfo(filename, uploadedAt) {
+              configInfoContainer.innerHTML = '';
+              downloadLink.style.display = 'none';
+
+              if (filename) {
+                  const infoSpan = document.createElement('span');
+                  const date = new Date(uploadedAt);
+                  infoSpan.textContent = `Загружен: ${filename} (${date.toLocaleString()})`;
+                  infoSpan.className = 'config-file-info';
+                  configInfoContainer.appendChild(infoSpan);
+
+                  if (gatewayData && gatewayData.id) {
+                      downloadLink.href = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayData.id}/download_config`;
+                      downloadLink.style.display = 'inline-block';
+                  }
+              }
+          }
+          
+          if (gatewayData && gatewayData.id) {
+              idInput.value = gatewayData.id;
+              nameInput.value = gatewayData.gateway_name || '';
+              lineCountInput.value = gatewayData.line_count || '';
+              lineCountInput.disabled = true;
+              rebootCheckbox.checked = gatewayData.custom_boolean_flag === true;
+              updateConfigFileInfo(gatewayData.config_backup_original_name, gatewayData.config_backup_uploaded_at);
+              saveButton.textContent = 'Обновить';
+          }
+
+          fileInput.addEventListener('change', function() {
+              if (idInput.value && this.files.length > 0) {
+                  saveConfigButton.style.display = 'inline-block';
+              } else {
+                  saveConfigButton.style.display = 'none';
+              }
+          });
+
+          saveConfigButton.addEventListener('click', async function() {
+              const gatewayId = idInput.value;
+              const file = fileInput.files[0];
+              if (!gatewayId || !file) return;
+              const formData = new FormData();
+              formData.append('config_file', file);
+              try {
+                  const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}/upload_config`, { method: 'POST', body: formData });
+                  const result = await response.json();
+                  if (!response.ok) throw new Error(result.detail || 'Server error');
+                  alert(result.message);
+                  updateConfigFileInfo(result.original_filename, result.uploaded_at);
+                  saveConfigButton.style.display = 'none';
+                  fileInput.value = '';
+              } catch (error) {
+                  alert(`Ошибка загрузки: ${error.message}`);
+              }
+          });
+
+          removeButton.addEventListener('click', async function() {
+              const gatewayId = idInput.value;
+              if (!gatewayId) {
+                  templateNode.remove();
+                  return;
+              }
+              if (confirm('Вы уверены, что хотите удалить этот шлюз?')) {
+                  try {
+                      const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`, { method: 'DELETE' });
+                      if (!response.ok) {
+                          const result = await response.json();
+                          throw new Error(result.detail || 'Server error');
+                      }
+                      alert('Шлюз удален.');
+                      templateNode.remove();
+                  } catch (error) {
+                      alert(`Ошибка удаления: ${error.message}`);
+                  }
+              }
+          });
+
+          saveButton.addEventListener('click', async function() {
+              const gatewayId = idInput.value;
+              const gatewayName = nameInput.value.trim();
+              if (!gatewayName) {
+                  alert('Наименование шлюза не может быть пустым.');
+                  return;
+              }
+              const data = {
+                  gateway_name: gatewayName,
+                  custom_boolean_flag: rebootCheckbox.checked
+              };
+              let url, method;
+
+              if (gatewayId) { // Update existing
+                  url = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`;
+                  method = 'PUT';
+              } else { // Create new
+                  const lineCount = parseInt(lineCountInput.value, 10);
+                  if (isNaN(lineCount) || lineCount < 1 || lineCount > 32) {
+                      alert('Количество линий должно быть числом от 1 до 32.');
+                      return;
+                  }
+                  data.line_count = lineCount;
+                  url = `/admin/enterprises/${enterpriseNumber}/gateways`;
+                  method = 'POST';
+              }
+
+              try {
+                  const response = await fetch(url, {
+                      method: method,
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(data)
+                  });
+                  const result = await response.json();
+                  if (!response.ok) throw new Error(result.detail || 'Server error');
+                  
+                  if (!gatewayId) { // After creation
+                      alert('Шлюз успешно сохранен!');
+                      idInput.value = result.id;
+                      lineCountInput.disabled = true;
+                      saveButton.textContent = 'Обновить';
+                  } else {
+                      alert('Шлюз успешно обновлен!');
+                  }
+              } catch (error) {
+                  alert(`Ошибка: ${error.message}`);
+              }
+          });
+      }
+
+      function setupAddModeGateway(templateNode, index) {
+          templateNode.querySelector('[data-name="id"]').name = `gateways[${index}][id]`;
+          templateNode.querySelector('[data-name="gateway_name"]').name = `gateways[${index}][gateway_name]`;
+          templateNode.querySelector('[data-name="line_count"]').name = `gateways[${index}][line_count]`;
+          templateNode.querySelector('[data-name="custom_boolean_flag"]').name = `gateways[${index}][custom_boolean_flag]`;
+          templateNode.querySelector('[data-name="config_file"]').name = `gateways[${index}][config_file]`;
+          
+          templateNode.querySelector('.save-gateway-button').style.display = 'none';
+          templateNode.querySelector('.save-config-button').style.display = 'none';
+          
+          templateNode.querySelector('.remove-gateway-button').addEventListener('click', function() {
+              templateNode.remove();
+              checkMaxGateways();
+          });
+      }
+
+      function checkMaxGateways() {
+          addGatewayButton.disabled = gatewaysContainer.children.length >= maxGateways;
+      }
+      
+      function addCollapsibleListener(element) {
+        element.addEventListener('click', function() {
+            const body = this.nextElementSibling;
+            if (body && body.classList.contains('gateway-body')) {
+                body.style.display = body.style.display === 'none' ? 'block' : 'none';
             }
         });
-    }
+      }
 
-    // Обеспечиваем эксклюзивность для чекбоксов "Reboot"
-    gatewaysContainer.addEventListener('change', function(event) {
-        const target = event.target;
-        if (target.matches('input[type="checkbox"][data-name="custom_boolean_flag"]') && target.checked) {
-            const allRebootCheckboxes = gatewaysContainer.querySelectorAll('input[type="checkbox"][data-name="custom_boolean_flag"]');
-            allRebootCheckboxes.forEach(checkbox => {
-                if (checkbox !== target) {
-                    checkbox.checked = false;
-                }
-            });
-        }
-    });
+      function addGateway(data = null) {
+          if (gatewaysContainer.children.length >= maxGateways) return;
+          
+          const templateNode = gatewayTemplate.cloneNode(true);
+          templateNode.style.display = 'block';
+          
+          const gatewayNumberSpan = templateNode.querySelector('.gateway-number');
+          gatewayNumberSpan.textContent = `#${gatewayCounter + 1}`;
+          
+          const title = templateNode.querySelector('.gateway-title-collapsible');
+          const body = templateNode.querySelector('.gateway-body');
 
-    // ===== EDIT MODE FUNCTIONS =====
-    function setupEditModeGateway(templateNode, gatewayData) {
-        const idInput = templateNode.querySelector(`[data-name="id"]`);
-        const nameInput = templateNode.querySelector(`[data-name="gateway_name"]`);
-        const lineCountInput = templateNode.querySelector(`[data-name="line_count"]`);
-        const rebootCheckbox = templateNode.querySelector(`[data-name="custom_boolean_flag"]`);
-        const saveButton = templateNode.querySelector('.save-gateway-button');
-        const removeButton = templateNode.querySelector('.remove-gateway-button');
-        const saveConfigButton = templateNode.querySelector('.save-config-button');
-        const fileInput = templateNode.querySelector('[data-name="config_file"]');
-        const configInfoContainer = templateNode.querySelector('.config-file-info-container');
-        const downloadLink = templateNode.querySelector('.download-config-link');
+          if (action === 'edit') {
+              setupEditModeGateway(templateNode, data);
+          } else {
+              setupAddModeGateway(templateNode, gatewayCounter);
+          }
+          
+          addCollapsibleListener(title);
+          
+          if(data) {
+            body.style.display = 'none';
+          }
 
-        function updateConfigFileInfo(filename, uploadedAt) {
-            configInfoContainer.innerHTML = '';
-            downloadLink.style.display = 'none';
+          gatewaysContainer.appendChild(templateNode);
+          gatewayCounter++;
+          checkMaxGateways();
+      }
 
-            if (filename) {
-                const infoSpan = document.createElement('span');
-                const date = new Date(uploadedAt);
-                infoSpan.textContent = `Загружен: ${filename} (${date.toLocaleString()})`;
-                infoSpan.className = 'config-file-info';
-                configInfoContainer.appendChild(infoSpan);
+      addGatewayButton.addEventListener('click', () => addGateway(null));
 
-                if (gatewayData && gatewayData.id) {
-                    downloadLink.href = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayData.id}/download_config`;
-                    downloadLink.style.display = 'inline-block';
-                }
-            }
-        }
-        
-        // Fill data for existing gateways
-        if (gatewayData && gatewayData.id) {
-            idInput.value = gatewayData.id;
-            nameInput.value = gatewayData.gateway_name || '';
-            lineCountInput.value = gatewayData.line_count || '';
-            lineCountInput.disabled = true;
-            rebootCheckbox.checked = gatewayData.custom_boolean_flag === true;
-            updateConfigFileInfo(gatewayData.config_backup_original_name, gatewayData.config_backup_uploaded_at);
-            saveButton.textContent = 'Обновить';
-        }
+      if (action === 'edit') {
+          if (existingGateways.length > 0) {
+              existingGateways.forEach(addGateway);
+          }
+      } 
+      checkMaxGateways();
+  });
+  </script>
 
-        fileInput.addEventListener('change', function() {
-            if (idInput.value && this.files.length > 0) {
-                saveConfigButton.style.display = 'inline-block';
-            } else {
-                saveConfigButton.style.display = 'none';
-            }
-        });
-
-        saveConfigButton.addEventListener('click', async function() {
-            const gatewayId = idInput.value;
-            const file = fileInput.files[0];
-            if (!gatewayId || !file) return;
-            const formData = new FormData();
-            formData.append('config_file', file);
-            try {
-                const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}/upload_config`, { method: 'POST', body: formData });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.detail || 'Server error');
-                alert(result.message);
-                updateConfigFileInfo(result.original_filename, result.uploaded_at);
-                saveConfigButton.style.display = 'none';
-                fileInput.value = '';
-            } catch (error) {
-                alert(`Ошибка загрузки: ${error.message}`);
-            }
-        });
-
-        removeButton.addEventListener('click', async function() {
-            const gatewayId = idInput.value;
-            if (!gatewayId) {
-                templateNode.remove();
-                return;
-            }
-            if (confirm('Вы уверены, что хотите удалить этот шлюз?')) {
-                try {
-                    const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`, { method: 'DELETE' });
-                    if (!response.ok) {
-                        const result = await response.json();
-                        throw new Error(result.detail || 'Server error');
-                    }
-                    alert('Шлюз удален.');
-                    templateNode.remove();
-                } catch (error) {
-                    alert(`Ошибка удаления: ${error.message}`);
-                }
-            }
-        });
-
-        saveButton.addEventListener('click', async function() {
-            const gatewayId = idInput.value;
-            const gatewayName = nameInput.value.trim();
-            if (!gatewayName) {
-                alert('Наименование шлюза не может быть пустым.');
-                return;
-            }
-            const data = {
-                gateway_name: gatewayName,
-                custom_boolean_flag: rebootCheckbox.checked
-            };
-            let url, method;
-
-            if (gatewayId) { // Update existing
-                url = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`;
-                method = 'PUT';
-            } else { // Create new
-                const lineCount = parseInt(lineCountInput.value, 10);
-                if (isNaN(lineCount) || lineCount < 1 || lineCount > 32) {
-                    alert('Количество линий должно быть числом от 1 до 32.');
-                    return;
-                }
-                data.line_count = lineCount;
-                url = `/admin/enterprises/${enterpriseNumber}/gateways`;
-                method = 'POST';
-            }
-
-            try {
-                const response = await fetch(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.detail || 'Server error');
-                
-                if (!gatewayId) { // After creation
-                    alert('Шлюз успешно сохранен!');
-                    idInput.value = result.id;
-                    lineCountInput.disabled = true;
-                    saveButton.textContent = 'Обновить';
-                } else {
-                    alert('Шлюз успешно обновлен!');
-                }
-            } catch (error) {
-                alert(`Ошибка: ${error.message}`);
-            }
-        });
-    }
-
-    // ===== ADD MODE FUNCTION =====
-    function setupAddModeGateway(templateNode, index) {
-        // Set names for form submission
-        templateNode.querySelector('[data-name="id"]').name = `gateways[${index}][id]`;
-        templateNode.querySelector('[data-name="gateway_name"]').name = `gateways[${index}][gateway_name]`;
-        templateNode.querySelector('[data-name="line_count"]').name = `gateways[${index}][line_count]`;
-        templateNode.querySelector('[data-name="custom_boolean_flag"]').name = `gateways[${index}][custom_boolean_flag]`;
-        templateNode.querySelector('[data-name="config_file"]').name = `gateways[${index}][config_file]`;
-        
-        // Hide API-based buttons
-        templateNode.querySelector('.save-gateway-button').style.display = 'none';
-        templateNode.querySelector('.save-config-button').style.display = 'none';
-        
-        templateNode.querySelector('.remove-gateway-button').addEventListener('click', function() {
-            templateNode.remove();
-            checkMaxGateways();
-        });
-    }
-
-    // ===== MAIN LOGIC =====
-    function checkMaxGateways() {
-        addGatewayButton.disabled = gatewaysContainer.children.length >= maxGateways;
-    }
-
-    function addGateway(data = null) {
-        if (gatewaysContainer.children.length >= maxGateways) return;
-        
-        const templateNode = gatewayTemplate.cloneNode(true);
-        templateNode.style.display = 'block';
-        
-        const gatewayNumberSpan = templateNode.querySelector('.gateway-number');
-        gatewayNumberSpan.textContent = `#${gatewayCounter + 1}`;
-        
-        if (action === 'edit') {
-            setupEditModeGateway(templateNode, data);
-        } else {
-            setupAddModeGateway(templateNode, gatewayCounter);
-        }
-        
-        gatewaysContainer.appendChild(templateNode);
-        gatewayCounter++;
-        checkMaxGateways();
-    }
-
-    addGatewayButton.addEventListener('click', () => addGateway(null));
-
-    // Initial population
-    if (action === 'edit') {
-        if (existingGateways.length > 0) {
-            existingGateways.forEach(addGateway);
-        }
-    } else {
-        // For 'add' mode, you can uncomment this to start with one empty gateway form
-        // addGateway(null);
-    }
-    checkMaxGateways();
-});
-</script>
-
-<script>
-    // Separate script for notifications
-    document.addEventListener('DOMContentLoaded', function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('notification')) {
-            alert(urlParams.get('notification'));
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-    });
-</script>
+  <script>
+      document.addEventListener('DOMContentLoaded', function() {
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.has('notification')) {
+              alert(urlParams.get('notification'));
+              window.history.replaceState({}, document.title, window.location.pathname);
+          }
+      });
+  </script>
 
 </body>
 </html>
