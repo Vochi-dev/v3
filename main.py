@@ -119,12 +119,16 @@ from app.routers.email_users import router as email_users_router   # /admin/emai
 from app.routers.auth_email import router as auth_email_router     # /verify-email/{token}
 from app.routers import asterisk
 from app.routers.enterprise import router as enterprise_pg_router
+from app.routers.mobile import router as mobile_router
+from app.routers.sip import router as sip_router
 
 app.include_router(admin.router)
 app.include_router(email_users_router)
 app.include_router(auth_email_router)
 app.include_router(asterisk.router)
 app.include_router(enterprise_pg_router, tags=["enterprises_postgresql"])
+app.include_router(mobile_router, tags=["mobile"])
+app.include_router(sip_router, tags=["sip"])
 
 # --- Обработчик ошибок валидации запросов (422) ---
 @app.exception_handler(RequestValidationError)

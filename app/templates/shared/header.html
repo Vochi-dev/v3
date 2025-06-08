@@ -65,6 +65,103 @@
   .main-header nav li {
     margin: 0;
   }
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+  }
+  .modal-content {
+    background-color: #fefefe;
+    margin: 10% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 800px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+  }
+  .modal-header {
+    padding: 10px 15px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+  .modal-body {
+      padding: 15px;
+      overflow-y: auto;
+  }
+  .modal-footer {
+    padding: 15px;
+    border-top: 1px solid #dee2e6;
+    text-align: right;
+  }
+
+  .close-btn {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .close-btn:hover,
+  .close-btn:focus {
+    color: black;
+    text-decoration: none;
+  }
+  .table {
+      width: 100%;
+      border-collapse: collapse;
+  }
+  .table th, .table td {
+      border: 1px solid #dee2e6;
+      padding: 8px;
+      text-align: left;
+  }
+  .table th {
+      background-color: #f2f2f2;
+  }
+  .btn {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+  }
+  .btn-primary {
+      background-color: #007bff;
+      color: white;
+  }
+  .btn-sm {
+      padding: 5px 10px;
+      font-size: 0.875em;
+  }
+  .form-group {
+      margin-bottom: 1rem;
+  }
+  .form-group label {
+      display: block;
+      margin-bottom: .5rem;
+  }
+  .form-group input[type="text"], .form-group textarea {
+      width: 100%;
+      padding: .375rem .75rem;
+      border: 1px solid #ced4da;
+      border-radius: .25rem;
+      box-sizing: border-box;
+  }
 </style>
 
 <header class="main-header">
@@ -80,7 +177,340 @@
     <ul>
       <li><a href="/admin/dashboard">Монитор</a></li>
       <li><a href="/admin/enterprises">Компании</a></li>
+      <li><a href="#" id="openSipModalBtn">SIP</a></li>
+      <li><a href="#" id="openMobileModalBtn">Mobile</a></li>
       <!-- Дополнительные кнопки можно будет добавить сюда -->
     </ul>
   </nav>
 </header> 
+
+<!-- Модальное окно для Mobile операторов -->
+<div id="mobileOperatorsModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="closeMobileModalBtn">&times;</span>
+        <h2>Мобильные операторы</h2>
+        <div class="modal-body">
+            <table id="mobile-operators-table" class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Имя</th>
+                        <th>Шаблон</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="mobile-operators-list">
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button id="addMobileOperatorBtn" class="btn btn-primary">Добавить оператора</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для формы добавления/редактирования Mobile оператора -->
+<div id="mobileOperatorFormModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="closeMobileFormModalBtn">&times;</span>
+        <h2 id="mobile-form-title">Добавить мобильного оператора</h2>
+        <form id="mobile-operator-form">
+            <input type="hidden" id="mobile-operator-id">
+            <div class="form-group">
+                <label for="mobile-operator-name">Имя:</label>
+                <input type="text" id="mobile-operator-name" required>
+            </div>
+            <div class="form-group">
+                <label for="mobile-operator-shablon">Шаблон:</label>
+                <input type="text" id="mobile-operator-shablon">
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно для SIP операторов -->
+<div id="sipOperatorsModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="closeSipModalBtn">&times;</span>
+        <h2>SIP Операторы</h2>
+        <div class="modal-body">
+            <table id="sip-operators-table" class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Имя</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="sip-operators-list">
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button id="addSipOperatorBtn" class="btn btn-primary">Добавить оператора</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для формы добавления/редактирования SIP оператора -->
+<div id="sipOperatorFormModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="closeSipFormModalBtn">&times;</span>
+        <h2 id="sip-form-title">Добавить SIP оператора</h2>
+        <form id="sip-operator-form">
+            <input type="hidden" id="sip-operator-id">
+            <div class="form-group">
+                <label for="sip-operator-name">Имя:</label>
+                <input type="text" id="sip-operator-name" required>
+            </div>
+            <div class="form-group">
+                <label for="sip-operator-shablon">Шаблон:</label>
+                <textarea id="sip-operator-shablon" rows="20"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Логика для Mobile операторов ---
+    const openMobileModalBtn = document.getElementById('openMobileModalBtn');
+    if (openMobileModalBtn) {
+        const mobileOperatorsModal = document.getElementById('mobileOperatorsModal');
+        const closeMobileModalBtn = document.getElementById('closeMobileModalBtn');
+        const mobileOperatorsList = document.getElementById('mobile-operators-list');
+        const addMobileOperatorBtn = document.getElementById('addMobileOperatorBtn');
+        const mobileOperatorFormModal = document.getElementById('mobileOperatorFormModal');
+        const closeMobileFormModalBtn = document.getElementById('closeMobileFormModalBtn');
+        const mobileOperatorForm = document.getElementById('mobile-operator-form');
+        const mobileFormTitle = document.getElementById('mobile-form-title');
+        const mobileOperatorId = document.getElementById('mobile-operator-id');
+        const mobileOperatorName = document.getElementById('mobile-operator-name');
+        const mobileOperatorShablon = document.getElementById('mobile-operator-shablon');
+
+        function renderMobileOperators(operators) {
+            mobileOperatorsList.innerHTML = '';
+            operators.forEach(op => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${op.id}</td>
+                    <td>${op.name}</td>
+                    <td>${op.shablon || ''}</td>
+                    <td>
+                        <button class="btn btn-sm btn-edit-mobile" data-id="${op.id}" data-name="${op.name}" data-shablon="${op.shablon || ''}">✏️</button>
+                        <button class="btn btn-sm btn-delete-mobile" data-id="${op.id}">🗑️</button>
+                    </td>
+                `;
+                mobileOperatorsList.appendChild(tr);
+            });
+        }
+
+        openMobileModalBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                const response = await fetch('/admin/mobile/operators');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const operators = await response.json();
+                renderMobileOperators(operators);
+                mobileOperatorsModal.style.display = 'block';
+            } catch (error) {
+                console.error("Error loading mobile operators:", error);
+                alert("Error loading mobile operators.");
+            }
+        });
+
+        closeMobileModalBtn.addEventListener('click', () => mobileOperatorsModal.style.display = 'none');
+        closeMobileFormModalBtn.addEventListener('click', () => mobileOperatorFormModal.style.display = 'none');
+        
+        addMobileOperatorBtn.addEventListener('click', () => {
+            mobileOperatorForm.reset();
+            mobileOperatorId.value = '';
+            mobileFormTitle.textContent = 'Добавить мобильного оператора';
+            mobileOperatorFormModal.style.display = 'block';
+        });
+
+        mobileOperatorsList.addEventListener('click', async (event) => {
+            const target = event.target.closest('button');
+            if (!target) return;
+
+            if (target.classList.contains('btn-edit-mobile')) {
+                mobileOperatorId.value = target.dataset.id;
+                mobileOperatorName.value = target.dataset.name;
+                mobileOperatorShablon.value = target.dataset.shablon;
+                mobileFormTitle.textContent = 'Редактировать мобильного оператора';
+                mobileOperatorFormModal.style.display = 'block';
+            }
+
+            if (target.classList.contains('btn-delete-mobile')) {
+                const id = target.dataset.id;
+                if (confirm('Вы уверены?')) {
+                    try {
+                        const response = await fetch(`/admin/mobile/operators/${id}`, { method: 'DELETE' });
+                        if (!response.ok) throw new Error('Failed to delete');
+                        const operatorsResponse = await fetch('/admin/mobile/operators');
+                        const operators = await operatorsResponse.json();
+                        renderMobileOperators(operators);
+                    } catch (error) {
+                        alert("Failed to delete operator.");
+                    }
+                }
+            }
+        });
+
+        mobileOperatorForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const id = mobileOperatorId.value;
+            const name = mobileOperatorName.value;
+            const shablon = mobileOperatorShablon.value;
+            const url = id ? `/admin/mobile/operators/${id}` : '/admin/mobile/operators';
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, shablon })
+                });
+                if (!response.ok) {
+                     const errorData = await response.json();
+                     throw new Error(errorData.detail || 'Failed to save');
+                }
+                mobileOperatorFormModal.style.display = 'none';
+                const operatorsResponse = await fetch('/admin/mobile/operators');
+                const operators = await operatorsResponse.json();
+                renderMobileOperators(operators);
+            } catch (error) {
+                alert(`Could not save operator: ${error.message}`);
+            }
+        });
+    }
+
+    // --- Логика для SIP операторов ---
+    const openSipModalBtn = document.getElementById('openSipModalBtn');
+    if (openSipModalBtn) {
+        const sipOperatorsModal = document.getElementById('sipOperatorsModal');
+        const closeSipModalBtn = document.getElementById('closeSipModalBtn');
+        const sipOperatorsList = document.getElementById('sip-operators-list');
+        const addSipOperatorBtn = document.getElementById('addSipOperatorBtn');
+        const sipOperatorFormModal = document.getElementById('sipOperatorFormModal');
+        const closeSipFormModalBtn = document.getElementById('closeSipFormModalBtn');
+        const sipOperatorForm = document.getElementById('sip-operator-form');
+        const sipFormTitle = document.getElementById('sip-form-title');
+        const sipOperatorId = document.getElementById('sip-operator-id');
+        const sipOperatorName = document.getElementById('sip-operator-name');
+        const sipOperatorShablon = document.getElementById('sip-operator-shablon');
+
+        function renderSipOperators(operators) {
+            sipOperatorsList.innerHTML = '';
+            operators.forEach(op => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${op.id}</td>
+                    <td>${op.name}</td>
+                    <td>
+                        <button class="btn btn-sm btn-edit-sip" data-id="${op.id}" data-name="${op.name}" data-shablon="${op.shablon || ''}">✏️</button>
+                        <button class="btn btn-sm btn-delete-sip" data-id="${op.id}">🗑️</button>
+                    </td>
+                `;
+                sipOperatorsList.appendChild(tr);
+            });
+        }
+
+        openSipModalBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                const response = await fetch('/admin/sip/operators');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const operators = await response.json();
+                renderSipOperators(operators);
+                sipOperatorsModal.style.display = 'block';
+            } catch (error) {
+                console.error("Error loading SIP operators:", error);
+                alert("Error loading SIP operators.");
+            }
+        });
+
+        closeSipModalBtn.addEventListener('click', () => sipOperatorsModal.style.display = 'none');
+        closeSipFormModalBtn.addEventListener('click', () => sipOperatorFormModal.style.display = 'none');
+        
+        addSipOperatorBtn.addEventListener('click', () => {
+            sipOperatorForm.reset();
+            sipOperatorId.value = '';
+            sipFormTitle.textContent = 'Добавить SIP оператора';
+            sipOperatorFormModal.style.display = 'block';
+        });
+
+        sipOperatorsList.addEventListener('click', async (event) => {
+            const target = event.target.closest('button');
+            if (!target) return;
+
+            if (target.classList.contains('btn-edit-sip')) {
+                sipOperatorId.value = target.dataset.id;
+                sipOperatorName.value = target.dataset.name;
+                sipOperatorShablon.value = target.dataset.shablon;
+                sipFormTitle.textContent = 'Редактировать SIP оператора';
+                sipOperatorFormModal.style.display = 'block';
+            }
+
+            if (target.classList.contains('btn-delete-sip')) {
+                const id = target.dataset.id;
+                if (confirm('Вы уверены?')) {
+                    try {
+                        const response = await fetch(`/admin/sip/operators/${id}`, { method: 'DELETE' });
+                        if (!response.ok) throw new Error('Failed to delete');
+                        const operatorsResponse = await fetch('/admin/sip/operators');
+                        const operators = await operatorsResponse.json();
+                        renderSipOperators(operators);
+                    } catch (error) {
+                        alert("Failed to delete operator.");
+                    }
+                }
+            }
+        });
+
+        sipOperatorForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const id = sipOperatorId.value;
+            const name = sipOperatorName.value;
+            const shablon = sipOperatorShablon.value;
+            const url = id ? `/admin/sip/operators/${id}` : '/admin/sip/operators';
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, shablon })
+                });
+                if (!response.ok) {
+                     const errorData = await response.json();
+                     throw new Error(errorData.detail || 'Failed to save');
+                }
+                sipOperatorFormModal.style.display = 'none';
+                const operatorsResponse = await fetch('/admin/sip/operators');
+                const operators = await operatorsResponse.json();
+                renderSipOperators(operators);
+            } catch (error) {
+                alert(`Could not save operator: ${error.message}`);
+            }
+        });
+    }
+
+    window.addEventListener('click', (event) => {
+        const mobileOperatorsModal = document.getElementById('mobileOperatorsModal');
+        const mobileOperatorFormModal = document.getElementById('mobileOperatorFormModal');
+        const sipOperatorsModal = document.getElementById('sipOperatorsModal');
+        const sipOperatorFormModal = document.getElementById('sipOperatorFormModal');
+        if (event.target == mobileOperatorsModal) mobileOperatorsModal.style.display = 'none';
+        if (event.target == mobileOperatorFormModal) mobileOperatorFormModal.style.display = 'none';
+        if (event.target == sipOperatorsModal) sipOperatorsModal.style.display = 'none';
+        if (event.target == sipOperatorFormModal) sipOperatorFormModal.style.display = 'none';
+    });
+});
+</script> 
