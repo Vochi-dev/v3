@@ -121,6 +121,7 @@ from app.routers import asterisk
 from app.routers.enterprise import router as enterprise_pg_router
 from app.routers.mobile import router as mobile_router
 from app.routers.sip import router as sip_router
+from app.routers.gateway import router as gateway_router
 
 app.include_router(admin.router)
 app.include_router(email_users_router)
@@ -129,6 +130,7 @@ app.include_router(asterisk.router)
 app.include_router(enterprise_pg_router, tags=["enterprises_postgresql"])
 app.include_router(mobile_router, tags=["mobile"])
 app.include_router(sip_router, tags=["sip"])
+app.include_router(gateway_router, tags=["gateways"])
 
 # --- Обработчик ошибок валидации запросов (422) ---
 @app.exception_handler(RequestValidationError)

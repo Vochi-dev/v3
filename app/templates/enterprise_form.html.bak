@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>{% if action == 'add' %}Добавить предприятие{% else %}Редактировать предприятие{% endif %}</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 0;
+      margin: 0;
+      background-color: #f9f9f9;
+      color: #333;
+      font-size: 14px;
+    }
+    .content-wrapper { padding: 1rem; }
+    form {
+      max-width: 1100px;
+      background: white;
+      padding: 1rem;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    label {
+      display: block;
+      margin-bottom: 0.1rem;
+      font-weight: 600;
+    }
+    input[type="text"], input[type="password"], input[type="number"], input[type="file"] {
+      width: 100%;
+      padding: 0.3rem;
+      margin-top: 0.1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 0.95rem;
+    }
+    input:disabled {
+        background-color: #eee;
+        cursor: not-allowed;
+    }
+    .button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 4px;
+      transition: background-color: 0.3s ease;
+    }
+    .button:hover {
+      background-color: #0056b3;
+    }
+    .error {
+      color: #d9534f;
+      margin-top: 1rem;
+      font-weight: bold;
+      background-color: #f8d7da;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      border: 1px solid #f5c6cb;
+    }
+    a.back-link {
+      display: inline-block;
+      margin-top: 0.8rem;
+      text-decoration: none;
+      color: #007bff;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    a.back-link:hover {
+      text-decoration: underline;
+    }
+    h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.8rem;
+    }
+    .form-container-columns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+    .form-column-main {
+      flex: 2;
+      min-width: 300px;
+    }
+    .form-column-main .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.8rem;
+    }
+    .form-column-main .form-group {
+      margin-bottom: 0.6rem;
+    }
+    .form-column-main .checkbox-group {
+      margin-top: 0.8rem;
+      padding: 0.6rem;
+      border: 1px solid #eee;
+      border-radius: 4px;
+    }
+    .form-column-main .checkbox-group legend {
+      font-weight: 600;
+      padding: 0 0.3rem;
+    }
+    .form-column-main .checkbox-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.2rem;
+    }
+    .form-column-main .checkbox-item input[type="checkbox"] {
+      margin-right: 0.5rem;
+      transform: scale(0.9);
+    }
+    .form-column-main .checkbox-item label {
+      margin-bottom: 0;
+      font-weight: normal;
+    }
+    .form-column-gateways {
+      flex: 1;
+      min-width: 320px;
+      border: 1px solid #e0e0e0;
+      padding: 1rem;
+      border-radius: 4px;
+      background-color: #fdfdfd;
+    }
+    .form-column-gateways h2 {
+        margin-top: 0;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: #333;
+    }
+    .gateway-entry {
+      border: 1px solid #e9e9e9;
+      padding: 0.8rem;
+      margin-bottom: 1rem;
+      border-radius: 4px;
+      background-color: #fff;
+      position: relative;
+    }
+    .gateway-entry h4 {
+      margin-top: 0;
+      margin-bottom: 0.7rem;
+      font-size: 1.1rem;
+      color: #555;
+      border-bottom: 1px solid #f0f0f0;
+      padding-bottom: 0.4rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-right: 30px;
+    }
+    .gateway-entry .form-group {
+        margin-bottom: 0.5rem;
+    }
+    .button-small {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.85rem;
+      text-decoration: none;
+      background-color: #6c757d;
+      color: white;
+      border-radius: 3px;
+      margin-left: 0.5rem;
+      display: inline-block;
+      border: none;
+      cursor: pointer;
+    }
+    .button-small.remove-gateway-button {
+        background-color: #dc3545;
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+    .button-small.remove-gateway-button:hover {
+        background-color: #c82333;
+    }
+    .button-small:hover {
+      background-color: #5a6268;
+    }
+    .config-file-info {
+        font-size: 0.85rem;
+        color: #555;
+        display: block;
+        margin-top: 0.3rem;
+    }
+    #add-gateway-button {
+        margin-top: 0.5rem;
+    }
+    #gateway-template { 
+        display: none; 
+    }
+    .save-gateway-button {
+      background-color: #28a745;
+      margin-top: 0.5rem;
+    }
+    .save-gateway-button:hover {
+      background-color: #218838;
+    }
+    .save-gateway-button:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
+    }
+    .save-config-button {
+        background-color: #17a2b8;
+        display: none;
+    }
+    .save-config-button:hover {
+        background-color: #138496;
+    }
+    .gateway-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.8rem;
+    }
+    .download-config-link {
+      background-color: #007bff;
+      text-decoration: none;
+    }
+    .download-config-link:hover {
+        background-color: #0056b3;
+    }
+    .gateway-entry h4.gateway-title-clickable {
+        color: #007bff;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    /* Modal styles */
+    .modal {
+        display: none; 
+        position: fixed; 
+        z-index: 1050; 
+        left: 0;
+        top: 0;
+        width: 100%; 
+        height: 100%; 
+        background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+        background-color: #fefefe;
+        margin: 5% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 95%;
+        max-width: 1500px; /* MATCHES THE FORM WIDTH */
+        border-radius: 6px;
+        position: relative;
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+    .modal-close-button {
+        color: #aaa;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .modal-close-button:hover,
+    .modal-close-button:focus {
+        color: black;
+    }
+    .modal-body {
+        max-height: 80vh;
+        overflow-y: auto;
+        overflow-x: auto; /* KEEPS HORIZONTAL SCROLL FOR TABLE */
+    }
+    #gsm-lines-table-container {
+        /* No styles needed here */
+    }
+    #gsm-lines-table-container table {
+        min-width: 1300px; /* FORCES TABLE TO BE WIDE, ENABLING SCROLL */
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+    #gsm-lines-table-container th, 
+    #gsm-lines-table-container td {
+        border: 1px solid #ddd;
+        padding: 8px 10px;
+        text-align: left;
+        white-space: nowrap;
+    }
+    #gsm-lines-table-container th {
+        background-color: #f2f2f2;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+    #gsm-lines-table-container input[type="text"] {
+        width: 100%;
+        padding: 4px;
+        box-sizing: border-box;
+    }
+    .modal-loader {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1.2rem;
+        color: #555;
+    }
+  </style>
+</head>
+<body>
+  {% include 'shared/header.html' %}
+  <div class="content-wrapper">
+    <h1>{% if action == 'add' %}Добавить предприятие{% else %}Редактировать предприятие: {{ enterprise.name or enterprise.number }}{% endif %}</h1>
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form id="enterprise-form" method="post" action="{% if action == 'add' %}/admin/enterprises/add{% else %}/admin/enterprises/{{ enterprise.number }}/edit{% endif %}" enctype="multipart/form-data">
+      
+      <input type="hidden" id="reboot_gateway_id" name="reboot_gateway_id" value="">
+
+      <div class="form-container-columns">
+        <div class="form-column-main">
+          <div class="form-grid">
+            <div class="form-group"><label for="number">Номер</label><input id="number" type="text" name="number" required {% if action == 'edit' %} value="{{ enterprise.number }}" readonly {% else %} value="{{ enterprise.number or '' }}" {% endif %}></div>
+            <div class="form-group"><label for="is_enabled">Предприятие активно (enabled)</label><input id="is_enabled" type="checkbox" name="is_enabled" value="true" {% if enterprise.is_enabled %}checked{% endif %}></div>
+            <div class="form-group"><label for="name">Название</label><input id="name" type="text" name="name" required value="{{ enterprise.name or '' }}"></div>
+            <div class="form-group"><label for="name2">Доп. имя (name2)</label><input id="name2" type="text" name="name2" value="{{ enterprise.name2 or '' }}"></div>
+            <div class="form-group"><label for="secret">Secret</label><input id="secret" type="text" name="secret" required value="{{ enterprise.secret or '' }}"></div>
+            <div class="form-group"><label for="bot_token">Bot Token</label><input id="bot_token" type="text" name="bot_token" value="{{ enterprise.bot_token or '' }}"></div>
+            <div class="form-group"><label for="chat_id">Chat ID</label><input id="chat_id" type="text" name="chat_id" value="{{ enterprise.chat_id or '374573193' }}"></div>
+            <div class="form-group"><label for="ip">IP</label><input id="ip" type="text" name="ip" required value="{{ enterprise.ip or '' }}"></div>
+            <div class="form-group"><label for="host">Host</label><input id="host" type="text" name="host" required value="{{ enterprise.host or '' }}"></div>
+            <div class="form-group"><label for="custom_domain">Домен</label><input id="custom_domain" type="text" name="custom_domain" value="{{ enterprise.custom_domain or '' }}"></div>
+            <div class="form-group"><label for="custom_port">Порт (для домена)</label><input id="custom_port" type="number" name="custom_port" value="{{ enterprise.custom_port or '' }}"></div>
+            <div class="form-group"><label for="scheme_count">Кол-во схем</label><input id="scheme_count" type="number" name="scheme_count" value="{{ enterprise.scheme_count or 3 }}"></div>
+            <div class="form-group"><label for="gsm_line_count">Кол-во GSM-линий</label><input id="gsm_line_count" type="number" name="gsm_line_count" value="{{ enterprise.gsm_line_count or 8 }}"></div>
+          </div>
+
+          <fieldset class="checkbox-group">
+            <legend>Дополнительные параметры</legend>
+            <div class="checkbox-item"><input id="parameter_option_1" type="checkbox" name="parameter_option_1" value="true" {% if enterprise.parameter_option_1 %}checked{% endif %}><label for="parameter_option_1">Параметр 1</label></div>
+            <div class="checkbox-item"><input id="parameter_option_2" type="checkbox" name="parameter_option_2" value="true" {% if enterprise.parameter_option_2 %}checked{% endif %}><label for="parameter_option_2">Параметр 2</label></div>
+            <div class="checkbox-item"><input id="parameter_option_3" type="checkbox" name="parameter_option_3" value="true" {% if enterprise.parameter_option_3 %}checked{% endif %}><label for="parameter_option_3">Параметр 3</label></div>
+            <div class="checkbox-item"><input id="parameter_option_4" type="checkbox" name="parameter_option_4" value="true" {% if enterprise.parameter_option_4 %}checked{% endif %}><label for="parameter_option_4">Параметр 4</label></div>
+            <div class="checkbox-item"><input id="parameter_option_5" type="checkbox" name="parameter_option_5" value="true" {% if enterprise.parameter_option_5 %}checked{% endif %}><label for="parameter_option_5">Параметр 5</label></div>
+            <div class="checkbox-item"><input id="active" type="checkbox" name="active" value="true" {% if enterprise.active == 1 or enterprise.active == True %}checked{% endif %}><label for="active">Активен (бот)</label></div>
+          </fieldset>
+
+        </div>
+
+        <div class="form-column-gateways">
+          <h2>Шлюзы</h2>
+          <div id="gateways-container">
+              <!-- Gateways will be rendered here by script -->
+          </div>
+          <button type="button" id="add-gateway-button" class="button">Добавить шлюз</button>
+        </div>
+      </div>
+
+      <button class="button" type="submit">{% if action == 'add' %}Добавить{% else %}Сохранить предприятие{% endif %}</button>
+      <a href="/admin/enterprises" class="back-link">← Назад к списку предприятий</a>
+    </form>
+
+  </div>
+  
+  <div id="gateway-template" class="gateway-entry" style="display: none;">
+    <button type="button" class="button-small remove-gateway-button" title="Удалить шлюз">X</button>
+    <h4>
+        <span>Шлюз <span class="gateway-number"></span></span>
+        <div class="gateway-actions" style="display: flex; align-items: center;">
+            <input type="checkbox" data-name="custom_boolean_flag" value="true" style="width: auto; margin-right: 5px;">
+            <label style="display: inline; font-weight: normal; margin-right: 10px;">Reboot</label>
+        </div>
+    </h4>
+    <div class="gateway-body">
+        <input type="hidden" data-name="id" value="">
+        <div class="form-group"><label>Наименование</label><input type="text" data-name="gateway_name" value=""></div>
+        <div class="form-group"><label>Кол-во линий</label><input type="number" data-name="line_count" value=""></div>
+        <div class="form-group">
+           <label>Загрузить конфиг</label>
+           <input type="file" data-name="config_file"/>
+           <span class="config-file-info-container"></span>
+           <button type="button" class="button button-small save-config-button" style="display:none;">Сохранить конфиг</button>
+        </div>
+        <div class="gateway-controls">
+          <button type="button" class="button button-small save-gateway-button">Сохранить</button>
+          <a href="#" class="button button-small download-config-link" style="display: none;">Скачать конфиг</a>
+       </div>
+    </div>
+  </div>
+
+  <div id="gsm-lines-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="gsm-lines-modal-title"></h2>
+        <span class="modal-close-button">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div id="gsm-lines-table-container">
+          <!-- Table will be injected here by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+      const mainForm = document.getElementById('enterprise-form');
+      const gatewaysContainer = document.getElementById('gateways-container');
+      const addGatewayButton = document.getElementById('add-gateway-button');
+      const gatewayTemplate = document.getElementById('gateway-template');
+      const gsmLinesModal = document.getElementById('gsm-lines-modal');
+      const gsmLinesModalTitle = document.getElementById('gsm-lines-modal-title');
+      const gsmLinesTableContainer = document.getElementById('gsm-lines-table-container');
+      const modalCloseButton = gsmLinesModal.querySelector('.modal-close-button');
+      
+      let gatewayCounter = 0;
+      const maxGateways = 10;
+      
+      const action = '{{ action }}';
+      const enterpriseNumber = '{{ enterprise.number }}';
+
+      async function loadGateways() {
+        if (action !== 'edit' || !enterpriseNumber) {
+            checkMaxGateways();
+            return;
+        }
+
+        try {
+            const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways_list`);
+            if (!response.ok) {
+                throw new Error('Сетевая ошибка при загрузке шлюзов.');
+            }
+            const gateways = await response.json();
+            if (gateways && gateways.length > 0) {
+                gateways.forEach(addGateway);
+            }
+        } catch (error) {
+            console.error('Не удалось загрузить шлюзы:', error);
+            gatewaysContainer.innerHTML = `<div class="error" style="margin-bottom: 1rem;">${error.message}</div>`;
+        } finally {
+            checkMaxGateways();
+        }
+      }
+
+      // --- Main form submit logic for reboot ---
+      if (mainForm) {
+          mainForm.addEventListener('submit', function() {
+              const rebootInput = document.getElementById('reboot_gateway_id');
+              const checkedCheckbox = gatewaysContainer.querySelector('input[data-name="custom_boolean_flag"]:checked');
+              
+              if (checkedCheckbox) {
+                  const gatewayEntry = checkedCheckbox.closest('.gateway-entry');
+                  const gatewayIdInput = gatewayEntry.querySelector('input[data-name="id"]');
+                  rebootInput.value = gatewayIdInput.value;
+              } else {
+                  rebootInput.value = 'none';
+              }
+          });
+      }
+
+      // --- Exclusive reboot checkbox logic ---
+      gatewaysContainer.addEventListener('change', function(event) {
+          const target = event.target;
+          if (target.matches('input[type="checkbox"][data-name="custom_boolean_flag"]') && target.checked) {
+              const allRebootCheckboxes = gatewaysContainer.querySelectorAll('input[type="checkbox"][data-name="custom_boolean_flag"]');
+              allRebootCheckboxes.forEach(checkbox => {
+                  if (checkbox !== target) {
+                      checkbox.checked = false;
+                  }
+              });
+          }
+      });
+      
+      // --- Modal Logic (MODIFIED) ---
+      async function openGsmLinesModal(gatewayId, gatewayName) {
+        // Устанавливаем заголовок и показываем загрузчик
+        gsmLinesModalTitle.textContent = "GSM Линии для " + gatewayName;
+        gsmLinesTableContainer.innerHTML = '<div class="modal-loader">Загрузка...</div>';
+        gsmLinesModal.style.display = 'block';
+
+        try {
+            // Запрашиваем готовый HTML с таблицей
+            const response = await fetch(`/admin/enterprises/gateways/${gatewayId}/modal`);
+            if (!response.ok) {
+                throw new Error(`Сетевая ошибка: ${response.status}`);
+            }
+            const tableHtml = await response.text();
+            // Вставляем готовую таблицу в контейнер
+            gsmLinesTableContainer.innerHTML = tableHtml;
+
+            // Поскольку таблица теперь загружается динамически, нам нужно найти
+            // и повесить обработчик на новые инпуты фильтрации.
+            const filterInputs = gsmLinesTableContainer.querySelectorAll('input[data-filter-col]');
+            const tableBody = gsmLinesTableContainer.querySelector('tbody');
+            if(filterInputs.length > 0 && tableBody) {
+                const columns = Array.from(filterInputs).map(input => input.dataset.filterCol);
+                filterInputs.forEach(input => {
+                    input.addEventListener('keyup', () => {
+                        const filters = {};
+                        filterInputs.forEach(i => {
+                             if (i.value) filters[i.dataset.filterCol] = i.value.toLowerCase();
+                        });
+
+                        tableBody.querySelectorAll('tr').forEach(row => {
+                            let visible = true;
+                            for(const colKey in filters) {
+                                const cellIndex = columns.indexOf(colKey);
+                                const cell = row.children[cellIndex];
+                                if (cell && !cell.textContent.toLowerCase().includes(filters[colKey])) {
+                                    visible = false;
+                                    break;
+                                }
+                            }
+                            row.style.display = visible ? '' : 'none';
+                        });
+                    });
+                });
+            }
+
+        } catch (error) {
+            gsmLinesTableContainer.innerHTML = `<div class="error">Ошибка загрузки данных: ${error.message}</div>`;
+        }
+      }
+      
+      // Логика закрытия модального окна (без изменений)
+      function closeModal() {
+        gsmLinesModal.style.display = 'none';
+        gsmLinesTableContainer.innerHTML = '';
+      }
+      modalCloseButton.addEventListener('click', closeModal);
+      window.addEventListener('click', (event) => {
+        if (event.target == gsmLinesModal) {
+            closeModal();
+        }
+      });
+
+
+      // --- Gateway Rendering and Event Handling ---
+      function setupEditModeGateway(templateNode, gatewayData) {
+          const idInput = templateNode.querySelector(`[data-name="id"]`);
+          const nameInput = templateNode.querySelector(`[data-name="gateway_name"]`);
+          const lineCountInput = templateNode.querySelector(`[data-name="line_count"]`);
+          const rebootCheckbox = templateNode.querySelector(`[data-name="custom_boolean_flag"]`);
+          const saveButton = templateNode.querySelector('.save-gateway-button');
+          const removeButton = templateNode.querySelector('.remove-gateway-button');
+          const saveConfigButton = templateNode.querySelector('.save-config-button');
+          const fileInput = templateNode.querySelector('[data-name="config_file"]');
+          const configInfoContainer = templateNode.querySelector('.config-file-info-container');
+          const downloadLink = templateNode.querySelector('.download-config-link');
+          const title = templateNode.querySelector('h4');
+
+          function updateConfigFileInfo(filename, uploadedAt) {
+              configInfoContainer.innerHTML = '';
+              downloadLink.style.display = 'none';
+
+              if (filename) {
+                  const infoSpan = document.createElement('span');
+                  const date = new Date(uploadedAt);
+                  infoSpan.textContent = `Загружен: ${filename} (${date.toLocaleString()})`;
+                  infoSpan.className = 'config-file-info';
+                  configInfoContainer.appendChild(infoSpan);
+
+                  if (gatewayData && gatewayData.id) {
+                      downloadLink.href = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayData.id}/download_config`;
+                      downloadLink.style.display = 'inline-block';
+                  }
+              }
+          }
+          
+          if (gatewayData && gatewayData.id) {
+              idInput.value = gatewayData.id;
+              nameInput.value = gatewayData.gateway_name || '';
+              lineCountInput.value = gatewayData.line_count || '';
+              lineCountInput.disabled = true;
+              rebootCheckbox.checked = gatewayData.custom_boolean_flag === true;
+              updateConfigFileInfo(gatewayData.config_backup_original_name, gatewayData.config_backup_uploaded_at);
+              saveButton.textContent = 'Обновить';
+
+              // ############ КЛИКАБЕЛЬНОСТЬ ВОССТАНОВЛЕНА ############
+              title.classList.add('gateway-title-clickable');
+              title.addEventListener('click', function(e) {
+                  // Предотвращаем открытие модалки при клике на чекбокс или его label
+                  if (e.target.type === 'checkbox' || e.target.tagName === 'LABEL') {
+                      return;
+                  }
+                  openGsmLinesModal(gatewayData.id, gatewayData.gateway_name);
+              });
+              // ############ КОНЕЦ ИЗМЕНЕНИЯ ############
+
+          }
+
+          fileInput.addEventListener('change', function() {
+              if (idInput.value && this.files.length > 0) {
+                  saveConfigButton.style.display = 'inline-block';
+              } else {
+                  saveConfigButton.style.display = 'none';
+              }
+          });
+
+          saveConfigButton.addEventListener('click', async function() {
+              const gatewayId = idInput.value;
+              const file = fileInput.files[0];
+              if (!gatewayId || !file) return;
+              const formData = new FormData();
+              formData.append('config_file', file);
+              try {
+                  const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}/upload_config`, { method: 'POST', body: formData });
+                  const result = await response.json();
+                  if (!response.ok) throw new Error(result.detail || 'Server error');
+                  alert(result.message);
+                  updateConfigFileInfo(result.original_filename, result.uploaded_at);
+                  saveConfigButton.style.display = 'none';
+                  fileInput.value = '';
+              } catch (error) {
+                  alert(`Ошибка загрузки: ${error.message}`);
+              }
+          });
+
+          removeButton.addEventListener('click', async function() {
+              const gatewayId = idInput.value;
+              if (!gatewayId) {
+                  templateNode.remove();
+                  return;
+              }
+              if (confirm('Вы уверены, что хотите удалить этот шлюз?')) {
+                  try {
+                      const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`, { method: 'DELETE' });
+                      if (!response.ok) {
+                          const result = await response.json();
+                          throw new Error(result.detail || 'Server error');
+                      }
+                      alert('Шлюз удален.');
+                      templateNode.remove();
+                  } catch (error) {
+                      alert(`Ошибка удаления: ${error.message}`);
+                  }
+              }
+          });
+
+          saveButton.addEventListener('click', async function() {
+              const gatewayId = idInput.value;
+              const gatewayName = nameInput.value.trim();
+              if (!gatewayName) {
+                  alert('Наименование шлюза не может быть пустым.');
+                  return;
+              }
+              const data = {
+                  gateway_name: gatewayName,
+                  custom_boolean_flag: rebootCheckbox.checked
+              };
+              let url, method;
+
+              if (gatewayId) { 
+                  url = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`;
+                  method = 'PUT';
+              } else { 
+                  const lineCount = parseInt(lineCountInput.value, 10);
+                  if (isNaN(lineCount) || lineCount < 1 || lineCount > 32) {
+                      alert('Количество линий должно быть числом от 1 до 32.');
+                      return;
+                  }
+                  data.line_count = lineCount;
+                  url = `/admin/enterprises/${enterpriseNumber}/gateways`;
+                  method = 'POST';
+              }
+
+              try {
+                  const response = await fetch(url, {
+                      method: method,
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(data)
+                  });
+                  const result = await response.json();
+                  if (!response.ok) throw new Error(result.detail || 'Server error');
+                  
+                  if (!gatewayId) { 
+                      alert('Шлюз успешно сохранен! Теперь можно просматривать GSM-линии, обновив страницу.');
+                      idInput.value = result.id;
+                      lineCountInput.disabled = true;
+                      saveButton.textContent = 'Обновить';
+                  } else {
+                      alert('Шлюз успешно обновлен!');
+                  }
+              } catch (error) {
+                  alert(`Ошибка: ${error.message}`);
+              }
+          });
+      }
+
+      function setupAddModeGateway(templateNode, index) {
+          templateNode.querySelector('[data-name="id"]').name = `gateways[${index}][id]`;
+          templateNode.querySelector('[data-name="gateway_name"]').name = `gateways[${index}][gateway_name]`;
+          templateNode.querySelector('[data-name="line_count"]').name = `gateways[${index}][line_count]`;
+          templateNode.querySelector('[data-name="custom_boolean_flag"]').name = `gateways[${index}][custom_boolean_flag]`;
+          templateNode.querySelector('[data-name="config_file"]').name = `gateways[${index}][config_file]`;
+          
+          templateNode.querySelector('.save-gateway-button').style.display = 'none';
+          templateNode.querySelector('.save-config-button').style.display = 'none';
+          
+          templateNode.querySelector('.remove-gateway-button').addEventListener('click', function() {
+              templateNode.remove();
+              checkMaxGateways();
+          });
+      }
+
+      function checkMaxGateways() {
+          addGatewayButton.disabled = gatewaysContainer.children.length >= maxGateways;
+      }
+
+      function addGateway(data = null) {
+          if (gatewaysContainer.children.length >= maxGateways) return;
+          
+          const templateNode = gatewayTemplate.cloneNode(true);
+          templateNode.style.display = 'block';
+          templateNode.id = ''; 
+          
+          const gatewayNumberSpan = templateNode.querySelector('.gateway-number');
+          gatewayNumberSpan.textContent = `#${gatewayCounter + 1}`;
+          
+          if (action === 'edit') {
+              setupEditModeGateway(templateNode, data);
+          } else {
+              setupAddModeGateway(templateNode, gatewayCounter);
+          }
+          
+          gatewaysContainer.appendChild(templateNode);
+          gatewayCounter++;
+          checkMaxGateways();
+      }
+
+      addGatewayButton.addEventListener('click', () => addGateway(null));
+
+      loadGateways();
+      
+  });d
+  </script>
+
+  <script>
+      document.addEventListener('DOMContentLoaded', function() {
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.has('notification')) {
+              alert(urlParams.get('notification'));
+              window.history.replaceState({}, document.title, window.location.pathname);
+          }
+      });
+  </script>
+
+  <script>
+    // Этот скрипт будет инициализирован один раз и будет работать для всех динамически загруженных таблиц
+    document.addEventListener('click', async function(e) {
+        // Проверяем, был ли клик по ссылке для редактирования внутри модального окна
+        if (e.target && e.target.classList.contains('edit-link') && e.target.closest('#gsm-lines-table-container')) {
+            e.preventDefault();
+            const lineId = e.target.dataset.lineId;
+            const modalContainer = document.getElementById('edit-line-modal-container');
+
+            // Если контейнера для вложенной модалки нет, прекращаем работу
+            if (!modalContainer) return;
+
+            // Показываем индикатор загрузки
+            modalContainer.innerHTML = '<div class="modal-loader">Загрузка редактора...</div>';
+
+            try {
+                // 1. Загружаем HTML модального окна
+                const modalHtmlResponse = await fetch('/admin/enterprises/edit_gsm_line_modal.html');
+                if (!modalHtmlResponse.ok) throw new Error('Не удалось загрузить редактор.');
+                modalContainer.innerHTML = await modalHtmlResponse.text();
+
+                // 2. Получаем данные линии
+                const lineDataResponse = await fetch(`/admin/enterprises/gsm_lines/${lineId}`);
+                if (!lineDataResponse.ok) throw new Error('Не удалось загрузить данные линии.');
+                const line = await lineDataResponse.json();
+
+                // 3. Заполняем форму
+                document.getElementById('edit-line-modal-title').textContent = `Редактирование линии (ID: ${line.id})`;
+                document.getElementById('edit-line-id-display').textContent = line.line_id;
+                document.getElementById('edit-line-internal-id').textContent = line.internal_id;
+                document.getElementById('edit-line-id').value = line.id;
+                document.getElementById('edit-line-name').value = line.line_name || '';
+                document.getElementById('edit-line-prefix').value = line.prefix || '';
+
+                // 4. Инициализируем поле телефона
+                const phoneInput = document.getElementById('edit-line-phone');
+                const iti = window.intlTelInput(phoneInput, {
+                    nationalMode: false,
+                    preferredCountries: ['by', 'ru', 'ua'],
+                    utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/js/utils.js"
+                });
+                iti.setNumber(line.phone_number || '');
+                
+                // 5. Обрабатываем отправку формы
+                const form = document.getElementById('edit-line-form');
+                form.addEventListener('submit', async function(submitEvent) {
+                    submitEvent.preventDefault();
+                    const errorContainer = document.getElementById('edit-line-error-container');
+                    errorContainer.style.display = 'none';
+                    errorContainer.textContent = '';
+
+                    const updatedData = {
+                        line_name: document.getElementById('edit-line-name').value,
+                        phone_number: iti.getNumber(),
+                        prefix: document.getElementById('edit-line-prefix').value
+                    };
+
+                    if (updatedData.prefix && !/^\\d{2}$/.test(updatedData.prefix)) {
+                        errorContainer.textContent = 'Префикс должен состоять из двух цифр.';
+                        errorContainer.style.display = 'block';
+                        return;
+                    }
+                    
+                    try {
+                        const updateResponse = await fetch(`/admin/enterprises/gsm_lines/${lineId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(updatedData)
+                        });
+
+                        if (!updateResponse.ok) {
+                            const errorResult = await updateResponse.json();
+                            throw new Error(errorResult.detail || 'Ошибка сохранения данных.');
+                        }
+                        
+                        modalContainer.innerHTML = '';
+
+                        const gsmTable = document.querySelector('.gsm-table');
+                        const gatewayId = gsmTable.dataset.gatewayId;
+                        const linesContainer = document.getElementById('gsm-lines-table-container');
+
+                        if (!gatewayId || !linesContainer) {
+                            alert('Линия обновлена! Не удалось автоматически обновить список.');
+                            return;
+                        }
+
+                        linesContainer.innerHTML = '<div class="modal-loader">Обновление...</div>';
+                        const refreshResponse = await fetch(`/admin/enterprises/gateways/${gatewayId}/modal`);
+                        if (refreshResponse.ok) {
+                            linesContainer.innerHTML = await refreshResponse.text();
+                        } else {
+                            linesContainer.innerHTML = '<div class="error-message">Не удалось обновить список линий.</div>';
+                        }
+                    } catch (err) {
+                        errorContainer.textContent = err.message;
+                        errorContainer.style.display = 'block';
+                    }
+                });
+            } catch (err) {
+                modalContainer.innerHTML = `<div class="error-message">${err.message}</div>`;
+            }
+        }
+
+        // Закрытие вложенной модалки по клику на крестик
+        if (e.target && e.target.classList.contains('modal-close-button') && e.target.closest('#edit-line-modal-container')) {
+            const container = e.target.closest('#edit-line-modal-container');
+            if (container) {
+                container.innerHTML = '';
+</body>
+</html>

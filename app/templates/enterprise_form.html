@@ -225,6 +225,13 @@
         cursor: pointer;
         user-select: none;
     }
+    .lines-button {
+        background-color: #17a2b8;
+        color: white !important;
+    }
+    .lines-button:hover {
+        background-color: #138496;
+    }
   </style>
 </head>
 <body>
@@ -285,6 +292,8 @@
 
   </div>
   
+  <div id="modal-placeholder"></div>
+
   <div id="gateway-template" class="gateway-entry" style="display: none;">
     <button type="button" class="button-small remove-gateway-button" title="Удалить шлюз">X</button>
     <h4 class="gateway-title-collapsible">
@@ -311,263 +320,317 @@
     </div>
   </div>
 
-  <script>
-  document.addEventListener('DOMContentLoaded', function () {
-      const mainForm = document.getElementById('enterprise-form');
-      const gatewaysContainer = document.getElementById('gateways-container');
-      const addGatewayButton = document.getElementById('add-gateway-button');
-      const gatewayTemplate = document.getElementById('gateway-template');
-      
-      let gatewayCounter = 0;
-      const maxGateways = 10;
-      
-      const action = '{{ action }}';
-      const enterpriseNumber = '{{ enterprise.number }}';
-      const existingGateways = action === 'edit' ? {{ gateways|tojson|safe }} : [];
+<script>
+    function openGatewayModal(gatewayId) {
+        fetch(`/admin/gateways/${gatewayId}/modal`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(html => {
+                const placeholder = document.getElementById('modal-placeholder');
+                if (!placeholder) return;
+                placeholder.innerHTML = html;
+                
+                // Вручную находим и выполняем скрипт из загруженного контента
+                const scripts = placeholder.getElementsByTagName('script');
+                for (let i = 0; i < scripts.length; i++) {
+                    try {
+                        eval(scripts[i].innerText || scripts[i].textContent);
+                    } catch (e) {
+                        console.error("Ошибка выполнения скрипта из модального окна:", e);
+                    }
+                }
 
-      if (mainForm) {
-          mainForm.addEventListener('submit', function() {
-              const rebootInput = document.getElementById('reboot_gateway_id');
-              const checkedCheckbox = gatewaysContainer.querySelector('input[data-name="custom_boolean_flag"]:checked');
-              
-              if (checkedCheckbox) {
-                  const gatewayEntry = checkedCheckbox.closest('.gateway-entry');
-                  const gatewayIdInput = gatewayEntry.querySelector('input[data-name="id"]');
-                  rebootInput.value = gatewayIdInput.value;
-              } else {
-                  rebootInput.value = 'none';
-              }
-          });
-      }
+                const modal = document.getElementById('gateway-modal');
+                if (modal) {
+                    modal.style.display = 'block';
 
-      gatewaysContainer.addEventListener('change', function(event) {
-          const target = event.target;
-          if (target.matches('input[type="checkbox"][data-name="custom_boolean_flag"]') && target.checked) {
-              const allRebootCheckboxes = gatewaysContainer.querySelectorAll('input[type="checkbox"][data-name="custom_boolean_flag"]');
-              allRebootCheckboxes.forEach(checkbox => {
-                  if (checkbox !== target) {
-                      checkbox.checked = false;
-                  }
-              });
-          }
-      });
+                    const closeButton = modal.querySelector('.close-modal');
+                    if (closeButton) {
+                        closeButton.onclick = function() {
+                            modal.style.display = 'none';
+                            placeholder.innerHTML = '';
+                        }
+                    }
+                    window.onclick = function(event) {
+                        if (event.target === modal) {
+                            modal.style.display = 'none';
+                            placeholder.innerHTML = '';
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error loading gateway modal:', error);
+                alert('Не удалось загрузить информацию о линиях шлюза.');
+            });
+    }
 
-      function setupEditModeGateway(templateNode, gatewayData) {
-          const idInput = templateNode.querySelector(`[data-name="id"]`);
-          const nameInput = templateNode.querySelector(`[data-name="gateway_name"]`);
-          const lineCountInput = templateNode.querySelector(`[data-name="line_count"]`);
-          const rebootCheckbox = templateNode.querySelector(`[data-name="custom_boolean_flag"]`);
-          const saveButton = templateNode.querySelector('.save-gateway-button');
-          const removeButton = templateNode.querySelector('.remove-gateway-button');
-          const saveConfigButton = templateNode.querySelector('.save-config-button');
-          const fileInput = templateNode.querySelector('[data-name="config_file"]');
-          const configInfoContainer = templateNode.querySelector('.config-file-info-container');
-          const downloadLink = templateNode.querySelector('.download-config-link');
+    document.addEventListener('DOMContentLoaded', function () {
+        const mainForm = document.getElementById('enterprise-form');
+        const gatewaysContainer = document.getElementById('gateways-container');
+        const addGatewayButton = document.getElementById('add-gateway-button');
+        const gatewayTemplate = document.getElementById('gateway-template');
+        
+        let gatewayCounter = 0;
+        const maxGateways = 10;
+        
+        const action = '{{ action }}';
+        const enterpriseNumber = '{{ enterprise.number }}';
+        const existingGateways = action === 'edit' ? {{ gateways|tojson|safe }} : [];
 
-          function updateConfigFileInfo(filename, uploadedAt) {
-              configInfoContainer.innerHTML = '';
-              downloadLink.style.display = 'none';
+        if (mainForm) {
+            mainForm.addEventListener('submit', function() {
+                const rebootInput = document.getElementById('reboot_gateway_id');
+                const checkedCheckbox = gatewaysContainer.querySelector('input[data-name="custom_boolean_flag"]:checked');
+                
+                if (checkedCheckbox) {
+                    const gatewayEntry = checkedCheckbox.closest('.gateway-entry');
+                    const gatewayIdInput = gatewayEntry.querySelector('input[data-name="id"]');
+                    rebootInput.value = gatewayIdInput.value;
+                } else {
+                    rebootInput.value = 'none';
+                }
+            });
+        }
 
-              if (filename) {
-                  const infoSpan = document.createElement('span');
-                  const date = new Date(uploadedAt);
-                  infoSpan.textContent = `Загружен: ${filename} (${date.toLocaleString()})`;
-                  infoSpan.className = 'config-file-info';
-                  configInfoContainer.appendChild(infoSpan);
-
-                  if (gatewayData && gatewayData.id) {
-                      downloadLink.href = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayData.id}/download_config`;
-                      downloadLink.style.display = 'inline-block';
-                  }
-              }
-          }
-          
-          if (gatewayData && gatewayData.id) {
-              idInput.value = gatewayData.id;
-              nameInput.value = gatewayData.gateway_name || '';
-              lineCountInput.value = gatewayData.line_count || '';
-              lineCountInput.disabled = true;
-              rebootCheckbox.checked = gatewayData.custom_boolean_flag === true;
-              updateConfigFileInfo(gatewayData.config_backup_original_name, gatewayData.config_backup_uploaded_at);
-              saveButton.textContent = 'Обновить';
-          }
-
-          fileInput.addEventListener('change', function() {
-              if (idInput.value && this.files.length > 0) {
-                  saveConfigButton.style.display = 'inline-block';
-              } else {
-                  saveConfigButton.style.display = 'none';
-              }
-          });
-
-          saveConfigButton.addEventListener('click', async function() {
-              const gatewayId = idInput.value;
-              const file = fileInput.files[0];
-              if (!gatewayId || !file) return;
-              const formData = new FormData();
-              formData.append('config_file', file);
-              try {
-                  const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}/upload_config`, { method: 'POST', body: formData });
-                  const result = await response.json();
-                  if (!response.ok) throw new Error(result.detail || 'Server error');
-                  alert(result.message);
-                  updateConfigFileInfo(result.original_filename, result.uploaded_at);
-                  saveConfigButton.style.display = 'none';
-                  fileInput.value = '';
-              } catch (error) {
-                  alert(`Ошибка загрузки: ${error.message}`);
-              }
-          });
-
-          removeButton.addEventListener('click', async function() {
-              const gatewayId = idInput.value;
-              if (!gatewayId) {
-                  templateNode.remove();
-                  return;
-              }
-              if (confirm('Вы уверены, что хотите удалить этот шлюз?')) {
-                  try {
-                      const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`, { method: 'DELETE' });
-                      if (!response.ok) {
-                          const result = await response.json();
-                          throw new Error(result.detail || 'Server error');
-                      }
-                      alert('Шлюз удален.');
-                      templateNode.remove();
-                  } catch (error) {
-                      alert(`Ошибка удаления: ${error.message}`);
-                  }
-              }
-          });
-
-          saveButton.addEventListener('click', async function() {
-              const gatewayId = idInput.value;
-              const gatewayName = nameInput.value.trim();
-              if (!gatewayName) {
-                  alert('Наименование шлюза не может быть пустым.');
-                  return;
-              }
-              const data = {
-                  gateway_name: gatewayName,
-                  custom_boolean_flag: rebootCheckbox.checked
-              };
-              let url, method;
-
-              if (gatewayId) { // Update existing
-                  url = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`;
-                  method = 'PUT';
-              } else { // Create new
-                  const lineCount = parseInt(lineCountInput.value, 10);
-                  if (isNaN(lineCount) || lineCount < 1 || lineCount > 32) {
-                      alert('Количество линий должно быть числом от 1 до 32.');
-                      return;
-                  }
-                  data.line_count = lineCount;
-                  url = `/admin/enterprises/${enterpriseNumber}/gateways`;
-                  method = 'POST';
-              }
-
-              try {
-                  const response = await fetch(url, {
-                      method: method,
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(data)
-                  });
-                  const result = await response.json();
-                  if (!response.ok) throw new Error(result.detail || 'Server error');
-                  
-                  if (!gatewayId) { // After creation
-                      alert('Шлюз успешно сохранен!');
-                      idInput.value = result.id;
-                      lineCountInput.disabled = true;
-                      saveButton.textContent = 'Обновить';
-                  } else {
-                      alert('Шлюз успешно обновлен!');
-                  }
-              } catch (error) {
-                  alert(`Ошибка: ${error.message}`);
-              }
-          });
-      }
-
-      function setupAddModeGateway(templateNode, index) {
-          templateNode.querySelector('[data-name="id"]').name = `gateways[${index}][id]`;
-          templateNode.querySelector('[data-name="gateway_name"]').name = `gateways[${index}][gateway_name]`;
-          templateNode.querySelector('[data-name="line_count"]').name = `gateways[${index}][line_count]`;
-          templateNode.querySelector('[data-name="custom_boolean_flag"]').name = `gateways[${index}][custom_boolean_flag]`;
-          templateNode.querySelector('[data-name="config_file"]').name = `gateways[${index}][config_file]`;
-          
-          templateNode.querySelector('.save-gateway-button').style.display = 'none';
-          templateNode.querySelector('.save-config-button').style.display = 'none';
-          
-          templateNode.querySelector('.remove-gateway-button').addEventListener('click', function() {
-              templateNode.remove();
-              checkMaxGateways();
-          });
-      }
-
-      function checkMaxGateways() {
-          addGatewayButton.disabled = gatewaysContainer.children.length >= maxGateways;
-      }
-      
-      function addCollapsibleListener(element) {
-        element.addEventListener('click', function() {
-            const body = this.nextElementSibling;
-            if (body && body.classList.contains('gateway-body')) {
-                body.style.display = body.style.display === 'none' ? 'block' : 'none';
+        gatewaysContainer.addEventListener('change', function(event) {
+            const target = event.target;
+            if (target.matches('input[type="checkbox"][data-name="custom_boolean_flag"]') && target.checked) {
+                const allRebootCheckboxes = gatewaysContainer.querySelectorAll('input[type="checkbox"][data-name="custom_boolean_flag"]');
+                allRebootCheckboxes.forEach(checkbox => {
+                    if (checkbox !== target) {
+                        checkbox.checked = false;
+                    }
+                });
             }
         });
-      }
 
-      function addGateway(data = null) {
-          if (gatewaysContainer.children.length >= maxGateways) return;
-          
-          const templateNode = gatewayTemplate.cloneNode(true);
-          templateNode.style.display = 'block';
-          
-          const gatewayNumberSpan = templateNode.querySelector('.gateway-number');
-          gatewayNumberSpan.textContent = `#${gatewayCounter + 1}`;
-          
-          const title = templateNode.querySelector('.gateway-title-collapsible');
-          const body = templateNode.querySelector('.gateway-body');
+        function setupEditModeGateway(templateNode, gatewayData) {
+            const idInput = templateNode.querySelector(`[data-name="id"]`);
+            const nameInput = templateNode.querySelector(`[data-name="gateway_name"]`);
+            const lineCountInput = templateNode.querySelector(`[data-name="line_count"]`);
+            const rebootCheckbox = templateNode.querySelector(`[data-name="custom_boolean_flag"]`);
+            const saveButton = templateNode.querySelector('.save-gateway-button');
+            const removeButton = templateNode.querySelector('.remove-gateway-button');
+            const saveConfigButton = templateNode.querySelector('.save-config-button');
+            const fileInput = templateNode.querySelector('[data-name="config_file"]');
+            const configInfoContainer = templateNode.querySelector('.config-file-info-container');
+            const downloadLink = templateNode.querySelector('.download-config-link');
+            const gatewayActions = templateNode.querySelector('.gateway-actions');
 
-          if (action === 'edit') {
-              setupEditModeGateway(templateNode, data);
-          } else {
-              setupAddModeGateway(templateNode, gatewayCounter);
-          }
-          
-          addCollapsibleListener(title);
-          
-          if(data) {
-            body.style.display = 'none';
-          }
+            function updateConfigFileInfo(filename, uploadedAt) {
+                configInfoContainer.innerHTML = '';
+                downloadLink.style.display = 'none';
 
-          gatewaysContainer.appendChild(templateNode);
-          gatewayCounter++;
-          checkMaxGateways();
-      }
+                if (filename) {
+                    const infoSpan = document.createElement('span');
+                    const date = new Date(uploadedAt);
+                    infoSpan.textContent = `Загружен: ${filename} (${date.toLocaleString()})`;
+                    infoSpan.className = 'config-file-info';
+                    configInfoContainer.appendChild(infoSpan);
 
-      addGatewayButton.addEventListener('click', () => addGateway(null));
+                    if (gatewayData && gatewayData.id) {
+                        downloadLink.href = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayData.id}/download_config`;
+                        downloadLink.style.display = 'inline-block';
+                    }
+                }
+            }
+            
+            if (gatewayData && gatewayData.id) {
+                idInput.value = gatewayData.id;
+                nameInput.value = gatewayData.gateway_name || '';
+                lineCountInput.value = gatewayData.line_count || '';
+                lineCountInput.disabled = true;
+                rebootCheckbox.checked = gatewayData.custom_boolean_flag === true;
+                updateConfigFileInfo(gatewayData.config_backup_original_name, gatewayData.config_backup_uploaded_at);
+                saveButton.textContent = 'Обновить';
 
-      if (action === 'edit') {
-          if (existingGateways.length > 0) {
-              existingGateways.forEach(addGateway);
-          }
-      } 
-      checkMaxGateways();
-  });
-  </script>
+                const linesButton = document.createElement('button');
+                linesButton.type = 'button';
+                linesButton.className = 'button-small lines-button';
+                linesButton.textContent = 'Линии';
+                linesButton.onclick = () => openGatewayModal(gatewayData.id);
+                gatewayActions.appendChild(linesButton);
+            }
 
-  <script>
-      document.addEventListener('DOMContentLoaded', function() {
-          const urlParams = new URLSearchParams(window.location.search);
-          if (urlParams.has('notification')) {
-              alert(urlParams.get('notification'));
-              window.history.replaceState({}, document.title, window.location.pathname);
-          }
-      });
-  </script>
+            fileInput.addEventListener('change', function() {
+                if (idInput.value && this.files.length > 0) {
+                    saveConfigButton.style.display = 'inline-block';
+                } else {
+                    saveConfigButton.style.display = 'none';
+                }
+            });
+
+            saveConfigButton.addEventListener('click', async function() {
+                const gatewayId = idInput.value;
+                const file = fileInput.files[0];
+                if (!gatewayId || !file) return;
+                const formData = new FormData();
+                formData.append('config_file', file);
+                try {
+                    const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}/upload_config`, { method: 'POST', body: formData });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.detail || 'Server error');
+                    alert(result.message);
+                    updateConfigFileInfo(result.original_filename, result.uploaded_at);
+                    saveConfigButton.style.display = 'none';
+                    fileInput.value = '';
+                } catch (error) {
+                    alert(`Ошибка загрузки: ${error.message}`);
+                }
+            });
+
+            removeButton.addEventListener('click', async function() {
+                const gatewayId = idInput.value;
+                if (!gatewayId) {
+                    templateNode.remove();
+                    return;
+                }
+                if (confirm('Вы уверены, что хотите удалить этот шлюз?')) {
+                    try {
+                        const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`, { method: 'DELETE' });
+                        if (!response.ok) {
+                            const result = await response.json();
+                            throw new Error(result.detail || 'Server error');
+                        }
+                        alert('Шлюз удален.');
+                        templateNode.remove();
+                    } catch (error) {
+                        alert(`Ошибка удаления: ${error.message}`);
+                    }
+                }
+            });
+
+            saveButton.addEventListener('click', async function() {
+                const gatewayId = idInput.value;
+                const gatewayName = nameInput.value.trim();
+                if (!gatewayName) {
+                    alert('Наименование шлюза не может быть пустым.');
+                    return;
+                }
+                const data = {
+                    gateway_name: gatewayName,
+                    custom_boolean_flag: rebootCheckbox.checked
+                };
+                let url, method;
+
+                if (gatewayId) { // Update existing
+                    url = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`;
+                    method = 'PUT';
+                } else { // Create new
+                    const lineCount = parseInt(lineCountInput.value, 10);
+                    if (isNaN(lineCount) || lineCount < 1 || lineCount > 32) {
+                        alert('Количество линий должно быть числом от 1 до 32.');
+                        return;
+                    }
+                    data.line_count = lineCount;
+                    url = `/admin/enterprises/${enterpriseNumber}/gateways`;
+                    method = 'POST';
+                }
+
+                try {
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.detail || 'Server error');
+                    
+                    if (!gatewayId) { // After creation
+                        alert('Шлюз успешно сохранен!');
+                        idInput.value = result.id;
+                        lineCountInput.disabled = true;
+                        saveButton.textContent = 'Обновить';
+                    } else {
+                        alert('Шлюз успешно обновлен!');
+                    }
+                } catch (error) {
+                    alert(`Ошибка: ${error.message}`);
+                }
+            });
+        }
+
+        function setupAddModeGateway(templateNode, index) {
+            templateNode.querySelector('[data-name="id"]').name = `gateways[${index}][id]`;
+            templateNode.querySelector('[data-name="gateway_name"]').name = `gateways[${index}][gateway_name]`;
+            templateNode.querySelector('[data-name="line_count"]').name = `gateways[${index}][line_count]`;
+            templateNode.querySelector('[data-name="custom_boolean_flag"]').name = `gateways[${index}][custom_boolean_flag]`;
+            templateNode.querySelector('[data-name="config_file"]').name = `gateways[${index}][config_file]`;
+            
+            templateNode.querySelector('.save-gateway-button').style.display = 'none';
+            templateNode.querySelector('.save-config-button').style.display = 'none';
+            
+            templateNode.querySelector('.remove-gateway-button').addEventListener('click', function() {
+                templateNode.remove();
+                checkMaxGateways();
+            });
+        }
+
+        function checkMaxGateways() {
+            addGatewayButton.disabled = gatewaysContainer.children.length >= maxGateways;
+        }
+        
+        function addCollapsibleListener(element) {
+            element.addEventListener('click', function() {
+                const body = this.nextElementSibling;
+                if (body && body.classList.contains('gateway-body')) {
+                    body.style.display = body.style.display === 'none' ? 'block' : 'none';
+                }
+            });
+        }
+
+        function addGateway(data = null) {
+            if (gatewaysContainer.children.length >= maxGateways) return;
+            
+            const templateNode = gatewayTemplate.cloneNode(true);
+            templateNode.style.display = 'block';
+            
+            const gatewayNumberSpan = templateNode.querySelector('.gateway-number');
+            gatewayNumberSpan.textContent = `#${gatewayCounter + 1}`;
+            
+            const title = templateNode.querySelector('.gateway-title-collapsible');
+            const body = templateNode.querySelector('.gateway-body');
+
+            if (action === 'edit') {
+                setupEditModeGateway(templateNode, data);
+            } else {
+                setupAddModeGateway(templateNode, gatewayCounter);
+            }
+            
+            addCollapsibleListener(title);
+            
+            if(data) {
+                body.style.display = 'none';
+            }
+
+            gatewaysContainer.appendChild(templateNode);
+            gatewayCounter++;
+            checkMaxGateways();
+        }
+
+        addGatewayButton.addEventListener('click', () => addGateway(null));
+
+        if (action === 'edit') {
+            if (existingGateways.length > 0) {
+                existingGateways.forEach(addGateway);
+            }
+        } 
+        checkMaxGateways();
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('notification')) {
+            alert(urlParams.get('notification'));
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    });
+</script>
 
 </body>
 </html>

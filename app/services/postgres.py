@@ -4,6 +4,7 @@ from datetime import datetime
 import logging
 import sys
 import os
+from pydantic import BaseModel
 
 # Конфигурация логгера
 logger = logging.getLogger(__name__)
@@ -28,6 +29,19 @@ POSTGRES_CONFIG = {
 _pool = None
 
 LOG_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'postgres.log')
+
+class GsmLine(BaseModel):
+    id: int
+    goip_id: int
+    enterprise_number: str
+    line_id: str
+    internal_id: str
+    line_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    prefix: Optional[str] = None
+    slot: Optional[int] = None
+    created_at: datetime
+    goip_name: Optional[str] = None
 
 async def init_pool():
     """Инициализирует глобальный пул подключений"""
@@ -545,6 +559,38 @@ async def delete_sip_operator(operator_id: int):
     pool = await get_pool()
     async with pool.acquire() as connection:
         await connection.execute("DELETE FROM sip WHERE id = $1", operator_id)
+
+async def get_gsm_lines_by_gateway_id(gateway_id: int) -> List[Dict]:
+    """Получает список GSM-линий для указанного шлюза по его ID."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM gsm_lines WHERE goip_id = $1 ORDER BY slot ASC",
+            gateway_id
+        )
+        return [dict(row) for row in rows]
+
+async def get_gsm_line_by_id(line_id: int) -> Optional[Dict]:
+    """Получает GSM-линию по её ID."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT * FROM gsm_lines WHERE id = $1", line_id)
+        return dict(row) if row else None
+
+async def update_gsm_line(line_id: int, line_name: Optional[str], phone_number: Optional[str], prefix: Optional[str]) -> Optional[Dict]:
+    """Обновляет информацию о GSM-линии и возвращает обновленную запись."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            UPDATE gsm_lines 
+            SET line_name = $1, phone_number = $2, prefix = $3
+            WHERE id = $4
+            RETURNING *
+            """,
+            line_name, phone_number, prefix, line_id
+        )
+        return dict(row) if row else None
 
 # Далее существующий код...
 # Например, если следующая функция это:

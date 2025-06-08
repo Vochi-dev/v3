@@ -1,0 +1,140 @@
+<!-- Файл: app/templates/gateway_modal.html -->
+<style>
+    /* Стили для самого модального окна */
+    .modal {
+        display: block; /* Показываем сразу, т.к. управление идет извне */
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+        background-color: #fefefe;
+        margin: 5% auto; /* Уменьшил отступ сверху */
+        padding: 20px;
+        border: 1px solid #888;
+        width: 95%; /* Увеличено */
+        max-width: 1300px; /* Увеличено */
+        border-radius: 6px;
+        position: relative;
+    }
+    .close-modal {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        position: absolute;
+        top: 10px;
+        right: 20px;
+    }
+    .close-modal:hover,
+    .close-modal:focus {
+        color: black;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    /* Стили для таблицы внутри окна */
+    .gsm-table-container { max-height: 70vh; overflow-y: auto; }
+    .gsm-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .gsm-table th, .gsm-table td { border: 1px solid #ddd; padding: 6px; text-align: left; white-space: nowrap; }
+    .gsm-table th { background-color: #f2f2f2; position: sticky; top: 0; z-index: 1; }
+    .edit-trigger { color: #007bff; text-decoration: none; cursor: pointer; }
+    .edit-trigger:hover { text-decoration: underline; }
+</style>
+
+<div id="gateway-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>GSM Линии для шлюза "{{ gateway.gateway_name }}"</h2>
+      <span class="close-modal">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="gsm-table-container">
+          {% if lines %}
+          <table class="gsm-table">
+              <thead>
+                  <tr>
+                      <th>ID</th>
+                      <th>Ip</th>
+                      <th>ID2</th>
+                      <th>Номер</th>
+                      <th>Наименование</th>
+                      <th>Префикс</th>
+                      <th>Вх.сх</th>
+                      <th>Исх.схемы</th>
+                      <th>Магазин</th>
+                      <th>Goip</th>
+                      <th>Слот</th>
+                      <th>Переадр.</th>
+                  </tr>
+              </thead>
+              <tbody id="gsm-lines-tbody">
+                  {% for line in lines %}
+                  <tr data-line-id="{{ line.id }}">
+                      <td class="edit-trigger" data-line-id="{{ line.id }}">{{ line.line_id or '' }}</td>
+                      <td>{{ '' }}</td> <!-- Ip пока не заполняем -->
+                      <td>{{ line.internal_id or '' }}</td>
+                      <td data-field="phone_number">{{ line.phone_number or '' }}</td>
+                      <td data-field="line_name">{{ line.line_name or '' }}</td>
+                      <td data-field="prefix">{{ line.prefix or '' }}</td>
+                      <td>{{ '' }}</td> <!-- in_schema пока не заполняем -->
+                      <td>{{ '' }}</td> <!-- out_scheme пока не заполняем -->
+                      <td>{{ '' }}</td> <!-- shop пока не заполняем -->
+                      <td>{{ line.goip_name or '' }}</td> <!-- Goip - serial/goip_name -->
+                      <td>{{ line.slot or '' }}</td>
+                      <td>{{ '' }}</td> <!-- redirect пока не заполняем -->
+                  </tr>
+                  {% endfor %}
+              </tbody>
+          </table>
+          {% else %}
+          <p>Для этого шлюза еще не создано ни одной линии.</p>
+          {% endif %}
+      </div>
+    </div>
+    <div id="edit-line-modal-container"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+    // Этот скрипт выполняется после загрузки модального окна
+
+    // --- Обработка клика по ID для редактирования ---
+    const tableBody = document.getElementById('gsm-lines-tbody');
+    if(tableBody) {
+        tableBody.addEventListener('click', async function(event) {
+            const trigger = event.target.closest('.edit-trigger');
+            if (trigger) {
+                event.preventDefault();
+                const lineId = trigger.dataset.lineId;
+                const editModalContainer = document.getElementById('edit-line-modal-container');
+                
+                try {
+                    const response = await fetch(`/admin/gsm-lines/${lineId}/edit-modal`);
+                    if (!response.ok) {
+                        throw new Error('Не удалось загрузить окно редактирования.');
+                    }
+                    editModalContainer.innerHTML = await response.text();
+                    const editModal = editModalContainer.querySelector('.modal');
+                    if(editModal) {
+                        editModal.style.display = 'block';
+                    }
+                    // Запускаем скрипт, который пришел вместе с формой
+                    const scriptTag = editModalContainer.querySelector('script');
+                    if (scriptTag) {
+                        eval(scriptTag.innerHTML);
+                    }
+                } catch(error) {
+                    alert(`Ошибка: ${error.message}`);
+                }
+            }
+        });
+    }
+})();
+</script> 
