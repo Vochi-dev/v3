@@ -321,8 +321,9 @@
   </div>
 
 <script>
+    // ИСПРАВЛЕННАЯ ФУНКЦИЯ
     function openGatewayModal(gatewayId) {
-        fetch(`/admin/gateways/${gatewayId}/modal`)
+        fetch(`/admin/gateways/${gatewayId}/modal`) // <-- ПРАВИЛЬНЫЙ АДРЕС
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -484,6 +485,7 @@
                 }
             });
 
+            // ИСПРАВЛЕННАЯ ФУНКЦИЯ УДАЛЕНИЯ
             removeButton.addEventListener('click', async function() {
                 const gatewayId = idInput.value;
                 if (!gatewayId) {
@@ -492,7 +494,7 @@
                 }
                 if (confirm('Вы уверены, что хотите удалить этот шлюз?')) {
                     try {
-                        const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`, { method: 'DELETE' });
+                        const response = await fetch(`/admin/gateways/${gatewayId}`, { method: 'DELETE' }); // <-- ПРАВИЛЬНЫЙ АДРЕС
                         if (!response.ok) {
                             const result = await response.json();
                             throw new Error(result.detail || 'Server error');

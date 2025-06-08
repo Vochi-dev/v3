@@ -225,7 +225,7 @@
         const errorContainer = document.getElementById('edit-line-error-container');
 
         try {
-            const response = await fetch(`/admin/gsm-lines/${lineId}`, {
+            const response = await fetch(`/admin/gateways/gsm-lines/${lineId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
