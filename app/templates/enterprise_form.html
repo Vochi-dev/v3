@@ -47,7 +47,7 @@
       background-color: #007bff;
       color: white;
       border-radius: 4px;
-      transition: background-color 0.3s ease;
+      transition: background-color: 0.3s ease;
     }
     .button:hover {
       background-color: #0056b3;
@@ -202,7 +202,7 @@
     }
     .save-config-button {
         background-color: #17a2b8;
-        display: none; /* Скрыта по умолчанию */
+        display: none;
     }
     .save-config-button:hover {
         background-color: #138496;
@@ -220,10 +220,90 @@
     .download-config-link:hover {
         background-color: #0056b3;
     }
-    .gateway-entry h4.gateway-title-collapsible {
+    .gateway-entry h4.gateway-title-clickable {
         color: #007bff;
         cursor: pointer;
         user-select: none;
+    }
+
+    /* Modal styles */
+    .modal {
+        display: none; 
+        position: fixed; 
+        z-index: 1050; 
+        left: 0;
+        top: 0;
+        width: 100%; 
+        height: 100%; 
+        overflow: auto; 
+        background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+        background-color: #fefefe;
+        margin: 2% auto; /* Reduced top margin to fit on screen */
+        padding: 20px;
+        border: 1px solid #888;
+        width: 98%;
+        max-width: 2200px;
+        border-radius: 6px;
+        position: relative;
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+    .modal-close-button {
+        color: #aaa;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .modal-close-button:hover,
+    .modal-close-button:focus {
+        color: black;
+    }
+    .modal-body {
+        max-height: 80vh; /* Increased height */
+        overflow: auto;
+    }
+    #gsm-lines-table-container table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+        table-layout: auto;
+    }
+    #gsm-lines-table-container th, 
+    #gsm-lines-table-container td {
+        border: 1px solid #ddd;
+        padding: 6px;
+        text-align: left;
+        white-space: nowrap;
+    }
+    #gsm-lines-table-container th {
+        background-color: #f2f2f2;
+        position: sticky;
+        top: -1px;
+    }
+    #gsm-lines-table-container input[type="text"] {
+        width: 100%;
+        padding: 4px;
+        box-sizing: border-box;
+    }
+    .modal-loader {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1.2rem;
+        color: #555;
     }
   </style>
 </head>
@@ -287,7 +367,7 @@
   
   <div id="gateway-template" class="gateway-entry" style="display: none;">
     <button type="button" class="button-small remove-gateway-button" title="Удалить шлюз">X</button>
-    <h4 class="gateway-title-collapsible">
+    <h4>
         <span>Шлюз <span class="gateway-number"></span></span>
         <div class="gateway-actions" style="display: flex; align-items: center;">
             <input type="checkbox" data-name="custom_boolean_flag" value="true" style="width: auto; margin-right: 5px;">
@@ -311,20 +391,62 @@
     </div>
   </div>
 
+  <div id="gsm-lines-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="gsm-lines-modal-title"></h2>
+        <span class="modal-close-button">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div id="gsm-lines-table-container">
+          <!-- Table will be injected here by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+
   <script>
   document.addEventListener('DOMContentLoaded', function () {
       const mainForm = document.getElementById('enterprise-form');
       const gatewaysContainer = document.getElementById('gateways-container');
       const addGatewayButton = document.getElementById('add-gateway-button');
       const gatewayTemplate = document.getElementById('gateway-template');
+      const gsmLinesModal = document.getElementById('gsm-lines-modal');
+      const gsmLinesModalTitle = document.getElementById('gsm-lines-modal-title');
+      const gsmLinesTableContainer = document.getElementById('gsm-lines-table-container');
+      const modalCloseButton = gsmLinesModal.querySelector('.modal-close-button');
       
       let gatewayCounter = 0;
       const maxGateways = 10;
       
       const action = '{{ action }}';
       const enterpriseNumber = '{{ enterprise.number }}';
-      const existingGateways = action === 'edit' ? {{ gateways|tojson|safe }} : [];
 
+      async function loadGateways() {
+        if (action !== 'edit' || !enterpriseNumber) {
+            checkMaxGateways();
+            return;
+        }
+
+        try {
+            const response = await fetch(`/admin/enterprises/${enterpriseNumber}/gateways_list`);
+            if (!response.ok) {
+                throw new Error('Сетевая ошибка при загрузке шлюзов.');
+            }
+            const gateways = await response.json();
+            if (gateways && gateways.length > 0) {
+                gateways.forEach(addGateway);
+            }
+        } catch (error) {
+            console.error('Не удалось загрузить шлюзы:', error);
+            gatewaysContainer.innerHTML = `<div class="error" style="margin-bottom: 1rem;">${error.message}</div>`;
+        } finally {
+            checkMaxGateways();
+        }
+      }
+
+      // --- Main form submit logic for reboot ---
       if (mainForm) {
           mainForm.addEventListener('submit', function() {
               const rebootInput = document.getElementById('reboot_gateway_id');
@@ -340,6 +462,7 @@
           });
       }
 
+      // --- Exclusive reboot checkbox logic ---
       gatewaysContainer.addEventListener('change', function(event) {
           const target = event.target;
           if (target.matches('input[type="checkbox"][data-name="custom_boolean_flag"]') && target.checked) {
@@ -351,7 +474,126 @@
               });
           }
       });
+      
+      // --- Modal Logic ---
+      function openGsmLinesModal(gatewayId, gatewayName) {
+        gsmLinesModalTitle.textContent = gatewayName;
+        gsmLinesTableContainer.innerHTML = '<div class="modal-loader">Загрузка...</div>';
+        gsmLinesModal.style.display = 'block';
 
+        fetch(`/admin/enterprises/gateways/${gatewayId}/gsm_lines`)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Сетевая ошибка или ошибка сервера');
+            }
+            return response.json();
+          })
+          .then(data => {
+            renderGsmLinesTable(data.lines);
+          })
+          .catch(error => {
+            gsmLinesTableContainer.innerHTML = `<div class="error">Ошибка загрузки данных: ${error.message}</div>`;
+          });
+      }
+      
+      function renderGsmLinesTable(lines) {
+        if (!lines || lines.length === 0) {
+            gsmLinesTableContainer.innerHTML = '<p>Для этого шлюза не найдено GSM-линий.</p>';
+            return;
+        }
+
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const tbody = document.createElement('tbody');
+
+        const columns = {
+            'line_id': { label: 'ID', style: 'min-width: 7ch;' },
+            'ip_reg': { label: 'IP регистр.', style: 'min-width: 12ch;' },
+            'internal_id': { label: 'ID2', style: 'min-width: 8ch;' },
+            'phone_number': { label: 'Номер', style: 'min-width: 17ch;' },
+            'phone_name': { label: 'Наименование', style: 'min-width: 15ch;' },
+            'in_schema': { label: 'Вх. схема', style: 'min-width: 12ch;' },
+            'out_scheme': { label: 'Исх. схемы', style: 'min-width: 12ch;' },
+            'shop': { label: 'Магазин', style: 'min-width: 10ch;' },
+            'serial': { label: 'GOIP', style: 'min-width: 10ch;' },
+            'slot': { label: 'Слот', style: 'min-width: 5ch;' },
+            'redirect': { label: 'Переадр занят', style: 'min-width: 17ch;' }
+        };
+
+        const headerRow = document.createElement('tr');
+        const filterRow = document.createElement('tr');
+
+        for (const key in columns) {
+            const th = document.createElement('th');
+            th.textContent = columns[key].label;
+            if (columns[key].style) {
+                th.style.cssText = columns[key].style;
+            }
+            headerRow.appendChild(th);
+
+            const filterTd = document.createElement('td');
+            const placeholder = key === 'ip_reg' ? '' : '...';
+            filterTd.innerHTML = `<input type="text" data-filter-col="${key}" placeholder="${placeholder}">`;
+            filterRow.appendChild(filterTd);
+        }
+        thead.appendChild(headerRow);
+        thead.appendChild(filterRow);
+
+        lines.forEach(line => {
+            const tr = document.createElement('tr');
+            for (const key in columns) {
+                const td = document.createElement('td');
+                td.textContent = line[key] || '';
+                tr.appendChild(td);
+            }
+            tbody.appendChild(tr);
+        });
+
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        gsmLinesTableContainer.innerHTML = '';
+        gsmLinesTableContainer.appendChild(table);
+        
+        const filterInputs = filterRow.querySelectorAll('input');
+        filterInputs.forEach(input => {
+            input.addEventListener('keyup', () => {
+                const filters = {};
+                filterInputs.forEach(i => {
+                    const col = i.dataset.filterCol;
+                    if (col && i.value) {
+                        filters[col] = i.value.toLowerCase();
+                    }
+                });
+
+                tbody.querySelectorAll('tr').forEach(row => {
+                    let visible = true;
+                    for(const colKey in filters) {
+                        const cellIndex = Object.keys(columns).indexOf(colKey);
+                        const cell = row.children[cellIndex];
+                        if (cell && !cell.textContent.toLowerCase().includes(filters[colKey])) {
+                            visible = false;
+                            break;
+                        }
+                    }
+                    row.style.display = visible ? '' : 'none';
+                });
+            });
+        });
+      }
+
+      function closeModal() {
+        gsmLinesModal.style.display = 'none';
+        gsmLinesTableContainer.innerHTML = '';
+      }
+      modalCloseButton.addEventListener('click', closeModal);
+      window.addEventListener('click', (event) => {
+        if (event.target == gsmLinesModal) {
+            closeModal();
+        }
+      });
+
+
+      // --- Gateway Rendering and Event Handling ---
       function setupEditModeGateway(templateNode, gatewayData) {
           const idInput = templateNode.querySelector(`[data-name="id"]`);
           const nameInput = templateNode.querySelector(`[data-name="gateway_name"]`);
@@ -363,6 +605,7 @@
           const fileInput = templateNode.querySelector('[data-name="config_file"]');
           const configInfoContainer = templateNode.querySelector('.config-file-info-container');
           const downloadLink = templateNode.querySelector('.download-config-link');
+          const title = templateNode.querySelector('h4');
 
           function updateConfigFileInfo(filename, uploadedAt) {
               configInfoContainer.innerHTML = '';
@@ -390,6 +633,15 @@
               rebootCheckbox.checked = gatewayData.custom_boolean_flag === true;
               updateConfigFileInfo(gatewayData.config_backup_original_name, gatewayData.config_backup_uploaded_at);
               saveButton.textContent = 'Обновить';
+
+              title.classList.add('gateway-title-clickable');
+              title.addEventListener('click', function(e) {
+                  if (e.target.type === 'checkbox' || e.target.tagName === 'LABEL') {
+                      return;
+                  }
+                  openGsmLinesModal(gatewayData.id, gatewayData.gateway_name);
+              });
+
           }
 
           fileInput.addEventListener('change', function() {
@@ -453,10 +705,10 @@
               };
               let url, method;
 
-              if (gatewayId) { // Update existing
+              if (gatewayId) { 
                   url = `/admin/enterprises/${enterpriseNumber}/gateways/${gatewayId}`;
                   method = 'PUT';
-              } else { // Create new
+              } else { 
                   const lineCount = parseInt(lineCountInput.value, 10);
                   if (isNaN(lineCount) || lineCount < 1 || lineCount > 32) {
                       alert('Количество линий должно быть числом от 1 до 32.');
@@ -476,8 +728,8 @@
                   const result = await response.json();
                   if (!response.ok) throw new Error(result.detail || 'Server error');
                   
-                  if (!gatewayId) { // After creation
-                      alert('Шлюз успешно сохранен!');
+                  if (!gatewayId) { 
+                      alert('Шлюз успешно сохранен! Теперь можно просматривать GSM-линии, обновив страницу.');
                       idInput.value = result.id;
                       lineCountInput.disabled = true;
                       saveButton.textContent = 'Обновить';
@@ -509,40 +761,23 @@
       function checkMaxGateways() {
           addGatewayButton.disabled = gatewaysContainer.children.length >= maxGateways;
       }
-      
-      function addCollapsibleListener(element) {
-        element.addEventListener('click', function() {
-            const body = this.nextElementSibling;
-            if (body && body.classList.contains('gateway-body')) {
-                body.style.display = body.style.display === 'none' ? 'block' : 'none';
-            }
-        });
-      }
 
       function addGateway(data = null) {
           if (gatewaysContainer.children.length >= maxGateways) return;
           
           const templateNode = gatewayTemplate.cloneNode(true);
           templateNode.style.display = 'block';
+          templateNode.id = ''; 
           
           const gatewayNumberSpan = templateNode.querySelector('.gateway-number');
           gatewayNumberSpan.textContent = `#${gatewayCounter + 1}`;
           
-          const title = templateNode.querySelector('.gateway-title-collapsible');
-          const body = templateNode.querySelector('.gateway-body');
-
           if (action === 'edit') {
               setupEditModeGateway(templateNode, data);
           } else {
               setupAddModeGateway(templateNode, gatewayCounter);
           }
           
-          addCollapsibleListener(title);
-          
-          if(data) {
-            body.style.display = 'none';
-          }
-
           gatewaysContainer.appendChild(templateNode);
           gatewayCounter++;
           checkMaxGateways();
@@ -550,12 +785,8 @@
 
       addGatewayButton.addEventListener('click', () => addGateway(null));
 
-      if (action === 'edit') {
-          if (existingGateways.length > 0) {
-              existingGateways.forEach(addGateway);
-          }
-      } 
-      checkMaxGateways();
+      loadGateways();
+      
   });
   </script>
 
