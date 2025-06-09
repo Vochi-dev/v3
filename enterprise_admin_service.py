@@ -12,6 +12,7 @@ from datetime import datetime
 import random
 import string
 from pydantic import BaseModel
+import time
 
 from app.config import JWT_SECRET_KEY, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT
 
@@ -41,11 +42,33 @@ class CreateLineRequest(BaseModel):
 # ——————————————————————————————————————————————————————————————————————————
 
 app = FastAPI()
+
+@app.middleware("http")
+async def log_all_requests_middleware(request: Request, call_next):
+    """
+    Middleware для логирования всех входящих HTTP запросов.
+    """
+    start_time = time.time()
+    logger.info(f"Получен запрос: {request.method} {request.url}")
+
+    response = await call_next(request)
+
+    process_time = time.time() - start_time
+    logger.info(f"Запрос обработан за {process_time:.4f} сек. Статус: {response.status_code}. Адрес: {request.method} {request.url}")
+
+    return response
+
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 templates = Jinja2Templates(directory="templates", auto_reload=True)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Add a handler for log_action.txt
+log_action_handler = logging.FileHandler("log_action.txt", mode='a')
+log_action_handler.setLevel(logging.INFO)
+log_action_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(log_action_handler)
 
 # ——————————————————————————————————————————————————————————————————————————
 # Database Functions
@@ -79,27 +102,45 @@ async def root_login_form(request: Request):
 
 @app.get("/auth/{token}", response_class=RedirectResponse)
 async def auth_by_token(token: str):
+    logger.info(f"Попытка аутентификации с токеном: {token[:15]}...")
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
+        logger.info(f"Токен успешно декодирован. Payload: {payload}")
+
         if not payload.get("is_admin"):
+            logger.warning(f"Токен не является админским. Payload: {payload}")
             raise HTTPException(status_code=403, detail="Not an admin token")
         
         enterprise_number = payload["sub"]
+        logger.info(f"Номер предприятия из токена: {enterprise_number}")
+
         session_token = f"session_admin_{datetime.utcnow().timestamp()}_{random.random()}"
 
         conn = await get_db_connection()
-        if not conn: raise HTTPException(status_code=500, detail="DB Connection failed")
+        if not conn:
+            logger.error("Не удалось подключиться к БД для создания сессии.")
+            raise HTTPException(status_code=500, detail="DB Connection failed")
         
         try:
+            logger.info(f"Создание сессии для предприятия {enterprise_number}...")
             await conn.execute("INSERT INTO sessions (session_token, enterprise_number) VALUES ($1, $2)", session_token, enterprise_number)
+            logger.info(f"Сессия успешно создана. Токен сессии: {session_token[:15]}...")
         finally:
             await conn.close()
 
         response = RedirectResponse(url=f"/enterprise/{enterprise_number}/dashboard", status_code=status.HTTP_303_SEE_OTHER)
         response.set_cookie(key="session_token", value=session_token, httponly=True, samesite="lax", max_age=48*3600, secure=True) # Set secure=True in production
+        logger.info(f"Перенаправление на дашборд предприятия {enterprise_number}.")
         return response
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+    except jwt.ExpiredSignatureError:
+        logger.warning(f"Истек срок действия токена: {token[:15]}...")
         return RedirectResponse(url="/?error=invalid_token")
+    except jwt.InvalidTokenError:
+        logger.error(f"Невалидный токен: {token[:15]}...")
+        return RedirectResponse(url="/?error=invalid_token")
+    except Exception as e:
+        logger.error(f"Непредвиденная ошибка при аутентификации по токену: {e}", exc_info=True)
+        return RedirectResponse(url="/?error=unexpected_error")
 
 async def get_current_enterprise(request: Request) -> str:
     session_token = request.cookies.get("session_token")
@@ -389,14 +430,15 @@ async def update_gsm_line(
     try:
         query = """
         UPDATE gsm_lines
-        SET line_name = $1, phone_number = $2
-        WHERE id = $3 AND enterprise_number = $4
+        SET line_name = $1, phone_number = $2, prefix = $3
+        WHERE id = $4 AND enterprise_number = $5
         RETURNING id, line_id, internal_id, prefix, phone_number, line_name, in_schema, out_schema, shop, slot, redirect
         """
         row = await conn.fetchrow(
             query,
             data.get("line_name"),
             data.get("phone_number"),
+            data.get("prefix"),
             line_id,
             enterprise_number
         )

@@ -1,0 +1,66 @@
+2025-06-09 18:09:12,580 - asyncio - DEBUG - Using selector: EpollSelector
+2025-06-09 18:09:13,342 - email_users - DEBUG - === LOADED email_users.py AT /root/asterisk-webhook/app/routers/email_users.py ===
+2025-06-09 18:09:13,652 - uvicorn.error - INFO - Started server process [121939]
+2025-06-09 18:09:13,653 - uvicorn.error - INFO - Waiting for application startup.
+2025-06-09 18:09:13,755 - uvicorn.error - INFO - Application startup complete.
+2025-06-09 18:09:13,756 - uvicorn.error - ERROR - [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-06-09 18:09:13,757 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-06-09 18:09:13,760 - uvicorn.error - INFO - Application shutdown complete.
+2025-06-09 18:11:23,421 - asyncio - DEBUG - Using selector: EpollSelector
+2025-06-09 18:11:23,827 - uvicorn.error - INFO - Started server process [122281]
+2025-06-09 18:11:23,827 - uvicorn.error - INFO - Waiting for application startup.
+2025-06-09 18:11:23,828 - uvicorn.error - INFO - Application startup complete.
+2025-06-09 18:11:23,828 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8004 (Press CTRL+C to quit)
+2025-06-09 18:11:54,974 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/dashboard HTTP/1.0" 200
+2025-06-09 18:11:57,395 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/all HTTP/1.0" 200
+2025-06-09 18:11:58,884 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/179 HTTP/1.0" 200
+2025-06-09 18:12:01,714 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/241 HTTP/1.0" 200
+2025-06-09 18:12:04,182 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/242 HTTP/1.0" 200
+2025-06-09 18:15:27,422 - uvicorn.access - INFO - 51.159.194.69:0 - "GET /enterprise/0201/gsm-lines/all HTTP/1.0" 200
+2025-06-09 18:15:31,921 - uvicorn.access - INFO - 51.159.194.69:0 - "GET /enterprise/0201/gsm-lines/180 HTTP/1.0" 200
+2025-06-09 18:16:42,171 - uvicorn.access - INFO - 51.159.194.69:0 - "GET /enterprise/0201/gsm-lines/240 HTTP/1.0" 200
+2025-06-09 18:16:49,400 - uvicorn.access - INFO - 51.159.194.69:0 - "GET /enterprise/0201/gsm-lines/178 HTTP/1.0" 200
+2025-06-09 18:16:54,338 - uvicorn.access - INFO - 51.159.194.69:0 - "GET /enterprise/0201/gsm-lines/177 HTTP/1.0" 200
+2025-06-09 18:16:58,316 - uvicorn.access - INFO - 51.159.194.69:0 - "GET /enterprise/0201/gsm-lines/242 HTTP/1.0" 200
+2025-06-09 18:20:17,532 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/dashboard HTTP/1.0" 200
+2025-06-09 18:20:21,842 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/all HTTP/1.0" 200
+2025-06-09 18:20:25,447 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/240 HTTP/1.0" 200
+2025-06-09 18:20:35,277 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/178 HTTP/1.0" 200
+2025-06-09 18:20:39,619 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/177 HTTP/1.0" 200
+2025-06-09 18:24:28,892 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/240 HTTP/1.0" 200
+2025-06-09 18:24:33,143 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/dashboard HTTP/1.0" 200
+2025-06-09 18:24:40,982 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/all HTTP/1.0" 200
+2025-06-09 18:24:44,693 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/179 HTTP/1.0" 200
+2025-06-09 18:26:08,556 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/dashboard HTTP/1.0" 200
+2025-06-09 18:26:11,324 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/all HTTP/1.0" 200
+2025-06-09 18:26:13,152 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/179 HTTP/1.0" 200
+2025-06-09 18:26:16,845 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/241 HTTP/1.0" 200
+2025-06-09 18:26:22,602 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/180 HTTP/1.0" 200
+2025-06-09 18:29:54,075 - asyncio - DEBUG - Using selector: EpollSelector
+2025-06-09 18:29:54,948 - email_users - DEBUG - === LOADED email_users.py AT /root/asterisk-webhook/app/routers/email_users.py ===
+2025-06-09 18:29:55,152 - uvicorn.error - INFO - Started server process [124559]
+2025-06-09 18:29:55,152 - uvicorn.error - INFO - Waiting for application startup.
+2025-06-09 18:29:55,225 - uvicorn.error - INFO - Application startup complete.
+2025-06-09 18:29:55,225 - uvicorn.error - ERROR - [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-06-09 18:29:55,226 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-06-09 18:29:55,229 - uvicorn.error - INFO - Application shutdown complete.
+2025-06-09 18:30:02,212 - uvicorn.error - INFO - Shutting down
+2025-06-09 18:30:02,282 - asyncio - DEBUG - Using selector: EpollSelector
+2025-06-09 18:30:02,313 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-06-09 18:30:02,313 - uvicorn.error - INFO - Application shutdown complete.
+2025-06-09 18:30:02,313 - uvicorn.error - INFO - Finished server process [122281]
+2025-06-09 18:30:02,771 - uvicorn.error - INFO - Started server process [124634]
+2025-06-09 18:30:02,771 - uvicorn.error - INFO - Waiting for application startup.
+2025-06-09 18:30:02,771 - uvicorn.error - INFO - Application startup complete.
+2025-06-09 18:30:02,771 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8004 (Press CTRL+C to quit)
+2025-06-09 18:33:04,807 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/dashboard HTTP/1.0" 200
+2025-06-09 18:33:06,313 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/all HTTP/1.0" 200
+2025-06-09 18:33:08,193 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/users HTTP/1.0" 200
+2025-06-09 18:38:36,593 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTQ5NDYxNn0.sGJfrpTBUo4pfX2L7uaN0B6YafVV0o6za5bmhm41Qyo HTTP/1.0" 303
+2025-06-09 18:38:36,744 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/dashboard HTTP/1.0" 200
+2025-06-09 18:40:12,236 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/all HTTP/1.0" 200
+2025-06-09 18:40:15,623 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/gsm-lines/178 HTTP/1.0" 200
+2025-06-09 18:40:37,160 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTQ5NDczNn0.3gbUVE3XEIv8qc3hH-q04A--RZ_iuCB0T3eKjhZr3w4 HTTP/1.0" 303
+2025-06-09 18:40:37,329 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/dashboard HTTP/1.0" 200
+2025-06-09 18:43:35,970 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTQ5NDkxNX0.kmkMA4eMPsxROHOJC8Kqs13ZTF5E_4PfZcYiKKFck28 HTTP/1.0" 303
+2025-06-09 18:43:37,968 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/dashboard HTTP/1.0" 200
