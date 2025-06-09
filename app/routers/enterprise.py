@@ -12,6 +12,12 @@ from fastapi import APIRouter, Request, Form, status, HTTPException, UploadFile,
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 import asyncpg
+from fastapi import Depends
+from asyncpg.connection import Connection as AsyncConnection
+from sqlalchemy.exc import NoResultFound
+from app.services import postgres as db_services
+from main import templates
+from app.services.postgres import get_db
 
 from app.services.database import get_all_enterprises
 from app.services.enterprise import send_message_to_bot
@@ -26,8 +32,7 @@ from app.services.postgres import (
     update_goip_gateway,
     delete_goip_gateway,
     get_goip_gateway_by_id,
-    create_gsm_lines_for_gateway,
-    get_pool
+    create_gsm_lines_for_gateway
 )
 from pydantic import BaseModel, constr, conint
 
@@ -122,7 +127,8 @@ async def edit_form(request: Request, number: str):
     if not ent:
         raise HTTPException(status_code=404, detail="Предприятие не найдено")
     
-    gateways_list = await get_gateways_by_enterprise_number(number)
+    gateways_list = await get_gateways_by_enterprise_number(number) 
+    
     gateways_for_template = []
     if gateways_list:
         for gw_row in gateways_list:
@@ -130,48 +136,74 @@ async def edit_form(request: Request, number: str):
             if gw_dict.get('config_backup_uploaded_at') and isinstance(gw_dict['config_backup_uploaded_at'], datetime):
                 gw_dict['config_backup_uploaded_at'] = gw_dict['config_backup_uploaded_at'].isoformat()
             gateways_for_template.append(gw_dict)
-            
+
+    notification = request.query_params.get('notification')
+
     return templates.TemplateResponse(
         "enterprise_form.html",
-        {"request": request, "action": "edit", "enterprise": ent, "gateways": gateways_for_template}
+        {
+            "request": request,
+            "action": "edit",
+            "enterprise": ent,
+            "gateways": gateways_for_template,
+            "notification": notification
+        }
     )
 
 @router.post("/{number}/edit", response_class=RedirectResponse)
-async def edit_enterprise_post(request: Request, number: str):
+async def edit_enterprise_post(request: Request, number: str, db: AsyncConnection = Depends(get_db)):
     form_data = await request.form()
-    try:
-        data = {
-            "name": form_data.get("name", ""),
-            "bot_token": form_data.get("bot_token", ""),
-            "chat_id": form_data.get("chat_id", "374573193"),
-            "ip": form_data.get("ip", ""),
-            "secret": form_data.get("secret", ""),
-            "host": form_data.get("host", ""),
-            "name2": form_data.get("name2", ""),
-            "is_enabled": form_data.get("is_enabled") == "true",
-            "active": form_data.get("active") == "true",
-            "scheme_count": int(form_data.get("scheme_count", 3)),
-            "gsm_line_count": int(form_data.get("gsm_line_count", 8)),
-            "parameter_option_1": form_data.get("parameter_option_1") == "true",
-            "parameter_option_2": form_data.get("parameter_option_2") == "true",
-            "parameter_option_3": form_data.get("parameter_option_3") == "true",
-            "parameter_option_4": form_data.get("parameter_option_4") == "true",
-            "parameter_option_5": form_data.get("parameter_option_5") == "true",
-            "custom_domain": form_data.get("custom_domain"),
-            "custom_port": int(p) if (p := form_data.get("custom_port")) and p.isdigit() else None
-        }
-        await postgres_update_enterprise(number, **data)
+    
+    # Получаем ID шлюза, который нужно пометить для перезагрузки
+    reboot_gateway_id_str = form_data.get("reboot_gateway_id")
+    
+    # (логика извлечения данных предприятия)
+    name = form_data.get("name", "")
+    bot_token = form_data.get("bot_token", "")
+    chat_id = form_data.get("chat_id", "374573193")
+    ip = form_data.get("ip", "")
+    secret = form_data.get("secret", "")
+    host = form_data.get("host", "")
+    name2 = form_data.get("name2", "")
+    is_enabled = form_data.get("is_enabled") == "true"
+    active = form_data.get("active") == "true"
+    scheme_count = int(form_data.get("scheme_count", 3))
+    gsm_line_count = int(form_data.get("gsm_line_count", 8))
+    parameter_option_1 = form_data.get("parameter_option_1") == "true"
+    parameter_option_2 = form_data.get("parameter_option_2") == "true"
+    parameter_option_3 = form_data.get("parameter_option_3") == "true"
+    parameter_option_4 = form_data.get("parameter_option_4") == "true"
+    parameter_option_5 = form_data.get("parameter_option_5") == "true"
+    custom_domain = form_data.get("custom_domain")
+    custom_port_str = form_data.get("custom_port")
+    custom_port = int(custom_port_str) if custom_port_str and custom_port_str.isdigit() else None
+
+    await postgres_update_enterprise(
+        number, name, bot_token, chat_id, ip, secret, host, name2, is_enabled, active,
+        scheme_count, gsm_line_count, parameter_option_1, parameter_option_2,
+        parameter_option_3, parameter_option_4, parameter_option_5,
+        custom_domain, custom_port
+    )
+    
+    # Теперь обрабатываем состояние флагов "Reboot" для шлюзов
+    if reboot_gateway_id_str:
+        all_gateways = await get_gateways_by_enterprise_number(number)
+        reboot_gateway_id = int(reboot_gateway_id_str) if reboot_gateway_id_str.isdigit() else None
         
-        reboot_gateway_id_str = form_data.get("reboot_gateway_id")
-        if reboot_gateway_id_str and reboot_gateway_id_str.isdigit():
-            await update_goip_gateway(gateway_id=int(reboot_gateway_id_str), custom_boolean_flag=True)
+        for gw in all_gateways:
+            gw_id = gw['id']
+            current_flag_state = gw.get('custom_boolean_flag', False)
+            should_have_flag = (gw_id == reboot_gateway_id)
 
-        return RedirectResponse(url=f"/admin/enterprises/{number}/edit", status_code=status.HTTP_303_SEE_OTHER)
-    except Exception as e:
-        logger.error(f"Ошибка при обновлении предприятия {number}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {e}")
-
-# --- API для шлюзов (CRUD) ---
+            # Обновляем только если состояние должно измениться
+            if current_flag_state != should_have_flag:
+                await update_goip_gateway(
+                    gateway_id=gw_id,
+                    gateway_name=gw['gateway_name'],
+                    custom_boolean_flag=should_have_flag
+                )
+    
+    return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/{enterprise_number}/gateways", response_class=JSONResponse, status_code=status.HTTP_201_CREATED)
 async def create_gateway_for_enterprise(enterprise_number: str, gateway_data: GatewayCreate):
@@ -327,6 +359,5 @@ async def send_message_api(number: str, request: Request):
 
     success, error = await send_message_to_bot(ent["bot_token"], ent["chat_id"], message)
     if not success:
-        raise HTTPException(status_code=500, detail=f"Ошибка отправки сообщения: {error}")
-    
-    return {"status": "success", "message": "Сообщение отправлено."}
+        raise HTTPException(status_code=500, detail="Failed to send message")
+    return JSONResponse({"detail": "Message sent"})
