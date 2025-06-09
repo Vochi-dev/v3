@@ -314,4 +314,55 @@ async def create_internal_line(enterprise_number: str, data: CreateLineRequest, 
     except asyncpg.exceptions.UniqueViolationError:
         raise HTTPException(status_code=400, detail="Этот внутренний номер уже занят.")
     finally:
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/gsm-lines/all", response_class=JSONResponse)
+async def get_enterprise_gsm_lines(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    conn = await get_db_connection()
+    if not conn: raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        query = """
+        SELECT g.gateway_name, g.id as gateway_id,
+               gl.id, gl.line_id, gl.internal_id, gl.prefix, gl.phone_number,
+               gl.line_name, gl.in_schema, gl.out_schema, gl.shop, gl.slot, gl.redirect
+        FROM goip g
+        LEFT JOIN gsm_lines gl ON g.id = gl.goip_id
+        WHERE g.enterprise_number = $1
+        ORDER BY g.gateway_name, gl.id
+        """
+        rows = await conn.fetch(query, enterprise_number)
+        
+        # Группируем линии по шлюзам
+        gateways = {}
+        for row in rows:
+            gateway_name = row['gateway_name']
+            if gateway_name not in gateways:
+                gateways[gateway_name] = {
+                    'gateway_name': gateway_name,
+                    'gateway_id': row['gateway_id'],
+                    'lines': []
+                }
+            
+            if row['id'] is not None:  # Если есть линии
+                line = {
+                    'id': row['id'],
+                    'line_id': row['line_id'],
+                    'internal_id': row['internal_id'],
+                    'prefix': row['prefix'],
+                    'phone_number': row['phone_number'],
+                    'line_name': row['line_name'],
+                    'in_schema': row['in_schema'],
+                    'out_schema': row['out_schema'],
+                    'shop': row['shop'],
+                    'slot': row['slot'],
+                    'redirect': row['redirect']
+                }
+                gateways[gateway_name]['lines'].append(line)
+        
+        return JSONResponse(content=list(gateways.values()))
+    finally:
         await conn.close() 

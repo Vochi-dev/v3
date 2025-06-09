@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление GSM-линиями</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>GSM Линии предприятия {{ enterprise_number }}</h1>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Ip</th>
+                        <th>ID2</th>
+                        <th>Номер</th>
+                        <th>Наименование</th>
+                        <th>Префикс</th>
+                        <th>Вх.сх</th>
+                        <th>Исх.схемы</th>
+                        <th>Магазин</th>
+                        <th>Goip</th>
+                        <th>Слот</th>
+                        <th>Переадр.</th>
+                    </tr>
+                </thead>
+                <tbody id="gsm-lines-tbody">
+                    <!-- Data will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования -->
+    <div class="modal fade" id="editGsmLineModal" tabindex="-1" aria-labelledby="editGsmLineModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editGsmLineModalLabel">Редактировать GSM линию</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editGsmLineForm">
+                        <input type="hidden" id="edit-line-id" name="id">
+                        <div class="mb-3">
+                            <label for="edit-line-name" class="form-label">Наименование</label>
+                            <input type="text" class="form-control" id="edit-line-name" name="line_name">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-phone-number" class="form-label">Номер телефона</label>
+                            <input type="text" class="form-control" id="edit-phone-number" name="phone_number">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-prefix" class="form-label">Префикс</label>
+                            <input type="text" class="form-control" id="edit-prefix" name="prefix">
+                        </div>
+                    </form>
+                    <div id="edit-line-error" class="alert alert-danger" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button type="button" class="btn btn-primary" id="save-line-changes-btn">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const enterpriseNumber = '{{ enterprise_number }}';
+        const gsmTbody = document.getElementById('gsm-lines-tbody');
+        const editGsmLineModal = new bootstrap.Modal(document.getElementById('editGsmLineModal'));
+        const editGsmLineModalEl = document.getElementById('editGsmLineModal');
+
+        const fetchAndShowGsmLines = async () => {
+            gsmTbody.innerHTML = '<tr><td colspan="12" style="text-align:center;">Загрузка...</td></tr>';
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/gsm-lines/all`);
+                if (!response.ok) throw new Error(`Ошибка сети: ${response.status}`);
+                const gateways = await response.json();
+                
+                gsmTbody.innerHTML = ''; 
+                if (gateways.length === 0) {
+                    gsmTbody.innerHTML = '<tr><td colspan="12" style="text-align:center;">Линии не найдены.</td></tr>';
+                    return;
+                }
+                
+                gateways.forEach(gateway => {
+                    const gatewayRow = `<tr class="table-secondary"><td colspan="12" class="fw-bold">${gateway.gateway_name}</td></tr>`;
+                    gsmTbody.innerHTML += gatewayRow;
+
+                    if (gateway.lines && gateway.lines.length > 0) {
+                        gateway.lines.forEach(line => {
+                            const lineRow = `
+                                <tr class="line-row" data-line-pk="${line.id}">
+                                    <td>
+                                        <a href="#" class="edit-gsm-link" data-bs-toggle="modal" data-bs-target="#editGsmLineModal" data-line-pk="${line.id}">
+                                            ${line.line_id || ''}
+                                        </a>
+                                    </td>
+                                    <td></td>
+                                    <td class="line-internal-id">${line.internal_id || ''}</td>
+                                    <td class="line-phone-number">${line.phone_number || ''}</td>
+                                    <td class="line-name">${line.line_name || ''}</td>
+                                    <td class="line-prefix">${line.prefix || ''}</td>
+                                    <td></td><td></td><td></td>
+                                    <td>${gateway.gateway_name}</td>
+                                    <td class="line-slot">${line.slot || ''}</td>
+                                    <td></td>
+                                </tr>`;
+                            gsmTbody.innerHTML += lineRow;
+                        });
+                    }
+                });
+            } catch (error) {
+                gsmTbody.innerHTML = `<tr><td colspan="12" class="text-center text-danger">Не удалось загрузить линии: ${error.message}</td></tr>`;
+            }
+        };
+
+        editGsmLineModalEl.addEventListener('show.bs.modal', async (event) => {
+            const link = event.relatedTarget;
+            const lineId = link.getAttribute('data-line-pk');
+            document.getElementById('editGsmLineForm').reset();
+            document.getElementById('edit-line-id').value = lineId;
+            // ... остальная логика заполнения ...
+        });
+        
+        document.getElementById('save-line-changes-btn').addEventListener('click', async () => {
+            const lineId = document.getElementById('edit-line-id').value;
+            // ... остальная логика сохранения ...
+        });
+
+        fetchAndShowGsmLines(); // Загружаем линии сразу при открытии страницы
+    });
+    </script>
+</body>
+</html> 

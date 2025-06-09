@@ -17,6 +17,8 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
         th { background-color: #f2f2f2; }
+        .gsm-table td a { color: blue; text-decoration: none; }
+        .gsm-table td a:hover { text-decoration: underline; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #dee2e6; margin-bottom: 1rem; }
         .modal-header h2 { margin: 0; font-size: 1.5rem; }
         .btn { background-color: #007bff; color: white; border: none; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin-bottom: 1rem; cursor: pointer; border-radius: 5px; }
@@ -40,7 +42,8 @@
         <h1>{{ enterprise.number }}-{{ enterprise.name }} Панель администратора</h1>
     </div>
     <div class="container">
-        <button data-action="show-users" class="btn">Пользователи</button>
+        <button class="btn btn-primary" type="button" data-action="show-users">Пользователи</button>
+        <button class="btn btn-success" type="button" data-action="show-gsm">GSM Линии</button>
         <p>Здесь будет содержимое админки для предприятия.</p>
     </div>
 
@@ -63,6 +66,37 @@
                         </tr>
                     </thead>
                     <tbody id="usersTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- GSM Modal -->
+    <div id="gsmModal" class="modal">
+        <div class="modal-content" style="max-width: 90%;">
+            <div class="modal-header">
+                <h2>GSM Линии</h2>
+                <span data-action="close-modal" class="close-button">&times;</span>
+            </div>
+            <div class="modal-body">
+                <table id="gsmTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Ip</th>
+                            <th>ID2</th>
+                            <th>Номер</th>
+                            <th>Наименование</th>
+                            <th>Префикс</th>
+                            <th>Вх.сх</th>
+                            <th>Исх.схемы</th>
+                            <th>Магазин</th>
+                            <th>Goip</th>
+                            <th>Слот</th>
+                            <th>Переадр.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gsmTableBody"></tbody>
                 </table>
             </div>
         </div>
@@ -151,11 +185,13 @@
             createUser: document.getElementById('createUserModal'),
             createLine: document.getElementById('createLineModal'),
             selectLines: document.getElementById('selectLinesModal'),
+            gsm: document.getElementById('gsmModal'),
         };
         const usersTableBody = document.getElementById('usersTableBody');
         const selectLinesTableBody = document.getElementById('selectLinesTableBody');
         const createUserForm = document.getElementById('createUserForm');
         const createLineForm = document.getElementById('createLineForm');
+        const gsmTableBody = document.getElementById('gsmTableBody');
         
         const iti = intlTelInput(document.getElementById('userPersonalPhone'), {
             nationalMode: false, preferredCountries: ['by', 'ru', 'ua'],
@@ -173,6 +209,7 @@
             
             switch (action) {
                 case 'show-users': openModal(modals.users); if (!usersDataCache) fetchAndShowUsers(); break;
+                case 'show-gsm': openModal(modals.gsm); fetchAndShowGsmLines(); break;
                 case 'open-create-user': openUserModalForCreate(); break;
                 case 'open-create-line': openCreateLineModal(); break;
                 case 'edit-user': openUserModalForEdit(target.dataset.userId); break;
@@ -407,6 +444,62 @@
                 listContainer.innerHTML += `<div><input type="hidden" name="internal_phones" value="${checkbox.value}">${checkbox.value}</div>`;
             });
             closeModal(modals.selectLines);
+        };
+
+        // --- GSM Lines Logic ---
+        const fetchAndShowGsmLines = async () => {
+            gsmTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;">Загрузка...</td></tr>';
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/gsm-lines/all`);
+                if (!response.ok) throw new Error(`Ошибка сети: ${response.status}`);
+                const gateways = await response.json();
+                
+                gsmTableBody.innerHTML = ''; // Очистка перед рендерингом
+                if (gateways.length === 0) {
+                    gsmTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;">Линии не найдены.</td></tr>';
+                    return;
+                }
+
+                // Сортируем шлюзы по минимальному ID линии
+                const sortedGateways = [...gateways].sort((a, b) => {
+                    const minIdA = Math.min(...(a.lines || []).map(line => line.line_id || Infinity));
+                    const minIdB = Math.min(...(b.lines || []).map(line => line.line_id || Infinity));
+                    return minIdA - minIdB;
+                });
+                
+                sortedGateways.forEach(gateway => {
+                    const gatewayRow = `<tr class="table-secondary"><td colspan="12" style="text-align: left; background-color: #f2f2f2;"><strong>${gateway.gateway_name}</strong></td></tr>`;
+                    gsmTableBody.innerHTML += gatewayRow;
+
+                    if (gateway.lines && gateway.lines.length > 0) {
+                        gateway.lines.forEach(line => {
+                            const lineRow = `
+                                <tr class="line-row" data-line-pk="${line.id}">
+                                    <td>
+                                        <a href="#" style="color: blue; text-decoration: none;">
+                                            ${line.line_id || ''}
+                                        </a>
+                                    </td>
+                                    <td></td>
+                                    <td>${line.internal_id || ''}</td>
+                                    <td>${line.phone_number || ''}</td>
+                                    <td>${line.line_name || ''}</td>
+                                    <td>${line.prefix || ''}</td>
+                                    <td>${line.in_schema || ''}</td>
+                                    <td>${line.out_schema || ''}</td>
+                                    <td>${line.shop || ''}</td>
+                                    <td>${gateway.gateway_name || ''}</td>
+                                    <td>${line.slot || ''}</td>
+                                    <td>${line.redirect || ''}</td>
+                                </tr>`;
+                            gsmTableBody.innerHTML += lineRow;
+                        });
+                    }
+                });
+            } catch (error) {
+                console.error("Ошибка при загрузке GSM линий:", error);
+                gsmTableBody.innerHTML = `<tr><td colspan="12" class="text-center text-danger">Не удалось загрузить линии: ${error.message}</td></tr>`;
+            }
         };
 
     });
