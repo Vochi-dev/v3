@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import uvicorn
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, Query, status
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, Query, status, Body
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -317,13 +317,9 @@ async def create_internal_line(enterprise_number: str, data: CreateLineRequest, 
         await conn.close()
 
 @app.get("/enterprise/{enterprise_number}/gsm-lines/all", response_class=JSONResponse)
-async def get_enterprise_gsm_lines(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
-    if enterprise_number != current_enterprise:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    
+async def get_enterprise_gsm_lines(enterprise_number: str):
     conn = await get_db_connection()
     if not conn: raise HTTPException(status_code=500, detail="DB connection failed")
-
     try:
         query = """
         SELECT g.gateway_name, g.id as gateway_id,
@@ -335,8 +331,6 @@ async def get_enterprise_gsm_lines(enterprise_number: str, current_enterprise: s
         ORDER BY g.gateway_name, gl.id
         """
         rows = await conn.fetch(query, enterprise_number)
-        
-        # Группируем линии по шлюзам
         gateways = {}
         for row in rows:
             gateway_name = row['gateway_name']
@@ -346,8 +340,7 @@ async def get_enterprise_gsm_lines(enterprise_number: str, current_enterprise: s
                     'gateway_id': row['gateway_id'],
                     'lines': []
                 }
-            
-            if row['id'] is not None:  # Если есть линии
+            if row['id'] is not None:
                 line = {
                     'id': row['id'],
                     'line_id': row['line_id'],
@@ -362,7 +355,53 @@ async def get_enterprise_gsm_lines(enterprise_number: str, current_enterprise: s
                     'redirect': row['redirect']
                 }
                 gateways[gateway_name]['lines'].append(line)
-        
         return JSONResponse(content=list(gateways.values()))
+    finally:
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/gsm-lines/{line_id}", response_class=JSONResponse)
+async def get_gsm_line(enterprise_number: str, line_id: int):
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+    try:
+        query = """
+        SELECT id, line_id, internal_id, prefix, phone_number, line_name, in_schema, out_schema, shop, slot, redirect
+        FROM gsm_lines
+        WHERE id = $1 AND enterprise_number = $2
+        """
+        row = await conn.fetchrow(query, line_id, enterprise_number)
+        if not row:
+            raise HTTPException(status_code=404, detail="Линия не найдена")
+        return dict(row)
+    finally:
+        await conn.close()
+
+@app.put("/enterprise/{enterprise_number}/gsm-lines/{line_id}", response_class=JSONResponse)
+async def update_gsm_line(
+    enterprise_number: str,
+    line_id: int,
+    data: dict = Body(...)
+):
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+    try:
+        query = """
+        UPDATE gsm_lines
+        SET line_name = $1, phone_number = $2
+        WHERE id = $3 AND enterprise_number = $4
+        RETURNING id, line_id, internal_id, prefix, phone_number, line_name, in_schema, out_schema, shop, slot, redirect
+        """
+        row = await conn.fetchrow(
+            query,
+            data.get("line_name"),
+            data.get("phone_number"),
+            line_id,
+            enterprise_number
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="Линия не найдена")
+        return dict(row)
     finally:
         await conn.close() 
