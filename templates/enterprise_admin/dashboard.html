@@ -196,8 +196,11 @@
         document.body.addEventListener('click', (e) => {
             const target = e.target;
             const action = target.closest('[data-action]')?.dataset.action;
-            const targetIsButton = target.tagName === 'BUTTON' || (target.tagName === 'A' && target.dataset.userId);
-            if (targetIsButton) e.preventDefault();
+            
+            // Предотвращаем стандартное действие только для кнопок с data-action
+            if (action) {
+                e.preventDefault();
+            }
             
             switch (action) {
                 case 'show-users': openModal(modals.users); if (!usersDataCache) fetchAndShowUsers(); break;
@@ -556,7 +559,8 @@
                     errorDiv.style.display = 'none';
                     const data = {
                         line_name: document.getElementById('editLineName').value,
-                        phone_number: document.getElementById('editLinePhone').value
+                        phone_number: document.getElementById('editLinePhone').value,
+                        prefix: document.getElementById('editLinePrefix').textContent
                     };
                     try {
                         const resp = await fetch(`/enterprise/${enterpriseNumber}/gsm-lines/${lineId}`, {
@@ -574,6 +578,7 @@
                         if (row) {
                             row.querySelector('td:nth-child(5)').textContent = result.line_name || '';
                             row.querySelector('td:nth-child(4)').textContent = result.phone_number || '';
+                            row.querySelector('td:nth-child(6)').textContent = result.prefix || '';
                         }
                         closeEditLineModal();
                     } catch (err) {
@@ -584,13 +589,23 @@
             }
         });
 
+        // --- Utility Functions ---
+        function generatePassword(length = 16) {
+            const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let password = '';
+            for (let i = 0; i < length; i++) {
+                const randomIndex = Math.floor(Math.random() * charset.length);
+                password += charset[randomIndex];
+            }
+            return password;
+        }
+
+        function copyToClipboard(elementId) {
+            const input = document.getElementById(elementId);
+            input.select();
+            try { navigator.clipboard.writeText(input.value); alert('Пароль скопирован'); } catch (err) { alert('Не удалось скопировать пароль.'); }
+        }
     });
-    
-    function copyToClipboard(elementId) {
-        const input = document.getElementById(elementId);
-        input.select();
-        try { navigator.clipboard.writeText(input.value); alert('Пароль скопирован'); } catch (err) { alert('Не удалось скопировать пароль.'); }
-    }
     </script>
 </body>
 </html> 

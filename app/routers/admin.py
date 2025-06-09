@@ -36,6 +36,12 @@ templates = Jinja2Templates(directory="app/templates")
 logger = logging.getLogger("admin")
 logger.setLevel(logging.DEBUG)
 
+# Create a handler for log_action.txt
+log_action_handler = logging.FileHandler("log_action.txt")
+log_action_handler.setLevel(logging.DEBUG)
+log_action_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(log_action_handler)
+
 
 def require_login(request: Request):
     if request.cookies.get("auth") != "1":
@@ -621,14 +627,17 @@ async def delete_all_enterprises(request: Request):
 
 @router.get("/generate-auth-token/{enterprise_number}", response_class=JSONResponse)
 async def generate_auth_token(enterprise_number: str, request: Request):
-    """Generate a short-lived JWT for auto-login to an enterprise admin panel."""
-    require_login(request) # Ensure only a logged-in admin can do this
-
+    require_login(request)
+    logger.info(f"Запрос на генерацию токена для предприятия {enterprise_number}")
     payload = {
-        "exp": datetime.utcnow() + timedelta(seconds=30), # Token is valid for 30 seconds
-        "iat": datetime.utcnow(),
         "sub": enterprise_number,
-        "is_admin": True
+        "is_admin": True,
+        "exp": datetime.utcnow() + timedelta(minutes=5)  # Токен живёт 5 минут
     }
-    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm="HS256")
-    return {"token": token}
+    try:
+        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm="HS256")
+        logger.info(f"Токен для предприятия {enterprise_number} успешно сгенерирован.")
+        return JSONResponse({"token": token})
+    except Exception as e:
+        logger.error(f"Ошибка при генерации токена для предприятия {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Ошибка генерации токена")
