@@ -47,7 +47,7 @@
       background-color: #007bff;
       color: white;
       border-radius: 4px;
-      transition: background-color 0.3s ease;
+      transition: background-color: 0.3s ease;
     }
     .button:hover {
       background-color: #0056b3;
@@ -202,7 +202,7 @@
     }
     .save-config-button {
         background-color: #17a2b8;
-        display: none; /* Скрыта по умолчанию */
+        display: none;
     }
     .save-config-button:hover {
         background-color: #138496;
@@ -220,7 +220,7 @@
     .download-config-link:hover {
         background-color: #0056b3;
     }
-    .gateway-entry h4.gateway-title-collapsible {
+    .gateway-entry h4.gateway-title-clickable {
         color: #007bff;
         cursor: pointer;
         user-select: none;
@@ -296,7 +296,7 @@
 
   <div id="gateway-template" class="gateway-entry" style="display: none;">
     <button type="button" class="button-small remove-gateway-button" title="Удалить шлюз">X</button>
-    <h4 class="gateway-title-collapsible">
+    <h4>
         <span>Шлюз <span class="gateway-number"></span></span>
         <div class="gateway-actions" style="display: flex; align-items: center;">
             <input type="checkbox" data-name="custom_boolean_flag" value="true" style="width: auto; margin-right: 5px;">
@@ -319,6 +319,21 @@
        </div>
     </div>
   </div>
+
+  <div id="gsm-lines-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="gsm-lines-modal-title"></h2>
+        <span class="modal-close-button">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div id="gsm-lines-table-container">
+          <!-- Table will be injected here by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
 
 <script>
     // ИСПРАВЛЕННАЯ ФУНКЦИЯ
