@@ -265,10 +265,13 @@ async def _save_gateway_config_file(gateway_id: int, file: UploadFile) -> str:
     finally:
         file.file.close()
         
-    return file.filename
+    return file_path.name
 
-@router.post("/gateways/{gateway_id}/upload_config", response_class=JSONResponse)
-async def upload_gateway_config_api(gateway_id: int, config_file: UploadFile = File(...)):
+@router.post("/{enterprise_number}/gateways/{gateway_id}/upload_config", response_class=JSONResponse)
+async def upload_gateway_config_api(enterprise_number: str, gateway_id: int, config_file: UploadFile = File(...)):
+    """
+    Загружает файл конфигурации для шлюза и обновляет запись в БД.
+    """
     if not await get_goip_gateway_by_id(gateway_id):
         raise HTTPException(status_code=404, detail="Шлюз не найден")
     
@@ -290,19 +293,22 @@ async def upload_gateway_config_api(gateway_id: int, config_file: UploadFile = F
         logger.error(f"API-ошибка загрузки конфига для шлюза {gateway_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Ошибка загрузки файла: {e}")
 
-@router.get("/gateways/{gateway_id}/download_config", response_class=FileResponse)
-async def download_gateway_config(gateway_id: int):
-    gateway = await get_goip_gateway_by_id(gateway_id)
-    if not gateway or not (original_filename := gateway.get('config_backup_original_name')):
-        raise HTTPException(status_code=404, detail="Конфигурационный файл не найден.")
+@router.get("/{enterprise_number}/gateways/{gateway_id}/download_config", response_class=FileResponse)
+async def download_gateway_config(enterprise_number: str, gateway_id: int):
+    """
+    Отдает файл конфигурации для скачивания.
+    """
+    config_path = CONFIG_BASE_PATH / str(gateway_id)
+    if not config_path.exists():
+        raise HTTPException(status_code=404, detail="Файл конфигурации не найден")
     
-    file_path = CONFIG_BASE_PATH / str(gateway_id) / "config.dat"
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Файл конфигурации отсутствует на диске.")
-        
+    file_path = config_path / "config.dat"
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Файл конфигурации отсутствует на диске")
+    
     return FileResponse(
         path=file_path,
-        filename=original_filename,
+        filename=f"{enterprise_number}_config.dat",
         media_type='application/octet-stream'
     )
 
