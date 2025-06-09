@@ -1,0 +1,33 @@
+<div class="modal fade" id="editGsmLineModal" tabindex="-1" aria-labelledby="editGsmLineModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editGsmLineModalLabel">Редактировать GSM линию</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editGsmLineForm">
+                    <input type="hidden" id="edit-line-id" name="id">
+                    <div class="mb-3">
+                        <label for="edit-line-name" class="form-label">Наименование</label>
+                        <input type="text" class="form-control" id="edit-line-name" name="line_name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-phone-number" class="form-label">Номер телефона</label>
+                        <input type="text" class="form-control" id="edit-phone-number" name="phone_number">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-prefix" class="form-label">Префикс</label>
+                        <input type="text" class="form-control" id="edit-prefix" name="prefix">
+                    </div>
+                </form>
+                <div id="edit-line-error" class="alert alert-danger" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger me-auto" id="delete-line-btn">Удалить</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                <button type="button" class="btn btn-primary" id="save-line-changes-btn">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div> 
