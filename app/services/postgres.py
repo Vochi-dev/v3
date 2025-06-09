@@ -67,6 +67,14 @@ async def close_pool():
         await _pool.close()
         _pool = None
 
+async def get_db():
+    """FastAPI-зависимость для получения соединения из пула."""
+    pool = await get_pool()
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Connection pool is not initialized")
+    async with pool.acquire() as conn:
+        yield conn
+
 # Функции для работы с предприятиями
 async def get_all_enterprises():
     """Получает список всех предприятий"""
