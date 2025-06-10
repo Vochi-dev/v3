@@ -322,29 +322,42 @@ async def get_goip_gateway_by_id(gateway_id: int) -> Optional[Dict]:
         row = await conn.fetchrow("SELECT * FROM goip WHERE id = $1", gateway_id)
         return dict(row) if row else None
 
-async def _get_max_line_id(conn) -> int:
+async def _get_max_line_id(conn, enterprise_number: str) -> int:
     """
-    Получает максимальный line_id из ВСЕЙ таблицы gsm_lines.
+    Получает максимальный line_id из таблицы gsm_lines для конкретного предприятия.
     """
-    max_id_str = await conn.fetchval("SELECT MAX(line_id) FROM gsm_lines")
+    max_id_str = await conn.fetchval(
+        "SELECT MAX(line_id) FROM gsm_lines WHERE enterprise_number = $1",
+        enterprise_number
+    )
     return int(max_id_str) if max_id_str and max_id_str.isdigit() else 0
 
-async def _get_last_internal_id_details(conn) -> tuple[int, int]:
+async def _get_last_internal_id_details(conn, enterprise_number: str) -> tuple[int, int]:
     """
-    Получает детали последнего internal_id из ВСЕЙ таблицы.
-    Возвращает кортеж (блок, номер_в_блоке).
-    Пример: для '12020003' вернет (120200, 3).
+    Получает детали последнего internal_id для предприятия.
+    Возвращает кортеж (номер_блока, номер_линии_в_блоке).
     """
-    last_id = await conn.fetchval("SELECT MAX(internal_id) FROM gsm_lines WHERE internal_id ~ '^[0-9]+$'")
-    if not last_id or len(last_id) < 3:
-        # Если ID нет или они некорректны, начинаем с базового значения.
-        # Этого не должно происходить в рабочей системе.
-        return (120200, 0)
+    last_internal_id = await conn.fetchval(
+        "SELECT internal_id FROM gsm_lines WHERE enterprise_number = $1 ORDER BY internal_id DESC LIMIT 1",
+        enterprise_number
+    )
+    if not last_internal_id:
+        return 10, 0 # Если линий нет, начинаем с 10-го блока, 0-й линии
+
+    # Парсим ID: первые 2 символа - блок, остальное - номер предприятия и линии
+    block_part_str = last_internal_id[:2]
+    rest_part_str = last_internal_id[2:]
     
-    # Разделяем ID на блок (все кроме последних 2 цифр) и номер
-    prefix_part = int(last_id[:-2])
-    line_part = int(last_id[-2:])
-    return (prefix_part, line_part)
+    # Из оставшейся части убираем номер предприятия, чтобы получить номер линии
+    line_in_block_str = rest_part_str.replace(enterprise_number, '', 1)
+
+    try:
+        block_part = int(block_part_str)
+        line_in_block = int(line_in_block_str)
+        return block_part, line_in_block
+    except (ValueError, TypeError):
+        # В случае ошибки парсинга, возвращаем значения по умолчанию
+        return 10, 0
 
 async def _add_gsm_line(conn, goip_id, enterprise_number, line_id, internal_id, prefix):
     await conn.execute(
@@ -358,44 +371,42 @@ async def _add_gsm_line(conn, goip_id, enterprise_number, line_id, internal_id, 
 async def create_gsm_lines_for_gateway(conn: asyncpg.Connection, gateway_id: int, gateway_name: str, enterprise_number: str, line_count: int):
     """
     Создает указанное количество GSM-линий для шлюза,
-    используя следующий глобально доступный line_id и internal_id.
+    используя следующий доступный line_id и internal_id для предприятия.
     """
-    # Шаг 1: Получаем глобальный максимальный line_id
-    last_line_id = await _get_max_line_id(conn)
+    # Шаг 1: Получаем последний (максимальный) line_id для ЭТОГО предприятия
+    last_line_id = await _get_max_line_id(conn, enterprise_number)
     
-    # Шаг 2: Получаем детали глобального максимального internal_id
-    last_internal_id_prefix, last_internal_id_num = await _get_last_internal_id_details(conn)
+    # Шаг 2: Получаем последний internal_id для ЭТОГО предприятия
+    block, last_line_in_block = await _get_last_internal_id_details(conn, enterprise_number)
 
     # Определяем начальные значения
-    next_line_id = (last_line_id or 1362) + 1
+    next_line_id = 1363 if last_line_id == 0 else last_line_id + 1
     
-    # Логика для internal_id: просто инкрементируем префикс, если номер переполняется
-    current_internal_id_num = last_internal_id_num
-    current_internal_id_prefix = last_internal_id_prefix
+    # Для КАЖДОГО нового шлюза нумерация префиксов начинается с 21.
+    current_prefix = 21
 
     # Шаг 3: Создаем линии в цикле
     for i in range(line_count):
-        current_line_id = next_line_id + i
+        new_line_id = next_line_id + i
         
-        current_internal_id_num += 1
-        if current_internal_id_num > 99:
-            current_internal_id_num = 1
-            current_internal_id_prefix += 1 # Инкрементируем весь префикс
-            
-        current_internal_id = f"{current_internal_id_prefix}{current_internal_id_num:02d}"
+        # Корректная логика генерации internal_id
+        current_line_in_block = last_line_in_block + (i + 1)
+        if current_line_in_block > 99:
+            block += 1
+            current_line_in_block = 1
         
-        # Префикс для Asterisk - это первые 2 цифры блока internal_id
-        # Пример: для internal_id 12020001 префикс будет '12'
-        prefix_for_asterisk = str(current_internal_id_prefix)[:2]
+        line_in_block_str = str(current_line_in_block).zfill(2)
+        new_internal_id = f"{block}{enterprise_number}{line_in_block_str}"
 
         await _add_gsm_line(
             conn=conn,
             goip_id=gateway_id,
             enterprise_number=enterprise_number,
-            line_id=f"{current_line_id:07d}",
-            internal_id=current_internal_id,
-            prefix=prefix_for_asterisk
+            line_id=f"{new_line_id:07d}",
+            internal_id=new_internal_id,
+            prefix=str(current_prefix)
         )
+        current_prefix += 1
     
     logger.info(f"Успешно создано {line_count} линий для шлюза ID {gateway_id} предприятия {enterprise_number}.")
 
@@ -540,11 +551,11 @@ async def get_gsm_lines_by_gateway_id(gateway_id: int) -> List[Dict]:
         )
         return [dict(row) for row in rows]
 
-async def get_gsm_line_by_id(line_id: int) -> Optional[Dict]:
-    """Получает одну GSM-линию по ее ID."""
+async def get_gsm_line_by_id(db_id: int) -> Optional[Dict]:
+    """Получает одну GSM-линию по ее ПЕРВИЧНОМУ КЛЮЧУ (id)."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT * FROM gsm_lines WHERE id = $1", line_id)
+        row = await conn.fetchrow("SELECT * FROM gsm_lines WHERE id = $1", db_id)
         return dict(row) if row else None
 
 async def update_gsm_line(line_id: int, line_name: Optional[str], phone_number: Optional[str], prefix: Optional[str]) -> Optional[Dict]:

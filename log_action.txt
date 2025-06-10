@@ -332,3 +332,31 @@
 2025-06-10 08:43:28,680 - enterprise_admin_service - INFO - Запрос обработан за 0.0615 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/gsm-lines/all
 2025-06-10 08:45:14,139 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/gsm-lines/all
 2025-06-10 08:45:14,182 - enterprise_admin_service - INFO - Запрос обработан за 0.0425 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/gsm-lines/all
+2025-06-10 08:57:26,293 - admin - INFO - Запрос на генерацию токена для предприятия 0200
+2025-06-10 08:57:26,294 - admin - INFO - Токен для предприятия 0200 успешно сгенерирован.
+2025-06-10 08:57:26,427 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAwIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTU0NjE0Nn0.zPHP0WBIeac6hr8TF5phLK1a3KimjwrpBKzHiRHsdvY
+2025-06-10 08:57:26,428 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJhbGciOiJIUzI...
+2025-06-10 08:57:26,428 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0200', 'is_admin': True, 'exp': 1749546146}
+2025-06-10 08:57:26,428 - enterprise_admin_service - INFO - Номер предприятия из токена: 0200
+2025-06-10 08:57:26,487 - enterprise_admin_service - INFO - Создание сессии для предприятия 0200...
+2025-06-10 08:57:26,489 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-06-10 08:57:26,490 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0200.
+2025-06-10 08:57:26,490 - enterprise_admin_service - INFO - Запрос обработан за 0.0633 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAwIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTU0NjE0Nn0.zPHP0WBIeac6hr8TF5phLK1a3KimjwrpBKzHiRHsdvY
+2025-06-10 08:57:26,579 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 08:57:26,652 - enterprise_admin_service - INFO - Запрос обработан за 0.0731 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 08:57:28,188 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/gsm-lines/all
+2025-06-10 08:57:28,228 - enterprise_admin_service - INFO - Запрос обработан за 0.0395 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/gsm-lines/all
+2025-06-10 09:03:44,919 - admin - INFO - Запрос на генерацию токена для предприятия 0201
+2025-06-10 09:03:44,919 - admin - INFO - Токен для предприятия 0201 успешно сгенерирован.
+2025-06-10 09:03:45,043 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTU0NjUyNH0.xyo4RMNbGaci_oLDlRmMtJOVhl29_OJ5tNMs4vlasEM
+2025-06-10 09:03:45,043 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJhbGciOiJIUzI...
+2025-06-10 09:03:45,043 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0201', 'is_admin': True, 'exp': 1749546524}
+2025-06-10 09:03:45,043 - enterprise_admin_service - INFO - Номер предприятия из токена: 0201
+2025-06-10 09:03:45,078 - enterprise_admin_service - INFO - Создание сессии для предприятия 0201...
+2025-06-10 09:03:45,081 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-06-10 09:03:45,084 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0201.
+2025-06-10 09:03:45,084 - enterprise_admin_service - INFO - Запрос обработан за 0.0416 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTU0NjUyNH0.xyo4RMNbGaci_oLDlRmMtJOVhl29_OJ5tNMs4vlasEM
+2025-06-10 09:03:45,168 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-10 09:03:45,250 - enterprise_admin_service - INFO - Запрос обработан за 0.0821 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-10 09:03:46,731 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-10 09:03:46,774 - enterprise_admin_service - INFO - Запрос обработан за 0.0430 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
