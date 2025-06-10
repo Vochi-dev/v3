@@ -114,9 +114,7 @@
         <button class="btn btn-success" type="button" id="btn-gsm-lines">GSM-линии</button>
         <button class="btn btn-warning" type="button" data-action="show-audiofiles">Аудиофайлы</button>
         <button class="btn btn-primary" type="button" data-action="show-sip-lines">SIP-линии</button>
-        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Call-Tracking</button>
-        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">CallBack</button>
-        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Отделы</button>
+        <button class="btn btn-primary" type="button" data-action="show-departments">Отделы</button>
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Магазины</button>
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">API</button>
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Статистика</button>
@@ -361,6 +359,74 @@
         </div>
     </div>
 
+    <!-- Модальное окно для Отделов (основное) -->
+    <div id="departments-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Отделы</h2>
+                <span data-action="close-modal" class="close-button">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="table-container">
+                    <table id="departments-table">
+                        <thead>
+                            <tr>
+                                <th>Номер</th>
+                                <th>Наименование</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Сюда будут загружаться отделы -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="form-actions" style="padding: 1rem 20px; justify-content: space-between;">
+                 <button class="btn btn-primary" type="button" data-action="open-department-form">Создать новый</button>
+                 <button type="button" data-action="close-modal" class="btn btn-secondary">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для ФОРМЫ добавления/редактирования Отдела -->
+    <div id="department-form-modal" class="modal">
+        <div class="modal-content modal-narrow">
+            <div class="modal-header">
+                <h2 id="department-modal-title">Создание отдела</h2>
+                <span data-action="close-modal" class="close-button">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="department-form">
+                    <input type="hidden" id="department-id" name="id">
+                    <div class="form-group">
+                        <label for="department-name">Наименование</label>
+                        <input type="text" id="department-name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="department-number">Номер</label>
+                        <input type="number" id="department-number" name="number" min="901" max="999" required>
+                        <small>Значения от 901 до 999</small>
+                    </div>
+                    <!-- Место для добавления пользователей -->
+                    <div id="department-members-container" style="display: none; margin-top: 1.5rem;">
+                         <label>Пользователи</label>
+                         <div style="display: flex; gap: 10px; margin-top: 0.5rem;">
+                             <select id="department-user-select" style="flex-grow: 1;"></select>
+                             <button type="button" class="btn btn-primary" data-action="add-department-member">+</button>
+                         </div>
+                         <ul id="department-members-list" style="list-style: none; padding: 0; margin-top: 1rem;">
+                             <!-- Участники отдела -->
+                         </ul>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                        <button type="button" data-action="close-modal" class="btn btn-secondary">Закрыть</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/js/intlTelInput.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -390,6 +456,8 @@
         const editLineModalContainer = document.getElementById('editLineModalContainer');
         const sipLinesModal = document.getElementById('sip-lines-modal');
         const sipLineFormModal = document.getElementById('sip-line-form-modal');
+        const departmentsModal = document.getElementById('departments-modal');
+        const departmentFormModal = document.getElementById('department-form-modal');
 
         // --- Event Delegation ---
         document.body.addEventListener('click', async (e) => {
@@ -407,6 +475,18 @@
             } else if (action === 'show-sip-lines') {
                 sipLinesModal.style.display = 'block';
                 loadSipLines();
+            } else if (action === 'show-departments') {
+                departmentsModal.style.display = 'block';
+                loadDepartments();
+            } else if (action === 'open-department-form') {
+                openDepartmentForm();
+            } else if (action === 'edit-department') {
+                const deptId = e.target.closest('tr').dataset.departmentId;
+                openDepartmentForm(deptId);
+            } else if (action === 'add-department-member') {
+                addDepartmentMember();
+            } else if (action === 'remove-department-member') {
+                e.target.closest('li').remove();
             } else if (action === 'open-sip-line-form') {
                 document.getElementById('sip-line-form').reset();
                 document.getElementById('sip-line-modal-title').textContent = 'Добавить SIP-линию';
@@ -1050,6 +1130,182 @@
             } finally {
                 submitButton.disabled = false;
                 submitButton.textContent = 'Сохранить';
+            }
+        });
+
+        // --- Department Logic ---
+        const loadDepartments = async () => {
+            const tableBody = document.getElementById('departments-table').querySelector('tbody');
+            tableBody.innerHTML = '<tr><td colspan="2" style="text-align: center;">Загрузка...</td></tr>';
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/departments`);
+                if (!response.ok) throw new Error('Ошибка загрузки отделов');
+                const departments = await response.json();
+                
+                tableBody.innerHTML = '';
+                if (departments.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="2" style="text-align: center;">Отделы еще не созданы.</td></tr>';
+                    return;
+                }
+
+                departments.forEach(dept => {
+                    const row = tableBody.insertRow();
+                    row.dataset.departmentId = dept.id;
+                    row.innerHTML = `
+                        <td><a href="#" class="edit-trigger" data-action="edit-department" data-id="${dept.id}">${dept.number}</a></td>
+                        <td><a href="#" class="edit-trigger" data-action="edit-department" data-id="${dept.id}">${dept.name}</a></td>
+                    `;
+                });
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: red;">${error.message}</td></tr>`;
+            }
+        };
+
+        const openDepartmentForm = async (departmentId = null) => {
+            const form = document.getElementById('department-form');
+            form.reset();
+            document.getElementById('department-id').value = '';
+            document.getElementById('department-members-container').style.display = 'none';
+            document.getElementById('department-members-list').innerHTML = '';
+            
+            const title = document.getElementById('department-modal-title');
+            
+            if (departmentId) {
+                // Logic for editing
+                title.textContent = 'Редактирование отдела';
+                try {
+                    const response = await fetch(`/enterprise/${enterpriseNumber}/departments/${departmentId}`);
+                    if (!response.ok) throw new Error('Не удалось загрузить данные отдела');
+                    const dept = await response.json();
+
+                    document.getElementById('department-id').value = dept.id;
+                    document.getElementById('department-name').value = dept.name;
+                    document.getElementById('department-number').value = dept.number;
+                    
+                    const membersList = document.getElementById('department-members-list');
+                    membersList.innerHTML = '';
+                    if(dept.members) {
+                        dept.members.forEach(member => {
+                            const displayName = member.user_name 
+                                ? `${member.user_name} (${member.phone_number})`
+                                : `Линия ${member.phone_number}`;
+                            const li = document.createElement('li');
+                            li.dataset.memberId = member.id;
+                            li.innerHTML = `<span>${displayName}</span><button type="button" data-action="remove-department-member" class="btn-link">Удалить</button>`;
+                            membersList.appendChild(li);
+                        });
+                    }
+
+                    document.getElementById('department-members-container').style.display = 'block';
+                    populateDepartmentUserSelect();
+
+                } catch(e) {
+                    alert(e.message);
+                    return;
+                }
+            } else {
+                // Logic for creating
+                title.textContent = 'Создание отдела';
+                try {
+                    const res = await fetch(`/enterprise/${enterpriseNumber}/departments/next-available-number`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        document.getElementById('department-number').value = data.next_number;
+                    } else {
+                         document.getElementById('department-number').value = 901;
+                    }
+                } catch (e) {
+                     document.getElementById('department-number').value = 901;
+                }
+            }
+            departmentFormModal.style.display = 'block';
+        };
+
+        const populateDepartmentUserSelect = async () => {
+            const select = document.getElementById('department-user-select');
+            select.innerHTML = '<option>Загрузка...</option>';
+            try {
+                if (!allLinesCache) {
+                     const response = await fetch(`/enterprise/${enterpriseNumber}/internal-phones/all`);
+                     if(!response.ok) throw new Error('Failed to fetch lines');
+                     allLinesCache = await response.json();
+                }
+                select.innerHTML = '<option value="">-- Выберите сотрудника --</option>';
+                allLinesCache.forEach(line => {
+                    const displayName = line.manager_name 
+                        ? `${line.manager_name} (${line.phone_number})`
+                        : `Линия ${line.phone_number}`;
+                    const option = new Option(displayName, line.id);
+                    select.add(option);
+                });
+            } catch (e) {
+                select.innerHTML = '<option>Ошибка</option>';
+            }
+        };
+
+        const addDepartmentMember = () => {
+            const select = document.getElementById('department-user-select');
+            const selectedOption = select.options[select.selectedIndex];
+            if (!selectedOption || !selectedOption.value) return;
+
+            const memberId = selectedOption.value;
+            const memberName = selectedOption.text;
+
+            const membersList = document.getElementById('department-members-list');
+            // Проверка, что такой участник еще не добавлен
+            if (membersList.querySelector(`li[data-member-id="${memberId}"]`)) {
+                alert('Этот сотрудник уже в отделе.');
+                return;
+            }
+
+            const li = document.createElement('li');
+            li.dataset.memberId = memberId;
+            li.innerHTML = `<span>${memberName}</span><button type="button" data-action="remove-department-member" class="btn-link">Удалить</button>`;
+            membersList.appendChild(li);
+        };
+
+        document.getElementById('department-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const departmentId = form.elements['id'].value;
+            
+            const members = Array.from(document.querySelectorAll('#department-members-list li')).map(li => parseInt(li.dataset.memberId, 10));
+
+            const data = {
+                name: form.elements['name'].value,
+                number: parseInt(form.elements['number'].value, 10),
+                members: members
+            };
+
+            const url = departmentId
+                ? `/enterprise/${enterpriseNumber}/departments/${departmentId}`
+                : `/enterprise/${enterpriseNumber}/departments`;
+            const method = departmentId ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    let errorMessage = 'Не удалось сохранить отдел';
+                    if (errorData.detail) {
+                        if (Array.isArray(errorData.detail)) {
+                            // FastAPI validation error
+                            errorMessage = errorData.detail.map(err => `Поле "${err.loc[err.loc.length - 1]}": ${err.msg}`).join('\\n');
+                        } else {
+                            // Custom HTTPException
+                            errorMessage = errorData.detail;
+                        }
+                    }
+                    throw new Error(errorMessage);
+                }
+                departmentFormModal.style.display = 'none';
+                loadDepartments();
+            } catch (error) {
+                alert(`Ошибка:\\n${error.message}`);
             }
         });
 
