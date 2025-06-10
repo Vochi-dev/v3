@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import uvicorn
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, Query, status, Body
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, Query, status, Body, UploadFile, File
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import asyncpg
@@ -13,11 +13,21 @@ import random
 import string
 from pydantic import BaseModel
 import time
+import os
+import uuid
+import asyncio
+from pathlib import Path
 
 from app.config import JWT_SECRET_KEY, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT
 
 # A set of reserved numbers that cannot be assigned.
 RESERVED_INTERNAL_NUMBERS = {301, 302, 555}
+
+# Определяем корневую директорию проекта
+# __file__ -> enterprise_admin_service.py
+# .parent -> /
+# .parent -> /root/asterisk-webhook (проект)
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 # ——————————————————————————————————————————————————————————————————————————
 # Pydantic Models (defined locally to avoid import issues)
@@ -37,6 +47,10 @@ class UserCreate(UserUpdate):
 class CreateLineRequest(BaseModel):
     phone_number: str
     password: str
+
+class MusicFileCreate(BaseModel):
+    display_name: str
+    file_type: str
     
 # ——————————————————————————————————————————————————————————————————————————
 # Basic Configuration
@@ -60,6 +74,7 @@ async def log_all_requests_middleware(request: Request, call_next):
     return response
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/music", StaticFiles(directory="music"), name="music")
 
 templates = Jinja2Templates(directory="templates", auto_reload=True)
 logging.basicConfig(level=logging.INFO)
@@ -92,6 +107,18 @@ async def get_enterprise_by_number_from_db(number: str) -> Optional[Dict]:
         finally:
             await conn.close()
     return None
+
+async def get_file_path_from_db(file_id: int, enterprise_number: str) -> Optional[str]:
+    conn = await get_db_connection()
+    if not conn: return None
+    try:
+        path = await conn.fetchval(
+            "SELECT file_path FROM music_files WHERE id = $1 AND enterprise_number = $2",
+            file_id, enterprise_number
+        )
+        return path
+    finally:
+        await conn.close()
 
 # ——————————————————————————————————————————————————————————————————————————
 # Authentication
@@ -459,4 +486,154 @@ async def update_gsm_line(
             raise HTTPException(status_code=404, detail="Линия не найдена")
         return dict(row)
     finally:
-        await conn.close() 
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/audiofiles", response_class=JSONResponse)
+async def get_audio_files(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        query = """
+        SELECT id, display_name, file_type, file_path, original_filename, created_at
+        FROM music_files
+        WHERE enterprise_number = $1
+        ORDER BY created_at DESC
+        """
+        files = await conn.fetch(query, enterprise_number)
+        
+        logger.info(f"AUDIO_LIST: Найдено {len(files)} файлов для предприятия {enterprise_number}.")
+
+        # Manually construct the response to handle datetime serialization
+        result = [
+            {
+                "id": file["id"],
+                "display_name": file["display_name"],
+                "file_type": file["file_type"],
+                "file_path": file["file_path"],
+                "original_filename": file["original_filename"],
+                "created_at": file["created_at"].isoformat()
+            }
+            for file in files
+        ]
+        
+        logger.info(f"AUDIO_LIST: Отправка списка файлов клиенту: {result}")
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error(f"Could not fetch music files from DB: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось получить список аудиофайлов.")
+    finally:
+        await conn.close()
+
+@app.get("/audiofile/{file_id}")
+async def stream_audio_file(file_id: int, current_enterprise: str = Depends(get_current_enterprise)):
+    logger.info(f"AUDIO_STREAM: Попытка отдать файл id: {file_id} для предприятия: {current_enterprise}")
+    relative_path_from_db = await get_file_path_from_db(file_id, current_enterprise)
+
+    if not relative_path_from_db:
+        logger.warning(f"AUDIO_STREAM: Путь к файлу не найден в БД для id: {file_id}, предприятия: {current_enterprise}")
+        raise HTTPException(status_code=404, detail="Файл не найден (ошибка поиска в БД)")
+
+    logger.info(f"AUDIO_STREAM: Найден относительный путь в БД: {relative_path_from_db}")
+    
+    # Преобразуем относительный путь в абсолютный
+    absolute_path = PROJECT_ROOT / relative_path_from_db
+    logger.info(f"AUDIO_STREAM: Сконструирован абсолютный путь: {absolute_path}")
+
+    if not absolute_path.exists():
+        logger.error(f"AUDIO_STREAM: Файл НЕ существует на диске по абсолютному пути: {absolute_path}. CWD: {os.getcwd()}")
+        raise HTTPException(status_code=404, detail="Файл не найден (отсутствует на диске)")
+
+    logger.info(f"AUDIO_STREAM: Отдаю файл {absolute_path} с media_type audio/wav")
+    return FileResponse(str(absolute_path), media_type="audio/wav")
+
+@app.post("/enterprise/{enterprise_number}/audiofiles", status_code=status.HTTP_201_CREATED)
+async def upload_audio_file(
+    enterprise_number: str,
+    display_name: str = Form(...),
+    file_type: str = Form(...),
+    file: UploadFile = File(...),
+    current_enterprise: str = Depends(get_current_enterprise)
+):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    if file.content_type not in ["audio/mpeg", "audio/wav", "audio/x-wav"]:
+        raise HTTPException(status_code=400, detail="Неверный формат файла. Допускаются .mp3 и .wav")
+
+    # Generate internal filename and path
+    random_chars = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    internal_filename = f"{random_chars}.wav" # Always save as wav
+    
+    base_dir = "music"
+    enterprise_dir = os.path.join(base_dir, enterprise_number)
+    file_type_dir = os.path.join(enterprise_dir, file_type)
+    
+    os.makedirs(file_type_dir, exist_ok=True)
+    
+    final_file_path = os.path.join(file_type_dir, internal_filename)
+    temp_file_path = f"/tmp/{uuid.uuid4()}_{file.filename}"
+
+    # Save uploaded file temporarily
+    with open(temp_file_path, "wb") as buffer:
+        buffer.write(await file.read())
+
+    # Convert file with ffmpeg to wav, 16-bit, 8000Hz, mono
+    # Asterisk requires this specific format
+    ffmpeg_command = (
+        f"ffmpeg -i {temp_file_path} -acodec pcm_s16le -ac 1 -ar 8000 "
+        f"{final_file_path}"
+    )
+
+    process = await asyncio.create_subprocess_shell(
+        ffmpeg_command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await process.communicate()
+
+    # Clean up temp file
+    os.remove(temp_file_path)
+
+    if process.returncode != 0:
+        logger.error(f"FFmpeg error: {stderr.decode()}")
+        raise HTTPException(status_code=500, detail=f"Ошибка конвертации файла: {stderr.decode()}")
+
+    # Insert into database
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        query = """
+        INSERT INTO music_files (enterprise_number, file_type, display_name, internal_filename, original_filename, file_path)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, display_name, file_type, created_at
+        """
+        new_file_record = await conn.fetchrow(
+            query,
+            enterprise_number,
+            file_type,
+            display_name,
+            internal_filename,
+            file.filename,
+            final_file_path
+        )
+        
+        response_data = {
+            "id": new_file_record["id"],
+            "display_name": new_file_record["display_name"],
+            "file_type": new_file_record["file_type"],
+            "created_at": new_file_record["created_at"].isoformat()
+        }
+        return JSONResponse(content=response_data)
+    except Exception as e:
+        logger.error(f"Could not insert music file into DB: {e}")
+        # Clean up created file if DB insert fails
+        if os.path.exists(final_file_path):
+            os.remove(final_file_path)
+        raise HTTPException(status_code=500, detail="Не удалось сохранить информацию о файле в базу данных.") 
