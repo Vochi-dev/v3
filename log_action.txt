@@ -104,3 +104,181 @@
 2025-06-10 06:20:48,747 - enterprise_admin_service - INFO - Запрос обработан за 0.0645 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0327/dashboard
 2025-06-10 06:20:50,178 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0327/gsm-lines/all
 2025-06-10 06:20:50,213 - enterprise_admin_service - INFO - Запрос обработан за 0.0353 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0327/gsm-lines/all
+2025-06-10 06:25:31,894 - admin - INFO - Запрос на генерацию токена для предприятия 0200
+2025-06-10 06:25:31,898 - admin - INFO - Токен для предприятия 0200 успешно сгенерирован.
+2025-06-10 06:25:32,018 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAwIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTUzNzAzMX0.F_X2J5jBmc4vqEZoKjIpJiOyQ7DnLyJsz3Eh0Bcy77c
+2025-06-10 06:25:32,020 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJhbGciOiJIUzI...
+2025-06-10 06:25:32,020 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0200', 'is_admin': True, 'exp': 1749537031}
+2025-06-10 06:25:32,020 - enterprise_admin_service - INFO - Номер предприятия из токена: 0200
+2025-06-10 06:25:32,071 - enterprise_admin_service - INFO - Создание сессии для предприятия 0200...
+2025-06-10 06:25:32,074 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-06-10 06:25:32,075 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0200.
+2025-06-10 06:25:32,076 - enterprise_admin_service - INFO - Запрос обработан за 0.0574 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAwIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTUzNzAzMX0.F_X2J5jBmc4vqEZoKjIpJiOyQ7DnLyJsz3Eh0Bcy77c
+2025-06-10 06:25:32,162 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:25:32,245 - enterprise_admin_service - INFO - Запрос обработан за 0.0827 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:25:33,961 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:25:34,078 - enterprise_admin_service - INFO - Запрос обработан за 0.1178 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:26:21,511 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:26:21,589 - enterprise_admin_service - INFO - Запрос обработан за 0.0780 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:26:22,726 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/internal-phones/next-available
+2025-06-10 06:26:22,820 - enterprise_admin_service - INFO - Запрос обработан за 0.0941 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/internal-phones/next-available
+2025-06-10 06:26:26,125 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0200/internal-phones
+2025-06-10 06:26:26,193 - enterprise_admin_service - INFO - Запрос обработан за 0.0680 сек. Статус: 200. Адрес: POST https://bot.vochi.by/enterprise/0200/internal-phones
+2025-06-10 06:26:26,278 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:26:26,345 - enterprise_admin_service - INFO - Запрос обработан за 0.0668 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:26:26,425 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:26:26,494 - enterprise_admin_service - INFO - Запрос обработан за 0.0691 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:26:32,936 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:26:32,974 - enterprise_admin_service - INFO - Запрос обработан за 0.0383 сек. Статус: 201. Адрес: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:26:33,075 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:26:33,153 - enterprise_admin_service - INFO - Запрос обработан за 0.0782 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:26:45,538 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:26:45,601 - enterprise_admin_service - INFO - Запрос обработан за 0.0632 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:26:47,066 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:26:47,141 - enterprise_admin_service - INFO - Запрос обработан за 0.0749 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:26:53,670 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0327/users
+2025-06-10 06:26:53,705 - enterprise_admin_service - INFO - Запрос обработан за 0.0355 сек. Статус: 403. Адрес: GET https://bot.vochi.by/enterprise/0327/users
+2025-06-10 06:27:04,893 - admin - INFO - Запрос на генерацию токена для предприятия 0327
+2025-06-10 06:27:04,894 - admin - INFO - Токен для предприятия 0327 успешно сгенерирован.
+2025-06-10 06:27:04,990 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMzI3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTUzNzEyNH0.UwFgxjx9RyzjEN3CqnAy0PHe6VYBbCJ97kcTO6cwpys
+2025-06-10 06:27:04,990 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJhbGciOiJIUzI...
+2025-06-10 06:27:04,990 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0327', 'is_admin': True, 'exp': 1749537124}
+2025-06-10 06:27:04,990 - enterprise_admin_service - INFO - Номер предприятия из токена: 0327
+2025-06-10 06:27:05,025 - enterprise_admin_service - INFO - Создание сессии для предприятия 0327...
+2025-06-10 06:27:05,028 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-06-10 06:27:05,032 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0327.
+2025-06-10 06:27:05,033 - enterprise_admin_service - INFO - Запрос обработан за 0.0431 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMzI3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTUzNzEyNH0.UwFgxjx9RyzjEN3CqnAy0PHe6VYBbCJ97kcTO6cwpys
+2025-06-10 06:27:05,124 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0327/dashboard
+2025-06-10 06:27:05,195 - enterprise_admin_service - INFO - Запрос обработан за 0.0712 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0327/dashboard
+2025-06-10 06:27:06,763 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0327/users
+2025-06-10 06:27:06,846 - enterprise_admin_service - INFO - Запрос обработан за 0.0826 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0327/users
+2025-06-10 06:27:16,387 - admin - INFO - Запрос на генерацию токена для предприятия 0201
+2025-06-10 06:27:16,388 - admin - INFO - Токен для предприятия 0201 успешно сгенерирован.
+2025-06-10 06:27:16,493 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTUzNzEzNn0.9NBuAO0H7MF1v-h103c1B5Q-rROjNlRq3fC30U79L9w
+2025-06-10 06:27:16,494 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJhbGciOiJIUzI...
+2025-06-10 06:27:16,494 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0201', 'is_admin': True, 'exp': 1749537136}
+2025-06-10 06:27:16,494 - enterprise_admin_service - INFO - Номер предприятия из токена: 0201
+2025-06-10 06:27:16,527 - enterprise_admin_service - INFO - Создание сессии для предприятия 0201...
+2025-06-10 06:27:16,530 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-06-10 06:27:16,531 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0201.
+2025-06-10 06:27:16,531 - enterprise_admin_service - INFO - Запрос обработан за 0.0376 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTUzNzEzNn0.9NBuAO0H7MF1v-h103c1B5Q-rROjNlRq3fC30U79L9w
+2025-06-10 06:27:16,615 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-10 06:27:16,685 - enterprise_admin_service - INFO - Запрос обработан за 0.0698 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-10 06:27:18,015 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-10 06:27:18,127 - enterprise_admin_service - INFO - Запрос обработан за 0.1127 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-10 06:27:41,118 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:27:41,155 - enterprise_admin_service - INFO - Запрос обработан за 0.0373 сек. Статус: 403. Адрес: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:27:50,179 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:27:50,223 - enterprise_admin_service - INFO - Запрос обработан за 0.0441 сек. Статус: 403. Адрес: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:28:02,046 - admin - INFO - Запрос на генерацию токена для предприятия 0200
+2025-06-10 06:28:02,046 - admin - INFO - Токен для предприятия 0200 успешно сгенерирован.
+2025-06-10 06:28:02,157 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAwIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTUzNzE4Mn0.CAb6OiBM4V5sPcmHEwW_BgHoKoo1pXVZhIA6p-EqkX4
+2025-06-10 06:28:02,158 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJhbGciOiJIUzI...
+2025-06-10 06:28:02,158 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0200', 'is_admin': True, 'exp': 1749537182}
+2025-06-10 06:28:02,158 - enterprise_admin_service - INFO - Номер предприятия из токена: 0200
+2025-06-10 06:28:02,206 - enterprise_admin_service - INFO - Создание сессии для предприятия 0200...
+2025-06-10 06:28:02,208 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-06-10 06:28:02,209 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0200.
+2025-06-10 06:28:02,209 - enterprise_admin_service - INFO - Запрос обработан за 0.0519 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAwIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTUzNzE4Mn0.CAb6OiBM4V5sPcmHEwW_BgHoKoo1pXVZhIA6p-EqkX4
+2025-06-10 06:28:02,301 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:28:02,405 - enterprise_admin_service - INFO - Запрос обработан за 0.1040 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:28:04,319 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:28:04,397 - enterprise_admin_service - INFO - Запрос обработан за 0.0776 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:28:10,206 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:28:10,282 - enterprise_admin_service - INFO - Запрос обработан за 0.0756 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:28:15,652 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0200/users/12
+2025-06-10 06:28:15,733 - enterprise_admin_service - INFO - Запрос обработан за 0.0814 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0200/users/12
+2025-06-10 06:28:15,829 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:28:15,906 - enterprise_admin_service - INFO - Запрос обработан за 0.0775 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:28:27,033 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0200/users/12
+2025-06-10 06:28:27,109 - enterprise_admin_service - INFO - Запрос обработан за 0.0764 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0200/users/12
+2025-06-10 06:28:27,221 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:28:27,302 - enterprise_admin_service - INFO - Запрос обработан за 0.0810 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:04,932 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:04,966 - enterprise_admin_service - INFO - Запрос обработан за 0.0342 сек. Статус: 201. Адрес: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:05,054 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:05,141 - enterprise_admin_service - INFO - Запрос обработан за 0.0872 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:12,915 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:29:13,042 - enterprise_admin_service - INFO - Запрос обработан за 0.1273 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:29:14,310 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:14,388 - enterprise_admin_service - INFO - Запрос обработан за 0.0783 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:20,643 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:29:20,716 - enterprise_admin_service - INFO - Запрос обработан за 0.0721 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:29:26,641 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0200/users/13
+2025-06-10 06:29:26,731 - enterprise_admin_service - INFO - Запрос обработан за 0.0900 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0200/users/13
+2025-06-10 06:29:26,818 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:26,907 - enterprise_admin_service - INFO - Запрос обработан за 0.0887 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:37,601 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:29:37,669 - enterprise_admin_service - INFO - Запрос обработан за 0.0687 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-06-10 06:29:39,495 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:39,574 - enterprise_admin_service - INFO - Запрос обработан за 0.0798 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:43,275 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:29:43,345 - enterprise_admin_service - INFO - Запрос обработан за 0.0704 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:29:47,494 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0200/users/13
+2025-06-10 06:29:47,575 - enterprise_admin_service - INFO - Запрос обработан за 0.0807 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0200/users/13
+2025-06-10 06:29:47,669 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:47,749 - enterprise_admin_service - INFO - Запрос обработан за 0.0806 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:57,217 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0200/users/13
+2025-06-10 06:29:57,298 - enterprise_admin_service - INFO - Запрос обработан за 0.0809 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0200/users/13
+2025-06-10 06:29:57,378 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:29:57,465 - enterprise_admin_service - INFO - Запрос обработан за 0.0870 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:30:06,887 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0200/users/13
+2025-06-10 06:30:07,002 - enterprise_admin_service - INFO - Запрос обработан за 0.1148 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0200/users/13
+2025-06-10 06:30:07,091 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:30:07,170 - enterprise_admin_service - INFO - Запрос обработан за 0.0792 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:30:42,749 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:30:42,806 - enterprise_admin_service - INFO - Запрос обработан за 0.0574 сек. Статус: 201. Адрес: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:30:42,899 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:30:42,989 - enterprise_admin_service - INFO - Запрос обработан за 0.0893 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:30:53,987 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0200/users/14
+2025-06-10 06:30:54,061 - enterprise_admin_service - INFO - Запрос обработан за 0.0738 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0200/users/14
+2025-06-10 06:30:54,163 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:30:54,270 - enterprise_admin_service - INFO - Запрос обработан за 0.1067 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:31:12,791 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0200/users/14
+2025-06-10 06:31:12,861 - enterprise_admin_service - INFO - Запрос обработан за 0.0698 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0200/users/14
+2025-06-10 06:31:12,957 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:31:13,033 - enterprise_admin_service - INFO - Запрос обработан за 0.0760 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:32:17,532 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:32:17,567 - enterprise_admin_service - INFO - Запрос обработан за 0.0347 сек. Статус: 201. Адрес: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:32:17,655 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:32:17,756 - enterprise_admin_service - INFO - Запрос обработан за 0.1006 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:32:34,355 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0200/users/15
+2025-06-10 06:32:34,418 - enterprise_admin_service - INFO - Запрос обработан за 0.0638 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0200/users/15
+2025-06-10 06:32:34,511 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:32:34,586 - enterprise_admin_service - INFO - Запрос обработан за 0.0750 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:38:45,889 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0200/users/15
+2025-06-10 06:38:45,973 - enterprise_admin_service - INFO - Запрос обработан за 0.0841 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0200/users/15
+2025-06-10 06:38:46,063 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:38:46,164 - enterprise_admin_service - INFO - Запрос обработан за 0.1010 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:38:52,841 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0200/users/15
+2025-06-10 06:38:52,910 - enterprise_admin_service - INFO - Запрос обработан за 0.0690 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0200/users/15
+2025-06-10 06:38:53,005 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:38:53,117 - enterprise_admin_service - INFO - Запрос обработан за 0.1125 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:42:55,088 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:42:55,147 - enterprise_admin_service - INFO - Запрос обработан за 0.0589 сек. Статус: 201. Адрес: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:42:55,224 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:42:55,307 - enterprise_admin_service - INFO - Запрос обработан за 0.0827 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:43:42,578 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0200/users/16
+2025-06-10 06:43:42,658 - enterprise_admin_service - INFO - Запрос обработан за 0.0795 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0200/users/16
+2025-06-10 06:43:42,733 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:43:42,812 - enterprise_admin_service - INFO - Запрос обработан за 0.0791 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:48:26,784 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0200/users/16
+2025-06-10 06:48:26,887 - enterprise_admin_service - INFO - Запрос обработан за 0.1027 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0200/users/16
+2025-06-10 06:48:26,980 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:48:27,122 - enterprise_admin_service - INFO - Запрос обработан за 0.1420 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:48:59,374 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:48:59,412 - enterprise_admin_service - INFO - Запрос обработан за 0.0383 сек. Статус: 201. Адрес: POST https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:48:59,501 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:48:59,582 - enterprise_admin_service - INFO - Запрос обработан за 0.0803 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:49:08,270 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/internal-phones/next-available
+2025-06-10 06:49:08,332 - enterprise_admin_service - INFO - Запрос обработан за 0.0617 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/internal-phones/next-available
+2025-06-10 06:49:10,858 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0200/internal-phones
+2025-06-10 06:49:10,922 - enterprise_admin_service - INFO - Запрос обработан за 0.0646 сек. Статус: 200. Адрес: POST https://bot.vochi.by/enterprise/0200/internal-phones
+2025-06-10 06:49:11,016 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:49:11,087 - enterprise_admin_service - INFO - Запрос обработан за 0.0719 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/internal-phones/all
+2025-06-10 06:49:11,176 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:49:11,250 - enterprise_admin_service - INFO - Запрос обработан за 0.0737 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:49:15,957 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0200/users/17
+2025-06-10 06:49:16,036 - enterprise_admin_service - INFO - Запрос обработан за 0.0790 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0200/users/17
+2025-06-10 06:49:16,114 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-06-10 06:49:16,259 - enterprise_admin_service - INFO - Запрос обработан за 0.1450 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
