@@ -206,39 +206,41 @@ async def edit_enterprise_post(request: Request, number: str, db: AsyncConnectio
     return RedirectResponse(url="/admin/enterprises", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/{enterprise_number}/gateways", response_class=JSONResponse, status_code=status.HTTP_201_CREATED)
-async def create_gateway_for_enterprise(enterprise_number: str, gateway_data: GatewayCreate):
+async def create_gateway_for_enterprise(
+    enterprise_number: str,
+    gateway_data: GatewayCreate,
+    db: AsyncConnection = Depends(get_db)
+):
     """
     Создает шлюз и его линии в одной транзакции.
     """
-    pool = await get_pool()
     try:
-        async with pool.acquire() as conn:
-            async with conn.transaction():
-                # Шаг 1: Создаем шлюз
-                new_gateway = await add_goip_gateway(
-                    conn=conn,
-                    enterprise_number=enterprise_number,
-                    gateway_name=gateway_data.gateway_name,
-                    line_count=gateway_data.line_count,
-                    custom_boolean_flag=gateway_data.custom_boolean_flag
-                )
+        async with db.transaction():
+            # Шаг 1: Создаем шлюз
+            new_gateway = await add_goip_gateway(
+                conn=db,
+                enterprise_number=enterprise_number,
+                gateway_name=gateway_data.gateway_name,
+                line_count=gateway_data.line_count,
+                custom_boolean_flag=gateway_data.custom_boolean_flag
+            )
 
-                # Шаг 2: Создаем линии для этого шлюза
-                if new_gateway and gateway_data.line_count > 0:
-                    await create_gsm_lines_for_gateway(
-                        conn=conn,
-                        gateway_id=new_gateway['id'],
-                        gateway_name=new_gateway['gateway_name'],
-                        enterprise_number=enterprise_number,
-                        line_count=gateway_data.line_count
-                    )
-                
-                # Конвертируем datetime для JSON-ответа
-                gateway_dict = dict(new_gateway)
-                if created_at := gateway_dict.get('created_at'):
-                    gateway_dict['created_at'] = created_at.isoformat()
-                
-                return JSONResponse(content=gateway_dict, status_code=status.HTTP_201_CREATED)
+            # Шаг 2: Создаем линии для этого шлюза
+            if new_gateway and gateway_data.line_count > 0:
+                await create_gsm_lines_for_gateway(
+                    conn=db,
+                    gateway_id=new_gateway['id'],
+                    gateway_name=new_gateway['gateway_name'],
+                    enterprise_number=enterprise_number,
+                    line_count=gateway_data.line_count
+                )
+            
+            # Конвертируем datetime для JSON-ответа
+            gateway_dict = dict(new_gateway)
+            if created_at := gateway_dict.get('created_at'):
+                gateway_dict['created_at'] = created_at.isoformat()
+            
+            return JSONResponse(content=gateway_dict, status_code=status.HTTP_201_CREATED)
 
     except asyncpg.exceptions.UniqueViolationError:
         raise HTTPException(status_code=409, detail=f"Шлюз с именем '{gateway_data.gateway_name}' уже существует.")
