@@ -88,3 +88,19 @@
 2025-06-09 19:13:45,886 - enterprise_admin_service - INFO - Запрос обработан за 0.0738 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0201/users/10
 2025-06-09 19:13:45,996 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
 2025-06-09 19:13:46,071 - enterprise_admin_service - INFO - Запрос обработан за 0.0754 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-10 06:09:18,540 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-10 06:09:18,581 - enterprise_admin_service - INFO - Запрос обработан за 0.0408 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-10 06:20:48,452 - admin - INFO - Запрос на генерацию токена для предприятия 0327
+2025-06-10 06:20:48,454 - admin - INFO - Токен для предприятия 0327 успешно сгенерирован.
+2025-06-10 06:20:48,558 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMzI3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTUzNjc0OH0.d53cqGMM3rCv8YALvFp7XC5n1qbPw7up3U0M5aeqx88
+2025-06-10 06:20:48,560 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJhbGciOiJIUzI...
+2025-06-10 06:20:48,560 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0327', 'is_admin': True, 'exp': 1749536748}
+2025-06-10 06:20:48,560 - enterprise_admin_service - INFO - Номер предприятия из токена: 0327
+2025-06-10 06:20:48,596 - enterprise_admin_service - INFO - Создание сессии для предприятия 0327...
+2025-06-10 06:20:48,601 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-06-10 06:20:48,604 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0327.
+2025-06-10 06:20:48,605 - enterprise_admin_service - INFO - Запрос обработан за 0.0462 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMzI3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTUzNjc0OH0.d53cqGMM3rCv8YALvFp7XC5n1qbPw7up3U0M5aeqx88
+2025-06-10 06:20:48,683 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0327/dashboard
+2025-06-10 06:20:48,747 - enterprise_admin_service - INFO - Запрос обработан за 0.0645 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0327/dashboard
+2025-06-10 06:20:50,178 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0327/gsm-lines/all
+2025-06-10 06:20:50,213 - enterprise_admin_service - INFO - Запрос обработан за 0.0353 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0327/gsm-lines/all
