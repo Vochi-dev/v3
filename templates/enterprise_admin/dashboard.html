@@ -370,6 +370,7 @@
         let currentEditingUser = null;
         let usersDataCache = null;
         let allLinesCache = null;
+        let iti = null;
 
         // --- DOM Elements ---
         const usersModal = document.getElementById('user-management-modal');
@@ -529,14 +530,30 @@
         };
         
         // --- User Modal Logic ---
+        const initIti = () => {
+            if (iti) return;
+            const phoneInput = document.getElementById('userPersonalPhone');
+            iti = window.intlTelInput(phoneInput, {
+                utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/js/utils.js",
+                initialCountry: "auto",
+                geoIpLookup: callback => {
+                  fetch("https://ipapi.co/json")
+                    .then(res => res.json())
+                    .then(data => callback(data.country_code))
+                    .catch(() => callback("by"));
+                }
+            });
+        };
+
         const openCreateUserModal = () => {
             currentEditingUser = null;
             document.getElementById('userModalTitle').textContent = 'Создание пользователя';
             createUserForm.reset();
             document.getElementById('deleteUserBtn').style.display = 'none';
             document.getElementById('internalNumbersList').innerHTML = '';
-            iti.setNumber("+");
             openModal(createUserModal);
+            initIti();
+            iti.setNumber("+");
         };
 
         const openUserModalForEdit = (userId) => {
@@ -546,6 +563,9 @@
             
             document.getElementById('userModalTitle').textContent = 'Редактирование пользователя';
             createUserForm.reset();
+            openModal(createUserModal);
+            initIti();
+            
             Object.keys(user).forEach(key => {
                 const el = createUserForm.elements[key];
                 if (el && typeof el.value !== 'undefined') el.value = user[key];
@@ -559,7 +579,6 @@
             });
             
             document.getElementById('deleteUserBtn').style.display = 'inline-block';
-            openModal(createUserModal);
         };
         
         createUserForm.onsubmit = async (e) => {
