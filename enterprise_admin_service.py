@@ -23,15 +23,16 @@ RESERVED_INTERNAL_NUMBERS = {301, 302, 555}
 # Pydantic Models (defined locally to avoid import issues)
 # ——————————————————————————————————————————————————————————————————————————
 
-class UserCreate(BaseModel):
+class UserUpdate(BaseModel):
     email: str
     last_name: str
     first_name: str
     patronymic: Optional[str] = None
     personal_phone: Optional[str] = None
-
-class UserUpdate(UserCreate):
     internal_phones: Optional[List[str]] = None
+
+class UserCreate(UserUpdate):
+    pass
 
 class CreateLineRequest(BaseModel):
     phone_number: str
@@ -256,26 +257,38 @@ async def create_user(enterprise_number: str, user_data: UserCreate):
     if not conn: raise HTTPException(status_code=500, detail="DB connection failed")
 
     try:
-        # Explicitly check for duplicate email first
-        existing_user_by_email = await conn.fetchrow("SELECT id FROM users WHERE email = $1 AND enterprise_number = $2", user_data.email, enterprise_number)
-        if existing_user_by_email:
-            raise HTTPException(status_code=400, detail="Пользователь с таким email уже существует.")
+        async with conn.transaction():
+            # Шаг 1: Проверка на дубликаты
+            existing_user_by_email = await conn.fetchrow("SELECT id FROM users WHERE email = $1 AND enterprise_number = $2", user_data.email, enterprise_number)
+            if existing_user_by_email:
+                raise HTTPException(status_code=400, detail="Пользователь с таким email уже существует.")
 
-        # Explicitly check for duplicate phone number
-        if user_data.personal_phone:
-            existing_user_by_phone = await conn.fetchrow("SELECT id FROM users WHERE personal_phone = $1 AND enterprise_number = $2", user_data.personal_phone, enterprise_number)
-            if existing_user_by_phone:
-                raise HTTPException(status_code=400, detail="Пользователь с таким внешним номером телефона уже существует.")
+            if user_data.personal_phone:
+                existing_user_by_phone = await conn.fetchrow("SELECT id FROM users WHERE personal_phone = $1 AND enterprise_number = $2", user_data.personal_phone, enterprise_number)
+                if existing_user_by_phone:
+                    raise HTTPException(status_code=400, detail="Пользователь с таким внешним номером телефона уже существует.")
 
-        await conn.execute(
-            """
-            INSERT INTO users (enterprise_number, email, first_name, last_name, patronymic, personal_phone, status)
-            VALUES ($1, $2, $3, $4, $5, $6, 'active')
-            """,
-            enterprise_number, user_data.email, user_data.first_name, user_data.last_name,
-            user_data.patronymic, user_data.personal_phone
-        )
-        return {"status": "success"}
+            # Шаг 2: Создание пользователя
+            new_user_id = await conn.fetchval(
+                """
+                INSERT INTO users (enterprise_number, email, first_name, last_name, patronymic, personal_phone, status)
+                VALUES ($1, $2, $3, $4, $5, $6, 'active')
+                RETURNING id
+                """,
+                enterprise_number, user_data.email, user_data.first_name, user_data.last_name,
+                user_data.patronymic, user_data.personal_phone
+            )
+
+            # Шаг 3: Привязка внутренних номеров
+            if user_data.internal_phones:
+                # Сначала отвязываем эти номера от любого другого пользователя (на всякий случай)
+                await conn.execute("UPDATE user_internal_phones SET user_id = NULL WHERE enterprise_number = $1 AND phone_number = ANY($2::text[])",
+                                   enterprise_number, user_data.internal_phones)
+                # Затем привязываем к новому пользователю
+                await conn.execute("UPDATE user_internal_phones SET user_id = $1 WHERE enterprise_number = $2 AND phone_number = ANY($3::text[])",
+                                   new_user_id, enterprise_number, user_data.internal_phones)
+
+        return {"status": "success", "user_id": new_user_id}
     except asyncpg.exceptions.UniqueViolationError: # Fallback for race conditions
         raise HTTPException(status_code=400, detail="Пользователь с таким email или телефоном уже существует.")
     finally:
