@@ -61,6 +61,15 @@ class SipLineCreate(BaseModel):
 class SipLineUpdate(SipLineCreate):
     pass
 
+class DepartmentCreate(BaseModel):
+    name: str
+    number: int
+
+class DepartmentUpdate(BaseModel):
+    name: str
+    number: int
+    members: Optional[List[int]] = None # Список ID внутренниx номеров (internal_phone_id)
+
 # ——————————————————————————————————————————————————————————————————————————
 # Basic Configuration
 # ——————————————————————————————————————————————————————————————————————————
@@ -258,7 +267,7 @@ async def get_all_internal_phones(enterprise_number: str, current_enterprise: st
 
     try:
         query = """
-        SELECT p.phone_number, p.user_id, (u.first_name || ' ' || u.last_name) AS manager_name
+        SELECT p.id, p.phone_number, p.user_id, (u.first_name || ' ' || u.last_name) AS manager_name
         FROM user_internal_phones p LEFT JOIN users u ON p.user_id = u.id
         WHERE p.enterprise_number = $1 ORDER BY (CASE WHEN p.phone_number ~ '^[0-9]+$' THEN p.phone_number::int END)
         """
@@ -646,6 +655,174 @@ async def upload_audio_file(
         if os.path.exists(final_file_path):
             os.remove(final_file_path)
         raise HTTPException(status_code=500, detail="Не удалось сохранить информацию о файле в базу данных.")
+
+# ——————————————————————————————————————————————————————————————————————————
+# Departments Management
+# ——————————————————————————————————————————————————————————————————————————
+
+@app.get("/enterprise/{enterprise_number}/departments", response_class=JSONResponse)
+async def get_departments(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        query = """
+        SELECT
+            d.id,
+            d.name,
+            d.number
+        FROM departments d
+        WHERE d.enterprise_number = $1
+        ORDER BY d.number
+        """
+        departments = await conn.fetch(query, enterprise_number)
+        return [dict(row) for row in departments]
+    finally:
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/departments/next-available-number", response_class=JSONResponse)
+async def get_next_department_number(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+    
+    try:
+        query = "SELECT number FROM departments WHERE enterprise_number = $1"
+        rows = await conn.fetch(query, enterprise_number)
+        existing_numbers = {row['number'] for row in rows}
+        
+        for num in range(901, 1000):
+            if num not in existing_numbers:
+                return JSONResponse(content={"next_number": num})
+        
+        return JSONResponse(content={"error": "All department numbers are taken"}, status_code=404)
+    finally:
+        await conn.close()
+
+@app.post("/enterprise/{enterprise_number}/departments", response_class=JSONResponse, status_code=status.HTTP_201_CREATED)
+async def create_department(
+    enterprise_number: str,
+    department: DepartmentCreate,
+    current_enterprise: str = Depends(get_current_enterprise)
+):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        query = """
+        INSERT INTO departments (enterprise_number, name, number)
+        VALUES ($1, $2, $3)
+        RETURNING id, name, number
+        """
+        new_department = await conn.fetchrow(query, enterprise_number, department.name, department.number)
+        return dict(new_department)
+    except asyncpg.exceptions.UniqueViolationError:
+        raise HTTPException(status_code=400, detail="Отдел с таким именем или номером уже существует.")
+    except asyncpg.exceptions.CheckViolationError:
+        raise HTTPException(status_code=400, detail="Номер отдела должен быть в диапазоне от 901 до 999.")
+    except Exception as e:
+        logger.error(f"Failed to create department: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера.")
+    finally:
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/departments/{department_id}", response_class=JSONResponse)
+async def get_department_details(enterprise_number: str, department_id: int, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        dept_query = "SELECT id, name, number FROM departments WHERE id = $1 AND enterprise_number = $2"
+        department = await conn.fetchrow(dept_query, department_id, enterprise_number)
+
+        if not department:
+            raise HTTPException(status_code=404, detail="Отдел не найден")
+
+        members_query = """
+        SELECT
+            dm.internal_phone_id as id,
+            (u.first_name || ' ' || u.last_name) AS user_name,
+            uip.phone_number
+        FROM department_members dm
+        JOIN user_internal_phones uip ON dm.internal_phone_id = uip.id
+        LEFT JOIN users u ON uip.user_id = u.id
+        WHERE dm.department_id = $1
+        ORDER BY u.last_name, u.first_name, uip.phone_number
+        """
+        members = await conn.fetch(members_query, department_id)
+        
+        result = dict(department)
+        result['members'] = [dict(member) for member in members]
+        
+        return JSONResponse(content=result)
+    finally:
+        await conn.close()
+
+@app.put("/enterprise/{enterprise_number}/departments/{department_id}", response_class=JSONResponse)
+async def update_department(
+    enterprise_number: str,
+    department_id: int,
+    department: DepartmentUpdate,
+    current_enterprise: str = Depends(get_current_enterprise)
+):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        async with conn.transaction():
+            # Update department details
+            updated_dept = await conn.fetchrow(
+                """
+                UPDATE departments SET name = $1, number = $2
+                WHERE id = $3 AND enterprise_number = $4
+                RETURNING id, name, number
+                """,
+                department.name, department.number, department_id, enterprise_number
+            )
+            if not updated_dept:
+                raise HTTPException(status_code=404, detail="Отдел не найден для обновления.")
+
+            # Mange members
+            await conn.execute("DELETE FROM department_members WHERE department_id = $1", department_id)
+            
+            if department.members:
+                # Prepare data for copy
+                records_to_insert = [(department_id, member_id) for member_id in department.members]
+                await conn.copy_records_to_table(
+                    'department_members',
+                    records=records_to_insert,
+                    columns=['department_id', 'internal_phone_id']
+                )
+
+        return JSONResponse(content=dict(updated_dept))
+    except asyncpg.exceptions.UniqueViolationError:
+        raise HTTPException(status_code=400, detail="Отдел с таким именем или номером уже существует.")
+    except asyncpg.exceptions.CheckViolationError:
+        raise HTTPException(status_code=400, detail="Номер отдела должен быть в диапазоне от 901 до 999.")
+    except Exception as e:
+        logger.error(f"Failed to update department: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера при обновлении отдела.")
+    finally:
+        await conn.close()
 
 # ——————————————————————————————————————————————————————————————————————————
 # SIP Lines Management
