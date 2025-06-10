@@ -52,6 +52,7 @@
     <div class="container">
         <button class="btn btn-primary" type="button" data-action="show-users">Пользователи</button>
         <button class="btn btn-success" type="button" id="btn-gsm-lines">GSM-линии</button>
+        <button class="btn btn-warning" type="button" id="btn-audiofiles">Аудиофайлы</button>
         <p>Здесь будет содержимое админки для предприятия.</p>
     </div>
 
@@ -196,6 +197,11 @@
         document.body.addEventListener('click', (e) => {
             const target = e.target;
             const action = target.closest('[data-action]')?.dataset.action;
+            
+            if (target.id === 'btn-audiofiles') {
+                alert('Раздел аудиофайлов в разработке.');
+                return;
+            }
             
             // Предотвращаем стандартное действие только для кнопок с data-action
             if (action) {
