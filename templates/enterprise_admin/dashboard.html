@@ -113,11 +113,86 @@
         <button class="btn btn-primary" type="button" data-action="show-users">Пользователи</button>
         <button class="btn btn-success" type="button" id="btn-gsm-lines">GSM-линии</button>
         <button class="btn btn-warning" type="button" data-action="show-audiofiles">Аудиофайлы</button>
+        <button class="btn btn-primary" type="button" data-action="show-sip-lines">SIP-линии</button>
+        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Call-Tracking</button>
+        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">CallBack</button>
+        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Отделы</button>
+        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Магазины</button>
+        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">API</button>
+        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Статистика</button>
+        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Интеграции</button>
+        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Прочие настройки</button>
         <p>Здесь будет содержимое админки для предприятия.</p>
     </div>
 
-    <!-- Users Modal -->
-    <div id="usersModal" class="modal">
+    <!-- Модальное окно для SIP-линий (основное) -->
+    <div id="sip-lines-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>SIP-линии</h2>
+                <span data-action="close-modal" class="close-button">&times;</span>
+            </div>
+            <div class="modal-body">
+                <button class="btn btn-primary" type="button" data-action="open-sip-line-form">Добавить SIP-линию</button>
+                <div class="table-container" style="margin-top: 20px;">
+                    <table id="sip-lines-table">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Номер</th>
+                                <th>Оператор</th>
+                                <th>Магазин</th>
+                                <th>Вх. схема</th>
+                                <th>Исх. схемы</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Сюда будут загружаться созданные SIP-линии -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для ФОРМЫ добавления SIP-линии -->
+    <div id="sip-line-form-modal" class="modal">
+        <div class="modal-content modal-narrow">
+            <div class="modal-header">
+                <h2 id="sip-line-modal-title">Добавить SIP-линию</h2>
+                <span data-action="close-modal" class="close-button">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="sip-line-form">
+                    <input type="hidden" id="sip-line-id" name="id">
+                    <div class="form-group">
+                        <label for="sip-provider">Оператор</label>
+                        <select id="sip-provider" name="provider_id" required>
+                            <option value="">-- Выберите оператора --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="line_name">Имя линии (логин)</label>
+                        <input type="text" id="line_name" name="line_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Пароль</label>
+                        <input type="text" id="password" name="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="prefix">Префикс</label>
+                        <input type="text" id="prefix" name="prefix">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для управления пользователями -->
+    <div id="user-management-modal" class="modal">
         <div class="modal-content" style="max-width: 90%;">
             <div class="modal-header">
                 <h2>Пользователи и внутренние линии</h2>
@@ -297,7 +372,7 @@
         let allLinesCache = null;
 
         // --- DOM Elements ---
-        const usersModal = document.getElementById('usersModal');
+        const usersModal = document.getElementById('user-management-modal');
         const createUserModal = document.getElementById('createUserModal');
         const createLineModal = document.getElementById('createLineModal');
         const selectLinesModal = document.getElementById('selectLinesModal');
@@ -312,6 +387,8 @@
         const internalNumbersList = document.getElementById('internalNumbersList');
         const deleteUserBtn = document.getElementById('deleteUserBtn');
         const editLineModalContainer = document.getElementById('editLineModalContainer');
+        const sipLinesModal = document.getElementById('sip-lines-modal');
+        const sipLineFormModal = document.getElementById('sip-line-form-modal');
 
         // --- Event Delegation ---
         document.body.addEventListener('click', async (e) => {
@@ -321,11 +398,23 @@
             const action = target.getAttribute('data-action');
             
             if (action === 'show-users') {
-                document.getElementById('usersModal').style.display = 'block';
+                usersModal.style.display = 'block';
                 if (!usersDataCache) fetchUsers();
             } else if (action === 'show-audiofiles') {
                 document.getElementById('audiofilesModal').style.display = 'block';
                 loadAudioFiles();
+            } else if (action === 'show-sip-lines') {
+                sipLinesModal.style.display = 'block';
+                loadSipLines();
+            } else if (action === 'open-sip-line-form') {
+                document.getElementById('sip-line-form').reset();
+                document.getElementById('sip-line-modal-title').textContent = 'Добавить SIP-линию';
+                document.getElementById('sip-line-id').value = ''; // Очищаем ID
+                loadSipProviders();
+                sipLineFormModal.style.display = 'block';
+            } else if (action === 'edit-sip-line') {
+                const lineId = e.target.dataset.lineId;
+                openSipLineForEdit(lineId);
             } else if (action === 'add-greeting-file' || action === 'add-waiting-file') {
                 const fileType = action === 'add-greeting-file' ? 'start' : 'hold';
                 const uploadForm = document.getElementById('uploadAudioForm');
@@ -827,6 +916,123 @@
                 listContainer.innerHTML = `<p style="text-align: center; color: red;">${error.message}</p>`;
             }
         };
+
+        // --- SIP Line Logic ---
+        const loadSipProviders = async () => {
+            const select = document.getElementById('sip-provider');
+            select.innerHTML = '<option value="">Загрузка...</option>';
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/sip-providers`);
+                if (!response.ok) throw new Error('Ошибка загрузки провайдеров');
+                const providers = await response.json();
+                
+                select.innerHTML = '<option value="">-- Выберите оператора --</option>';
+                providers.forEach(provider => {
+                    const option = new Option(provider.name, provider.id);
+                    select.add(option);
+                });
+            } catch (error) {
+                select.innerHTML = `<option value="">${error.message}</option>`;
+            }
+        };
+
+        const loadSipLines = async () => {
+            const tableBody = document.getElementById('sip-lines-table').querySelector('tbody');
+            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Загрузка...</td></tr>';
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/sip-lines`);
+                if (!response.ok) throw new Error('Ошибка загрузки SIP-линий');
+                const lines = await response.json();
+                
+                tableBody.innerHTML = '';
+                if (lines.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">SIP-линии еще не созданы.</td></tr>';
+                    return;
+                }
+
+                lines.forEach(line => {
+                    const row = tableBody.insertRow();
+                    row.innerHTML = `
+                        <td></td>
+                        <td><a href="#" class="edit-trigger" data-action="edit-sip-line" data-line-id="${line.id}">${line.line_name}</a></td>
+                        <td>${line.provider_name}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    `;
+                });
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">${error.message}</td></tr>`;
+            }
+        };
+
+        const openSipLineForEdit = async (lineId) => {
+            document.getElementById('sip-line-form').reset();
+            document.getElementById('sip-line-modal-title').textContent = 'Редактирование SIP-линии';
+            document.getElementById('sip-line-id').value = lineId;
+
+            try {
+                await loadSipProviders();
+                const response = await fetch(`/enterprise/${enterpriseNumber}/sip-lines/${lineId}`);
+                if (!response.ok) throw new Error('Не удалось загрузить данные линии.');
+                
+                const lineDetails = await response.json();
+                
+                document.getElementById('sip-provider').value = lineDetails.provider_id;
+                document.getElementById('line_name').value = lineDetails.line_name;
+                document.getElementById('password').value = lineDetails.password;
+                document.getElementById('prefix').value = lineDetails.prefix || '';
+
+                sipLineFormModal.style.display = 'block';
+            } catch (error) {
+                alert(error.message);
+            }
+        };
+
+        document.getElementById('sip-line-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const lineId = form.elements['id'].value;
+            const formData = new FormData(form);
+            const data = {
+                provider_id: parseInt(formData.get('provider_id')),
+                line_name: formData.get('line_name'),
+                password: formData.get('password'),
+                prefix: formData.get('prefix')
+            };
+
+            const url = lineId 
+                ? `/enterprise/${enterpriseNumber}/sip-lines/${lineId}`
+                : `/enterprise/${enterpriseNumber}/sip-lines`;
+            
+            const method = lineId ? 'PUT' : 'POST';
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Сохранение...';
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Не удалось сохранить линию.');
+                }
+                
+                alert(lineId ? 'SIP-линия успешно обновлена!' : 'SIP-линия успешно создана!');
+                sipLineFormModal.style.display = 'none';
+                loadSipLines(); 
+            } catch (error) {
+                alert(`Ошибка: ${error.message}`);
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Сохранить';
+            }
+        });
 
         // --- Initial Load ---
         fetchUsers();

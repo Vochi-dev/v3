@@ -51,7 +51,16 @@ class CreateLineRequest(BaseModel):
 class MusicFileCreate(BaseModel):
     display_name: str
     file_type: str
-    
+
+class SipLineCreate(BaseModel):
+    provider_id: int
+    line_name: str
+    password: str
+    prefix: Optional[str] = None
+
+class SipLineUpdate(SipLineCreate):
+    pass
+
 # ——————————————————————————————————————————————————————————————————————————
 # Basic Configuration
 # ——————————————————————————————————————————————————————————————————————————
@@ -636,4 +645,165 @@ async def upload_audio_file(
         # Clean up created file if DB insert fails
         if os.path.exists(final_file_path):
             os.remove(final_file_path)
-        raise HTTPException(status_code=500, detail="Не удалось сохранить информацию о файле в базу данных.") 
+        raise HTTPException(status_code=500, detail="Не удалось сохранить информацию о файле в базу данных.")
+
+# ——————————————————————————————————————————————————————————————————————————
+# SIP Lines Management
+# ——————————————————————————————————————————————————————————————————————————
+
+@app.get("/enterprise/{enterprise_number}/sip-providers", response_class=JSONResponse)
+async def get_sip_providers(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        providers = await conn.fetch("SELECT id, name FROM sip ORDER BY name")
+        return [dict(row) for row in providers]
+    finally:
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/sip-lines", response_class=JSONResponse)
+async def get_sip_lines(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        query = """
+        SELECT
+            su.id,
+            su.line_name,
+            su.prefix,
+            s.name as provider_name
+        FROM sip_unit su
+        JOIN sip s ON su.provider_id = s.id
+        WHERE su.enterprise_number = $1
+        ORDER BY su.id
+        """
+        lines = await conn.fetch(query, enterprise_number)
+        return [dict(row) for row in lines]
+    finally:
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/sip-lines/{line_id}", response_class=JSONResponse)
+async def get_sip_line_details(enterprise_number: str, line_id: int, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        query = "SELECT id, line_name, password, prefix, provider_id FROM sip_unit WHERE id = $1 AND enterprise_number = $2"
+        line = await conn.fetchrow(query, line_id, enterprise_number)
+        if not line:
+            raise HTTPException(status_code=404, detail="SIP line not found")
+        return dict(line)
+    finally:
+        await conn.close()
+
+@app.put("/enterprise/{enterprise_number}/sip-lines/{line_id}", response_class=JSONResponse)
+async def update_sip_line(
+    enterprise_number: str,
+    line_id: int,
+    data: SipLineUpdate,
+    current_enterprise: str = Depends(get_current_enterprise)
+):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        async with conn.transaction():
+            shablon = await conn.fetchval("SELECT shablon FROM sip WHERE id = $1", data.provider_id)
+            if not shablon:
+                raise HTTPException(status_code=404, detail="Шаблон для данного SIP-провайдера не найден.")
+            
+            info_text = shablon.replace("LOGIN", data.line_name).replace("PASSWORD", data.password)
+            
+            query = """
+            UPDATE sip_unit
+            SET line_name = $1, password = $2, prefix = $3, info = $4, provider_id = $5
+            WHERE id = $6 AND enterprise_number = $7
+            RETURNING id, enterprise_number, line_name, prefix
+            """
+            updated_line = await conn.fetchrow(
+                query,
+                data.line_name, data.password, data.prefix,
+                info_text, data.provider_id, line_id, enterprise_number
+            )
+            
+            if not updated_line:
+                raise HTTPException(status_code=404, detail="SIP line not found for update")
+
+        return dict(updated_line)
+
+    except asyncpg.exceptions.UniqueViolationError:
+        raise HTTPException(status_code=400, detail="Линия с таким именем уже существует для этого предприятия.")
+    except Exception as e:
+        logger.error(f"Failed to update SIP line: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера при обновлении SIP-линии.")
+    finally:
+        await conn.close()
+
+@app.post("/enterprise/{enterprise_number}/sip-lines", response_class=JSONResponse, status_code=status.HTTP_201_CREATED)
+async def create_sip_line(
+    enterprise_number: str,
+    data: SipLineCreate,
+    current_enterprise: str = Depends(get_current_enterprise)
+):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        # 1. Get the template from the sip table
+        shablon = await conn.fetchval("SELECT shablon FROM sip WHERE id = $1", data.provider_id)
+        if not shablon:
+            raise HTTPException(status_code=404, detail="Шаблон для данного SIP-провайдера не найден.")
+        
+        # 2. Replace placeholders
+        info_text = shablon.replace("LOGIN", data.line_name).replace("PASSWORD", data.password)
+        
+        # 3. Insert the new record into the sip_unit table
+        query = """
+        INSERT INTO sip_unit (enterprise_number, line_name, password, prefix, info, provider_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, enterprise_number, line_name, prefix
+        """
+        new_line_record = await conn.fetchrow(
+            query,
+            enterprise_number,
+            data.line_name,
+            data.password,
+            data.prefix,
+            info_text,
+            data.provider_id
+        )
+        
+        return dict(new_line_record)
+
+    except asyncpg.exceptions.UniqueViolationError:
+        raise HTTPException(status_code=400, detail="Линия с таким именем уже существует для этого предприятия.")
+    except Exception as e:
+        logger.error(f"Failed to create SIP line: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера при создании SIP-линии.")
+    finally:
+        await conn.close()
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8004) 
