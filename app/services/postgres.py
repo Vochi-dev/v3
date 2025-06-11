@@ -94,7 +94,6 @@ async def get_all_enterprises():
 
 async def get_enterprise_by_number(number: str):
     """Получает предприятие по номеру"""
-    print(f"POSTGRES_GET_BY_NUMBER: Вызвана для номера: '{number}' (тип: {type(number)})", file=sys.stderr, flush=True)
     pool = await get_pool()
     async with pool.acquire() as conn:
         sql_query = """
@@ -108,14 +107,10 @@ async def get_enterprise_by_number(number: str):
             WHERE number = $1
             LIMIT 1
         """
-        print(f"POSTGRES_GET_BY_NUMBER: Выполняется SQL: {sql_query} с параметром: '{number}'", file=sys.stderr, flush=True)
         row = await conn.fetchrow(sql_query, number)
-        print(f"POSTGRES_GET_BY_NUMBER: Результат fetchrow: {row} (тип: {type(row)})", file=sys.stderr, flush=True)
         if row:
-            print(f"POSTGRES_GET_BY_NUMBER: Предприятие найдено, возвращаем dict(row)", file=sys.stderr, flush=True)
             return dict(row)
         else:
-            print(f"POSTGRES_GET_BY_NUMBER: Предприятие НЕ найдено, возвращаем None", file=sys.stderr, flush=True)
             return None
 
 async def add_enterprise(number: str, name: str, bot_token: str, chat_id: str,
@@ -165,8 +160,6 @@ async def update_enterprise(number: str, name: str, bot_token: str, chat_id: str
                           custom_domain: Optional[str] = None,
                           custom_port: Optional[int] = None):
     """Обновляет информацию о предприятии"""
-    print(f"POSTGRES: Начало обновления предприятия {number}")
-    print(f"POSTGRES: Параметры: name={name}, ip={ip}, host={host}, name2={name2}")
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
@@ -199,9 +192,7 @@ async def update_enterprise(number: str, name: str, bot_token: str, chat_id: str
                 SET {", ".join(set_clauses)}
                 WHERE number = ${len(values)}
             """
-            print(f"POSTGRES: Выполняем UPDATE для предприятия {number} с запросом: {sql_query} и значениями: {values}")
             result = await conn.execute(sql_query, *values)
-            print(f"POSTGRES: Результат UPDATE: {result}")
     except Exception as e:
         print(f"POSTGRES ERROR: {str(e)}")
         raise
