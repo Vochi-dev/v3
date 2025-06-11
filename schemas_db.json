@@ -1,0 +1,26 @@
+{
+    "4129ce1b-eb0a-4c61-afcc-153b54527bbb": {
+        "id": "4129ce1b-eb0a-4c61-afcc-153b54527bbb",
+        "name": "\u041f\u0440\u0438\u0432\u0435\u0442",
+        "nodes": [
+            {
+                "id": "1",
+                "type": "custom",
+                "position": {
+                    "x": 0.0,
+                    "y": 0.0
+                },
+                "data": {
+                    "nodeId": "1",
+                    "label": "\u041f\u043e\u0441\u0442\u0443\u043f\u0438\u043b \u043d\u043e\u0432\u044b\u0439 \u0437\u0432\u043e\u043d\u043e\u043a"
+                },
+                "draggable": false,
+                "deletable": false,
+                "style": null,
+                "width": null,
+                "height": null
+            }
+        ],
+        "edges": []
+    }
+}
