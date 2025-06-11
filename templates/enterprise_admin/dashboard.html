@@ -102,6 +102,43 @@
         .audio-actions .dropdown-content a { color: black; padding: 10px 14px; text-decoration: none; display: block; font-size: 0.9em; }
         .audio-actions .dropdown-content a:hover { background-color: #f1f1f1; }
         .audio-actions .dropdown:hover .dropdown-content { display: block; }
+
+        /* Стили для модального окна схем */
+        .schema-modal-content {
+            background-color: #fefefe;
+            margin: 2% auto; /* Более высокое расположение */
+            padding: 0; /* Убираем паддинг, чтобы iframe прилегал к краям */
+            border: 1px solid #888;
+            width: 95%; /* Шире */
+            max-width: 1400px;
+            height: 90vh; /* Высокое */
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        .schema-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #f1f1f1;
+            border-bottom: 1px solid #ddd;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        .schema-modal-header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        .schema-modal-body {
+            flex-grow: 1;
+            overflow: hidden; /* Убираем скролл с тела модалки */
+        }
+        .schema-modal-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
     </style>
 </head>
 <body>
@@ -110,6 +147,8 @@
         <h1>{{ enterprise.number }}-{{ enterprise.name }} Панель администратора</h1>
     </div>
     <div class="container">
+        <a href="/dial/?enterprise={{ enterprise.number }}" class="btn btn-primary">Входящие схемы</a>
+        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Исходящие схемы</button>
         <button class="btn btn-primary" type="button" data-action="show-users">Пользователи</button>
         <button class="btn btn-success" type="button" id="btn-gsm-lines">GSM-линии</button>
         <button class="btn btn-warning" type="button" data-action="show-audiofiles">Аудиофайлы</button>
@@ -121,6 +160,19 @@
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Интеграции</button>
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Прочие настройки</button>
         <p>Здесь будет содержимое админки для предприятия.</p>
+    </div>
+
+    <!-- Модальное окно для СХЕМ (DIALPLAN) -->
+    <div id="schema-modal" class="modal">
+        <div class="schema-modal-content">
+            <div class="schema-modal-header">
+                <h2>Редактор схем</h2>
+                <span data-action="close-modal" class="close-button">&times;</span>
+            </div>
+            <div class="schema-modal-body">
+                <iframe id="schema-iframe" class="schema-modal-iframe" src="about:blank"></iframe>
+            </div>
+        </div>
     </div>
 
     <!-- Модальное окно для SIP-линий (основное) -->
@@ -444,7 +496,7 @@
         const createLineModal = document.getElementById('createLineModal');
         const selectLinesModal = document.getElementById('selectLinesModal');
         const gsmLinesModal = document.getElementById('gsmLinesModal');
-        const audiofilesModal = document.getElementById('audiofilesModal');
+        const audioFilesModal = document.getElementById('audiofilesModal');
         const uploadAudioModal = document.getElementById('uploadAudioModal');
         const userModalTitle = document.getElementById('userModalTitle');
         const createUserForm = document.getElementById('createUserForm');
@@ -458,6 +510,7 @@
         const sipLineFormModal = document.getElementById('sip-line-form-modal');
         const departmentsModal = document.getElementById('departments-modal');
         const departmentFormModal = document.getElementById('department-form-modal');
+        const schemaModal = document.getElementById('schema-modal');
 
         // --- Event Delegation ---
         document.body.addEventListener('click', async (e) => {
@@ -525,7 +578,22 @@
                 openCreateLineModal();
             } else if (action === 'refresh-audio-files') {
                 loadAudioFiles();
+            } else if (action === 'open-schema-modal') {
+                const schemaIframe = document.getElementById('schema-iframe');
+                const dialplanServiceUrl = `http://${window.location.hostname}:8005/?enterprise=${enterpriseNumber}`;
+                schemaIframe.src = dialplanServiceUrl;
+                schemaModal.style.display = 'block';
             }
+
+            // Закрываем все модалки, если клик вне их контента
+            [userManagementModal, createUserModal, gsmLinesModal, audioFilesModal, departmentsModal, departmentFormModal, schemaModal].forEach(modal => {
+                if (modal && e.target === modal) {
+                    modal.style.display = 'none';
+                    if (modal.id === 'schema-modal') {
+                        document.getElementById('schema-iframe').src = 'about:blank'; // Сбрасываем iframe при закрытии
+                    }
+                }
+            });
         });
 
         // --- Modal Management ---
