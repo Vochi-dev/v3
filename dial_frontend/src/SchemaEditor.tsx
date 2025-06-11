@@ -99,19 +99,19 @@ const SchemaEditor: React.FC = () => {
     setPickerModalOpen(true);
   };
 
-  const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
+  const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
     if (node.id === '1') {
       setIncomingCallModalOpen(true);
     } else {
       handleAddNodeClick(node);
     }
-  }, [nodes]);
+  }, []);
 
   const handleSelectNodeType = (type: string) => {
     if (!sourceNode) return;
 
-    const definition = nodeDefinitions[type as keyof typeof nodeDefinitions];
-    if (!definition || typeof definition.label === 'undefined') {
+    const definition = (nodeDefinitions as any)[type];
+    if (!definition || typeof definition.label !== 'string') {
         console.error(`Node definition for type "${type}" is invalid or missing a label.`);
         return;
     }
@@ -143,7 +143,7 @@ const SchemaEditor: React.FC = () => {
   return (
     <div style={{ height: '100vh', width: '100%' }} ref={reactFlowWrapper}>
       <div style={{ display: 'flex', alignItems: 'center', padding: '10px', gap: '10px' }}>
-        <button onClick={() => navigate(`/enterprise/${enterpriseId}`)}>Назад к списку</button>
+        <button onClick={() => navigate(`/dial/enterprise/${enterpriseId}`)}>Назад к списку</button>
         <input
           type="text"
           value={schemaName}
@@ -170,7 +170,6 @@ const SchemaEditor: React.FC = () => {
         isOpen={isPickerModalOpen}
         onClose={() => setPickerModalOpen(false)}
         onSelectNodeType={handleSelectNodeType}
-        sourceNodeId={sourceNode?.id ?? null}
       />
       {isIncomingCallModalOpen && enterpriseId && schemaId && (
           <IncomingCallModal
