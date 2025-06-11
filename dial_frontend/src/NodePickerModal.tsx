@@ -2,14 +2,14 @@ import React from 'react';
 import './NodePickerModal.css';
 import { nodeDefinitions } from './node-definitions';
 
-interface NodePickerModalProps {
+type NodePickerModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSelectNodeType: (nodeType: string) => void;
-  sourceNodeId: string | null; // Принимаем ID исходного узла
-}
+  onSelectNodeType: (type: string) => void;
+  // sourceNodeId: string | null; // Пока не используется
+};
 
-const NodePickerModal: React.FC<NodePickerModalProps> = ({ isOpen, onClose, onSelectNodeType, sourceNodeId }) => {
+const NodePickerModal: React.FC<NodePickerModalProps> = ({ isOpen, onClose, onSelectNodeType }) => {
   if (!isOpen) {
     return null;
   }

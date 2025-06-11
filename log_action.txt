@@ -1293,3 +1293,21 @@
 2025-06-11 14:02:12,711 - enterprise_admin_service - INFO - Запрос обработан за 0.2025 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
 2025-06-11 14:13:18,562 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
 2025-06-11 14:13:18,669 - enterprise_admin_service - INFO - Запрос обработан за 0.1073 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-11 14:58:12,683 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-11 14:58:12,804 - enterprise_admin_service - INFO - Запрос обработан за 0.1208 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-11 15:03:38,750 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-11 15:03:38,976 - enterprise_admin_service - INFO - Запрос обработан за 0.2270 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-11 15:03:39,327 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-11 15:03:39,544 - enterprise_admin_service - INFO - Запрос обработан за 0.2166 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-11 15:18:57,711 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-11 15:18:57,894 - enterprise_admin_service - INFO - Запрос обработан за 0.1836 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-11 15:18:58,210 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-11 15:18:58,424 - enterprise_admin_service - INFO - Запрос обработан за 0.2139 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-11 15:19:23,021 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-11 15:19:23,176 - enterprise_admin_service - INFO - Запрос обработан за 0.1549 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-11 15:19:24,302 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-11 15:19:24,511 - enterprise_admin_service - INFO - Запрос обработан за 0.2085 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-11 15:21:49,914 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-11 15:21:50,073 - enterprise_admin_service - INFO - Запрос обработан за 0.1594 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-11 15:21:50,881 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-11 15:21:51,092 - enterprise_admin_service - INFO - Запрос обработан за 0.2105 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users

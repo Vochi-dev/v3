@@ -22,5 +22,30 @@
             }
         ],
         "edges": []
+    },
+    "0201": {
+        "ec85bf84-6400-471a-bc41-4a05837c7a19": {
+            "id": "ec85bf84-6400-471a-bc41-4a05837c7a19",
+            "name": "\u041f\u0440\u0438\u0432\u0435\u0442",
+            "nodes": [
+                {
+                    "id": "1",
+                    "type": "custom",
+                    "position": {
+                        "x": 250.0,
+                        "y": 5.0
+                    },
+                    "data": {
+                        "label": "\u041f\u043e\u0441\u0442\u0443\u043f\u0438\u043b \u043d\u043e\u0432\u044b\u0439 \u0437\u0432\u043e\u043d\u043e\u043a"
+                    },
+                    "draggable": false,
+                    "deletable": false,
+                    "style": null,
+                    "width": null,
+                    "height": null
+                }
+            ],
+            "edges": []
+        }
     }
 }
