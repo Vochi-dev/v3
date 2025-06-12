@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import './IncomingCallModal.css';
 
 interface Line {
@@ -8,60 +8,45 @@ interface Line {
 }
 
 interface IncomingCallModalProps {
-    isOpen: boolean;
-    onClose: () => void;
     enterpriseId: string;
     schemaId: string;
     schemaName: string;
-    // We will need to pass the schema's currently associated lines here
-    // For now, we'll fetch them, but a better approach would be to pass them as props.
+    onClose: () => void;
 }
 
-const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ isOpen, onClose, enterpriseId, schemaId, schemaName }) => {
+const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ enterpriseId, schemaId, schemaName, onClose }) => {
     const [lines, setLines] = useState<Line[]>([]);
     const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [filterLine, setFilterLine] = useState('');
     const [filterSchema, setFilterSchema] = useState('');
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    // Click outside handler
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+                onClose();
+            }
+        };
+
+        // Bind the event listener
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            // Unbind the event listener on clean up
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [modalRef, onClose]);
 
     useEffect(() => {
-        if (isOpen && enterpriseId) {
-            setLoading(true);
-            fetch(`/dial/api/enterprises/${enterpriseId}/lines`)
-                .then(res => {
-                    if (!res.ok) throw new Error('Failed to fetch lines');
-                    return res.json();
-                })
-                .then((data: Line[]) => {
-                    setLines(data);
-                    // Initialize selection based on which lines belong to the current schema
-                    const currentSchemaLines = new Set(
-                        data.filter(line => line.in_schema === schemaName).map(line => line.id)
-                    );
-                    setSelectedLines(currentSchemaLines);
-                    setError(null);
-                })
-                .catch(err => {
-                    console.error(err);
-                    setError(err.message);
-                })
-                .finally(() => setLoading(false));
-        }
-    }, [isOpen, enterpriseId, schemaName]);
+        fetch(`/dial/api/enterprises/${enterpriseId}/lines`)
+            .then(res => res.json())
+            .then((data: Line[]) => {
+                setLines(data);
+                const initiallySelected = new Set(data.filter(line => line.in_schema === schemaName).map(line => line.id));
+                setSelectedLines(initiallySelected);
+            });
+    }, [enterpriseId, schemaName]);
 
-    const handleCheckboxChange = (lineId: string) => {
-        setSelectedLines(prev => {
-            const newSelection = new Set(prev);
-            if (newSelection.has(lineId)) {
-                newSelection.delete(lineId);
-            } else {
-                newSelection.add(lineId);
-            }
-            return newSelection;
-        });
-    };
-    
     const handleSave = () => {
         fetch(`/dial/api/enterprises/${enterpriseId}/schemas/${schemaId}/assign_lines`, {
             method: 'PUT',
@@ -69,18 +54,24 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ isOpen, onClose, 
             body: JSON.stringify(Array.from(selectedLines)),
         })
         .then(res => {
-            if (!res.ok) throw new Error('Failed to save lines');
-            onClose(); // Close modal on success
-        })
-        .catch(err => {
-            console.error(err);
-            setError(err.message);
+            if (res.ok) {
+                alert('Линии сохранены');
+                onClose();
+            } else {
+                alert('Ошибка сохранения');
+            }
         });
     };
 
-    if (!isOpen) {
-        return null;
-    }
+    const handleSelectLine = (lineId: string, isSelected: boolean) => {
+        const newSelection = new Set(selectedLines);
+        if (isSelected) {
+            newSelection.add(lineId);
+        } else {
+            newSelection.delete(lineId);
+        }
+        setSelectedLines(newSelection);
+    };
 
     const filteredLines = lines.filter(line =>
         line.display_name.toLowerCase().includes(filterLine.toLowerCase()) &&
@@ -88,45 +79,34 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ isOpen, onClose, 
     );
 
     return (
-        <div className="modal-overlay">
-            <div className="modal-content">
-                <button onClick={onClose} className="modal-close-btn">&times;</button>
-                <h2>Настройка входящих линий</h2>
-                {loading && <p>Загрузка линий...</p>}
-                {error && <p className="error-message">Ошибка: {error}</p>}
-                
+        <div className="incoming-call-modal" ref={modalRef}>
+            <header className="incoming-call-modal-header">
+                <h3>Привязка линий к схеме "{schemaName}"</h3>
+                <button onClick={onClose} className="incoming-call-modal-close-button">&times;</button>
+            </header>
+            <main className="incoming-call-modal-body">
                 <table className="lines-table">
                     <thead>
                         <tr>
                             <th></th>
                             <th>
                                 Линия
-                                <input 
-                                    type="text" 
-                                    value={filterLine}
-                                    onChange={e => setFilterLine(e.target.value)}
-                                    placeholder="Фильтр по линии"
-                                />
+                                <input type="text" value={filterLine} onChange={e => setFilterLine(e.target.value)} placeholder="Фильтр..."/>
                             </th>
                             <th>
                                 Входящая схема
-                                <input 
-                                    type="text" 
-                                    value={filterSchema}
-                                    onChange={e => setFilterSchema(e.target.value)}
-                                    placeholder="Фильтр по схеме"
-                                />
+                                <input type="text" value={filterSchema} onChange={e => setFilterSchema(e.target.value)} placeholder="Фильтр..."/>
                             </th>
                         </tr>
                     </thead>
                     <tbody>
                         {filteredLines.map(line => (
-                            <tr key={line.id} className={line.in_schema && line.in_schema !== schemaName ? 'line-assigned-other' : ''}>
+                            <tr key={line.id}>
                                 <td>
-                                    <input 
+                                    <input
                                         type="checkbox"
                                         checked={selectedLines.has(line.id)}
-                                        onChange={() => handleCheckboxChange(line.id)}
+                                        onChange={(e) => handleSelectLine(line.id, e.target.checked)}
                                     />
                                 </td>
                                 <td>{line.display_name}</td>
@@ -135,12 +115,11 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ isOpen, onClose, 
                         ))}
                     </tbody>
                 </table>
-
-                <div className="modal-actions">
-                    <button onClick={handleSave} className="ok-btn">OK</button>
-                    <button onClick={onClose} className="cancel-btn">Отмена</button>
-                </div>
-            </div>
+            </main>
+            <footer className="incoming-call-modal-footer">
+                <button className="cancel-button" onClick={onClose}>Отмена</button>
+                <button className="save-button" onClick={handleSave}>OK</button>
+            </footer>
         </div>
     );
 };

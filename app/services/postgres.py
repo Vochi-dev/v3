@@ -48,11 +48,22 @@ async def init_pool():
     """Инициализирует глобальный пул подключений"""
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(
-            min_size=2,      # минимальное количество подключений
-            max_size=10,     # максимальное количество подключений
-            **POSTGRES_CONFIG
-        )
+        try:
+            _pool = await asyncpg.create_pool(
+                user=POSTGRES_CONFIG['user'],
+                password=POSTGRES_CONFIG['password'],
+                database=POSTGRES_CONFIG['database'],
+                host=POSTGRES_CONFIG['host'],
+                port=POSTGRES_CONFIG['port'],
+                min_size=2,
+                max_size=10
+            )
+            logger.info("Connection pool created successfully.")
+        except Exception as e:
+            logger.critical(f"Failed to create connection pool: {e}")
+            # В случае критической ошибки можно завершить работу или предпринять другие действия
+            _pool = None
+            raise
 
 async def get_pool():
     """Возвращает существующий пул подключений или создает новый"""

@@ -2,6 +2,8 @@ import os
 import json
 import uuid
 import psycopg2
+import logging
+from logging.handlers import RotatingFileHandler
 from contextlib import contextmanager
 from fastapi import FastAPI, Request, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
@@ -12,7 +14,31 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# --- Logger Setup ---
+LOG_FILE_PATH = 'dial_service.log'
+# Устанавливаем базовый уровень логирования
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Создаем логгер для нашего приложения
+logger = logging.getLogger(__name__)
+
+# Обработчик для записи в файл с ротацией
+# 1 МБ на файл, храним 5 файлов
+handler = RotatingFileHandler(LOG_FILE_PATH, maxBytes=1_000_000, backupCount=5)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s [in %(pathname)s:%(lineno)d]')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+# --- End Logger Setup ---
+
 app = FastAPI()
+
+# --- Middleware for Logging Requests ---
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Request started: {request.method} {request.url} from {request.client.host}")
+    response = await call_next(request)
+    logger.info(f"Request finished: {request.method} {request.url} with status {response.status_code}")
+    return response
+# --- End Middleware ---
 
 # --- DB Config ---
 DB_FILE = "schemas_db.json"
@@ -27,12 +53,18 @@ POSTGRES_CONFIG = {
 
 @contextmanager
 def get_db_connection():
-    conn_str = f"postgresql://{POSTGRES_CONFIG['user']}:{POSTGRES_CONFIG['password']}@{POSTGRES_CONFIG['host']}:{POSTGRES_CONFIG['port']}/{POSTGRES_CONFIG['database']}"
-    conn = psycopg2.connect(conn_str)
     try:
+        conn = psycopg2.connect(
+            host=POSTGRES_CONFIG['host'],
+            port=POSTGRES_CONFIG['port'],
+            user=POSTGRES_CONFIG['user'],
+            password=POSTGRES_CONFIG['password'],
+            dbname=POSTGRES_CONFIG['database']
+        )
         yield conn
     finally:
-        conn.close()
+        if 'conn' in locals() and conn:
+            conn.close()
 
 # --- Pydantic Models ---
 class NodeModel(BaseModel):
@@ -81,10 +113,11 @@ async def get_lines_for_enterprise(enterprise_number: str):
     """
     Fetches a combined list of GSM and SIP lines for a given enterprise from the PostgreSQL DB.
     """
+    logger.info(f"Fetching lines for enterprise_number: {enterprise_number}")
     lines = []
     
     # SQL to fetch GSM lines
-    gsm_sql = "SELECT line_id, phone_number, line_name, in_schema FROM gsm_lines WHERE enterprise_number = %s;"
+    gsm_sql = "SELECT line_id, phone_number, line_name, in_schema FROM gsm_lines WHERE enterprise_number = %s ORDER BY CAST(line_id AS INTEGER) ASC;"
     
     # SQL to fetch SIP lines with provider name
     # Важно: Добавляем проверку на существование колонки in_schema
@@ -96,15 +129,19 @@ async def get_lines_for_enterprise(enterprise_number: str):
                 END) as in_schema
         FROM sip_unit su
         JOIN sip s ON su.provider_id = s.id
-        WHERE su.enterprise_number = %s;
+        WHERE su.enterprise_number = %s
+        ORDER BY su.id ASC;
     """
     
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 # Fetch GSM lines
+                logger.debug(f"Executing GSM query for enterprise {enterprise_number}")
                 cur.execute(gsm_sql, (enterprise_number,))
-                for row in cur.fetchall():
+                gsm_results = cur.fetchall()
+                logger.info(f"Found {len(gsm_results)} GSM lines for enterprise {enterprise_number}")
+                for row in gsm_results:
                     lines.append({
                         "id": f"gsm_{row[0]}",
                         "display_name": f"{row[1] or ''} - {row[2] or ''}".strip(" -"),
@@ -112,17 +149,21 @@ async def get_lines_for_enterprise(enterprise_number: str):
                     })
                 
                 # Fetch SIP lines
+                logger.debug(f"Executing SIP query for enterprise {enterprise_number}")
                 cur.execute(sip_sql, (enterprise_number,))
-                for row in cur.fetchall():
+                sip_results = cur.fetchall()
+                logger.info(f"Found {len(sip_results)} SIP lines for enterprise {enterprise_number}")
+                for row in sip_results:
                     lines.append({
                         "id": f"sip_{row[0]}",
                         "display_name": f"{row[1] or ''} {row[2] or ''}".strip(),
                         "in_schema": row[3]
                     })
     except psycopg2.Error as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error for enterprise {enterprise_number}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
+    logger.info(f"Returning a total of {len(lines)} lines for enterprise {enterprise_number}")
     return JSONResponse(content=lines)
 
 @app.put("/api/enterprises/{enterprise_number}/schemas/{schema_id}/assign_lines")
@@ -171,8 +212,9 @@ async def assign_lines_to_schema(enterprise_number: str, schema_id: str, line_id
     except psycopg2.Error as e:
         # Это сработает, если колонки in_schema нет в sip_unit
         if 'column "in_schema" of relation "sip_unit" does not exist' in str(e):
+             logger.error("Database migration needed for 'sip_unit'.", exc_info=True)
              raise HTTPException(status_code=500, detail="Database migration needed: Column 'in_schema' does not exist in 'sip_unit'. Please run the migration script.")
-        print(f"Database error: {e}")
+        logger.error(f"Database error assigning lines for schema {schema_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
     return {"status": "ok"}
@@ -220,6 +262,16 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
     
     return SchemaModel(**updated_schema_data)
 
+@app.delete("/api/enterprises/{enterprise_number}/schemas/{schema_id}", status_code=204)
+async def delete_schema(enterprise_number: str, schema_id: str):
+    db = read_schemas_db()
+    if enterprise_number not in db or schema_id not in db[enterprise_number]:
+        raise HTTPException(status_code=404, detail="Schema not found")
+    
+    del db[enterprise_number][schema_id]
+    write_schemas_db(db)
+    return
+
 # --- Static Files Serving ---
 STATIC_DIR = "dial_frontend/dist"
 INDEX_PATH = os.path.join(STATIC_DIR, "index.html")
@@ -230,25 +282,29 @@ if not os.path.exists(INDEX_PATH):
     with open(INDEX_PATH, "w") as f:
         f.write('<!DOCTYPE html><html><head></head><body><div id="root"></div></body></html>')
 
-# Mount the 'assets' directory for JS/CSS files at the root
+# Mount the 'assets' directory for JS/CSS files
 app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
 
 @app.get("/{full_path:path}")
 async def serve_react_app(request: Request, full_path: str):
     """
-    Serves the React app's index.html for any non-API path,
-    allowing client-side routing to work.
+    Serves the React app's index.html for any non-API path.
+    Adds headers to prevent caching of the index.html file.
     """
-    # Exclude API endpoints from being served as static files
-    # The actual API endpoints are defined above this middleware.
-    # This check is a safeguard.
+    # API-запросы не должны обрабатываться этим обработчиком,
+    # но это дополнительная проверка.
     if full_path.startswith("api/"):
-         return JSONResponse(
+        return JSONResponse(
             status_code=404,
-            content={"detail": "Not Found. API endpoints are under /api/*"},
+            content={"detail": "API endpoint not found here."},
         )
-        
-    return FileResponse(INDEX_PATH)
+
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+    return FileResponse(INDEX_PATH, headers=headers)
 
 # Если у вас будут API-ручки для взаимодействия с фронтендом, они будут здесь
 # Например:
