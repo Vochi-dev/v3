@@ -79,19 +79,34 @@
 .schema-list {
   list-style: none;
   padding: 0;
-  margin: 0 0 20px 0;
+  margin: 20px 0;
 }
 
 .schema-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px;
+  padding: 15px;
   border-bottom: 1px solid #eee;
 }
 
 .schema-item:last-child {
   border-bottom: none;
+}
+
+.schema-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.assigned-lines-list {
+  margin-top: 5px;
+  padding-left: 10px;
+}
+
+.assigned-line-item {
+  font-size: 0.85em;
+  color: #666;
 }
 
 .edit-button {
@@ -104,7 +119,7 @@
 
 .add-schema-button {
   width: 100%;
-  padding: 10px;
+  padding: 15px;
   border: none;
   border-radius: 4px;
   background-color: #007bff;

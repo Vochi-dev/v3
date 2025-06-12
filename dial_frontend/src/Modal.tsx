@@ -27,6 +27,7 @@ const getEnterpriseIdFromUrl = (): string | null => {
 const Modal: React.FC = () => {
     const [currentView, setCurrentView] = useState<'list' | 'editor'>('list');
     const [schemas, setSchemas] = useState<Schema[]>([]);
+    const [allLines, setAllLines] = useState<any[]>([]);
     const [selectedSchema, setSelectedSchema] = useState<Schema | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -38,22 +39,18 @@ const Modal: React.FC = () => {
 
     useEffect(() => {
         if (enterpriseId) {
-            fetch(`/dial/api/enterprises/${enterpriseId}/schemas`)
-                .then(res => {
-                    if (!res.ok) {
-                        throw new Error('Failed to fetch schemas');
-                    }
-                    return res.json();
-                })
-                .then((data: Schema[]) => {
-                    setSchemas(data);
-                    setIsLoading(false);
-                })
-                .catch(err => {
-                    console.error("Error fetching schemas:", err);
-                    setError('Не удалось загрузить схемы.');
-                    setIsLoading(false);
-                });
+            Promise.all([
+                fetch(`/dial/api/enterprises/${enterpriseId}/schemas`).then(res => res.json()),
+                fetch(`/dial/api/enterprises/${enterpriseId}/lines`).then(res => res.json())
+            ]).then(([schemasData, linesData]) => {
+                setSchemas(schemasData);
+                setAllLines(linesData);
+                setIsLoading(false);
+            }).catch(err => {
+                console.error("Error fetching data:", err);
+                setError('Не удалось загрузить данные.');
+                setIsLoading(false);
+            });
         } else {
             setError("ID предприятия не найдено в URL.");
             setIsLoading(false);
@@ -226,12 +223,26 @@ const Modal: React.FC = () => {
                 <ul className="schema-list">
                     {isLoading && <p>Загрузка...</p>}
                     {error && <p className="error">{error}</p>}
-                    {!isLoading && !error && sortedSchemas.map(schema => (
-                        <li key={schema.schema_id} className="schema-item">
-                            <span>{schema.schema_name}</span>
-                            <button onClick={() => handleEditSchema(schema)}>Редактировать</button>
-                        </li>
-                    ))}
+                    {!isLoading && !error && sortedSchemas.map(schema => {
+                        const assignedLines = allLines.filter(line => line.in_schema === schema.schema_name);
+                        return (
+                            <li key={schema.schema_id} className="schema-item">
+                                <div className="schema-info">
+                                    <span>{schema.schema_name}</span>
+                                    {assignedLines.length > 0 && (
+                                        <div className="assigned-lines-list">
+                                            {assignedLines.map(line => (
+                                                <div key={line.id} className="assigned-line-item">
+                                                    {line.display_name}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <button onClick={() => handleEditSchema(schema)}>Редактировать</button>
+                            </li>
+                        );
+                    })}
                 </ul>
                 <button className="add-schema-button" onClick={handleAddNewSchema}>
                     Добавить новую схему
