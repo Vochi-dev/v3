@@ -25,8 +25,7 @@
     },
     "0201": {
         "ec85bf84-6400-471a-bc41-4a05837c7a19": {
-            "id": "ec85bf84-6400-471a-bc41-4a05837c7a19",
-            "name": "\u041f\u0440\u0438\u0432\u0435\u0442",
+            "name": "\u041f\u0440\u0438\u0432\u0435\u04421",
             "nodes": [
                 {
                     "id": "1",
@@ -41,11 +40,35 @@
                     "draggable": false,
                     "deletable": false,
                     "style": null,
-                    "width": null,
-                    "height": null
+                    "width": 150,
+                    "height": 58
                 }
             ],
-            "edges": []
+            "edges": [],
+            "id": "ec85bf84-6400-471a-bc41-4a05837c7a19"
+        },
+        "6e0e579e-b018-434f-9fe4-c63fe707ea21": {
+            "name": "\u0412\u0445\u043e\u0434\u044f\u0449\u0430\u044f \u0441\u0445\u0435\u043c\u0430 1",
+            "nodes": [
+                {
+                    "id": "1",
+                    "type": "custom",
+                    "position": {
+                        "x": 450.0,
+                        "y": 100.0
+                    },
+                    "data": {
+                        "label": "\u041f\u043e\u0441\u0442\u0443\u043f\u0438\u043b \u043d\u043e\u0432\u044b\u0439 \u0437\u0432\u043e\u043d\u043e\u043a"
+                    },
+                    "draggable": false,
+                    "deletable": false,
+                    "style": null,
+                    "width": 222,
+                    "height": 111
+                }
+            ],
+            "edges": [],
+            "id": "6e0e579e-b018-434f-9fe4-c63fe707ea21"
         }
     }
 }

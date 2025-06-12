@@ -1,81 +1,29 @@
-.custom-node-wrapper {
-  position: relative;
-  background-color: #ffffff;
-  border: 1px solid #c5c5c5;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-}
-
 .custom-node {
-  border: 1px solid #adb5bd;
-  border-radius: 6px;
-  background-color: #f8f9fa;
-  padding: 12px 16px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 240px;
-  box-shadow: none;
+    border: 1px solid #777;
+    border-radius: 8px;
+    padding: 10px 20px;
+    background: white;
+    font-family: sans-serif;
+    text-align: center;
+    width: 180px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.node-body {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.custom-node .node-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
 }
 
-.node-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background-color: #dee2e6;
-  flex-shrink: 0;
+.custom-node .icon {
+    font-size: 24px;
 }
 
-.node-icon svg {
-    width: 24px;
-    height: 24px;
-    stroke: #495057;
-}
-
-.node-label {
-  flex-grow: 1;
-  font-size: 15px;
-  font-weight: 400;
-  color: #212529;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.add-button {
-  position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%) translateX(10px);
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  background-color: #28a745;
-  color: white;
-  border: none;
-  font-size: 24px;
-  font-weight: 400;
-  line-height: 28px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-  z-index: 10;
-  box-shadow: none;
-}
-
-.add-button:hover {
-  background-color: #218838;
+.custom-node .add-button {
+    cursor: pointer;
+    font-weight: bold;
+    color: #28a745;
+    margin-left: 8px;
+    font-size: 16px;
 } 

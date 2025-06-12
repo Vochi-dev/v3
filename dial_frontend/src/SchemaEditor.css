@@ -1,0 +1,106 @@
+.editor-container {
+    display: flex;
+    flex-direction: column;
+    height: 90vh;
+    width: 95vw;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    overflow: hidden;
+    position: relative;
+  }
+  
+  .editor-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: white;
+    border-bottom: 1px solid #dee2e6;
+    gap: 10px;
+  }
+
+  .editor-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+  }
+
+  .editor-header input {
+    font-size: 1.2rem;
+    padding: 5px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    flex-grow: 1;
+  }
+  
+  .editor-content {
+    flex-grow: 1;
+    position: relative; /* For react-flow attribution */
+  }
+  
+  .editor-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: white;
+    border-top: 1px solid #dee2e6;
+  }
+  
+  .footer-left .delete-button {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .footer-left .delete-button:hover {
+    background-color: #c82333;
+  }
+  
+  .footer-right {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .footer-right button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  
+  .save-button {
+    background-color: #007bff;
+    color: white;
+  }
+
+  .save-button:hover {
+    background-color: #0069d9;
+  }
+  
+  .cancel-button {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    color: #212529;
+  }
+
+  .cancel-button:hover {
+    background-color: #e2e6ea;
+  }
+
+  .internal-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+  } 

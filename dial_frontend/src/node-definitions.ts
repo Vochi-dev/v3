@@ -1,43 +1,45 @@
-export interface NodeDefinition {
-  id: string;
-  label: string;
-  maxCount: number; // Use Infinity for no limit
-  allowedSources: string[]; // List of node IDs that can precede this node
+// node-definitions.ts
+
+export interface NodeOption {
+    type: string;
+    label: string;
 }
 
-export const nodeDefinitions: NodeDefinition[] = [
-  {
-    id: '1',
-    label: 'Поступил новый звонок',
-    maxCount: 1,
-    allowedSources: [], // Root node, cannot follow anything
-  },
-  {
-    id: '2',
-    label: 'График работы',
-    maxCount: 1,
-    allowedSources: ['1'],
-  },
-  {
-    id: '3',
-    label: 'Голосовое меню',
-    maxCount: Infinity,
-    allowedSources: ['1', '2', '4'],
-  },
-  {
-    id: '4',
-    label: 'Приветствие',
-    maxCount: Infinity,
-    allowedSources: ['1', '2', '3', '4', '5'],
-  },
-  {
-    id: '5',
-    label: 'Звонок на список',
-    maxCount: Infinity,
-    allowedSources: ['1', '2', '3', '4', '5'],
-  },
-];
+export const NODE_TYPES: { [key: string]: { label: string; allowedNext: string[] } } = {
+    'incoming-call': {
+        label: 'Поступил новый звонок',
+        allowedNext: ['play-sound', 'menu', 'wait-for-answer', 'hangup'],
+    },
+    'play-sound': {
+        label: 'Проиграть звук',
+        allowedNext: ['menu', 'hangup', 'transfer-to-gsm'],
+    },
+    'menu': {
+        label: 'Меню',
+        allowedNext: ['play-sound', 'hangup', 'transfer-to-gsm', 'get-user-input'],
+    },
+    'wait-for-answer': {
+        label: 'Ожидать ответа',
+        allowedNext: ['play-sound', 'hangup', 'transfer-to-gsm'],
+    },
+    'hangup': {
+        label: 'Положить трубку',
+        allowedNext: [],
+    },
+    'transfer-to-gsm': {
+        label: 'Перевод на GSM',
+        allowedNext: ['hangup'],
+    },
+    'get-user-input': {
+        label: 'Получить ввод пользователя',
+        allowedNext: ['play-sound', 'hangup', 'transfer-to-gsm'],
+    },
+};
 
-export const findNodeDefinition = (id: string) => {
-    return nodeDefinitions.find(def => def.id === id);
-} 
+export const getNodeOptions = (sourceType: string): NodeOption[] => {
+    const allowed = NODE_TYPES[sourceType]?.allowedNext || [];
+    return allowed.map(type => ({
+        type,
+        label: NODE_TYPES[type].label,
+    }));
+}; 
