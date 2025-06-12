@@ -71,14 +71,25 @@ const Modal: React.FC = () => {
             return;
         }
 
-        const existingSchemaNumbers = schemas
-            .map(s => {
+        const existingSchemaNumbers = new Set(
+            schemas.map(s => {
                 const match = s.schema_name.match(/^Входящая схема (\d+)$/);
                 return match ? parseInt(match[1], 10) : 0;
             })
-            .filter(n => n > 0);
-        const newSchemaNumber = existingSchemaNumbers.length > 0 ? Math.max(...existingSchemaNumbers) + 1 : 1;
+        );
+
+        let newSchemaNumber = 1;
+        while (existingSchemaNumbers.has(newSchemaNumber)) {
+            newSchemaNumber++;
+        }
+        
         const newSchemaName = `Входящая схема ${newSchemaNumber}`;
+        
+        // Дополнительная проверка на уникальность, на всякий случай
+        if (schemas.some(s => s.schema_name === newSchemaName)) {
+             alert(`Ошибка: Имя схемы "${newSchemaName}" уже существует. Пожалуйста, создайте схему с другим именем.`);
+             return;
+        }
 
         const defaultNode: Node = {
             id: '1',
@@ -155,14 +166,22 @@ const Modal: React.FC = () => {
                 });
 
                 if (!response.ok) {
+                    if (response.status === 409) { // Conflict
+                        const errorData = await response.json();
+                        alert(errorData.detail); // Показываем сообщение с бэкенда
+                        return; // Остаемся в редакторе
+                    }
                     throw new Error('Не удалось удалить схему');
                 }
+                
+                // Успешное удаление
                 setSchemas(schemas.filter(s => s.schema_id !== schemaId));
                 setCurrentView('list');
                 setSelectedSchema(null);
+
             } catch (error) {
                 console.error("Ошибка при удалении:", error);
-                alert("Произошла ошибка при удалении схемы.");
+                alert(`Произошла ошибка при удалении схемы: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
             }
         }
     };

@@ -266,6 +266,46 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
 async def delete_schema(enterprise_number: str, schema_id: str):
     db = read_db()
     
+    # Найти схему, чтобы получить ее имя для проверки в PG
+    schema_to_delete = next((s for s in db if s.get('schema_id') == schema_id and s.get('enterprise_id') == enterprise_number), None)
+
+    if not schema_to_delete:
+        # Если схемы и так нет, можно просто вернуть успешный ответ или 404. 
+        # В данном случае, ничего не делаем, идем дальше к возможному 404.
+        pass
+    else:
+        schema_name = schema_to_delete.get('schema_name')
+        
+        # Проверка привязанных линий в PostgreSQL
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    # Проверяем gsm_lines
+                    cur.execute(
+                        "SELECT 1 FROM gsm_lines WHERE enterprise_number = %s AND in_schema = %s LIMIT 1",
+                        (enterprise_number, schema_name)
+                    )
+                    if cur.fetchone():
+                        raise HTTPException(
+                            status_code=409, # Conflict
+                            detail="Невозможно удалить схему, так как к ней привязаны GSM линии. Сначала отвяжите их."
+                        )
+                    
+                    # Проверяем sip_unit
+                    cur.execute(
+                        "SELECT 1 FROM sip_unit WHERE enterprise_number = %s AND in_schema = %s LIMIT 1",
+                        (enterprise_number, schema_name)
+                    )
+                    if cur.fetchone():
+                        raise HTTPException(
+                            status_code=409, # Conflict
+                            detail="Невозможно удалить схему, так как к ней привязаны SIP линии. Сначала отвяжите их."
+                        )
+        except psycopg2.Error as e:
+            logger.error(f"Database error while checking assigned lines for schema {schema_id}: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Ошибка базы данных при проверке привязанных линий.")
+
+    # Если проверки пройдены, удаляем схему из JSON
     initial_len = len(db)
     db = [s for s in db if not (s.get('schema_id') == schema_id and s.get('enterprise_id') == enterprise_number)]
     
