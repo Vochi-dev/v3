@@ -81,7 +81,6 @@ class SchemaModel(BaseModel):
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 class SchemaUpdateModel(BaseModel):
-    enterprise_id: str
     schema_name: str
     schema_data: SchemaDataModel
 
@@ -232,7 +231,8 @@ async def create_schema(enterprise_number: str, schema_in: SchemaUpdateModel):
     
     new_schema = SchemaModel(
         enterprise_id=enterprise_number,
-        **schema_in.dict()
+        schema_name=schema_in.schema_name,
+        schema_data=schema_in.schema_data
     )
     
     db.append(new_schema.dict())
