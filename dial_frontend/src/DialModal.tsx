@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './DialModal.css';
+import MusicModal from './MusicModal';
 
 // Этот тип должен совпадать с FlattenedManager в AddManagerModal
 interface ManagerInfo {
@@ -16,6 +17,7 @@ interface DialModalProps {
 
 const DialModal: React.FC<DialModalProps> = ({ onClose, onAddManagerClick, addedManagers }) => {
     const [musicOption, setMusicOption] = useState('default');
+    const [isMusicModalOpen, setMusicModalOpen] = useState(false);
 
     return (
         <div className="dial-modal-overlay" onClick={onClose}>
@@ -78,7 +80,15 @@ const DialModal: React.FC<DialModalProps> = ({ onClose, onAddManagerClick, added
                             />
                             <label htmlFor="music-custom">Своя</label>
                             {musicOption === 'custom' && (
-                                <button className="choose-file-button">Выберите файл</button>
+                                <button 
+                                    className="choose-file-button"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setMusicModalOpen(true);
+                                    }}
+                                >
+                                    Выберите файл
+                                </button>
                             )}
                         </div>
                     </div>
@@ -94,6 +104,10 @@ const DialModal: React.FC<DialModalProps> = ({ onClose, onAddManagerClick, added
                     </div>
                 </div>
             </div>
+
+            {isMusicModalOpen && (
+                <MusicModal onClose={() => setMusicModalOpen(false)} />
+            )}
         </div>
     );
 };
