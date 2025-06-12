@@ -15,7 +15,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import './SchemaEditor.css';
 import IncomingCallNode from './nodes/IncomingCallNode';
-import { Schema } from './Modal'; // Импортируем тип Schema из Modal.tsx
+import { Schema, Line } from './types';
 import IncomingCallModal from './IncomingCallModal';
 
 
@@ -38,6 +38,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const [isModalOpen, setIsModalOpen] = useState(false);
     
     const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
+    const [allLines, setAllLines] = useState<Line[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -47,15 +48,17 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         if (schema.schema_id) {
             fetch(`/dial/api/enterprises/${enterpriseId}/lines`)
                 .then(res => res.ok ? res.json() : Promise.reject(res))
-                .then((data: any[]) => {
+                .then((data: Line[]) => {
+                    setAllLines(data);
+                    const normalizedSchemaName = schemaName.trim().toLowerCase();
                     const initiallySelected = new Set(
-                        data.filter(line => line.in_schema === schema.schema_name).map(line => line.id)
+                        data.filter(line => line.in_schema && line.in_schema.trim().toLowerCase() === normalizedSchemaName).map(line => line.id)
                     );
                     setSelectedLines(initiallySelected);
                 })
-                .catch(err => console.error("Failed to fetch lines for schema", err));
+                .catch(err => console.error("Не удалось загрузить линии для схемы", err));
         }
-    }, [schema.schema_id, schema.schema_name, enterpriseId]);
+    }, [schema.schema_id, schema.schema_name, enterpriseId, schemaName]);
 
 
     useEffect(() => {
@@ -152,6 +155,8 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         }
     };
 
+    const assignedLines = allLines.filter(line => selectedLines.has(line.id));
+
     return (
         <div className="schema-editor-container">
             <div className="schema-editor-header">
@@ -163,8 +168,14 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     placeholder="Название схемы"
                     maxLength={35}
                 />
+                <div style={{ marginTop: '-40px', paddingLeft: '700px' }}>
+                    <h4 style={{ margin: '0', fontSize: '1em', color: '#555' }}>Используются линии:</h4>
+                    {assignedLines.map(line => (
+                        <div key={line.id} style={{ fontSize: '0.9em', color: '#666' }}>{line.display_name}</div>
+                    ))}
+                </div>
             </div>
-             <div className="react-flow-wrapper" ref={reactFlowWrapper}>
+            <div className="react-flow-wrapper" ref={reactFlowWrapper}>
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}
