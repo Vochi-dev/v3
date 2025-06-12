@@ -126,6 +126,32 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         }
     };
 
+    const handleLinesUpdate = async (newSelectedLines: Set<string>) => {
+        setSelectedLines(newSelectedLines);
+        setIsModalOpen(false);
+
+        if (schema.schema_id) {
+            setIsLoading(true);
+            try {
+                const res = await fetch(`/dial/api/enterprises/${enterpriseId}/schemas/${schema.schema_id}/assign_lines`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(Array.from(newSelectedLines)),
+                });
+
+                if (!res.ok) {
+                    const errorData = await res.json().catch(() => ({ detail: 'Неизвестная ошибка сервера' }));
+                    throw new Error(errorData.detail || 'Не удалось обновить привязки линий');
+                }
+            } catch (error) {
+                console.error("Failed to update line assignments:", error);
+                alert(error instanceof Error ? error.message : 'Произошла ошибка');
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
     return (
         <div className="schema-editor-container">
             <div className="schema-editor-header">
@@ -170,10 +196,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     schemaName={schemaName}
                     initialSelectedLines={selectedLines}
                     onClose={() => setIsModalOpen(false)}
-                    onConfirm={(newSelectedLines) => {
-                        setSelectedLines(newSelectedLines);
-                        setIsModalOpen(false);
-                    }}
+                    onConfirm={handleLinesUpdate}
                 />
             )}
         </div>
