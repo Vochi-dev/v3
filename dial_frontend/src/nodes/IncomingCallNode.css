@@ -1,0 +1,51 @@
+.incoming-call-node {
+    border: 2px solid #63B3ED;
+    border-radius: 0;
+    padding: 15px 25px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 500;
+    position: relative;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.node-content {
+    text-align: center;
+}
+
+.add-button-container {
+    position: absolute;
+    right: -65px;
+    top: calc(50% + 10px);
+    transform: translateY(-50%);
+}
+
+.add-button {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background-color: #48BB78;
+    color: white;
+    border: 2px solid white;
+    font-size: 1.5rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+}
+
+.add-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* Скрываем стандартный хэндл ReactFlow */
+.react-flow__handle.source {
+    opacity: 0;
+} 

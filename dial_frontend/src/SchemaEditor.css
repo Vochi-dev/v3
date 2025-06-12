@@ -103,4 +103,104 @@
     justify-content: center;
     align-items: center;
     border-radius: 8px;
-  } 
+  }
+
+.schema-editor-container {
+  display: flex;
+  flex-direction: column;
+  /* Размеры задаются родительским .modal-content, но мы можем их переопределить при необходимости */
+  width: 85vw;
+  height: 90vh;
+  max-width: 1400px;
+  max-height: 900px;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.schema-editor-header {
+  flex-shrink: 0;
+  padding: 15px 25px;
+  background-color: #fff;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.schema-name-input {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #212529;
+  border: 1px solid #ced4da;
+  background: #fff;
+  outline: none;
+  width: 40ch;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.schema-name-input:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.react-flow-wrapper {
+  flex-grow: 1;
+  height: 100%;
+  background-color: #fbfbfb;
+}
+
+.schema-editor-footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 25px;
+  border-top: 1px solid #e9ecef;
+  background-color: #fff;
+}
+
+.footer-buttons-left, .footer-buttons-right {
+  display: flex;
+  gap: 12px;
+}
+
+.save-button, .delete-button, .cancel-button {
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.save-button {
+  background-color: #0d6efd;
+  color: white;
+  border-color: #0d6efd;
+}
+.save-button:hover {
+  background-color: #0b5ed7;
+  border-color: #0a58ca;
+}
+
+.delete-button {
+  background-color: #dc3545;
+  color: white;
+  border-color: #dc3545;
+}
+.delete-button:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+.cancel-button {
+  background-color: #6c757d;
+  color: white;
+  border-color: #6c757d;
+}
+.cancel-button:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
+} 

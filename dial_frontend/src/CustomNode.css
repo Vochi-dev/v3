@@ -1,29 +1,65 @@
 .custom-node {
     border: 1px solid #777;
     border-radius: 8px;
-    padding: 10px 20px;
+    padding: 8px 15px;
     background: white;
     font-family: sans-serif;
     text-align: center;
-    width: 180px;
+    width: 160px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.custom-node .node-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
+.custom-node .react-flow__handle {
+    width: 8px;
+    height: 8px;
+    background: #555;
 }
 
-.custom-node .icon {
-    font-size: 24px;
+.custom-node .react-flow__handle-top {
+    top: -10px;
 }
 
-.custom-node .add-button {
-    cursor: pointer;
-    font-weight: bold;
-    color: #28a745;
-    margin-left: 8px;
+.custom-node .react-flow__handle-bottom {
+    bottom: -10px;
+}
+
+.node-icon {
+    display: block;
+    margin: 0 auto 5px auto;
     font-size: 16px;
+}
+
+.plus-button {
+    position: absolute;
+    top: calc(50% + 30px);
+    right: -45px;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 22px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.plus-button:hover {
+    background-color: #218838;
+}
+
+/* Initial hidden state for handles */
+.custom-node:not(:hover) .react-flow__handle {
+    opacity: 0;
+}
+
+.custom-node:hover .react-flow__handle {
+    opacity: 1;
+    transition: opacity 0.2s;
 } 

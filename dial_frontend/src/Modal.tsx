@@ -1,174 +1,245 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import './Modal.css';
+import React, { useState, useEffect, useCallback, useRef, MouseEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Node, Edge } from 'reactflow';
 import SchemaEditor from './SchemaEditor';
+import './Modal.css';
 
-interface Schema {
-  id: string;
-  name: string;
+// Определяем типы, которые будут использоваться во всем приложении
+export interface SchemaData {
+    nodes: Node[];
+    edges: Edge[];
+    viewport: { x: number; y: number; zoom: number };
 }
 
-const Modal: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+export interface Schema {
+    schema_id: string;
+    enterprise_id: string;
+    schema_name: string;
+    schema_data: SchemaData;
+    created_at: string;
+}
 
-  const [view, setView] = useState<'list' | 'editor'>('list');
-  const [currentSchemaId, setCurrentSchemaId] = useState<string | null>(null);
-
-  const [schemas, setSchemas] = useState<Schema[]>([]);
-  const [enterpriseId, setEnterpriseId] = useState<string | null>(null);
-  const [previousUrl, setPreviousUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Получаем ID предприятия из query-параметра ?enterprise=...
-    const queryParams = new URLSearchParams(location.search);
-    const id = queryParams.get('enterprise');
-    setEnterpriseId(id);
-
-    // Устанавливаем URL для фона
-    const referrer = document.referrer;
-    if (referrer && new URL(referrer).hostname === window.location.hostname) {
-      setPreviousUrl(referrer);
-    } else {
-      setPreviousUrl('/');
-    }
-
-    // Загружаем схемы, если ID предприятия известен
-    if (id) {
-      fetch(`/dial/api/enterprises/${id}/schemas`)
-        .then(res => {
-          if (!res.ok) {
-            throw new Error('Network response was not ok');
-          }
-          return res.json();
-        })
-        .then(data => setSchemas(data))
-        .catch(error => console.error("Failed to fetch schemas:", error));
-    }
-  }, [location.search]);
-
-  const handleEditSchema = (schemaId: string) => {
-    setCurrentSchemaId(schemaId);
-    setView('editor');
-  };
-
-  const handleBackToList = () => {
-    setCurrentSchemaId(null);
-    setView('list');
-    // Refresh list after potential changes
-    if (enterpriseId) {
-        fetch(`/dial/api/enterprises/${enterpriseId}/schemas`)
-            .then(res => res.json())
-            .then(data => setSchemas(data));
-    }
-  };
-
-  const handleAddSchema = () => {
-    if (!enterpriseId) return;
-
-    // 1. Определяем уникальное имя для новой схемы
-    const existingNames = new Set(schemas.map(s => s.name));
-    let newSchemaName = '';
-    let counter = 1;
-    while (true) {
-        const candidateName = `Входящая схема ${counter}`;
-        if (!existingNames.has(candidateName)) {
-            newSchemaName = candidateName;
-            break;
-        }
-        counter++;
-    }
-
-    // 2. Создаем узел по умолчанию
-    const defaultNode = {
-        id: '1',
-        type: 'custom',
-        position: { x: 450, y: 100 }, // Центрируем наверху
-        data: { label: 'Поступил новый звонок' },
-        draggable: false,
-        deletable: false,
-    };
-
-    // 3. Формируем тело запроса
-    const newSchemaPayload = {
-        name: newSchemaName,
-        nodes: [defaultNode],
-        edges: [],
-    };
-
-    // 4. Отправляем на сервер для создания
-    fetch(`/dial/api/enterprises/${enterpriseId}/schemas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSchemaPayload),
-    })
-    .then(res => res.json())
-    .then((createdSchema: Schema) => {
-        // 5. Обновляем локальный список и переключаемся в редактор
-        setSchemas(prevSchemas => [...prevSchemas, createdSchema]);
-        handleEditSchema(createdSchema.id);
-    })
-    .catch(error => console.error("Failed to create new schema:", error));
-  };
-
-  if (!previousUrl) {
-    return null;
-  }
-  
-  const renderListView = () => (
-    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-      <div className="modal-header">
-        <h2>Схемы для предприятия: {enterpriseId}</h2>
-        <button onClick={() => navigate(-1)} className="modal-close-button">&times;</button>
-      </div>
-      <div className="modal-body">
-        <ul className="schema-list">
-          {schemas.length > 0 ? (
-            schemas.map(schema => (
-              <li key={schema.id} className="schema-item">
-                <span>{schema.name}</span>
-                <button className="edit-button" onClick={() => handleEditSchema(schema.id)}>
-                  Редактировать
-                </button>
-              </li>
-            ))
-          ) : (
-            <p>Схем для этого предприятия пока нет.</p>
-          )}
-        </ul>
-        <button className="add-schema-button" onClick={handleAddSchema}>
-          Добавить новую схему
-        </button>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="overlay-container">
-      <iframe src={previousUrl} className="overlay-iframe" title="background" />
-      <div 
-        className="modal-overlay" 
-        onClick={() => {
-          if (view === 'editor') {
-            handleBackToList();
-          } else {
-            navigate(-1);
-          }
-        }}
-      >
-        {view === 'list' && renderListView()}
-        {view === 'editor' && enterpriseId && currentSchemaId && (
-          <div onClick={(e) => e.stopPropagation()}>
-            <SchemaEditor
-              enterpriseId={enterpriseId}
-              schemaId={currentSchemaId}
-              onClose={handleBackToList}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
+const getEnterpriseIdFromUrl = (): string | null => {
+    const queryParams = new URLSearchParams(window.location.search);
+    return queryParams.get('enterprise');
 };
 
-export default Modal; 
+const Modal: React.FC = () => {
+    const [currentView, setCurrentView] = useState<'list' | 'editor'>('list');
+    const [schemas, setSchemas] = useState<Schema[]>([]);
+    const [selectedSchema, setSelectedSchema] = useState<Schema | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const modalContentRef = useRef<HTMLDivElement>(null);
+
+    const enterpriseId = getEnterpriseIdFromUrl();
+    const backgroundUrl = document.referrer;
+
+    useEffect(() => {
+        if (enterpriseId) {
+            fetch(`/dial/api/enterprises/${enterpriseId}/schemas`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Failed to fetch schemas');
+                    }
+                    return res.json();
+                })
+                .then((data: Schema[]) => {
+                    setSchemas(data);
+                    setIsLoading(false);
+                })
+                .catch(err => {
+                    console.error("Error fetching schemas:", err);
+                    setError('Не удалось загрузить схемы.');
+                    setIsLoading(false);
+                });
+        } else {
+            setError("ID предприятия не найдено в URL.");
+            setIsLoading(false);
+        }
+    }, [enterpriseId]);
+
+    const handleEditSchema = (schema: Schema) => {
+        setSelectedSchema(schema);
+        setCurrentView('editor');
+    };
+
+    const handleAddNewSchema = () => {
+        if (!enterpriseId) {
+            alert("Ошибка: ID предприятия не найден.");
+            return;
+        }
+
+        const existingSchemaNumbers = schemas
+            .map(s => {
+                const match = s.schema_name.match(/^Входящая схема (\d+)$/);
+                return match ? parseInt(match[1], 10) : 0;
+            })
+            .filter(n => n > 0);
+        const newSchemaNumber = existingSchemaNumbers.length > 0 ? Math.max(...existingSchemaNumbers) + 1 : 1;
+        const newSchemaName = `Входящая схема ${newSchemaNumber}`;
+
+        const defaultNode: Node = {
+            id: '1',
+            type: 'custom',
+            position: { x: 600, y: 30 },
+            data: { label: 'Поступил новый звонок' },
+            draggable: false,
+            deletable: false,
+        };
+        
+        const newSchemaTemplate: Omit<Schema, 'schema_id' | 'created_at'> & { schema_id?: string } = {
+            enterprise_id: enterpriseId,
+            schema_name: newSchemaName,
+            schema_data: {
+                nodes: [defaultNode],
+                edges: [],
+                viewport: { x: 0, y: 0, zoom: 1 },
+            }
+        };
+
+        setSelectedSchema(newSchemaTemplate as Schema);
+        setCurrentView('editor');
+    };
+
+    const handleSaveSchema = async (schemaToSave: Partial<Schema>) => {
+        if (!enterpriseId) {
+            alert("ID предприятия не найдено. Невозможно сохранить.");
+            return;
+        }
+        
+        try {
+            const isNewSchema = !('schema_id' in schemaToSave) || !schemaToSave.schema_id;
+            const url = isNewSchema 
+                ? `/dial/api/enterprises/${enterpriseId}/schemas`
+                : `/dial/api/enterprises/${enterpriseId}/schemas/${schemaToSave.schema_id}`;
+            const method = isNewSchema ? 'POST' : 'PUT';
+            
+            // Для новых схем отправляем только необходимые данные
+            const payload = isNewSchema 
+                ? { 
+                    enterprise_id: schemaToSave.enterprise_id,
+                    schema_name: schemaToSave.schema_name,
+                    schema_data: schemaToSave.schema_data
+                  } 
+                : schemaToSave;
+
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Ошибка при сохранении схемы');
+            }
+
+            const savedSchema = await response.json();
+            
+            if (isNewSchema) {
+                setSchemas(prev => [...prev, savedSchema]);
+            } else {
+                setSchemas(schemas.map(s => s.schema_id === savedSchema.schema_id ? savedSchema : s));
+            }
+
+        } catch (error) {
+            console.error("Ошибка при сохранении схемы:", error);
+            alert(`Не удалось сохранить схему: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        } finally {
+            setCurrentView('list');
+            setSelectedSchema(null);
+        }
+    };
+
+    const handleCancelEdit = useCallback(() => {
+        setCurrentView('list');
+        setSelectedSchema(null);
+    }, []);
+
+    const handleDeleteSchema = async (schemaId: string) => {
+        if (!enterpriseId || !schemaId) return;
+
+        if (window.confirm("Вы уверены, что хотите удалить эту схему?")) {
+            try {
+                const response = await fetch(`/dial/api/enterprises/${enterpriseId}/schemas/${schemaId}`, {
+                    method: 'DELETE',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Не удалось удалить схему');
+                }
+                setSchemas(schemas.filter(s => s.schema_id !== schemaId));
+                setCurrentView('list');
+                setSelectedSchema(null);
+            } catch (error) {
+                console.error("Ошибка при удалении:", error);
+                alert("Произошла ошибка при удалении схемы.");
+            }
+        }
+    };
+    
+    const handleClickOutside = useCallback((event: MouseEvent<HTMLDivElement>) => {
+        // Проверяем, что клик был именно по оверлею, а не по его дочерним элементам (самому модальному окну)
+        if (event.target === event.currentTarget) {
+             if (currentView === 'list') {
+                navigate(-1);
+            } else if (currentView === 'editor') {
+                handleCancelEdit();
+            }
+        }
+    }, [navigate, currentView, handleCancelEdit]);
+
+    const renderListView = () => (
+        <>
+            <div className="modal-header">
+                <h2>Схемы для предприятия: {enterpriseId}</h2>
+                <button onClick={() => navigate(-1)} className="close-button">&times;</button>
+            </div>
+            <ul className="schema-list">
+                {isLoading && <p>Загрузка...</p>}
+                {error && <p className="error">{error}</p>}
+                {!isLoading && !error && schemas.map(schema => (
+                    <li key={schema.schema_id} className="schema-item">
+                        <span>{schema.schema_name}</span>
+                        <button onClick={() => handleEditSchema(schema)}>Редактировать</button>
+                    </li>
+                ))}
+            </ul>
+            <button className="add-schema-button" onClick={handleAddNewSchema}>
+                Добавить новую схему
+            </button>
+        </>
+    );
+
+    const renderEditorView = () => {
+      if (!selectedSchema || !enterpriseId) return null;
+      return (
+          <SchemaEditor
+              enterpriseId={enterpriseId}
+              schema={selectedSchema}
+              onSave={handleSaveSchema}
+              onCancel={handleCancelEdit}
+              onDelete={handleDeleteSchema}
+          />
+      );
+    };
+
+    return (
+        <>
+            {backgroundUrl && <iframe src={backgroundUrl} className="background-iframe" title="background"></iframe>}
+            <div className="modal-overlay" onClick={handleClickOutside}>
+                <div
+                    className={`modal-content ${currentView === 'editor' ? 'editor-view' : ''}`}
+                    ref={modalContentRef}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {currentView === 'list' ? renderListView() : renderEditorView()}
+                </div>
+            </div>
+        </>
+    );
+};
+
+export default Modal;
