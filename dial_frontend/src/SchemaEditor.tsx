@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactFlow, {
-    Controls,
     applyNodeChanges,
     applyEdgeChanges,
     addEdge,
@@ -124,7 +123,6 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     fitView
                     className="react-flow-canvas"
                 >
-                    <Controls showInteractive={false} showZoom={false} showFitView={false} />
                 </ReactFlow>
             </div>
             <div className="schema-editor-footer">

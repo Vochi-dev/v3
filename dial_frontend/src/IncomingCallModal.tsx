@@ -79,47 +79,49 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ enterpriseId, sch
     );
 
     return (
-        <div className="incoming-call-modal" ref={modalRef}>
-            <header className="incoming-call-modal-header">
-                <h3>Привязка линий к схеме "{schemaName}"</h3>
-                <button onClick={onClose} className="incoming-call-modal-close-button">&times;</button>
-            </header>
-            <main className="incoming-call-modal-body">
-                <table className="lines-table">
-                    <thead>
-                        <tr>
-                            <th></th>
-                            <th>
-                                Линия
-                                <input type="text" value={filterLine} onChange={e => setFilterLine(e.target.value)} placeholder="Фильтр..."/>
-                            </th>
-                            <th>
-                                Входящая схема
-                                <input type="text" value={filterSchema} onChange={e => setFilterSchema(e.target.value)} placeholder="Фильтр..."/>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredLines.map(line => (
-                            <tr key={line.id}>
-                                <td>
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedLines.has(line.id)}
-                                        onChange={(e) => handleSelectLine(line.id, e.target.checked)}
-                                    />
-                                </td>
-                                <td>{line.display_name}</td>
-                                <td>{line.in_schema}</td>
+        <div className="incoming-call-modal-overlay">
+            <div className="incoming-call-modal" ref={modalRef}>
+                <header className="incoming-call-modal-header">
+                    <h3>Привязка линий к схеме "{schemaName}"</h3>
+                    <button onClick={onClose} className="incoming-call-modal-close-button">&times;</button>
+                </header>
+                <main className="incoming-call-modal-body">
+                    <table className="lines-table">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>
+                                    Линия
+                                    <input type="text" value={filterLine} onChange={e => setFilterLine(e.target.value)} placeholder="Фильтр..."/>
+                                </th>
+                                <th>
+                                    Входящая схема
+                                    <input type="text" value={filterSchema} onChange={e => setFilterSchema(e.target.value)} placeholder="Фильтр..."/>
+                                </th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </main>
-            <footer className="incoming-call-modal-footer">
-                <button className="cancel-button" onClick={onClose}>Отмена</button>
-                <button className="save-button" onClick={handleSave}>OK</button>
-            </footer>
+                        </thead>
+                        <tbody>
+                            {filteredLines.map(line => (
+                                <tr key={line.id}>
+                                    <td>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedLines.has(line.id)}
+                                            onChange={(e) => handleSelectLine(line.id, e.target.checked)}
+                                        />
+                                    </td>
+                                    <td>{line.display_name}</td>
+                                    <td>{line.in_schema}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </main>
+                <footer className="incoming-call-modal-footer">
+                    <button className="cancel-button" onClick={onClose}>Отмена</button>
+                    <button className="save-button" onClick={handleSave}>OK</button>
+                </footer>
+            </div>
         </div>
     );
 };
