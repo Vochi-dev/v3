@@ -117,6 +117,12 @@
     border-color: #ac2925;
 }
 
+.selected-file-name {
+    margin-left: 10px;
+    font-style: italic;
+    color: #555;
+}
+
 .dial-modal-footer {
     display: flex;
     justify-content: space-between;
