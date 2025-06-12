@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -67,43 +68,34 @@ def get_db_connection():
             conn.close()
 
 # --- Pydantic Models ---
-class NodeModel(BaseModel):
-    id: str
-    type: str
-    position: Dict[str, float]
-    data: Dict[str, Any]
-    draggable: bool = False
-    deletable: bool = False
-    style: Dict[str, Any] | None = None
-    width: int | None = None
-    height: int | None = None
-
-
-class EdgeModel(BaseModel):
-    id: str
-    source: str
-    target: str
-    type: str | None = None
+class SchemaDataModel(BaseModel):
+    nodes: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
+    viewport: Dict[str, float]
 
 class SchemaModel(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    nodes: List[NodeModel]
-    edges: List[EdgeModel]
+    schema_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    enterprise_id: str
+    schema_name: str
+    schema_data: SchemaDataModel
+    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 class SchemaUpdateModel(BaseModel):
-    name: str
-    nodes: List[NodeModel]
-    edges: List[EdgeModel]
+    enterprise_id: str
+    schema_name: str
+    schema_data: SchemaDataModel
 
 # --- JSON DB for Schemas ---
-def read_schemas_db():
+def read_db():
     if not os.path.exists(DB_FILE):
-        return {}
+        return []
     with open(DB_FILE, "r") as f:
-        return json.load(f)
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []
 
-def write_schemas_db(data):
+def write_db(data):
     with open(DB_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
@@ -172,10 +164,10 @@ async def assign_lines_to_schema(enterprise_number: str, schema_id: str, line_id
     Assigns a list of lines to a schema, clearing old assignments for THIS schema.
     It will overwrite assignments from other schemas.
     """
-    db = read_schemas_db()
+    db = read_db()
     try:
-        schema_name = db[enterprise_number][schema_id]['name']
-    except KeyError:
+        schema_name = [s['schema_name'] for s in db if s['schema_id'] == schema_id and s['enterprise_id'] == enterprise_number][0]
+    except IndexError:
         raise HTTPException(status_code=404, detail="Schema not found")
 
     gsm_ids_to_set = [line.replace('gsm_', '') for line in line_ids if line.startswith('gsm_')]
@@ -220,56 +212,67 @@ async def assign_lines_to_schema(enterprise_number: str, schema_id: str, line_id
     return {"status": "ok"}
 
 # --- REFACTORED: API for Schemas ---
-@app.get("/api/enterprises/{enterprise_number}/schemas")
+@app.get("/api/enterprises/{enterprise_number}/schemas", response_model=List[SchemaModel])
 async def get_schemas_list(enterprise_number: str):
-    db = read_schemas_db()
-    enterprise_schemas = db.get(enterprise_number, {})
-    schemas_list = [{"id": schema_id, "name": schema_data.get("name")} for schema_id, schema_data in enterprise_schemas.items()]
-    return JSONResponse(content=schemas_list)
+    db = read_db()
+    enterprise_schemas = [SchemaModel(**s) for s in db if s.get('enterprise_id') == enterprise_number]
+    return enterprise_schemas
 
-@app.get("/api/enterprises/{enterprise_number}/schemas/{schema_id}")
+@app.get("/api/enterprises/{enterprise_number}/schemas/{schema_id}", response_model=SchemaModel)
 async def get_schema_by_id(enterprise_number: str, schema_id: str):
-    db = read_schemas_db()
-    schema = db.get(enterprise_number, {}).get(schema_id)
+    db = read_db()
+    schema = next((s for s in db if s.get('schema_id') == schema_id and s.get('enterprise_id') == enterprise_number), None)
     if not schema:
         raise HTTPException(status_code=404, detail="Schema not found")
-    return JSONResponse(content=schema)
+    return SchemaModel(**schema)
 
 @app.post("/api/enterprises/{enterprise_number}/schemas", response_model=SchemaModel)
-async def create_schema(enterprise_number: str, schema: SchemaUpdateModel):
-    db = read_schemas_db()
-    if enterprise_number not in db:
-        db[enterprise_number] = {}
+async def create_schema(enterprise_number: str, schema_in: SchemaUpdateModel):
+    db = read_db()
     
-    new_id = str(uuid.uuid4())
-    new_schema = SchemaModel(id=new_id, **schema.dict())
+    new_schema = SchemaModel(
+        enterprise_id=enterprise_number,
+        **schema_in.dict()
+    )
     
-    db[enterprise_number][new_id] = new_schema.dict()
-    write_schemas_db(db)
+    db.append(new_schema.dict())
+    write_db(db)
     return new_schema
 
 @app.put("/api/enterprises/{enterprise_number}/schemas/{schema_id}", response_model=SchemaModel)
 async def update_schema(enterprise_number: str, schema_id: str, schema_update: SchemaUpdateModel):
-    db = read_schemas_db()
-    if enterprise_number not in db or schema_id not in db[enterprise_number]:
+    db = read_db()
+    schema_index = -1
+    for i, s in enumerate(db):
+        if s.get('schema_id') == schema_id and s.get('enterprise_id') == enterprise_number:
+            schema_index = i
+            break
+            
+    if schema_index == -1:
         raise HTTPException(status_code=404, detail="Schema not found")
+        
+    existing_schema = db[schema_index]
+    updated_data = schema_update.dict(exclude_unset=True)
     
-    updated_schema_data = schema_update.dict()
-    updated_schema_data["id"] = schema_id
+    # Обновляем только переданные поля
+    existing_schema['schema_name'] = updated_data.get('schema_name', existing_schema['schema_name'])
+    existing_schema['schema_data'] = updated_data.get('schema_data', existing_schema['schema_data'])
     
-    db[enterprise_number][schema_id] = updated_schema_data
-    write_schemas_db(db)
-    
-    return SchemaModel(**updated_schema_data)
+    db[schema_index] = existing_schema
+    write_db(db)
+    return SchemaModel(**existing_schema)
 
 @app.delete("/api/enterprises/{enterprise_number}/schemas/{schema_id}", status_code=204)
 async def delete_schema(enterprise_number: str, schema_id: str):
-    db = read_schemas_db()
-    if enterprise_number not in db or schema_id not in db[enterprise_number]:
-        raise HTTPException(status_code=404, detail="Schema not found")
+    db = read_db()
     
-    del db[enterprise_number][schema_id]
-    write_schemas_db(db)
+    initial_len = len(db)
+    db = [s for s in db if not (s.get('schema_id') == schema_id and s.get('enterprise_id') == enterprise_number)]
+    
+    if len(db) == initial_len:
+        raise HTTPException(status_code=404, detail="Schema not found")
+        
+    write_db(db)
     return
 
 # --- Static Files Serving ---

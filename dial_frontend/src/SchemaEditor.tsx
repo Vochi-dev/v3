@@ -1,140 +1,160 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactFlow, {
-  addEdge,
-  applyEdgeChanges,
-  applyNodeChanges,
-  Background,
-  Node,
-  Edge,
-  OnNodesChange,
-  OnEdgesChange,
-  OnConnect,
-  NodeMouseHandler,
+    Controls,
+    applyNodeChanges,
+    applyEdgeChanges,
+    addEdge,
+    Node,
+    Edge,
+    OnNodesChange,
+    OnEdgesChange,
+    OnConnect,
+    Connection,
+    ReactFlowInstance,
+    ReactFlowProvider
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import './SchemaEditor.css';
+import IncomingCallNode from './nodes/IncomingCallNode';
+import { Schema } from './Modal'; // Импортируем тип Schema из Modal.tsx
 import IncomingCallModal from './IncomingCallModal';
-import CustomNode from './CustomNode';
+
 
 interface SchemaEditorProps {
     enterpriseId: string;
-    schemaId: string;
-    onClose: () => void;
+    schema: Partial<Schema>; // Схема может быть неполной (без id)
+    onSave: (schema: Partial<Schema>) => void;
+    onCancel: () => void;
+    onDelete: (schemaId: string) => void;
 }
 
-const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schemaId, onClose }) => {
-    const [nodes, setNodes] = useState<Node[]>([]);
-    const [edges, setEdges] = useState<Edge[]>([]);
-    const [schemaName, setSchemaName] = useState('');
-    const [isLinesModalOpen, setLinesModalOpen] = useState(false);
+const nodeTypes = {
+    custom: IncomingCallNode,
+};
 
-    const nodeTypes = useMemo(() => ({ custom: CustomNode }), []);
+const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSave, onCancel, onDelete }) => {
+    // const { setViewport } = useReactFlow(); // Переменная не используется
+    const [nodes, setNodes] = useState<Node[]>(schema.schema_data?.nodes || []);
+    const [edges, setEdges] = useState<Edge[]>(schema.schema_data?.edges || []);
+    const [schemaName, setSchemaName] = useState(schema.schema_name || 'Новая схема');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const reactFlowWrapper = useRef<HTMLDivElement>(null);
+    const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
     useEffect(() => {
-        if (schemaId && enterpriseId) {
-            fetch(`/dial/api/enterprises/${enterpriseId}/schemas/${schemaId}`)
-                .then((res) => res.json())
-                .then((data) => {
-                    setSchemaName(data.name || '');
-                    setNodes(data.nodes || []);
-                    setEdges(data.edges || []);
-                })
-                .catch(err => console.error("Failed to fetch schema", err));
+        setNodes(schema.schema_data?.nodes || []);
+        setEdges(schema.schema_data?.edges || []);
+        setSchemaName(schema.schema_name || 'Новая схема');
+        
+        if (reactFlowInstance && schema.schema_data?.viewport) {
+            const { x, y, zoom } = schema.schema_data.viewport;
+            reactFlowInstance.setViewport({ x, y, zoom });
         }
-    }, [schemaId, enterpriseId]);
+    }, [schema, reactFlowInstance]);
 
-    const onNodesChange: OnNodesChange = useCallback((changes) => setNodes((nds) => applyNodeChanges(changes, nds)), []);
-    const onEdgesChange: OnEdgesChange = useCallback((changes) => setEdges((eds) => applyEdgeChanges(changes, eds)), []);
-    const onConnect: OnConnect = useCallback((connection) => setEdges((eds) => addEdge(connection, eds)), []);
 
-    const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
-        event.stopPropagation();
-        if (node.type === 'custom') {
-            setLinesModalOpen(true);
-        }
-    }, []);
+    const onNodesChange: OnNodesChange = useCallback(
+        (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+        []
+    );
+    const onEdgesChange: OnEdgesChange = useCallback(
+        (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+        []
+    );
+    const onConnect: OnConnect = useCallback(
+        (params: Edge | Connection) => setEdges((eds) => addEdge(params, eds)),
+        []
+    );
 
     const handleSave = () => {
-        fetch(`/dial/api/enterprises/${enterpriseId}/schemas/${schemaId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: schemaName, nodes, edges }),
-        })
-        .then(res => {
-            if (res.ok) {
-                alert('Схема сохранена!');
-                onClose();
-            } else {
-                alert('Ошибка сохранения схемы');
-            }
-        });
+        if (!schemaName.trim()) {
+            alert('Название схемы не может быть пустым.');
+            return;
+        }
+        const viewport = reactFlowInstance?.getViewport() || { x: 0, y: 0, zoom: 1 };
+        const schemaToSave: Partial<Schema> = {
+            ...schema,
+            schema_name: schemaName,
+            schema_data: { nodes, edges, viewport }
+        };
+        onSave(schemaToSave);
     };
 
     const handleDelete = () => {
-        if (window.confirm(`Вы уверены, что хотите удалить схему "${schemaName}"?`)) {
-            fetch(`/dial/api/enterprises/${enterpriseId}/schemas/${schemaId}`, {
-                method: 'DELETE',
-            })
-            .then(res => {
-                if (res.ok) {
-                    alert('Схема удалена!');
-                    onClose();
-                } else {
-                    alert('Ошибка удаления схемы');
-                }
-            });
+        if (schema.schema_id) {
+            onDelete(schema.schema_id);
+        } else {
+            onCancel();
+        }
+    };
+    
+    const handleNodeClick = (event: React.MouseEvent, node: Node) => {
+        event.stopPropagation();
+        if (node.type === 'custom' && node.id === '1') {
+             if (schema.schema_id) {
+                setIsModalOpen(true);
+             } else {
+                alert("Сначала сохраните схему, чтобы привязать к ней линию.");
+             }
         }
     };
 
     return (
-        <div className="editor-container">
-            <header className="editor-header">
-                <h2>Редактирование схемы:</h2>
+        <div className="schema-editor-container">
+            <div className="schema-editor-header">
                 <input
                     type="text"
                     value={schemaName}
                     onChange={(e) => setSchemaName(e.target.value)}
-                    placeholder="Имя схемы"
+                    className="schema-name-input"
+                    placeholder="Название схемы"
+                    maxLength={35}
                 />
-            </header>
-            <main className="editor-content">
+            </div>
+             <div className="react-flow-wrapper" ref={reactFlowWrapper}>
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
                     onConnect={onConnect}
-                    onNodeClick={onNodeClick}
-                    onPaneClick={onClose}
+                    onNodeClick={handleNodeClick}
                     nodeTypes={nodeTypes}
+                    onInit={setReactFlowInstance}
                     fitView
-                    proOptions={{ hideAttribution: true }}
+                    className="react-flow-canvas"
                 >
-                    <Background />
+                    <Controls showInteractive={false} showZoom={false} showFitView={false} />
                 </ReactFlow>
-            </main>
-            <footer className="editor-footer">
-                <div className="footer-left">
-                    <button className="delete-button" onClick={handleDelete}>Удалить</button>
+            </div>
+            <div className="schema-editor-footer">
+                <div className="footer-buttons-left">
+                    <button onClick={handleDelete} className="delete-button">Удалить</button>
                 </div>
-                <div className="footer-right">
-                    <button className="cancel-button" onClick={onClose}>Отмена</button>
-                    <button className="save-button" onClick={handleSave}>Сохранить</button>
+                <div className="footer-buttons-right">
+                    <button onClick={onCancel} className="cancel-button">Отмена</button>
+                    <button onClick={handleSave} className="save-button">Сохранить</button>
                 </div>
-            </footer>
-
-            {isLinesModalOpen && (
-                <div className="internal-modal-overlay">
-                    <IncomingCallModal
-                        enterpriseId={enterpriseId}
-                        schemaId={schemaId}
-                        schemaName={schemaName}
-                        onClose={() => setLinesModalOpen(false)}
-                    />
-                </div>
+            </div>
+            {isModalOpen && schema.schema_id && (
+                <IncomingCallModal
+                    enterpriseId={enterpriseId}
+                    schemaId={schema.schema_id}
+                    schemaName={schemaName}
+                    onClose={() => setIsModalOpen(false)}
+                />
             )}
         </div>
     );
 };
 
-export default SchemaEditor; 
+// Обертка для доступа к хуку useReactFlow
+const SchemaEditorWrapper: React.FC<SchemaEditorProps> = (props) => {
+    return (
+        <ReactFlowProvider>
+            <SchemaEditor {...props} />
+        </ReactFlowProvider>
+    );
+};
+
+export default SchemaEditorWrapper; 
