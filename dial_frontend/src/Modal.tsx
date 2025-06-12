@@ -197,27 +197,48 @@ const Modal: React.FC = () => {
         }
     }, [navigate, currentView, handleBackToList]);
 
-    const renderListView = () => (
-        <>
-            <div className="modal-header">
-                <h2>Схемы для предприятия: {enterpriseId}</h2>
-                <button onClick={() => navigate(-1)} className="close-button">&times;</button>
-            </div>
-            <ul className="schema-list">
-                {isLoading && <p>Загрузка...</p>}
-                {error && <p className="error">{error}</p>}
-                {!isLoading && !error && schemas.map(schema => (
-                    <li key={schema.schema_id} className="schema-item">
-                        <span>{schema.schema_name}</span>
-                        <button onClick={() => handleEditSchema(schema)}>Редактировать</button>
-                    </li>
-                ))}
-            </ul>
-            <button className="add-schema-button" onClick={handleAddNewSchema}>
-                Добавить новую схему
-            </button>
-        </>
-    );
+    const renderListView = () => {
+        const sortedSchemas = [...schemas].sort((a, b) => {
+            const regex = /^(.*?)\s*(\d+)$/;
+            const matchA = a.schema_name.match(regex);
+            const matchB = b.schema_name.match(regex);
+
+            if (matchA && matchB) {
+                const nameA = matchA[1].trim();
+                const numA = parseInt(matchA[2], 10);
+                const nameB = matchB[1].trim();
+                const numB = parseInt(matchB[2], 10);
+
+                if (nameA === nameB) {
+                    return numA - numB; // Сортировка по номеру, от меньшего к большему
+                }
+            }
+            // Для всех остальных случаев - стандартная сортировка по имени
+            return a.schema_name.localeCompare(b.schema_name);
+        });
+
+        return (
+            <>
+                <div className="modal-header">
+                    <h2>Схемы для предприятия: {enterpriseId}</h2>
+                    <button onClick={() => navigate(-1)} className="close-button">&times;</button>
+                </div>
+                <ul className="schema-list">
+                    {isLoading && <p>Загрузка...</p>}
+                    {error && <p className="error">{error}</p>}
+                    {!isLoading && !error && sortedSchemas.map(schema => (
+                        <li key={schema.schema_id} className="schema-item">
+                            <span>{schema.schema_name}</span>
+                            <button onClick={() => handleEditSchema(schema)}>Редактировать</button>
+                        </li>
+                    ))}
+                </ul>
+                <button className="add-schema-button" onClick={handleAddNewSchema}>
+                    Добавить новую схему
+                </button>
+            </>
+        );
+    };
 
     const renderEditorView = () => {
       if (!selectedSchema || !enterpriseId) return null;

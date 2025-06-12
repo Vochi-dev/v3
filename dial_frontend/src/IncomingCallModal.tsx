@@ -1,11 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import './IncomingCallModal.css';
-
-interface Line {
-    id: string;
-    display_name: string;
-    in_schema: string | null;
-}
+import { Line } from './types';
 
 interface IncomingCallModalProps {
     enterpriseId: string;
@@ -27,6 +22,10 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
     const [filterLine, setFilterLine] = useState('');
     const [filterSchema, setFilterSchema] = useState('');
     const modalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setSelectedLines(initialSelectedLines);
+    }, [initialSelectedLines]);
 
     // Click outside handler
     useEffect(() => {
