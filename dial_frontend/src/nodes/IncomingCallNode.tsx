@@ -2,7 +2,14 @@ import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import './IncomingCallNode.css';
 
-const IncomingCallNode: React.FC<NodeProps> = ({ data }) => {
+interface IncomingCallNodeProps extends NodeProps {
+    data: {
+        label: string;
+        onAddClick: () => void;
+    };
+}
+
+const IncomingCallNode: React.FC<IncomingCallNodeProps> = ({ data }) => {
   return (
     <div className="incoming-call-node">
       <div className="node-content">
@@ -10,7 +17,7 @@ const IncomingCallNode: React.FC<NodeProps> = ({ data }) => {
       </div>
       <Handle type="source" position={Position.Bottom} id="a" />
       <div className="add-button-container">
-        <button className="add-button">+</button>
+        <button className="add-button" onClick={(e) => { e.stopPropagation(); data.onAddClick(); }}>+</button>
       </div>
     </div>
   );

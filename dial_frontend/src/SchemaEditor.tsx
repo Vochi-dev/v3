@@ -17,6 +17,7 @@ import './SchemaEditor.css';
 import IncomingCallNode from './nodes/IncomingCallNode';
 import { Schema, Line } from './types';
 import IncomingCallModal from './IncomingCallModal';
+import NodeActionModal from './NodeActionModal';
 
 
 interface SchemaEditorProps {
@@ -35,7 +36,8 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const [nodes, setNodes] = useState<Node[]>(schema.schema_data?.nodes || []);
     const [edges, setEdges] = useState<Edge[]>(schema.schema_data?.edges || []);
     const [schemaName, setSchemaName] = useState(schema.schema_name || 'Новая схема');
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isLinesModalOpen, setIsLinesModalOpen] = useState(false);
+    const [isNodeActionModalOpen, setIsNodeActionModalOpen] = useState(false);
     
     const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
     const [allLines, setAllLines] = useState<Line[]>([]);
@@ -125,13 +127,17 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const handleNodeClick = (event: React.MouseEvent, node: Node) => {
         event.stopPropagation();
         if (node.type === 'custom' && node.id === '1') {
-             setIsModalOpen(true);
+             setIsLinesModalOpen(true);
         }
+    };
+
+    const handleAddNode = () => {
+        setIsNodeActionModalOpen(true);
     };
 
     const handleLinesUpdate = async (newSelectedLines: Set<string>) => {
         setSelectedLines(newSelectedLines);
-        setIsModalOpen(false);
+        setIsLinesModalOpen(false);
 
         if (schema.schema_id) {
             setIsLoading(true);
@@ -157,6 +163,21 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
 
     const assignedLines = allLines.filter(line => selectedLines.has(line.id));
 
+    const nodesWithCallbacks = React.useMemo(() => {
+        return nodes.map(node => {
+            if (node.type === 'custom' && node.id === '1') {
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        onAddClick: handleAddNode,
+                    },
+                };
+            }
+            return node;
+        });
+    }, [nodes]);
+
     return (
         <div className="schema-editor-container">
             <div className="schema-editor-header">
@@ -177,7 +198,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
             </div>
             <div className="react-flow-wrapper" ref={reactFlowWrapper}>
                 <ReactFlow
-                    nodes={nodes}
+                    nodes={nodesWithCallbacks}
                     edges={edges}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
@@ -201,13 +222,18 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     </button>
                 </div>
             </div>
-            {isModalOpen && (
+            {isLinesModalOpen && (
                 <IncomingCallModal
                     enterpriseId={enterpriseId}
                     schemaName={schemaName}
                     initialSelectedLines={selectedLines}
-                    onClose={() => setIsModalOpen(false)}
+                    onClose={() => setIsLinesModalOpen(false)}
                     onConfirm={handleLinesUpdate}
+                />
+            )}
+            {isNodeActionModalOpen && (
+                <NodeActionModal
+                    onClose={() => setIsNodeActionModalOpen(false)}
                 />
             )}
         </div>
