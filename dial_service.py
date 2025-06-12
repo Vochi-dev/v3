@@ -157,6 +157,51 @@ async def get_lines_for_enterprise(enterprise_number: str):
     logger.info(f"Returning a total of {len(lines)} lines for enterprise {enterprise_number}")
     return JSONResponse(content=lines)
 
+@app.get("/api/enterprises/{enterprise_number}/users")
+async def get_enterprise_users(enterprise_number: str):
+    """
+    Fetches a list of users for a given enterprise, along with their associated phones.
+    """
+    logger.info(f"Fetching users for enterprise_number: {enterprise_number}")
+    
+    query = """
+    WITH user_phones AS (
+        SELECT 
+            user_id, 
+            array_agg(phone_number) as internal_phones
+        FROM user_internal_phones 
+        WHERE enterprise_number = %s 
+        GROUP BY user_id
+    )
+    SELECT
+        u.id, 
+        (u.first_name || ' ' || u.last_name) AS full_name,
+        u.personal_phone, 
+        COALESCE(up.internal_phones, ARRAY[]::text[]) as internal_phones
+    FROM users u
+    LEFT JOIN user_phones up ON u.id = up.user_id
+    WHERE u.enterprise_number = %s 
+    ORDER BY u.last_name, u.first_name;
+    """
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, (enterprise_number, enterprise_number))
+                rows = cur.fetchall()
+                
+                # Получаем имена колонок из курсора
+                colnames = [desc[0] for desc in cur.description]
+                
+                # Преобразуем результат в список словарей
+                users = [dict(zip(colnames, row)) for row in rows]
+                
+                logger.info(f"Found {len(users)} users for enterprise {enterprise_number}")
+                return JSONResponse(content=users)
+    except psycopg2.Error as e:
+        logger.error(f"Database error while fetching users for {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
 @app.put("/api/enterprises/{enterprise_number}/schemas/{schema_id}/assign_lines")
 async def assign_lines_to_schema(enterprise_number: str, schema_id: str, line_ids: List[str] = Body(...)):
     """

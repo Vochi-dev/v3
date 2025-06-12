@@ -18,7 +18,14 @@ import IncomingCallNode from './nodes/IncomingCallNode';
 import { Schema, Line } from './types';
 import IncomingCallModal from './IncomingCallModal';
 import NodeActionModal from './NodeActionModal';
+import DialModal from './DialModal';
+import AddManagerModal from './AddManagerModal';
 
+interface ManagerInfo {
+    userId: number;
+    name: string;
+    phone: string;
+}
 
 interface SchemaEditorProps {
     enterpriseId: string;
@@ -38,6 +45,9 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const [schemaName, setSchemaName] = useState(schema.schema_name || 'Новая схема');
     const [isLinesModalOpen, setIsLinesModalOpen] = useState(false);
     const [isNodeActionModalOpen, setIsNodeActionModalOpen] = useState(false);
+    const [isDialModalOpen, setIsDialModalOpen] = useState(false);
+    const [isAddManagerModalOpen, setIsAddManagerModalOpen] = useState(false);
+    const [dialManagers, setDialManagers] = useState<ManagerInfo[]>([]);
     
     const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
     const [allLines, setAllLines] = useState<Line[]>([]);
@@ -133,6 +143,19 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
 
     const handleAddNode = () => {
         setIsNodeActionModalOpen(true);
+    };
+
+    const handleOpenDialModal = () => {
+        setIsNodeActionModalOpen(false);
+        setIsDialModalOpen(true);
+    };
+
+    const handleOpenAddManagerModal = () => {
+        setIsAddManagerModalOpen(true);
+    };
+
+    const handleAddManagers = (selected: ManagerInfo[]) => {
+        setDialManagers(prev => [...prev, ...selected]);
     };
 
     const handleLinesUpdate = async (newSelectedLines: Set<string>) => {
@@ -234,6 +257,21 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
             {isNodeActionModalOpen && (
                 <NodeActionModal
                     onClose={() => setIsNodeActionModalOpen(false)}
+                    onDialClick={handleOpenDialModal}
+                />
+            )}
+            {isDialModalOpen && (
+                <DialModal
+                    onClose={() => setIsDialModalOpen(false)}
+                    onAddManagerClick={handleOpenAddManagerModal}
+                    addedManagers={dialManagers}
+                />
+            )}
+            {isAddManagerModalOpen && (
+                <AddManagerModal
+                    enterpriseId={enterpriseId}
+                    onClose={() => setIsAddManagerModalOpen(false)}
+                    onAdd={handleAddManagers}
                 />
             )}
         </div>
