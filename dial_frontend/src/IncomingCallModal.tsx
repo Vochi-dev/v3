@@ -102,7 +102,6 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
                                             type="checkbox"
                                             checked={selectedLines.has(line.id)}
                                             onChange={(e) => handleSelectLine(line.id, e.target.checked)}
-                                            disabled={line.in_schema !== null && line.in_schema !== schemaName}
                                         />
                                     </td>
                                     <td>{line.display_name}</td>
