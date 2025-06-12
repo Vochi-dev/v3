@@ -25,7 +25,7 @@
             "edges": [],
             "viewport": {
                 "x": 0.0,
-                "y": 0.0,
+                "y": -1.0,
                 "zoom": 1.0
             }
         },
@@ -50,13 +50,14 @@
                     "draggable": false,
                     "deletable": false,
                     "width": 238,
-                    "height": 56
+                    "height": 56,
+                    "selected": true
                 }
             ],
             "edges": [],
             "viewport": {
                 "x": 0.0,
-                "y": 0.0,
+                "y": -3.0,
                 "zoom": 1.0
             }
         },
