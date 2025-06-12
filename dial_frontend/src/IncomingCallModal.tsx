@@ -9,14 +9,21 @@ interface Line {
 
 interface IncomingCallModalProps {
     enterpriseId: string;
-    schemaId: string;
     schemaName: string;
+    initialSelectedLines: Set<string>;
     onClose: () => void;
+    onConfirm: (selectedLineIds: Set<string>) => void;
 }
 
-const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ enterpriseId, schemaId, schemaName, onClose }) => {
+const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ 
+    enterpriseId, 
+    schemaName, 
+    initialSelectedLines,
+    onClose,
+    onConfirm 
+}) => {
     const [lines, setLines] = useState<Line[]>([]);
-    const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
+    const [selectedLines, setSelectedLines] = useState<Set<string>>(initialSelectedLines);
     const [filterLine, setFilterLine] = useState('');
     const [filterSchema, setFilterSchema] = useState('');
     const modalRef = useRef<HTMLDivElement>(null);
@@ -42,25 +49,12 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ enterpriseId, sch
             .then(res => res.json())
             .then((data: Line[]) => {
                 setLines(data);
-                const initiallySelected = new Set(data.filter(line => line.in_schema === schemaName).map(line => line.id));
-                setSelectedLines(initiallySelected);
             });
-    }, [enterpriseId, schemaName]);
+    }, [enterpriseId]);
 
-    const handleSave = () => {
-        fetch(`/dial/api/enterprises/${enterpriseId}/schemas/${schemaId}/assign_lines`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(Array.from(selectedLines)),
-        })
-        .then(res => {
-            if (res.ok) {
-                alert('Линии сохранены');
-                onClose();
-            } else {
-                alert('Ошибка сохранения');
-            }
-        });
+    const handleConfirm = () => {
+        onConfirm(selectedLines);
+        onClose();
     };
 
     const handleSelectLine = (lineId: string, isSelected: boolean) => {
@@ -108,6 +102,7 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ enterpriseId, sch
                                             type="checkbox"
                                             checked={selectedLines.has(line.id)}
                                             onChange={(e) => handleSelectLine(line.id, e.target.checked)}
+                                            disabled={line.in_schema !== null && line.in_schema !== schemaName}
                                         />
                                     </td>
                                     <td>{line.display_name}</td>
@@ -119,7 +114,7 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ enterpriseId, sch
                 </main>
                 <footer className="incoming-call-modal-footer">
                     <button className="cancel-button" onClick={onClose}>Отмена</button>
-                    <button className="save-button" onClick={handleSave}>OK</button>
+                    <button className="save-button" onClick={handleConfirm}>OK</button>
                 </footer>
             </div>
         </div>

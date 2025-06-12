@@ -103,57 +103,44 @@ const Modal: React.FC = () => {
         setCurrentView('editor');
     };
 
-    const handleSaveSchema = async (schemaToSave: Partial<Schema>) => {
+    const handleSaveSchema = async (schemaToSave: Partial<Schema>): Promise<Schema> => {
         if (!enterpriseId) {
             alert("ID предприятия не найдено. Невозможно сохранить.");
-            return;
+            throw new Error("Enterprise ID not found");
         }
         
-        try {
-            const isNewSchema = !('schema_id' in schemaToSave) || !schemaToSave.schema_id;
-            const url = isNewSchema 
-                ? `/dial/api/enterprises/${enterpriseId}/schemas`
-                : `/dial/api/enterprises/${enterpriseId}/schemas/${schemaToSave.schema_id}`;
-            const method = isNewSchema ? 'POST' : 'PUT';
-            
-            // Для новых схем отправляем только необходимые данные
-            const payload = isNewSchema 
-                ? { 
-                    enterprise_id: schemaToSave.enterprise_id,
-                    schema_name: schemaToSave.schema_name,
-                    schema_data: schemaToSave.schema_data
-                  } 
-                : schemaToSave;
+        const isNewSchema = !('schema_id' in schemaToSave) || !schemaToSave.schema_id;
+        const url = isNewSchema 
+            ? `/dial/api/enterprises/${enterpriseId}/schemas`
+            : `/dial/api/enterprises/${enterpriseId}/schemas/${schemaToSave.schema_id}`;
+        const method = isNewSchema ? 'POST' : 'PUT';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(schemaToSave), // Отправляем объект как есть
+        });
 
-            const response = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Ошибка при сохранении схемы');
-            }
-
-            const savedSchema = await response.json();
-            
-            if (isNewSchema) {
-                setSchemas(prev => [...prev, savedSchema]);
-            } else {
-                setSchemas(schemas.map(s => s.schema_id === savedSchema.schema_id ? savedSchema : s));
-            }
-
-        } catch (error) {
-            console.error("Ошибка при сохранении схемы:", error);
-            alert(`Не удалось сохранить схему: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
-        } finally {
-            setCurrentView('list');
-            setSelectedSchema(null);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: 'Не удалось прочитать ошибку' }));
+            throw new Error(errorData.detail || 'Ошибка при сохранении схемы');
         }
+
+        const savedSchema = await response.json();
+        
+        // Обновляем состояние списка схем
+        if (isNewSchema) {
+            setSchemas(prev => [...prev, savedSchema]);
+        } else {
+            setSchemas(schemas.map(s => s.schema_id === savedSchema.schema_id ? savedSchema : s));
+        }
+
+        // Возвращаем сохраненную схему, чтобы SchemaEditor мог продолжить работу
+        return savedSchema;
     };
 
-    const handleCancelEdit = useCallback(() => {
+    // Вызывается из SchemaEditor для возврата к списку
+    const handleBackToList = useCallback(() => {
         setCurrentView('list');
         setSelectedSchema(null);
     }, []);
@@ -186,10 +173,10 @@ const Modal: React.FC = () => {
              if (currentView === 'list') {
                 navigate(-1);
             } else if (currentView === 'editor') {
-                handleCancelEdit();
+                handleBackToList();
             }
         }
-    }, [navigate, currentView, handleCancelEdit]);
+    }, [navigate, currentView, handleBackToList]);
 
     const renderListView = () => (
         <>
@@ -220,7 +207,7 @@ const Modal: React.FC = () => {
               enterpriseId={enterpriseId}
               schema={selectedSchema}
               onSave={handleSaveSchema}
-              onCancel={handleCancelEdit}
+              onCancel={handleBackToList}
               onDelete={handleDeleteSchema}
           />
       );
