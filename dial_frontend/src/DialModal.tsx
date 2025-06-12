@@ -9,18 +9,31 @@ interface ManagerInfo {
     phone: string;
 }
 
+interface MusicFile {
+    id: number;
+    display_name: string;
+}
+
 interface DialModalProps {
+    enterpriseId: string;
     onClose: () => void;
     onAddManagerClick: () => void;
     addedManagers: ManagerInfo[];
 }
 
-const DialModal: React.FC<DialModalProps> = ({ onClose, onAddManagerClick, addedManagers }) => {
+const DialModal: React.FC<DialModalProps> = ({ enterpriseId, onClose, onAddManagerClick, addedManagers }) => {
     const [musicOption, setMusicOption] = useState('default');
     const [isMusicModalOpen, setMusicModalOpen] = useState(false);
+    const [selectedMusicFile, setSelectedMusicFile] = useState<MusicFile | null>(null);
+
+    const handleSelectMusic = (file: MusicFile) => {
+        setSelectedMusicFile(file);
+    };
 
     return (
-        <div className="dial-modal-overlay" onClick={onClose}>
+        <div className="dial-modal-overlay" onClick={e => {
+            if (e.target === e.currentTarget) onClose();
+        }}>
             <div className="dial-modal-content" onClick={(e) => e.stopPropagation()}>
                 <div className="dial-modal-header">
                     <h3>Звонок на список</h3>
@@ -80,15 +93,20 @@ const DialModal: React.FC<DialModalProps> = ({ onClose, onAddManagerClick, added
                             />
                             <label htmlFor="music-custom">Своя</label>
                             {musicOption === 'custom' && (
-                                <button 
-                                    className="choose-file-button"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        setMusicModalOpen(true);
-                                    }}
-                                >
-                                    Выберите файл
-                                </button>
+                                <>
+                                    <button 
+                                        className="choose-file-button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setMusicModalOpen(true);
+                                        }}
+                                    >
+                                        Выберите файл
+                                    </button>
+                                    {selectedMusicFile && (
+                                        <span className="selected-file-name">{selectedMusicFile.display_name}</span>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
@@ -106,7 +124,11 @@ const DialModal: React.FC<DialModalProps> = ({ onClose, onAddManagerClick, added
             </div>
 
             {isMusicModalOpen && (
-                <MusicModal onClose={() => setMusicModalOpen(false)} />
+                <MusicModal 
+                    enterpriseId={enterpriseId}
+                    onClose={() => setMusicModalOpen(false)} 
+                    onSelect={handleSelectMusic}
+                />
             )}
         </div>
     );

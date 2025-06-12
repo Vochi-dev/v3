@@ -262,6 +262,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
             )}
             {isDialModalOpen && (
                 <DialModal
+                    enterpriseId={enterpriseId}
                     onClose={() => setIsDialModalOpen(false)}
                     onAddManagerClick={handleOpenAddManagerModal}
                     addedManagers={dialManagers}

@@ -35,6 +35,37 @@
     min-height: 150px;
 }
 
+.music-files-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.music-files-table td {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+}
+
+.music-files-table .select-btn {
+    padding: 5px 10px;
+    border: 1px solid #28a745;
+    background-color: #28a745;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.music-files-table .select-btn:hover {
+    background-color: #218838;
+}
+
+.music-files-table audio {
+    height: 30px;
+    width: 100%;
+    max-width: 200px;
+}
+
 .music-modal-footer {
     display: flex;
     justify-content: flex-end; /* Кнопка будет справа */

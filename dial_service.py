@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 from datetime import datetime
+from psycopg2.extras import DictCursor
 
 load_dotenv()
 
@@ -83,6 +84,10 @@ class SchemaModel(BaseModel):
 class SchemaUpdateModel(BaseModel):
     schema_name: str
     schema_data: SchemaDataModel
+
+class MusicFile(BaseModel):
+    id: int
+    display_name: str
 
 # --- JSON DB for Schemas ---
 def read_db():
@@ -399,4 +404,21 @@ async def serve_react_app(request: Request, full_path: str):
 # @app.get("/api/v1/schemas/{schema_id}")
 # async def get_schema(schema_id: int):
 #     # Здесь будет логика получения схемы из базы данных
-#     return {"schema_id": schema_id, "data": "..."} 
+#     return {"schema_id": schema_id, "data": "..."}
+
+@app.get("/api/enterprises/{enterprise_number}/music-files", response_model=List[MusicFile])
+async def get_enterprise_music_files(enterprise_number: str):
+    query = """
+        SELECT id, display_name FROM music_files
+        WHERE enterprise_number = %s AND file_type = 'hold'
+        ORDER BY display_name;
+    """
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(query, (enterprise_number,))
+                files = [MusicFile(id=row['id'], display_name=row['display_name']) for row in cur.fetchall()]
+                return files
+    except Exception as e:
+        # Log the exception e
+        raise HTTPException(status_code=500, detail="Failed to fetch music files") 
