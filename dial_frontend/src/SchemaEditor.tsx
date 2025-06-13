@@ -21,6 +21,7 @@ import NodeActionModal from './NodeActionModal';
 import DialModal from './DialModal';
 import AddManagerModal from './AddManagerModal';
 import GreetingModal from './GreetingModal';
+import WorkScheduleModal from './WorkScheduleModal';
 
 interface ManagerInfo {
     userId: number;
@@ -49,6 +50,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const [isDialModalOpen, setIsDialModalOpen] = useState(false);
     const [isAddManagerModalOpen, setIsAddManagerModalOpen] = useState(false);
     const [isGreetingModalOpen, setIsGreetingModalOpen] = useState(false);
+    const [isWorkScheduleModalOpen, setIsWorkScheduleModalOpen] = useState(false);
     const [dialManagers, setDialManagers] = useState<ManagerInfo[]>([]);
     
     const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
@@ -155,6 +157,11 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const handleOpenGreetingModal = () => {
         setIsNodeActionModalOpen(false);
         setIsGreetingModalOpen(true);
+    };
+
+    const handleOpenWorkScheduleModal = () => {
+        setIsNodeActionModalOpen(false);
+        setIsWorkScheduleModalOpen(true);
     };
 
     const handleOpenAddManagerModal = () => {
@@ -270,6 +277,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     onClose={() => setIsNodeActionModalOpen(false)}
                     onDialClick={handleOpenDialModal}
                     onGreetingClick={handleOpenGreetingModal}
+                    onWorkScheduleClick={handleOpenWorkScheduleModal}
                 />
             )}
             {isDialModalOpen && (
@@ -293,6 +301,11 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                 <GreetingModal
                     enterpriseId={enterpriseId}
                     onClose={() => setIsGreetingModalOpen(false)}
+                />
+            )}
+            {isWorkScheduleModalOpen && (
+                <WorkScheduleModal
+                    onClose={() => setIsWorkScheduleModalOpen(false)}
                 />
             )}
         </div>

@@ -5,9 +5,10 @@ interface NodeActionModalProps {
     onClose: () => void;
     onDialClick: () => void;
     onGreetingClick: () => void;
+    onWorkScheduleClick: () => void;
 }
 
-const NodeActionModal: React.FC<NodeActionModalProps> = ({ onClose, onDialClick, onGreetingClick }) => {
+const NodeActionModal: React.FC<NodeActionModalProps> = ({ onClose, onDialClick, onGreetingClick, onWorkScheduleClick }) => {
     return (
         <div className="node-action-modal-overlay" onClick={onClose}>
             <div className="node-action-modal-content" onClick={(e) => e.stopPropagation()}>
@@ -19,7 +20,7 @@ const NodeActionModal: React.FC<NodeActionModalProps> = ({ onClose, onDialClick,
                     <button className="action-button" onClick={onDialClick}>Звонок на список</button>
                     <button className="action-button" onClick={onGreetingClick}>Приветствие</button>
                     <button className="action-button">Голосовое меню</button>
-                    <button className="action-button">График работы</button>
+                    <button className="action-button" onClick={onWorkScheduleClick}>График работы</button>
                 </div>
             </div>
         </div>
