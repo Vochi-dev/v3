@@ -4,15 +4,18 @@ import './MusicModal.css';
 interface MusicFile {
     id: number;
     display_name: string;
+    file_type: string;
 }
 
 interface MusicModalProps {
     enterpriseId: string;
     onClose: () => void;
     onSelect: (file: MusicFile) => void;
+    modalTitle: string;
+    fileType: 'hold' | 'start';
 }
 
-const MusicModal: React.FC<MusicModalProps> = ({ enterpriseId, onClose, onSelect }) => {
+const MusicModal: React.FC<MusicModalProps> = ({ enterpriseId, onClose, onSelect, modalTitle, fileType }) => {
     const [files, setFiles] = useState<MusicFile[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -24,10 +27,9 @@ const MusicModal: React.FC<MusicModalProps> = ({ enterpriseId, onClose, onSelect
                 if (!response.ok) {
                     throw new Error('Failed to fetch music files');
                 }
-                const data: any[] = await response.json();
-                // Фильтруем только файлы типа hold
-                const holdFiles = data.filter(file => file.file_type === 'hold');
-                setFiles(holdFiles);
+                const data: MusicFile[] = await response.json();
+                const filteredFiles = data.filter(file => file.file_type === fileType);
+                setFiles(filteredFiles);
             } catch (error) {
                 console.error(error);
                 // Тут можно показать ошибку пользователю
@@ -37,7 +39,7 @@ const MusicModal: React.FC<MusicModalProps> = ({ enterpriseId, onClose, onSelect
         };
 
         fetchMusicFiles();
-    }, [enterpriseId]);
+    }, [enterpriseId, fileType]);
 
     const handleSelectClick = (file: MusicFile) => {
         onSelect(file);
@@ -48,7 +50,7 @@ const MusicModal: React.FC<MusicModalProps> = ({ enterpriseId, onClose, onSelect
         <div className="music-modal-overlay">
             <div className="music-modal-content">
                 <div className="music-modal-header">
-                    <h2>Музыка в режиме ожидания</h2>
+                    <h3>{modalTitle}</h3>
                 </div>
                 <div className="music-modal-body">
                     {loading ? (

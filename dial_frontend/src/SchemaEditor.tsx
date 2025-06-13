@@ -20,6 +20,7 @@ import IncomingCallModal from './IncomingCallModal';
 import NodeActionModal from './NodeActionModal';
 import DialModal from './DialModal';
 import AddManagerModal from './AddManagerModal';
+import GreetingModal from './GreetingModal';
 
 interface ManagerInfo {
     userId: number;
@@ -47,6 +48,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const [isNodeActionModalOpen, setIsNodeActionModalOpen] = useState(false);
     const [isDialModalOpen, setIsDialModalOpen] = useState(false);
     const [isAddManagerModalOpen, setIsAddManagerModalOpen] = useState(false);
+    const [isGreetingModalOpen, setIsGreetingModalOpen] = useState(false);
     const [dialManagers, setDialManagers] = useState<ManagerInfo[]>([]);
     
     const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
@@ -148,6 +150,11 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const handleOpenDialModal = () => {
         setIsNodeActionModalOpen(false);
         setIsDialModalOpen(true);
+    };
+
+    const handleOpenGreetingModal = () => {
+        setIsNodeActionModalOpen(false);
+        setIsGreetingModalOpen(true);
     };
 
     const handleOpenAddManagerModal = () => {
@@ -262,6 +269,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                 <NodeActionModal
                     onClose={() => setIsNodeActionModalOpen(false)}
                     onDialClick={handleOpenDialModal}
+                    onGreetingClick={handleOpenGreetingModal}
                 />
             )}
             {isDialModalOpen && (
@@ -277,7 +285,14 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                 <AddManagerModal
                     enterpriseId={enterpriseId}
                     onClose={() => setIsAddManagerModalOpen(false)}
-                    onAdd={handleAddManagers}
+                    onAddManagers={handleAddManagers}
+                    addedManagerIds={new Set(dialManagers.map(m => m.userId))}
+                />
+            )}
+            {isGreetingModalOpen && (
+                <GreetingModal
+                    enterpriseId={enterpriseId}
+                    onClose={() => setIsGreetingModalOpen(false)}
                 />
             )}
         </div>

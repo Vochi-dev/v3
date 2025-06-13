@@ -165,6 +165,8 @@ const DialModal: React.FC<DialModalProps> = ({ enterpriseId, onClose, onAddManag
                     enterpriseId={enterpriseId}
                     onClose={() => setMusicModalOpen(false)} 
                     onSelect={handleSelectMusic}
+                    modalTitle="Музыка в режиме ожидания"
+                    fileType="hold"
                 />
             )}
         </div>
