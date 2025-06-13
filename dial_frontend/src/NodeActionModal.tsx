@@ -4,9 +4,10 @@ import './NodeActionModal.css';
 interface NodeActionModalProps {
     onClose: () => void;
     onDialClick: () => void;
+    onGreetingClick: () => void;
 }
 
-const NodeActionModal: React.FC<NodeActionModalProps> = ({ onClose, onDialClick }) => {
+const NodeActionModal: React.FC<NodeActionModalProps> = ({ onClose, onDialClick, onGreetingClick }) => {
     return (
         <div className="node-action-modal-overlay" onClick={onClose}>
             <div className="node-action-modal-content" onClick={(e) => e.stopPropagation()}>
@@ -16,7 +17,7 @@ const NodeActionModal: React.FC<NodeActionModalProps> = ({ onClose, onDialClick 
                 </div>
                 <div className="node-action-modal-body">
                     <button className="action-button" onClick={onDialClick}>Звонок на список</button>
-                    <button className="action-button">Приветствие</button>
+                    <button className="action-button" onClick={onGreetingClick}>Приветствие</button>
                     <button className="action-button">Голосовое меню</button>
                     <button className="action-button">График работы</button>
                 </div>

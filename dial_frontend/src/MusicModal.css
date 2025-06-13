@@ -8,7 +8,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1001; /* На один уровень выше, чем DialModal */
+    z-index: 1003; /* Выше, чем GreetingModal */
 }
 
 .music-modal-content {
