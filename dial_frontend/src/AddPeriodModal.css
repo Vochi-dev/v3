@@ -63,6 +63,33 @@
     gap: 10px;
 }
 
+.time-interval-inputs .time-separator {
+    margin: 0 5px;
+}
+
+.time-picker {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid #ccc;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.time-picker select {
+    border: none;
+    background: transparent;
+    font-size: 1rem;
+    padding: 4px 0;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.time-picker select:focus {
+    outline: none;
+}
+
 .days-of-week {
     display: flex;
     gap: 8px;
