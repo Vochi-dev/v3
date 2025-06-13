@@ -280,4 +280,33 @@
     border-radius: 4px;
     cursor: pointer;
     font-size: 1rem;
+}
+
+.managers-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+}
+
+.managers-table th, .managers-table td {
+    border-bottom: 1px solid #eee;
+    padding: 8px 4px;
+    text-align: left;
+}
+
+.managers-table th {
+    font-weight: 600;
+    color: #555;
+    font-size: 13px;
+}
+
+.name-column {
+    width: 40%;
+}
+.phone-column {
+    width: 50%;
+}
+.action-column {
+    width: 10%;
+    text-align: center;
 } 

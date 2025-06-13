@@ -15,13 +15,15 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import './SchemaEditor.css';
 import IncomingCallNode from './nodes/IncomingCallNode';
+import GenericNode from './nodes/GenericNode';
 import { Schema, Line } from './types';
 import IncomingCallModal from './IncomingCallModal';
 import NodeActionModal from './NodeActionModal';
 import DialModal from './DialModal';
 import AddManagerModal from './AddManagerModal';
 import GreetingModal from './GreetingModal';
-import WorkScheduleModal from './WorkScheduleModal';
+import WorkScheduleModal, { SchedulePeriod } from './WorkScheduleModal';
+import { NodeType, getNodeRule } from './nodeRules';
 
 interface ManagerInfo {
     userId: number;
@@ -38,7 +40,11 @@ interface SchemaEditorProps {
 }
 
 const nodeTypes = {
-    custom: IncomingCallNode,
+    [NodeType.Start]: IncomingCallNode,
+    [NodeType.Greeting]: GenericNode,
+    [NodeType.Dial]: GenericNode,
+    [NodeType.WorkSchedule]: GenericNode,
+    [NodeType.IVR]: GenericNode, // For future use
 };
 
 const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSave, onCancel, onDelete }) => {
@@ -52,7 +58,10 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const [isGreetingModalOpen, setIsGreetingModalOpen] = useState(false);
     const [isWorkScheduleModalOpen, setIsWorkScheduleModalOpen] = useState(false);
     const [dialManagers, setDialManagers] = useState<ManagerInfo[]>([]);
+    const [editingNode, setEditingNode] = useState<Node | null>(null);
     
+    const [sourceNodeForAction, setSourceNodeForAction] = useState<{node: Node, type: NodeType} | null>(null);
+
     const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
     const [allLines, setAllLines] = useState<Line[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -130,38 +139,131 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         }
     };
 
-    const handleDelete = () => {
-        if (schema.schema_id) {
-            onDelete(schema.schema_id);
-        } else {
-            onCancel();
-        }
-    };
-    
     const handleNodeClick = (event: React.MouseEvent, node: Node) => {
         event.stopPropagation();
-        if (node.type === 'custom' && node.id === '1') {
-             setIsLinesModalOpen(true);
+        setEditingNode(node);
+
+        switch(node.type) {
+            case NodeType.Start:
+                setIsLinesModalOpen(true);
+                break;
+            case NodeType.Greeting:
+                setIsGreetingModalOpen(true);
+                break;
+            case NodeType.Dial:
+                setDialManagers(node.data.managers || []);
+                setIsDialModalOpen(true);
+                break;
+            case NodeType.WorkSchedule:
+                setIsWorkScheduleModalOpen(true);
+                break;
+            default:
+                setEditingNode(null);
+                break;
         }
     };
 
-    const handleAddNode = () => {
-        setIsNodeActionModalOpen(true);
+    const handleAddNodeClick = (nodeId: string) => {
+        const sourceNode = nodes.find(n => n.id === nodeId);
+        if (sourceNode) {
+            setSourceNodeForAction({ node: sourceNode, type: sourceNode.type as NodeType });
+            setIsNodeActionModalOpen(true);
+        }
     };
 
-    const handleOpenDialModal = () => {
-        setIsNodeActionModalOpen(false);
-        setIsDialModalOpen(true);
+    const createNewNode = (nodeType: NodeType, data: any) => {
+        if (!sourceNodeForAction) return;
+
+        const rule = getNodeRule(nodeType);
+        if (!rule) return;
+
+        const newNodeId = (Math.max(0, ...nodes.map(n => parseInt(n.id, 10))) + 1).toString();
+        
+        const newNode: Node = {
+            id: newNodeId,
+            type: nodeType,
+            position: {
+                x: sourceNodeForAction.node.position.x,
+                y: sourceNodeForAction.node.position.y + 150,
+            },
+            data: { 
+                label: rule.name,
+                onAddClick: handleAddNodeClick,
+                ...data 
+            },
+        };
+
+        const newEdge: Edge = {
+            id: `e${sourceNodeForAction.node.id}-${newNodeId}`,
+            source: sourceNodeForAction.node.id,
+            target: newNodeId,
+        };
+
+        setNodes(nds => [...nds, newNode]);
+        setEdges(eds => [...eds, newEdge]);
+        setSourceNodeForAction(null);
     };
 
-    const handleOpenGreetingModal = () => {
+    const handleOpenModalFor = (type: NodeType) => {
         setIsNodeActionModalOpen(false);
-        setIsGreetingModalOpen(true);
+        setEditingNode(null);
+        if(type === NodeType.Dial) {
+            setDialManagers([]);
+            setIsDialModalOpen(true);
+        }
+        if(type === NodeType.Greeting) setIsGreetingModalOpen(true);
+        if(type === NodeType.WorkSchedule) setIsWorkScheduleModalOpen(true);
+    }
+    
+    const updateNodeData = (nodeId: string, data: any) => {
+        setNodes(nds => nds.map(n => {
+            if (n.id === nodeId) {
+                return { ...n, data: { ...n.data, ...data } };
+            }
+            return n;
+        }));
     };
 
-    const handleOpenWorkScheduleModal = () => {
-        setIsNodeActionModalOpen(false);
-        setIsWorkScheduleModalOpen(true);
+    const handleConfirmWorkSchedule = (periods: SchedulePeriod[]) => {
+        const data = { periods: periods.map(p => ({...p, days: Array.from(p.days)})) };
+        if (editingNode) {
+            updateNodeData(editingNode.id, data);
+        } else {
+            createNewNode(NodeType.WorkSchedule, data);
+        }
+        setIsWorkScheduleModalOpen(false);
+        setEditingNode(null);
+    };
+
+    const handleConfirmGreeting = (greetingData: any) => {
+        if (editingNode) {
+            updateNodeData(editingNode.id, { greetingFile: greetingData.greetingFile });
+        } else {
+            createNewNode(NodeType.Greeting, { greetingFile: greetingData.greetingFile });
+        }
+        setIsGreetingModalOpen(false);
+        setEditingNode(null);
+    };
+
+    const handleConfirmDial = (dialData: any) => {
+        const finalData = { ...dialData, managers: dialManagers };
+        if (editingNode) {
+            updateNodeData(editingNode.id, finalData);
+        } else {
+            createNewNode(NodeType.Dial, finalData);
+        }
+        setIsDialModalOpen(false);
+        setEditingNode(null);
+        setDialManagers([]);
+    };
+
+    const handleCloseModals = () => {
+        setIsDialModalOpen(false);
+        setIsGreetingModalOpen(false);
+        setIsWorkScheduleModalOpen(false);
+        setIsLinesModalOpen(false);
+        setEditingNode(null);
+        setDialManagers([]);
     };
 
     const handleOpenAddManagerModal = () => {
@@ -205,19 +307,44 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const assignedLines = allLines.filter(line => selectedLines.has(line.id));
 
     const nodesWithCallbacks = React.useMemo(() => {
-        return nodes.map(node => {
-            if (node.type === 'custom' && node.id === '1') {
-                return {
-                    ...node,
-                    data: {
-                        ...node.data,
-                        onAddClick: handleAddNode,
-                    },
-                };
-            }
-            return node;
-        });
+        return nodes.map(node => ({
+            ...node,
+            data: {
+                ...node.data,
+                onAddClick: handleAddNodeClick,
+            },
+        }));
     }, [nodes]);
+
+    const handleDeleteNode = () => {
+        if (!editingNode) return;
+
+        if (editingNode.id === '1') {
+            alert("Стартовый узел 'Входящий звонок' удалить нельзя.");
+            return;
+        }
+
+        const idsToDelete = new Set<string>();
+        const queue: string[] = [editingNode.id];
+        idsToDelete.add(editingNode.id);
+
+        while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            const childrenEdges = edges.filter(edge => edge.source === currentId);
+
+            for (const edge of childrenEdges) {
+                if (!idsToDelete.has(edge.target)) {
+                    idsToDelete.add(edge.target);
+                    queue.push(edge.target);
+                }
+            }
+        }
+
+        setNodes(nds => nds.filter(n => !idsToDelete.has(n.id)));
+        setEdges(eds => eds.filter(e => !idsToDelete.has(e.source)));
+        
+        handleCloseModals();
+    };
 
     return (
         <div className="schema-editor-container">
@@ -254,10 +381,10 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
             </div>
             <div className="schema-editor-footer">
                 <div className="footer-buttons-left">
-                    <button onClick={handleDelete} className="delete-button" disabled={isLoading}>Удалить</button>
+                    <button onClick={() => schema.schema_id && onDelete(schema.schema_id)} className="delete-button" disabled={isLoading || !schema.schema_id}>Удалить схему</button>
                 </div>
                 <div className="footer-buttons-right">
-                    <button onClick={onCancel} className="cancel-button" disabled={isLoading}>Отмена</button>
+                    <button onClick={onCancel} className="cancel-button">Отмена</button>
                     <button onClick={handleSave} className="save-button" disabled={isLoading}>
                         {isLoading ? 'Сохранение...' : 'Сохранить'}
                     </button>
@@ -272,40 +399,51 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     onConfirm={handleLinesUpdate}
                 />
             )}
-            {isNodeActionModalOpen && (
+            {isNodeActionModalOpen && sourceNodeForAction && (
                 <NodeActionModal
+                    sourceNodeType={sourceNodeForAction.type}
+                    nodes={nodes}
                     onClose={() => setIsNodeActionModalOpen(false)}
-                    onDialClick={handleOpenDialModal}
-                    onGreetingClick={handleOpenGreetingModal}
-                    onWorkScheduleClick={handleOpenWorkScheduleModal}
+                    onDialClick={() => handleOpenModalFor(NodeType.Dial)}
+                    onGreetingClick={() => handleOpenModalFor(NodeType.Greeting)}
+                    onWorkScheduleClick={() => handleOpenModalFor(NodeType.WorkSchedule)}
                 />
             )}
             {isDialModalOpen && (
                 <DialModal
                     enterpriseId={enterpriseId}
-                    onClose={() => setIsDialModalOpen(false)}
-                    onAddManagerClick={handleOpenAddManagerModal}
-                    addedManagers={dialManagers}
+                    managers={dialManagers}
+                    onClose={handleCloseModals}
+                    onConfirm={handleConfirmDial}
+                    onAddManager={handleOpenAddManagerModal}
                     onRemoveManager={handleRemoveManager}
+                    initialData={editingNode?.data}
+                    onDelete={handleDeleteNode}
                 />
             )}
             {isAddManagerModalOpen && (
                 <AddManagerModal
                     enterpriseId={enterpriseId}
                     onClose={() => setIsAddManagerModalOpen(false)}
-                    onAddManagers={handleAddManagers}
+                    onAdd={handleAddManagers}
                     addedManagerIds={new Set(dialManagers.map(m => m.userId))}
                 />
             )}
             {isGreetingModalOpen && (
                 <GreetingModal
                     enterpriseId={enterpriseId}
-                    onClose={() => setIsGreetingModalOpen(false)}
+                    onClose={handleCloseModals}
+                    onConfirm={handleConfirmGreeting}
+                    initialData={editingNode?.data}
+                    onDelete={handleDeleteNode}
                 />
             )}
             {isWorkScheduleModalOpen && (
-                <WorkScheduleModal
-                    onClose={() => setIsWorkScheduleModalOpen(false)}
+                 <WorkScheduleModal 
+                    onClose={handleCloseModals}
+                    onConfirm={handleConfirmWorkSchedule}
+                    initialData={editingNode?.data}
+                    onDelete={handleDeleteNode}
                 />
             )}
         </div>

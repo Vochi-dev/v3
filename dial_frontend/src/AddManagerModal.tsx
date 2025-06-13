@@ -19,11 +19,11 @@ interface FlattenedManager {
 interface AddManagerModalProps {
     enterpriseId: string;
     onClose: () => void;
-    onAddManagers: (selectedManagers: FlattenedManager[]) => void;
+    onAdd: (selectedManagers: FlattenedManager[]) => void;
     addedManagerIds: Set<number>;
 }
 
-const AddManagerModal: React.FC<AddManagerModalProps> = ({ enterpriseId, onClose, onAddManagers, addedManagerIds }) => {
+const AddManagerModal: React.FC<AddManagerModalProps> = ({ enterpriseId, onClose, onAdd, addedManagerIds }) => {
     const [managers, setManagers] = useState<FlattenedManager[]>([]);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
@@ -93,7 +93,7 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({ enterpriseId, onClose
 
     const handleConfirm = () => {
         const selectedManagers = managers.filter(m => selected.has(`${m.userId}-${m.phone}`));
-        onAddManagers(selectedManagers);
+        onAdd(selectedManagers);
         onClose();
     };
 

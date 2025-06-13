@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './WorkScheduleModal.css';
 import AddPeriodModal from './AddPeriodModal';
 
@@ -12,6 +12,9 @@ export interface SchedulePeriod {
 
 interface WorkScheduleModalProps {
     onClose: () => void;
+    onConfirm: (periods: SchedulePeriod[]) => void;
+    initialData?: { periods?: (Omit<SchedulePeriod, 'days'> & { days: string[] })[] };
+    onDelete: () => void;
 }
 
 const DAYS_OF_WEEK_ORDER = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
@@ -105,16 +108,30 @@ const calculateRestTime = (periods: SchedulePeriod[]): string => {
         .join('; ');
 };
 
-const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose }) => {
-    const [periods, setPeriods] = useState<SchedulePeriod[]>([
-        {
-            id: 1,
-            name: 'Рабочее время',
-            days: new Set(['пн', 'вт', 'ср', 'чт', 'пт']),
-            startTime: '09:00',
-            endTime: '18:00',
+const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose, onConfirm, initialData, onDelete }) => {
+    const [periods, setPeriods] = useState<SchedulePeriod[]>([]);
+
+    useEffect(() => {
+        if (initialData?.periods && initialData.periods.length > 0) {
+            const initialPeriods = initialData.periods.map(p => ({
+                ...p,
+                days: new Set(p.days)
+            }));
+            setPeriods(initialPeriods);
+        } else {
+            // Устанавливаем значение по умолчанию, если нет initialData
+            setPeriods([
+                {
+                    id: 1,
+                    name: 'Рабочее время',
+                    days: new Set(['пн', 'вт', 'ср', 'чт', 'пт']),
+                    startTime: '09:00',
+                    endTime: '18:00',
+                }
+            ]);
         }
-    ]);
+    }, [initialData]);
+
     const [isAddPeriodModalOpen, setIsAddPeriodModalOpen] = useState(false);
     const [editingPeriod, setEditingPeriod] = useState<SchedulePeriod | null>(null);
 
@@ -188,6 +205,15 @@ const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose }) => {
         setPeriods(prev => prev.filter(p => p.id !== idToDelete));
     };
 
+    const handleConfirm = () => {
+        // Сериализация Set в массив для передачи
+        const periodsToSave = periods.map(p => ({
+            ...p,
+            days: Array.from(p.days)
+        }));
+        onConfirm(periodsToSave as any); 
+    };
+
     const restTimeDescription = calculateRestTime(periods);
 
     return (
@@ -245,11 +271,11 @@ const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose }) => {
                     </div>
                     <div className="work-schedule-modal-footer">
                         <div className="footer-buttons-left">
-                            <button className="delete-button">Удалить</button>
+                            <button className="delete-button" onClick={onDelete}>Удалить</button>
                         </div>
                         <div className="footer-buttons-right">
                             <button className="cancel-button" onClick={onClose}>Отмена</button>
-                            <button className="ok-button">ОК</button>
+                            <button className="ok-button" onClick={handleConfirm}>ОК</button>
                         </div>
                     </div>
                 </div>

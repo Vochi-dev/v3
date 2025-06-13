@@ -5,22 +5,22 @@ import './IncomingCallNode.css';
 interface IncomingCallNodeProps extends NodeProps {
     data: {
         label: string;
-        onAddClick: () => void;
+        onAddClick: (nodeId: string, nodeType: string) => void;
     };
 }
 
-const IncomingCallNode: React.FC<IncomingCallNodeProps> = ({ data }) => {
-  return (
+const IncomingCallNode: React.FC<IncomingCallNodeProps> = ({ id, type, data }) => {
+    return (
     <div className="incoming-call-node">
       <div className="node-content">
         {data.label}
       </div>
       <Handle type="source" position={Position.Bottom} id="a" />
       <div className="add-button-container">
-        <button className="add-button" onClick={(e) => { e.stopPropagation(); data.onAddClick(); }}>+</button>
+        <button className="add-button" onClick={(e) => { e.stopPropagation(); data.onAddClick(id, type); }}>+</button>
       </div>
-    </div>
-  );
+     </div>
+    );
 };
 
 export default memo(IncomingCallNode); 
