@@ -2709,3 +2709,179 @@
 2025-06-12 19:21:30,819 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0201.
 2025-06-12 19:21:30,819 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 2, 'display_name': 'Ожидание проверка', 'file_type': 'hold', 'file_path': 'music/0201/hold/w5fw4fl3.wav', 'original_filename': 'callrecord_1744619143792.mp3', 'created_at': '2025-06-10T17:18:51.262015+00:00'}, {'id': 1, 'display_name': 'Проба', 'file_type': 'start', 'file_path': 'music/0201/start/wrfslsvg.wav', 'original_filename': 'callrecord_1747834691669.mp3', 'created_at': '2025-06-10T10:22:05.668370+00:00'}]
 2025-06-12 19:21:30,821 - enterprise_admin_service - INFO - Запрос обработан за 0.1801 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-12 21:09:32,390 - admin - INFO - Запрос на генерацию токена для предприятия 0201
+2025-06-12 21:09:32,391 - admin - INFO - Токен для предприятия 0201 успешно сгенерирован.
+2025-06-12 21:09:34,426 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTc2Mjg3Mn0.R3kF_iBF4QCRbXAR7XrTBU2FCXg_E5JUYpai48-EcqI
+2025-06-12 21:09:34,430 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-06-12 21:09:34,432 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0201', 'is_admin': True, 'exp': 1749762872}
+2025-06-12 21:09:34,432 - enterprise_admin_service - INFO - Номер предприятия из токена: 0201
+2025-06-12 21:09:34,522 - enterprise_admin_service - INFO - Создание сессии для предприятия 0201...
+2025-06-12 21:09:34,527 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-06-12 21:09:34,530 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0201.
+2025-06-12 21:09:34,530 - enterprise_admin_service - INFO - Запрос обработан за 0.1042 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTc2Mjg3Mn0.R3kF_iBF4QCRbXAR7XrTBU2FCXg_E5JUYpai48-EcqI
+2025-06-12 21:09:34,649 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-12 21:09:34,783 - enterprise_admin_service - INFO - Запрос обработан за 0.1344 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-12 21:09:35,198 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-12 21:09:35,400 - enterprise_admin_service - INFO - Запрос обработан за 0.2019 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-12 21:09:38,370 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-12 21:09:38,525 - enterprise_admin_service - INFO - Запрос обработан за 0.1548 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-12 21:09:38,657 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-12 21:09:38,839 - enterprise_admin_service - INFO - Запрос обработан за 0.1818 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-12 21:10:00,694 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-12 21:10:00,860 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0201.
+2025-06-12 21:10:00,860 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 2, 'display_name': 'Ожидание проверка', 'file_type': 'hold', 'file_path': 'music/0201/hold/w5fw4fl3.wav', 'original_filename': 'callrecord_1744619143792.mp3', 'created_at': '2025-06-10T17:18:51.262015+00:00'}, {'id': 1, 'display_name': 'Проба', 'file_type': 'start', 'file_path': 'music/0201/start/wrfslsvg.wav', 'original_filename': 'callrecord_1747834691669.mp3', 'created_at': '2025-06-10T10:22:05.668370+00:00'}]
+2025-06-12 21:10:00,862 - enterprise_admin_service - INFO - Запрос обработан за 0.1687 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-12 21:10:01,140 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/2
+2025-06-12 21:10:01,228 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 2 для предприятия: 0201
+2025-06-12 21:10:01,312 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/hold/w5fw4fl3.wav
+2025-06-12 21:10:01,313 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav
+2025-06-12 21:10:01,313 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav с media_type audio/wav
+2025-06-12 21:10:01,314 - enterprise_admin_service - INFO - Запрос обработан за 0.1741 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/2
+2025-06-12 21:10:38,901 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-12 21:10:39,123 - enterprise_admin_service - INFO - Запрос обработан за 0.2226 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 04:09:03,394 - admin - INFO - Запрос на генерацию токена для предприятия 0201
+2025-06-13 04:09:03,395 - admin - INFO - Токен для предприятия 0201 успешно сгенерирован.
+2025-06-13 04:09:05,201 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTc4ODA0M30.v_vwyZmhg34cea9Y9_-qXKXZctVyC8hjGoZMGMgqFC8
+2025-06-13 04:09:05,203 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-06-13 04:09:05,203 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0201', 'is_admin': True, 'exp': 1749788043}
+2025-06-13 04:09:05,203 - enterprise_admin_service - INFO - Номер предприятия из токена: 0201
+2025-06-13 04:09:05,281 - enterprise_admin_service - INFO - Создание сессии для предприятия 0201...
+2025-06-13 04:09:05,285 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-06-13 04:09:05,290 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0201.
+2025-06-13 04:09:05,291 - enterprise_admin_service - INFO - Запрос обработан за 0.0898 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTc4ODA0M30.v_vwyZmhg34cea9Y9_-qXKXZctVyC8hjGoZMGMgqFC8
+2025-06-13 04:09:05,362 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 04:09:05,543 - enterprise_admin_service - INFO - Запрос обработан за 0.1816 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 04:09:05,760 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 04:09:05,940 - enterprise_admin_service - INFO - Запрос обработан за 0.1804 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 04:09:07,848 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 04:09:08,005 - enterprise_admin_service - INFO - Запрос обработан за 0.1571 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 04:09:08,103 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 04:09:08,297 - enterprise_admin_service - INFO - Запрос обработан за 0.1939 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 04:09:29,616 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-13 04:09:29,774 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0201.
+2025-06-13 04:09:29,775 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 2, 'display_name': 'Ожидание проверка', 'file_type': 'hold', 'file_path': 'music/0201/hold/w5fw4fl3.wav', 'original_filename': 'callrecord_1744619143792.mp3', 'created_at': '2025-06-10T17:18:51.262015+00:00'}, {'id': 1, 'display_name': 'Проба', 'file_type': 'start', 'file_path': 'music/0201/start/wrfslsvg.wav', 'original_filename': 'callrecord_1747834691669.mp3', 'created_at': '2025-06-10T10:22:05.668370+00:00'}]
+2025-06-13 04:09:29,776 - enterprise_admin_service - INFO - Запрос обработан за 0.1601 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-13 04:09:30,142 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:09:30,217 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 2 для предприятия: 0201
+2025-06-13 04:09:30,298 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:09:30,298 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:09:30,299 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav с media_type audio/wav
+2025-06-13 04:09:30,300 - enterprise_admin_service - INFO - Запрос обработан за 0.1572 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:10:12,359 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-13 04:10:12,504 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0201.
+2025-06-13 04:10:12,505 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 2, 'display_name': 'Ожидание проверка', 'file_type': 'hold', 'file_path': 'music/0201/hold/w5fw4fl3.wav', 'original_filename': 'callrecord_1744619143792.mp3', 'created_at': '2025-06-10T17:18:51.262015+00:00'}, {'id': 1, 'display_name': 'Проба', 'file_type': 'start', 'file_path': 'music/0201/start/wrfslsvg.wav', 'original_filename': 'callrecord_1747834691669.mp3', 'created_at': '2025-06-10T10:22:05.668370+00:00'}]
+2025-06-13 04:10:12,507 - enterprise_admin_service - INFO - Запрос обработан за 0.1479 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-13 04:10:12,639 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:10:12,731 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 2 для предприятия: 0201
+2025-06-13 04:10:12,797 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:10:12,797 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:10:12,797 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav с media_type audio/wav
+2025-06-13 04:10:12,798 - enterprise_admin_service - INFO - Запрос обработан за 0.1596 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:10:12,862 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:10:12,960 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 2 для предприятия: 0201
+2025-06-13 04:10:13,047 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:10:13,048 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:10:13,048 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav с media_type audio/wav
+2025-06-13 04:10:13,049 - enterprise_admin_service - INFO - Запрос обработан за 0.1865 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:10:13,229 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:10:13,324 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 2 для предприятия: 0201
+2025-06-13 04:10:13,417 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:10:13,418 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:10:13,418 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav с media_type audio/wav
+2025-06-13 04:10:13,419 - enterprise_admin_service - INFO - Запрос обработан за 0.1896 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:10:13,790 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:10:13,867 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 2 для предприятия: 0201
+2025-06-13 04:10:13,962 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:10:13,963 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:10:13,963 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav с media_type audio/wav
+2025-06-13 04:10:13,964 - enterprise_admin_service - INFO - Запрос обработан за 0.1737 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:11:07,750 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 04:11:07,891 - enterprise_admin_service - INFO - Запрос обработан за 0.1413 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 04:11:08,029 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 04:11:08,235 - enterprise_admin_service - INFO - Запрос обработан за 0.2058 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 04:11:36,755 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 04:11:36,914 - enterprise_admin_service - INFO - Запрос обработан за 0.1592 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 04:11:38,955 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-13 04:11:39,128 - enterprise_admin_service - INFO - Запрос обработан за 0.1734 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-13 04:11:41,210 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-13 04:11:41,386 - enterprise_admin_service - INFO - Запрос обработан за 0.1759 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-13 04:11:41,447 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines/2
+2025-06-13 04:11:41,638 - enterprise_admin_service - INFO - Запрос обработан за 0.1916 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines/2
+2025-06-13 04:12:01,504 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0201/sip-lines/2
+2025-06-13 04:12:01,700 - enterprise_admin_service - INFO - Запрос обработан за 0.1963 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0201/sip-lines/2
+2025-06-13 04:12:03,229 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-13 04:12:03,409 - enterprise_admin_service - INFO - Запрос обработан за 0.1802 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-13 04:12:05,915 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-13 04:12:05,997 - enterprise_admin_service - INFO - Запрос обработан за 0.0821 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-13 04:33:03,668 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-13 04:33:03,845 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0201.
+2025-06-13 04:33:03,845 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 2, 'display_name': 'Ожидание проверка', 'file_type': 'hold', 'file_path': 'music/0201/hold/w5fw4fl3.wav', 'original_filename': 'callrecord_1744619143792.mp3', 'created_at': '2025-06-10T17:18:51.262015+00:00'}, {'id': 1, 'display_name': 'Проба', 'file_type': 'start', 'file_path': 'music/0201/start/wrfslsvg.wav', 'original_filename': 'callrecord_1747834691669.mp3', 'created_at': '2025-06-10T10:22:05.668370+00:00'}]
+2025-06-13 04:33:03,847 - enterprise_admin_service - INFO - Запрос обработан за 0.1788 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-13 04:33:04,312 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/1
+2025-06-13 04:33:04,313 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:33:04,379 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 1 для предприятия: 0201
+2025-06-13 04:33:04,430 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 2 для предприятия: 0201
+2025-06-13 04:33:04,543 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/start/wrfslsvg.wav
+2025-06-13 04:33:04,543 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/start/wrfslsvg.wav
+2025-06-13 04:33:04,544 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/start/wrfslsvg.wav с media_type audio/wav
+2025-06-13 04:33:04,545 - enterprise_admin_service - INFO - Запрос обработан за 0.2324 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/1
+2025-06-13 04:33:04,552 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:33:04,553 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:33:04,553 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav с media_type audio/wav
+2025-06-13 04:33:04,555 - enterprise_admin_service - INFO - Запрос обработан за 0.2421 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:33:04,945 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:33:05,038 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 2 для предприятия: 0201
+2025-06-13 04:33:05,092 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:33:05,093 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav
+2025-06-13 04:33:05,093 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav с media_type audio/wav
+2025-06-13 04:33:05,094 - enterprise_admin_service - INFO - Запрос обработан за 0.1483 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/2
+2025-06-13 04:33:07,939 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-13 04:33:08,043 - enterprise_admin_service - INFO - Запрос обработан за 0.1044 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-13 04:33:49,511 - admin - INFO - Запрос на генерацию токена для предприятия 0327
+2025-06-13 04:33:49,513 - admin - INFO - Токен для предприятия 0327 успешно сгенерирован.
+2025-06-13 04:33:51,049 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzI3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTc4OTUyOX0.YB_vZjjQLcakkByrfzuzVjua0CDTXe1dwpangTQ-C1Q
+2025-06-13 04:33:51,050 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-06-13 04:33:51,051 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0327', 'is_admin': True, 'exp': 1749789529}
+2025-06-13 04:33:51,052 - enterprise_admin_service - INFO - Номер предприятия из токена: 0327
+2025-06-13 04:33:51,140 - enterprise_admin_service - INFO - Создание сессии для предприятия 0327...
+2025-06-13 04:33:51,145 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-06-13 04:33:51,147 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0327.
+2025-06-13 04:33:51,148 - enterprise_admin_service - INFO - Запрос обработан за 0.0984 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzI3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTc4OTUyOX0.YB_vZjjQLcakkByrfzuzVjua0CDTXe1dwpangTQ-C1Q
+2025-06-13 04:33:51,261 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0327/dashboard
+2025-06-13 04:33:51,436 - enterprise_admin_service - INFO - Запрос обработан за 0.1751 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0327/dashboard
+2025-06-13 04:33:51,616 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0327/users
+2025-06-13 04:33:51,801 - enterprise_admin_service - INFO - Запрос обработан за 0.1842 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0327/users
+2025-06-13 06:16:42,013 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 06:16:42,126 - enterprise_admin_service - INFO - Запрос обработан за 0.1137 сек. Статус: 403. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 08:08:38,088 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 08:08:38,258 - enterprise_admin_service - INFO - Запрос обработан за 0.1704 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 08:08:39,599 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 08:08:39,763 - enterprise_admin_service - INFO - Запрос обработан за 0.1643 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 08:14:22,452 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 08:14:22,596 - enterprise_admin_service - INFO - Запрос обработан за 0.1450 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 08:14:25,781 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 08:14:25,997 - enterprise_admin_service - INFO - Запрос обработан за 0.2162 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 08:14:51,140 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-13 08:14:51,295 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0201.
+2025-06-13 08:14:51,295 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 2, 'display_name': 'Ожидание проверка', 'file_type': 'hold', 'file_path': 'music/0201/hold/w5fw4fl3.wav', 'original_filename': 'callrecord_1744619143792.mp3', 'created_at': '2025-06-10T17:18:51.262015+00:00'}, {'id': 1, 'display_name': 'Проба', 'file_type': 'start', 'file_path': 'music/0201/start/wrfslsvg.wav', 'original_filename': 'callrecord_1747834691669.mp3', 'created_at': '2025-06-10T10:22:05.668370+00:00'}]
+2025-06-13 08:14:51,298 - enterprise_admin_service - INFO - Запрос обработан за 0.1581 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-13 08:14:51,513 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/2
+2025-06-13 08:14:51,608 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 2 для предприятия: 0201
+2025-06-13 08:14:51,704 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/hold/w5fw4fl3.wav
+2025-06-13 08:14:51,704 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav
+2025-06-13 08:14:51,705 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav с media_type audio/wav
+2025-06-13 08:14:51,706 - enterprise_admin_service - INFO - Запрос обработан за 0.1934 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/2
+2025-06-13 08:18:49,157 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 08:18:49,328 - enterprise_admin_service - INFO - Запрос обработан за 0.1716 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-13 08:18:50,674 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 08:18:50,892 - enterprise_admin_service - INFO - Запрос обработан за 0.2181 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-13 08:19:16,575 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-13 08:19:16,751 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0201.
+2025-06-13 08:19:16,751 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 2, 'display_name': 'Ожидание проверка', 'file_type': 'hold', 'file_path': 'music/0201/hold/w5fw4fl3.wav', 'original_filename': 'callrecord_1744619143792.mp3', 'created_at': '2025-06-10T17:18:51.262015+00:00'}, {'id': 1, 'display_name': 'Проба', 'file_type': 'start', 'file_path': 'music/0201/start/wrfslsvg.wav', 'original_filename': 'callrecord_1747834691669.mp3', 'created_at': '2025-06-10T10:22:05.668370+00:00'}]
+2025-06-13 08:19:16,752 - enterprise_admin_service - INFO - Запрос обработан за 0.1777 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-13 08:19:16,924 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/2
+2025-06-13 08:19:17,015 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 2 для предприятия: 0201
+2025-06-13 08:19:17,090 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/hold/w5fw4fl3.wav
+2025-06-13 08:19:17,090 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav
+2025-06-13 08:19:17,090 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav с media_type audio/wav
+2025-06-13 08:19:17,092 - enterprise_admin_service - INFO - Запрос обработан за 0.1677 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/2

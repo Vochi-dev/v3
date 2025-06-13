@@ -72,6 +72,26 @@
     background-color: #e0e0e0;
 }
 
+.remove-manager-button {
+    background: none;
+    border: none;
+    color: red;
+    font-size: 1.5rem;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.remove-manager-button:hover {
+    color: darkred;
+}
+
+.action-column {
+    width: 40px;
+    text-align: center;
+}
+
 .music-options-container {
     margin-top: 20px;
     display: flex;
@@ -121,6 +141,90 @@
     margin-left: 10px;
     font-style: italic;
     color: #555;
+}
+
+.dial-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+}
+
+.footer-buttons-left,
+.footer-buttons-right {
+    display: flex;
+    gap: 10px;
+}
+
+.delete-button {
+    background-color: #d9534f;
+    color: white;
+    border: 1px solid #d43f3a;
+}
+
+.delete-button:hover {
+    background-color: #c9302c;
+    border-color: #ac2925;
+}
+
+.ok-button {
+    background-color: #337ab7;
+    color: white;
+    border: 1px solid #2e6da4;
+}
+
+.ok-button:hover {
+    background-color: #286090;
+    border-color: #204d74;
+}
+
+.cancel-button {
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #ccc;
+}
+
+.cancel-button:hover {
+    background-color: #e6e6e6;
+    border-color: #adadad;
+}
+
+/* Общие стили для кнопок в футере */
+.dial-modal-footer button {
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.waiting-time-container {
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.waiting-time-container label {
+    font-weight: 500;
+    color: #333;
+}
+
+.waiting-time-container input[type="number"] {
+    width: 60px;
+    padding: 5px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    -moz-appearance: textfield; /* Явно включаем стрелки для Firefox */
+    appearance: textfield; /* Явно включаем стрелки для Chrome/Safari */
+}
+
+/* Сбрасываем возможное скрытие стрелок */
+.waiting-time-container input::-webkit-outer-spin-button,
+.waiting-time-container input::-webkit-inner-spin-button {
+  -webkit-appearance: auto;
+  margin: 0;
 }
 
 .dial-modal-footer {

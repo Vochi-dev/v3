@@ -19,15 +19,29 @@ interface DialModalProps {
     onClose: () => void;
     onAddManagerClick: () => void;
     addedManagers: ManagerInfo[];
+    onRemoveManager: (index: number) => void;
 }
 
-const DialModal: React.FC<DialModalProps> = ({ enterpriseId, onClose, onAddManagerClick, addedManagers }) => {
+const DialModal: React.FC<DialModalProps> = ({ enterpriseId, onClose, onAddManagerClick, addedManagers, onRemoveManager }) => {
     const [musicOption, setMusicOption] = useState('default');
     const [isMusicModalOpen, setMusicModalOpen] = useState(false);
     const [selectedMusicFile, setSelectedMusicFile] = useState<MusicFile | null>(null);
+    const [waitingRings, setWaitingRings] = useState(3);
 
     const handleSelectMusic = (file: MusicFile) => {
         setSelectedMusicFile(file);
+    };
+
+    const handleWaitingRingsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let value = parseInt(e.target.value, 10);
+        if (isNaN(value)) {
+            value = 1; // или setWaitingRings('')
+        } else if (value < 1) {
+            value = 1;
+        } else if (value > 15) {
+            value = 15;
+        }
+        setWaitingRings(value);
     };
 
     return (
@@ -45,6 +59,7 @@ const DialModal: React.FC<DialModalProps> = ({ enterpriseId, onClose, onAddManag
                             <tr>
                                 <th>Номер</th>
                                 <th>Имя</th>
+                                <th className="action-column"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -52,6 +67,14 @@ const DialModal: React.FC<DialModalProps> = ({ enterpriseId, onClose, onAddManag
                                 <tr key={`${manager.userId}-${manager.phone}-${index}`}>
                                     <td>{manager.phone}</td>
                                     <td>{manager.name}</td>
+                                    <td>
+                                        <button 
+                                            onClick={() => onRemoveManager(index)}
+                                            className="remove-manager-button"
+                                        >
+                                            &times;
+                                        </button>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -109,6 +132,20 @@ const DialModal: React.FC<DialModalProps> = ({ enterpriseId, onClose, onAddManag
                                 </>
                             )}
                         </div>
+                    </div>
+
+                    <div className="waiting-time-container">
+                        <label htmlFor="waiting-time">Время ожидания сотрудника</label>
+                        <input
+                            type="number"
+                            id="waiting-time"
+                            name="waiting-time"
+                            value={waitingRings}
+                            onChange={handleWaitingRingsChange}
+                            min="1"
+                            max="15"
+                        />
+                        <span>гудков</span>
                     </div>
 
                 </div>

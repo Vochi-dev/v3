@@ -158,6 +158,10 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         setDialManagers(prev => [...prev, ...selected]);
     };
 
+    const handleRemoveManager = (indexToRemove: number) => {
+        setDialManagers(prev => prev.filter((_, index) => index !== indexToRemove));
+    };
+
     const handleLinesUpdate = async (newSelectedLines: Set<string>) => {
         setSelectedLines(newSelectedLines);
         setIsLinesModalOpen(false);
@@ -266,6 +270,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     onClose={() => setIsDialModalOpen(false)}
                     onAddManagerClick={handleOpenAddManagerModal}
                     addedManagers={dialManagers}
+                    onRemoveManager={handleRemoveManager}
                 />
             )}
             {isAddManagerModalOpen && (
