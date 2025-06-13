@@ -1,13 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './DialModal.css';
 import MusicModal from './MusicModal';
-
-// Этот тип должен совпадать с FlattenedManager в AddManagerModal
-interface ManagerInfo {
-    userId: number;
-    name: string;
-    phone: string;
-}
 
 interface MusicFile {
     id: number;
@@ -17,16 +10,38 @@ interface MusicFile {
 interface DialModalProps {
     enterpriseId: string;
     onClose: () => void;
-    onAddManagerClick: () => void;
-    addedManagers: ManagerInfo[];
+    onConfirm: (data: any) => void;
+    onAddManager: () => void;
+    onDelete: () => void;
     onRemoveManager: (index: number) => void;
+    managers: { name: string, phone: string }[];
+    initialData?: any;
 }
 
-const DialModal: React.FC<DialModalProps> = ({ enterpriseId, onClose, onAddManagerClick, addedManagers, onRemoveManager }) => {
+const DialModal: React.FC<DialModalProps> = ({ 
+    enterpriseId, 
+    onClose, 
+    onConfirm,
+    onAddManager,
+    onRemoveManager,
+    onDelete,
+    managers,
+    initialData 
+}) => {
     const [musicOption, setMusicOption] = useState('default');
     const [isMusicModalOpen, setMusicModalOpen] = useState(false);
     const [selectedMusicFile, setSelectedMusicFile] = useState<MusicFile | null>(null);
     const [waitingRings, setWaitingRings] = useState(3);
+    const [holdMusic, setHoldMusic] = useState<{ id: string, name: string } | null>(null);
+    const [waitTime, setWaitTime] = useState(5);
+
+    useEffect(() => {
+        if (initialData) {
+            setHoldMusic(initialData.holdMusic || null);
+            setWaitTime(initialData.waitTime || 5);
+            // Менеджеры устанавливаются из `SchemaEditor`
+        }
+    }, [initialData]);
 
     const handleSelectMusic = (file: MusicFile) => {
         setSelectedMusicFile(file);
@@ -44,6 +59,19 @@ const DialModal: React.FC<DialModalProps> = ({ enterpriseId, onClose, onAddManag
         setWaitingRings(value);
     };
 
+    const handleConfirm = () => {
+        if (managers.length === 0) {
+            alert("Нельзя сохранить узел 'Звонок на список' без сотрудников. Добавьте хотя бы одного сотрудника.");
+            return;
+        }
+
+        onConfirm({
+            managers: managers,
+            holdMusic: holdMusic,
+            waitTime: waitTime,
+        });
+    };
+
     return (
         <div className="dial-modal-overlay" onClick={e => {
             if (e.target === e.currentTarget) onClose();
@@ -54,32 +82,34 @@ const DialModal: React.FC<DialModalProps> = ({ enterpriseId, onClose, onAddManag
                     <button onClick={onClose} className="close-button">&times;</button>
                 </div>
                 <div className="dial-modal-body">
-                    <table className="dial-table">
-                        <thead>
-                            <tr>
-                                <th>Номер</th>
-                                <th>Имя</th>
-                                <th className="action-column"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {addedManagers.map((manager, index) => (
-                                <tr key={`${manager.userId}-${manager.phone}-${index}`}>
-                                    <td>{manager.phone}</td>
-                                    <td>{manager.name}</td>
-                                    <td>
-                                        <button 
-                                            onClick={() => onRemoveManager(index)}
-                                            className="remove-manager-button"
-                                        >
-                                            &times;
-                                        </button>
-                                    </td>
+                    <div className="managers-table-container">
+                        <table className="managers-table">
+                            <thead>
+                                <tr>
+                                    <th className="name-column">Имя</th>
+                                    <th className="phone-column">Телефон</th>
+                                    <th className="action-column"></th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    <button className="add-manager-button" onClick={onAddManagerClick}>Добавить менеджера</button>
+                            </thead>
+                            <tbody>
+                                {managers.map((manager, index) => (
+                                    <tr key={`${manager.phone}-${index}`}>
+                                        <td className="name-column">{manager.name}</td>
+                                        <td className="phone-column">{manager.phone}</td>
+                                        <td className="action-column">
+                                            <button className="remove-manager-button" onClick={() => onRemoveManager(index)}>
+                                                &times;
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button className="add-manager-button" onClick={onAddManager}>
+                        Добавить сотрудника
+                    </button>
                     
                     <div className="music-options-container">
                         <span className="music-options-label">Музыка ожидания</span>
@@ -150,12 +180,10 @@ const DialModal: React.FC<DialModalProps> = ({ enterpriseId, onClose, onAddManag
 
                 </div>
                 <div className="dial-modal-footer">
-                    <div className="footer-buttons-left">
-                        <button className="delete-button">Удалить</button>
-                    </div>
-                    <div className="footer-buttons-right">
+                    <button className="delete-button" onClick={onDelete}>Удалить</button>
+                    <div className="footer-right-buttons">
                         <button className="cancel-button" onClick={onClose}>Отмена</button>
-                        <button className="ok-button">ОК</button>
+                        <button className="ok-button" onClick={handleConfirm}>ОК</button>
                     </div>
                 </div>
             </div>

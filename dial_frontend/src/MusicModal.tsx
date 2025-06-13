@@ -47,8 +47,8 @@ const MusicModal: React.FC<MusicModalProps> = ({ enterpriseId, onClose, onSelect
     };
 
     return (
-        <div className="music-modal-overlay">
-            <div className="music-modal-content">
+        <div className="music-modal-overlay" onClick={onClose}>
+            <div className="music-modal-content" onClick={(e) => e.stopPropagation()}>
                 <div className="music-modal-header">
                     <h3>{modalTitle}</h3>
                 </div>
