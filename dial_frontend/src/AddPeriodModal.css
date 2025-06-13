@@ -1,0 +1,112 @@
+.add-period-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.4); /* Полупрозрачный фон */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1003; /* Выше, чем WorkScheduleModal */
+}
+
+.add-period-modal-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 550px;
+    color: #333;
+}
+
+.add-period-modal-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px;
+}
+
+.add-period-modal-header .close-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.add-period-modal-body {
+    padding: 0 25px 20px 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-weight: 500;
+}
+
+.form-group input[type="text"],
+.form-group input[type="time"] {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.time-interval-inputs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.days-of-week {
+    display: flex;
+    gap: 8px;
+}
+
+.day-button {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.day-button.selected {
+    background-color: #337ab7;
+    color: white;
+    border-color: #2e6da4;
+}
+
+.add-period-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 15px 25px;
+    border-top: 1px solid #eee;
+    gap: 10px;
+}
+
+.add-period-modal-footer button {
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    border: 1px solid transparent;
+}
+
+.ok-button {
+    background-color: #337ab7;
+    color: white;
+    border-color: #2e6da4;
+}
+
+.cancel-button {
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #ccc;
+} 
