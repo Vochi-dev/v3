@@ -78,6 +78,20 @@
     text-decoration: underline;
 }
 
+.delete-period-button {
+    background: none;
+    border: none;
+    color: #d9534f;
+    cursor: pointer;
+    font-size: 1.5rem;
+    padding: 0;
+    line-height: 1;
+}
+
+.delete-period-button:hover {
+    color: #c9302c;
+}
+
 .add-period-button {
     padding: 8px 12px;
     background-color: #f0f0f0;

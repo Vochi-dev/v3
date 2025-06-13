@@ -44,7 +44,15 @@ const formatDays = (days: Set<string>): string => {
 };
 
 const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose }) => {
-    const [periods, setPeriods] = useState<SchedulePeriod[]>([]);
+    const [periods, setPeriods] = useState<SchedulePeriod[]>([
+        {
+            id: 1,
+            name: 'Рабочее время',
+            days: new Set(['пн', 'вт', 'ср', 'чт', 'пт']),
+            startTime: '09:00',
+            endTime: '18:00',
+        }
+    ]);
     const [isAddPeriodModalOpen, setIsAddPeriodModalOpen] = useState(false);
     const [editingPeriod, setEditingPeriod] = useState<SchedulePeriod | null>(null);
 
@@ -59,18 +67,63 @@ const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose }) => {
     };
 
     const handleSavePeriod = (data: Omit<SchedulePeriod, 'id'> & { id?: number }) => {
-        if (editingPeriod && data.id) {
+        const timeToMinutes = (time: string) => {
+            const [hours, minutes] = time.split(':').map(Number);
+            return hours * 60 + minutes;
+        };
+
+        const newPeriodStart = timeToMinutes(data.startTime);
+        const newPeriodEnd = timeToMinutes(data.endTime);
+
+        if (newPeriodStart >= newPeriodEnd) {
+            alert('Время начала периода должно быть раньше времени его окончания.');
+            return;
+        }
+
+        const overlappingPeriod = periods.find(p => {
+            if (data.id && p.id === data.id) {
+                return false; // Не сравнивать с самим собой при редактировании
+            }
+            const commonDays = [...p.days].filter(day => data.days.has(day));
+            if (commonDays.length === 0) {
+                return false; // Нет общих дней - нет пересечений
+            }
+
+            const existingStart = timeToMinutes(p.startTime);
+            const existingEnd = timeToMinutes(p.endTime);
+
+            // Проверка на пересечение
+            return newPeriodStart < existingEnd && existingStart < newPeriodEnd;
+        });
+
+        if (overlappingPeriod) {
+            const commonDays = [...overlappingPeriod.days].filter(day => data.days.has(day));
+            alert(
+                `Ошибка: Период "${data.name}" пересекается с периодом "${overlappingPeriod.name}".\n` +
+                `Пересечение на днях: ${formatDays(new Set(commonDays))}\n` +
+                `Конфликтный интервал: ${overlappingPeriod.startTime} - ${overlappingPeriod.endTime}`
+            );
+            return;
+        }
+
+        if (data.id) {
             // Редактирование
-            setPeriods(prev => prev.map(p => p.id === data.id ? { ...p, ...data } : p));
+            setPeriods(prev => prev.map(p => p.id === data.id ? { ...data, id: data.id, days: new Set(data.days) } : p));
         } else {
             // Добавление
             const newPeriod: SchedulePeriod = {
                 ...data,
                 id: Date.now(),
+                days: new Set(data.days)
             };
             setPeriods(prev => [...prev, newPeriod]);
         }
         setIsAddPeriodModalOpen(false);
+        setEditingPeriod(null);
+    };
+
+    const handleDeletePeriod = (idToDelete: number) => {
+        setPeriods(prev => prev.filter(p => p.id !== idToDelete));
     };
 
     return (
@@ -87,6 +140,7 @@ const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose }) => {
                                 <tr>
                                     <th>Период времени</th>
                                     <th>Описание</th>
+                                    {periods.length > 1 && <th></th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -98,6 +152,13 @@ const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose }) => {
                                             </button>
                                         </td>
                                         <td>{`${formatDays(period.days)} ${period.startTime}-${period.endTime}`}</td>
+                                        {periods.length > 1 && (
+                                            <td>
+                                                <button className="delete-period-button" onClick={() => handleDeletePeriod(period.id)}>
+                                                    &times;
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                                 {periods.length === 0 && (

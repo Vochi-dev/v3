@@ -12,6 +12,33 @@ const weekDays = [
     { key: 'вс', label: 'ВС' }
 ];
 
+const TimePicker = ({ value, onChange }: { value: string, onChange: (value: string) => void }) => {
+    const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+    const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+
+    const [hour, minute] = value.split(':');
+
+    const handleHourChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        onChange(`${e.target.value}:${minute}`);
+    };
+
+    const handleMinuteChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        onChange(`${hour}:${e.target.value}`);
+    };
+
+    return (
+        <div className="time-picker">
+            <select value={hour} onChange={handleHourChange}>
+                {hours.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+            <span>:</span>
+            <select value={minute} onChange={handleMinuteChange}>
+                {minutes.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+        </div>
+    );
+};
+
 interface AddPeriodModalProps {
     onClose: () => void;
     onConfirm: (data: Omit<SchedulePeriod, 'id'> & { id?: number }) => void;
@@ -89,19 +116,9 @@ const AddPeriodModal: React.FC<AddPeriodModalProps> = ({ onClose, onConfirm, ini
                     <div className="form-group">
                         <label>Интервал времени</label>
                         <div className="time-interval-inputs">
-                            <input
-                                type="time"
-                                value={startTime}
-                                onChange={(e) => setStartTime(e.target.value)}
-                                step="300"
-                            />
-                            <span>&ndash;</span>
-                            <input
-                                type="time"
-                                value={endTime}
-                                onChange={(e) => setEndTime(e.target.value)}
-                                step="300"
-                            />
+                            <TimePicker value={startTime} onChange={setStartTime} />
+                            <span className="time-separator">&ndash;</span>
+                            <TimePicker value={endTime} onChange={setEndTime} />
                         </div>
                     </div>
                     <div className="form-group">
