@@ -43,6 +43,68 @@ const formatDays = (days: Set<string>): string => {
     return ranges.join(', ');
 };
 
+const calculateRestTime = (periods: SchedulePeriod[]): string => {
+    const timeToMinutes = (time: string) => {
+        const [hours, minutes] = time.split(':').map(Number);
+        return hours * 60 + minutes;
+    };
+    const minutesToTime = (minutes: number) => {
+        if (minutes >= 24 * 60) return '24:00';
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
+    const dailyIntervals: { [key: string]: { start: number, end: number }[] } = {};
+    for (const day of DAYS_OF_WEEK_ORDER) {
+        dailyIntervals[day] = [];
+    }
+
+    for (const period of periods) {
+        for (const day of period.days) {
+            dailyIntervals[day].push({ start: timeToMinutes(period.startTime), end: timeToMinutes(period.endTime) });
+        }
+    }
+
+    const freeTimeByDay: { [key: string]: string } = {};
+
+    for (const day of DAYS_OF_WEEK_ORDER) {
+        const sortedIntervals = dailyIntervals[day].sort((a, b) => a.start - b.start);
+        const freeIntervals = [];
+        let lastEndTime = 0;
+
+        for (const interval of sortedIntervals) {
+            if (interval.start > lastEndTime) {
+                freeIntervals.push(`${minutesToTime(lastEndTime)}-${minutesToTime(interval.start)}`);
+            }
+            lastEndTime = Math.max(lastEndTime, interval.end);
+        }
+
+        if (lastEndTime < 24 * 60) {
+            freeIntervals.push(`${minutesToTime(lastEndTime)}-24:00`);
+        }
+
+        freeTimeByDay[day] = freeIntervals.join(', ');
+    }
+
+    const groupedDays: { schedule: string, days: string[] }[] = [];
+
+    for (const day of DAYS_OF_WEEK_ORDER) {
+        const schedule = freeTimeByDay[day];
+        const lastGroup = groupedDays[groupedDays.length - 1];
+        if (lastGroup && lastGroup.schedule === schedule) {
+            lastGroup.days.push(day);
+        } else {
+            groupedDays.push({ schedule, days: [day] });
+        }
+    }
+
+    return groupedDays
+        .filter(g => g.schedule)
+        .map(g => `${formatDays(new Set(g.days))} ${g.schedule}`)
+        .join('; ');
+};
+
 const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose }) => {
     const [periods, setPeriods] = useState<SchedulePeriod[]>([
         {
@@ -126,6 +188,8 @@ const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose }) => {
         setPeriods(prev => prev.filter(p => p.id !== idToDelete));
     };
 
+    const restTimeDescription = calculateRestTime(periods);
+
     return (
         <>
             <div className="work-schedule-modal-overlay" onClick={onClose}>
@@ -168,6 +232,11 @@ const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose }) => {
                                         </td>
                                     </tr>
                                 )}
+                                <tr className="rest-time-row">
+                                    <td>Остальное время</td>
+                                    <td>{restTimeDescription}</td>
+                                    {periods.length > 1 && <td></td>}
+                                </tr>
                             </tbody>
                         </table>
                         <button className="add-period-button" onClick={handleOpenAddModal}>

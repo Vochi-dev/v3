@@ -155,4 +155,10 @@
 
 .cancel-button:hover {
     background-color: #e6e6e6;
+}
+
+.rest-time-row td {
+    background-color: #f9f9f9;
+    color: #555;
+    font-style: italic;
 } 
