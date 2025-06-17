@@ -148,7 +148,7 @@
     </div>
     <div class="container">
         <a href="/dial/?enterprise={{ enterprise.number }}" class="btn btn-primary">Входящие схемы</a>
-        <button class="btn btn-primary" type="button" id="show-outgoing-schemas-btn">Исходящие схемы</button>
+        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Исходящие схемы</button>
         <button class="btn btn-primary" type="button" data-action="show-users">Пользователи</button>
         <button class="btn btn-success" type="button" id="btn-gsm-lines">GSM-линии</button>
         <button class="btn btn-warning" type="button" data-action="show-audiofiles">Аудиофайлы</button>
@@ -160,19 +160,6 @@
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Интеграции</button>
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Прочие настройки</button>
         <p>Здесь будет содержимое админки для предприятия.</p>
-    </div>
-
-    <!-- Empty Modal for Outgoing Schemas -->
-    <div id="outgoing-schemas-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Исходящие схемы</h2>
-                <span id="close-outgoing-schemas-modal" class="close-button">&times;</span>
-            </div>
-            <div class="modal-body">
-                <!-- Content will be here -->
-            </div>
-        </div>
     </div>
 
     <!-- Модальное окно для СХЕМ (DIALPLAN) -->
@@ -494,7 +481,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/js/intlTelInput.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/admin_controls.js" defer></script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- State and Constants ---
@@ -525,9 +511,6 @@
         const departmentsModal = document.getElementById('departments-modal');
         const departmentFormModal = document.getElementById('department-form-modal');
         const schemaModal = document.getElementById('schema-modal');
-        const outgoingSchemasModal = document.getElementById('outgoing-schemas-modal');
-        const showBtn = document.getElementById('show-outgoing-schemas-btn');
-        const closeBtn = document.getElementById('close-outgoing-schemas-modal');
 
         // --- Event Delegation ---
         document.body.addEventListener('click', async (e) => {
@@ -1396,28 +1379,6 @@
 
         // --- Initial Load ---
         fetchUsers();
-
-        // --- Outgoing Schemas Logic ---
-        if (showBtn && closeBtn) {
-            showBtn.onclick = function() {
-                if (outgoingSchemasModal) {
-                    outgoingSchemasModal.style.display = 'block';
-                }
-            }
-
-            closeBtn.onclick = function() {
-                if (outgoingSchemasModal) {
-                    outgoingSchemasModal.style.display = 'none';
-                }
-            }
-
-            // Close modal if user clicks outside of the modal content
-            window.onclick = function(event) {
-                if (event.target == outgoingSchemasModal) {
-                    outgoingSchemasModal.style.display = "none";
-                }
-            }
-        }
     });
     </script>
 </body>

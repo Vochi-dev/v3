@@ -120,7 +120,7 @@ async def get_enterprise_by_number_from_db(number: str) -> Optional[Dict]:
     conn = await get_db_connection()
     if conn:
         try:
-            row = await conn.fetchrow("SELECT number, name FROM enterprises WHERE number = $1", number)
+            row = await conn.fetchrow("SELECT id, number, name FROM enterprises WHERE number = $1", number)
             return dict(row) if row else None
         finally:
             await conn.close()
