@@ -52,118 +52,6 @@
                     "width": 238,
                     "height": 56,
                     "selected": false
-                },
-                {
-                    "id": "2",
-                    "type": "workSchedule",
-                    "position": {
-                        "x": 600,
-                        "y": 180
-                    },
-                    "data": {
-                        "label": "\u0413\u0440\u0430\u0444\u0438\u043a \u0440\u0430\u0431\u043e\u0442\u044b",
-                        "periods": [
-                            {
-                                "id": 1,
-                                "name": "\u0420\u0430\u0431\u043e\u0447\u0435\u0435 \u0432\u0440\u0435\u043c\u044f",
-                                "days": [
-                                    "\u043f\u043d",
-                                    "\u0432\u0442",
-                                    "\u0441\u0440",
-                                    "\u0447\u0442",
-                                    "\u043f\u0442"
-                                ],
-                                "startTime": "09:00",
-                                "endTime": "18:00"
-                            }
-                        ]
-                    },
-                    "width": 170,
-                    "height": 56
-                },
-                {
-                    "id": "3",
-                    "type": "ivr",
-                    "position": {
-                        "x": 342,
-                        "y": 289
-                    },
-                    "data": {
-                        "label": "\u043f\u043d-\u043f\u0442 09:00-18:00"
-                    },
-                    "width": 194,
-                    "height": 56,
-                    "selected": false,
-                    "dragging": false,
-                    "positionAbsolute": {
-                        "x": 342,
-                        "y": 289
-                    }
-                },
-                {
-                    "id": "4",
-                    "type": "ivr",
-                    "position": {
-                        "x": 777,
-                        "y": 302
-                    },
-                    "data": {
-                        "label": "\u041e\u0441\u0442\u0430\u043b\u044c\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f"
-                    },
-                    "width": 188,
-                    "height": 56,
-                    "selected": false,
-                    "dragging": false,
-                    "positionAbsolute": {
-                        "x": 777,
-                        "y": 302
-                    }
-                },
-                {
-                    "id": "5",
-                    "type": "greeting",
-                    "position": {
-                        "x": 300,
-                        "y": 444
-                    },
-                    "data": {
-                        "label": "\u041f\u0440\u0438\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u0435",
-                        "greetingFile": {
-                            "id": 1,
-                            "name": "\u041f\u0440\u043e\u0431\u0430"
-                        }
-                    },
-                    "width": 152,
-                    "height": 56,
-                    "selected": true,
-                    "positionAbsolute": {
-                        "x": 300,
-                        "y": 444
-                    },
-                    "dragging": false
-                },
-                {
-                    "id": "6",
-                    "type": "greeting",
-                    "position": {
-                        "x": 794,
-                        "y": 449
-                    },
-                    "data": {
-                        "label": "\u041f\u0440\u0438\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u0435",
-                        "greetingFile": {
-                            "id": 1,
-                            "name": "\u041f\u0440\u043e\u0431\u0430"
-                        }
-                    },
-                    "width": 152,
-                    "height": 56,
-                    "selected": false,
-                    "positionAbsolute": {
-                        "x": 794,
-                        "y": 449
-                    },
-                    "dragging": false
                 }
             ],
             "edges": [
@@ -223,30 +111,20 @@
                     "target": "2"
                 },
                 {
-                    "id": "e2-3",
-                    "source": "2",
-                    "target": "3"
+                    "id": "e1-2",
+                    "source": "1",
+                    "target": "2"
                 },
                 {
-                    "id": "e2-4",
-                    "source": "2",
-                    "target": "4"
-                },
-                {
-                    "id": "e3-5",
-                    "source": "3",
-                    "target": "5"
-                },
-                {
-                    "id": "e4-6",
-                    "source": "4",
-                    "target": "6"
+                    "id": "e1-8",
+                    "source": "1",
+                    "target": "8"
                 }
             ],
             "viewport": {
-                "x": -36.0,
-                "y": 5.0,
-                "zoom": 1.0
+                "x": 143.68061009092844,
+                "y": 3.643307893308645,
+                "zoom": 0.7165425765293609
             }
         },
         "created_at": "2025-06-13T08:18:31.495673"
@@ -281,5 +159,260 @@
             }
         },
         "created_at": "2025-06-16T14:48:00.727368"
+    },
+    {
+        "schema_id": "46649f7b-3530-4ead-ae6d-db4fb08a60c4",
+        "enterprise_id": "0201",
+        "schema_name": "\u0412\u0445\u043e\u0434\u044f\u0449\u0430\u044f \u0441\u0445\u0435\u043c\u0430 1",
+        "schema_data": {
+            "nodes": [
+                {
+                    "id": "1",
+                    "type": "custom",
+                    "position": {
+                        "x": 600,
+                        "y": 30
+                    },
+                    "data": {
+                        "label": "\u041f\u043e\u0441\u0442\u0443\u043f\u0438\u043b \u043d\u043e\u0432\u044b\u0439 \u0437\u0432\u043e\u043d\u043e\u043a"
+                    },
+                    "draggable": false,
+                    "deletable": false,
+                    "width": 238,
+                    "height": 56
+                },
+                {
+                    "id": "2",
+                    "type": "workSchedule",
+                    "position": {
+                        "x": 600,
+                        "y": 180
+                    },
+                    "data": {
+                        "label": "\u0413\u0440\u0430\u0444\u0438\u043a \u0440\u0430\u0431\u043e\u0442\u044b",
+                        "periods": [
+                            {
+                                "id": 1,
+                                "name": "\u0420\u0430\u0431\u043e\u0447\u0435\u0435 \u0432\u0440\u0435\u043c\u044f",
+                                "days": [
+                                    "\u043f\u043d",
+                                    "\u0432\u0442",
+                                    "\u0441\u0440",
+                                    "\u0447\u0442",
+                                    "\u043f\u0442"
+                                ],
+                                "startTime": "09:00",
+                                "endTime": "18:00"
+                            },
+                            {
+                                "name": "\u0413\u0440\u0430\u0444\u0438\u043a \u0440\u0430\u0431\u043e\u0442\u044b 1",
+                                "days": [
+                                    "\u0441\u0431"
+                                ],
+                                "startTime": "09:00",
+                                "endTime": "18:00",
+                                "id": 1750156536614
+                            },
+                            {
+                                "name": "\u0413\u0440\u0430\u0444\u0438\u043a \u0440\u0430\u0431\u043e\u0442\u044b 1",
+                                "days": [
+                                    "\u0432\u0441"
+                                ],
+                                "startTime": "09:00",
+                                "endTime": "18:00",
+                                "id": 1750156543710
+                            }
+                        ]
+                    },
+                    "width": 170,
+                    "height": 56
+                },
+                {
+                    "id": "3",
+                    "type": "ivr",
+                    "position": {
+                        "x": 180,
+                        "y": 300
+                    },
+                    "data": {
+                        "label": "\u043f\u043d-\u043f\u0442 09:00-18:00",
+                        "isSingleOutput": true
+                    },
+                    "width": 194,
+                    "height": 56,
+                    "selected": false,
+                    "dragging": false
+                },
+                {
+                    "id": "4",
+                    "type": "ivr",
+                    "position": {
+                        "x": 460,
+                        "y": 300
+                    },
+                    "data": {
+                        "label": "\u0441\u0431 09:00-18:00",
+                        "isSingleOutput": true
+                    },
+                    "width": 169,
+                    "height": 56,
+                    "selected": false,
+                    "dragging": false
+                },
+                {
+                    "id": "5",
+                    "type": "ivr",
+                    "position": {
+                        "x": 740,
+                        "y": 300
+                    },
+                    "data": {
+                        "label": "\u0432\u0441 09:00-18:00",
+                        "isSingleOutput": true
+                    },
+                    "width": 168,
+                    "height": 56
+                },
+                {
+                    "id": "6",
+                    "type": "ivr",
+                    "position": {
+                        "x": 1020,
+                        "y": 300
+                    },
+                    "data": {
+                        "label": "\u041e\u0441\u0442\u0430\u043b\u044c\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f",
+                        "isSingleOutput": true
+                    },
+                    "width": 188,
+                    "height": 56
+                },
+                {
+                    "id": "7",
+                    "type": "dial",
+                    "position": {
+                        "x": 180,
+                        "y": 450
+                    },
+                    "data": {
+                        "label": "\u0417\u0432\u043e\u043d\u043e\u043a \u043d\u0430 \u0441\u043f\u0438\u0441\u043e\u043a",
+                        "managers": [
+                            {
+                                "userId": 4,
+                                "name": "YAUHENI BAYEUSKI",
+                                "phone": "154",
+                                "isInternal": true
+                            },
+                            {
+                                "userId": 4,
+                                "name": "YAUHENI BAYEUSKI",
+                                "phone": "157",
+                                "isInternal": true
+                            },
+                            {
+                                "userId": 4,
+                                "name": "YAUHENI BAYEUSKI",
+                                "phone": "+375296254070",
+                                "isInternal": false
+                            }
+                        ],
+                        "holdMusic": null,
+                        "waitTime": 5
+                    },
+                    "width": 189,
+                    "height": 56
+                },
+                {
+                    "id": "8",
+                    "type": "greeting",
+                    "position": {
+                        "x": 460,
+                        "y": 450
+                    },
+                    "data": {
+                        "label": "\u041f\u0440\u0438\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u0435",
+                        "greetingFile": {
+                            "id": 1,
+                            "name": "\u041f\u0440\u043e\u0431\u0430"
+                        }
+                    },
+                    "width": 152,
+                    "height": 56,
+                    "selected": true,
+                    "dragging": false
+                },
+                {
+                    "id": "9",
+                    "type": "dial",
+                    "position": {
+                        "x": 460,
+                        "y": 600
+                    },
+                    "data": {
+                        "label": "\u0417\u0432\u043e\u043d\u043e\u043a \u043d\u0430 \u0441\u043f\u0438\u0441\u043e\u043a",
+                        "managers": [
+                            {
+                                "userId": 10,
+                                "name": "\u0415\u0432\u0433\u0435\u043d\u0438\u0439 \u0411\u0430\u0435\u0432\u0441\u043a\u0438\u0439",
+                                "phone": "151",
+                                "isInternal": true
+                            }
+                        ],
+                        "holdMusic": null,
+                        "waitTime": 5
+                    },
+                    "width": 189,
+                    "height": 56
+                }
+            ],
+            "edges": [
+                {
+                    "id": "e1-2",
+                    "source": "1",
+                    "target": "2"
+                },
+                {
+                    "id": "e2-3",
+                    "source": "2",
+                    "target": "3"
+                },
+                {
+                    "id": "e2-4",
+                    "source": "2",
+                    "target": "4"
+                },
+                {
+                    "id": "e2-5",
+                    "source": "2",
+                    "target": "5"
+                },
+                {
+                    "id": "e2-6",
+                    "source": "2",
+                    "target": "6"
+                },
+                {
+                    "id": "e3-7",
+                    "source": "3",
+                    "target": "7"
+                },
+                {
+                    "id": "e4-8",
+                    "source": "4",
+                    "target": "8"
+                },
+                {
+                    "id": "e8-9",
+                    "source": "8",
+                    "target": "9"
+                }
+            ],
+            "viewport": {
+                "x": 9.303570884462601,
+                "y": 5.471946845481057,
+                "zoom": 0.989532174196891
+            }
+        },
+        "created_at": "2025-06-17T10:36:26.674248"
     }
 ]
