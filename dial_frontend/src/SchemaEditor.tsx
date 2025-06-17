@@ -47,6 +47,37 @@ const nodeTypes = {
     [NodeType.IVR]: GenericNode, // For future use
 };
 
+const DAYS_OF_WEEK_ORDER = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+
+const formatDays = (days: Set<string> | string[]): string => {
+    const daysSet = new Set(days);
+    if (!daysSet || daysSet.size === 0) return '';
+    
+    const sortedDays = DAYS_OF_WEEK_ORDER.filter(day => daysSet.has(day));
+    if (sortedDays.length === 0) return '';
+
+    const ranges: string[] = [];
+    let startRange = sortedDays[0];
+
+    for (let i = 1; i <= sortedDays.length; i++) {
+        const dayIndex = DAYS_OF_WEEK_ORDER.indexOf(sortedDays[i]);
+        const prevDayIndex = DAYS_OF_WEEK_ORDER.indexOf(sortedDays[i - 1]);
+
+        if (i === sortedDays.length || dayIndex !== prevDayIndex + 1) {
+            const endRange = sortedDays[i - 1];
+            if (startRange === endRange) {
+                ranges.push(startRange);
+            } else {
+                ranges.push(`${startRange}-${endRange}`);
+            }
+            if (i < sortedDays.length) {
+                startRange = sortedDays[i];
+            }
+        }
+    }
+    return ranges.join(', ');
+};
+
 const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSave, onCancel, onDelete }) => {
     const [nodes, setNodes] = useState<Node[]>(schema.schema_data?.nodes || []);
     const [edges, setEdges] = useState<Edge[]>(schema.schema_data?.edges || []);
@@ -225,14 +256,94 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     };
 
     const handleConfirmWorkSchedule = (periods: SchedulePeriod[]) => {
-        const data = { periods: periods.map(p => ({...p, days: Array.from(p.days)})) };
+        const parentNodeFromAction = sourceNodeForAction ? sourceNodeForAction.node : null;
+        const parentNode = editingNode || parentNodeFromAction;
+        if (!parentNode) return;
+    
+        let nextNodes = [...nodes];
+        let nextEdges = [...edges];
+        let workScheduleNode: Node | undefined;
+    
+        // Шаг 1: Определяем или создаем узел "График работы"
         if (editingNode) {
-            updateNodeData(editingNode.id, data);
-        } else {
-            createNewNode(NodeType.WorkSchedule, data);
+            workScheduleNode = editingNode;
+            const updatedData = {
+                label: workScheduleNode.data.label,
+                periods: periods.map(p => ({...p, days: Array.from(p.days)})),
+                onAddClick: undefined
+            };
+            nextNodes = nextNodes.map(n => n.id === editingNode.id ? { ...n, data: updatedData } : n);
+        } else if (parentNodeFromAction) {
+            const rule = getNodeRule(NodeType.WorkSchedule)!;
+            const newNodeId = (Math.max(0, ...nextNodes.map(n => parseInt(n.id, 10))) + 1).toString();
+            
+            workScheduleNode = {
+                id: newNodeId,
+                type: NodeType.WorkSchedule,
+                position: { x: parentNodeFromAction.position.x, y: parentNodeFromAction.position.y + 150 },
+                data: { 
+                    label: rule.name,
+                    periods: periods.map(p => ({ ...p, days: Array.from(p.days) })),
+                    onAddClick: undefined
+                },
+            };
+            nextNodes.push(workScheduleNode);
+    
+            const newEdge: Edge = { id: `e${parentNodeFromAction.id}-${workScheduleNode.id}`, source: parentNodeFromAction.id, target: workScheduleNode.id };
+            nextEdges.push(newEdge);
         }
+    
+        if (!workScheduleNode) return;
+    
+        // Шаг 2: Удаляем старые дочерние узлы и ребра
+        const childEdges = nextEdges.filter(e => e.source === workScheduleNode!.id);
+        const childNodeIds = new Set(childEdges.map(e => e.target));
+        nextEdges = nextEdges.filter(e => e.source !== workScheduleNode!.id);
+        // Мы не удаляем дочерние узлы из nextNodes, а просто перезаписываем их ниже
+        let finalNodes = nextNodes.filter(n => !childNodeIds.has(n.id));
+    
+        // Шаг 3: Создаем новые дочерние узлы и ребра
+        let lastNodeId = Math.max(0, ...nodes.map(n => parseInt(n.id, 10)), ...finalNodes.map(n => parseInt(n.id, 10)));
+        const parentPos = workScheduleNode.position;
+        const horizontalSpacing = 200;
+        const verticalSpacing = 120;
+        const totalWidth = horizontalSpacing * (periods.length + 1);
+        const startX = parentPos.x - totalWidth / 2 + horizontalSpacing / 2;
+    
+        periods.forEach((period, index) => {
+            lastNodeId++;
+            const newNodeId = lastNodeId.toString();
+            const daysLabel = formatDays(period.days);
+            const label = `${daysLabel} ${period.startTime}-${period.endTime}`;
+            
+            const newNode: Node = {
+                id: newNodeId,
+                type: NodeType.IVR,
+                position: { x: startX + index * horizontalSpacing, y: parentPos.y + verticalSpacing },
+                data: { label, onAddClick: handleAddNodeClick },
+            };
+            finalNodes.push(newNode);
+            nextEdges.push({ id: `e${workScheduleNode!.id}-${newNodeId}`, source: workScheduleNode!.id, target: newNodeId });
+        });
+    
+        lastNodeId++;
+        const elseNodeId = lastNodeId.toString();
+        const elseNode: Node = {
+            id: elseNodeId,
+            type: NodeType.IVR,
+            position: { x: startX + periods.length * horizontalSpacing, y: parentPos.y + verticalSpacing },
+            data: { label: 'Остальное время', onAddClick: handleAddNodeClick },
+        };
+        finalNodes.push(elseNode);
+        nextEdges.push({ id: `e${workScheduleNode!.id}-${elseNodeId}`, source: workScheduleNode!.id, target: elseNodeId });
+    
+        // Шаг 4: Атомарно обновляем состояние
+        setNodes(finalNodes);
+        setEdges(nextEdges);
+    
         setIsWorkScheduleModalOpen(false);
         setEditingNode(null);
+        setSourceNodeForAction(null);
     };
 
     const handleConfirmGreeting = (greetingData: any) => {
@@ -307,13 +418,24 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const assignedLines = allLines.filter(line => selectedLines.has(line.id));
 
     const nodesWithCallbacks = React.useMemo(() => {
-        return nodes.map(node => ({
-            ...node,
-            data: {
-                ...node.data,
-                onAddClick: handleAddNodeClick,
-            },
-        }));
+        return nodes.map(node => {
+            if (node.type === NodeType.WorkSchedule) {
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        onAddClick: undefined,
+                    },
+                };
+            }
+            return {
+                ...node,
+                data: {
+                    ...node.data,
+                    onAddClick: handleAddNodeClick,
+                },
+            };
+        });
     }, [nodes]);
 
     const handleDeleteNode = () => {
