@@ -305,7 +305,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         // Шаг 3: Создаем новые дочерние узлы и ребра
         let lastNodeId = Math.max(0, ...nodes.map(n => parseInt(n.id, 10)), ...finalNodes.map(n => parseInt(n.id, 10)));
         const parentPos = workScheduleNode.position;
-        const horizontalSpacing = 200;
+        const horizontalSpacing = 280;
         const verticalSpacing = 120;
         const totalWidth = horizontalSpacing * (periods.length + 1);
         const startX = parentPos.x - totalWidth / 2 + horizontalSpacing / 2;
