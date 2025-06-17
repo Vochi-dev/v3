@@ -320,7 +320,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                 id: newNodeId,
                 type: NodeType.IVR,
                 position: { x: startX + index * horizontalSpacing, y: parentPos.y + verticalSpacing },
-                data: { label, onAddClick: handleAddNodeClick },
+                data: { label, onAddClick: handleAddNodeClick, isSingleOutput: true },
             };
             finalNodes.push(newNode);
             nextEdges.push({ id: `e${workScheduleNode!.id}-${newNodeId}`, source: workScheduleNode!.id, target: newNodeId });
@@ -332,7 +332,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
             id: elseNodeId,
             type: NodeType.IVR,
             position: { x: startX + periods.length * horizontalSpacing, y: parentPos.y + verticalSpacing },
-            data: { label: 'Остальное время', onAddClick: handleAddNodeClick },
+            data: { label: 'Остальное время', onAddClick: handleAddNodeClick, isSingleOutput: true },
         };
         finalNodes.push(elseNode);
         nextEdges.push({ id: `e${workScheduleNode!.id}-${elseNodeId}`, source: workScheduleNode!.id, target: elseNodeId });
@@ -418,25 +418,31 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const assignedLines = allLines.filter(line => selectedLines.has(line.id));
 
     const nodesWithCallbacks = React.useMemo(() => {
+        const sourceNodeIds = new Set(edges.map(edge => edge.source));
+
         return nodes.map(node => {
+            let onAddClick: ((nodeId: string, nodeType: string) => void) | undefined = handleAddNodeClick;
+
+            // Правило 1: "График работы" никогда не имеет кнопки "+".
             if (node.type === NodeType.WorkSchedule) {
-                return {
-                    ...node,
-                    data: {
-                        ...node.data,
-                        onAddClick: undefined,
-                    },
-                };
+                onAddClick = undefined;
             }
+
+            // Правило 2: Узлы с одним выходом теряют "+" при наличии дочернего узла.
+            const singleOutputNodes: string[] = [NodeType.Start, NodeType.Greeting, NodeType.Dial];
+            if ((singleOutputNodes.includes(node.type as string) || node.data.isSingleOutput) && sourceNodeIds.has(node.id)) {
+                onAddClick = undefined;
+            }
+
             return {
                 ...node,
                 data: {
                     ...node.data,
-                    onAddClick: handleAddNodeClick,
+                    onAddClick: onAddClick,
                 },
             };
         });
-    }, [nodes]);
+    }, [nodes, edges]);
 
     const handleDeleteNode = () => {
         if (!editingNode) return;
