@@ -15,6 +15,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import './SchemaEditor.css';
 import IncomingCallNode from './nodes/IncomingCallNode';
+import OutgoingCallNode from './nodes/OutgoingCallNode';
 import GenericNode from './nodes/GenericNode';
 import { Schema, Line } from './types';
 import IncomingCallModal from './IncomingCallModal';
@@ -41,6 +42,7 @@ interface SchemaEditorProps {
 
 const nodeTypes = {
     [NodeType.Start]: IncomingCallNode,
+    'outgoing-call': OutgoingCallNode,
     [NodeType.Greeting]: GenericNode,
     [NodeType.Dial]: GenericNode,
     [NodeType.WorkSchedule]: GenericNode,
