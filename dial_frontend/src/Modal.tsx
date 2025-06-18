@@ -24,6 +24,15 @@ const getEnterpriseIdFromUrl = (): string | null => {
     return queryParams.get('enterprise');
 };
 
+const getSchemaTypeFromUrl = (): 'incoming' | 'outgoing' => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const type = queryParams.get('type');
+    if (type === 'outgoing') {
+        return 'outgoing';
+    }
+    return 'incoming';
+};
+
 const Modal: React.FC = () => {
     const [currentView, setCurrentView] = useState<'list' | 'editor'>('list');
     const [schemas, setSchemas] = useState<Schema[]>([]);
@@ -35,6 +44,7 @@ const Modal: React.FC = () => {
     const modalContentRef = useRef<HTMLDivElement>(null);
 
     const enterpriseId = getEnterpriseIdFromUrl();
+    const schemaType = getSchemaTypeFromUrl();
     const backgroundUrl = document.referrer;
 
     useEffect(() => {
@@ -68,11 +78,17 @@ const Modal: React.FC = () => {
             return;
         }
 
+        const isOutgoing = schemaType === 'outgoing';
+        const schemaPrefix = isOutgoing ? 'Исходящая схема' : 'Входящая схема';
+        const regex = new RegExp(`^${schemaPrefix} (\\d+)$`);
+
         const existingSchemaNumbers = new Set(
-            schemas.map(s => {
-                const match = s.schema_name.match(/^Входящая схема (\d+)$/);
-                return match ? parseInt(match[1], 10) : 0;
-            })
+            schemas
+                .filter(s => s.schema_name.startsWith(schemaPrefix))
+                .map(s => {
+                    const match = s.schema_name.match(regex);
+                    return match ? parseInt(match[1], 10) : 0;
+                })
         );
 
         let newSchemaNumber = 1;
@@ -80,7 +96,7 @@ const Modal: React.FC = () => {
             newSchemaNumber++;
         }
         
-        const newSchemaName = `Входящая схема ${newSchemaNumber}`;
+        const newSchemaName = `${schemaPrefix} ${newSchemaNumber}`;
         
         // Дополнительная проверка на уникальность, на всякий случай
         if (schemas.some(s => s.schema_name === newSchemaName)) {
@@ -88,20 +104,20 @@ const Modal: React.FC = () => {
              return;
         }
 
-        const defaultNode: Node = {
+        const defaultNodes: Node[] = isOutgoing ? [] : [{
             id: '1',
             type: 'custom',
             position: { x: 600, y: 30 },
             data: { label: 'Поступил новый звонок' },
             draggable: false,
             deletable: false,
-        };
+        }];
         
         const newSchemaTemplate: Omit<Schema, 'schema_id' | 'created_at'> & { schema_id?: string } = {
             enterprise_id: enterpriseId,
             schema_name: newSchemaName,
             schema_data: {
-                nodes: [defaultNode],
+                nodes: defaultNodes,
                 edges: [],
                 viewport: { x: 0, y: 0, zoom: 1 },
             }
@@ -195,7 +211,11 @@ const Modal: React.FC = () => {
     }, [navigate, currentView, handleBackToList]);
 
     const renderListView = () => {
-        const sortedSchemas = [...schemas].sort((a, b) => {
+        const schemaPrefix = schemaType === 'outgoing' ? 'Исходящая' : 'Входящая';
+
+        const filteredSchemas = schemas.filter(s => s.schema_name.startsWith(schemaPrefix));
+
+        const sortedSchemas = [...filteredSchemas].sort((a, b) => {
             const regex = /^(.*?)\s*(\d+)$/;
             const matchA = a.schema_name.match(regex);
             const matchB = b.schema_name.match(regex);
@@ -216,10 +236,6 @@ const Modal: React.FC = () => {
 
         return (
             <>
-                <div className="modal-header">
-                    <h2>Схемы для предприятия: {enterpriseId}</h2>
-                    <button onClick={() => navigate(-1)} className="close-button">&times;</button>
-                </div>
                 <ul className="schema-list">
                     {isLoading && <p>Загрузка...</p>}
                     {error && <p className="error">{error}</p>}
@@ -252,17 +268,22 @@ const Modal: React.FC = () => {
     };
 
     const renderEditorView = () => {
-      if (!selectedSchema || !enterpriseId) return null;
-      return (
-          <SchemaEditor
-              enterpriseId={enterpriseId}
-              schema={selectedSchema}
-              onSave={handleSaveSchema}
-              onCancel={handleBackToList}
-              onDelete={handleDeleteSchema}
-          />
-      );
+        if (!selectedSchema || !enterpriseId) return null;
+
+        return (
+            <SchemaEditor 
+                schema={selectedSchema} 
+                onSave={handleSaveSchema}
+                onCancel={handleBackToList}
+                onDelete={handleDeleteSchema}
+                enterpriseId={enterpriseId}
+            />
+        );
     };
+
+    const viewTitle = schemaType === 'outgoing' 
+        ? `Исходящие схемы для предприятия: ${enterpriseId}`
+        : `Входящие схемы для предприятия: ${enterpriseId}`;
 
     return (
         <>
@@ -273,7 +294,17 @@ const Modal: React.FC = () => {
                     ref={modalContentRef}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {currentView === 'list' ? renderListView() : renderEditorView()}
+                    {currentView === 'list' ? (
+                         <>
+                            <div className="modal-header">
+                                <h2>{viewTitle}</h2>
+                                <button onClick={() => navigate(-1)} className="close-button">&times;</button>
+                            </div>
+                            {renderListView()}
+                        </>
+                    ) : (
+                        renderEditorView()
+                    )}
                 </div>
             </div>
         </>
