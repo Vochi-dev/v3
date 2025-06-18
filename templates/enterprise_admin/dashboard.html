@@ -148,7 +148,7 @@
     </div>
     <div class="container">
         <a href="/dial/?enterprise={{ enterprise.number }}" class="btn btn-primary">Входящие схемы</a>
-        <button class="btn btn-primary" type="button" id="show-outgoing-schemas-btn">Исходящие схемы</button>
+        <button class="btn btn-primary" type="button" data-action="show-outgoing-schemas">Исходящие схемы</button>
         <button class="btn btn-primary" type="button" data-action="show-users">Пользователи</button>
         <button class="btn btn-success" type="button" id="btn-gsm-lines">GSM-линии</button>
         <button class="btn btn-warning" type="button" data-action="show-audiofiles">Аудиофайлы</button>
@@ -162,15 +162,18 @@
         <p>Здесь будет содержимое админки для предприятия.</p>
     </div>
 
-    <!-- Empty Modal for Outgoing Schemas -->
-    <div id="outgoing-schemas-modal" class="modal">
+    <!-- Модальное окно-заглушка для "Исходящие схемы" -->
+    <div id="outgoing-schemas-placeholder-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Исходящие схемы</h2>
-                <span id="close-outgoing-schemas-modal" class="close-button">&times;</span>
+                <h2>Исходящие схемы для предприятия: {{ enterprise.number }}</h2>
+                <span data-action="close-modal" class="close-button" style="cursor:pointer; font-size: 1.5rem;">&times;</span>
             </div>
-            <div class="modal-body">
-                <!-- Content will be here -->
+            <div class="modal-body" style="padding: 20px 0;">
+                <p>Функционал исходящих схем находится в разработке.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="add-schema-button">Добавить новую схему</button>
             </div>
         </div>
     </div>
@@ -525,9 +528,7 @@
         const departmentsModal = document.getElementById('departments-modal');
         const departmentFormModal = document.getElementById('department-form-modal');
         const schemaModal = document.getElementById('schema-modal');
-        const outgoingSchemasModal = document.getElementById('outgoing-schemas-modal');
-        const showBtn = document.getElementById('show-outgoing-schemas-btn');
-        const closeBtn = document.getElementById('close-outgoing-schemas-modal');
+        const outgoingSchemasPlaceholderModal = document.getElementById('outgoing-schemas-placeholder-modal');
 
         // --- Event Delegation ---
         document.body.addEventListener('click', async (e) => {
@@ -548,6 +549,8 @@
             } else if (action === 'show-departments') {
                 departmentsModal.style.display = 'block';
                 loadDepartments();
+            } else if (action === 'show-outgoing-schemas') {
+                outgoingSchemasPlaceholderModal.style.display = 'block';
             } else if (action === 'open-department-form') {
                 openDepartmentForm();
             } else if (action === 'edit-department') {
@@ -603,7 +606,7 @@
             }
 
             // Закрываем все модалки, если клик вне их контента
-            [userManagementModal, createUserModal, gsmLinesModal, audioFilesModal, departmentsModal, departmentFormModal, schemaModal].forEach(modal => {
+            [usersModal, createUserModal, gsmLinesModal, audioFilesModal, departmentsModal, departmentFormModal, schemaModal, outgoingSchemasPlaceholderModal].forEach(modal => {
                 if (modal && e.target === modal) {
                     modal.style.display = 'none';
                     if (modal.id === 'schema-modal') {
@@ -1396,28 +1399,6 @@
 
         // --- Initial Load ---
         fetchUsers();
-
-        // --- Outgoing Schemas Logic ---
-        if (showBtn && closeBtn) {
-            showBtn.onclick = function() {
-                if (outgoingSchemasModal) {
-                    outgoingSchemasModal.style.display = 'block';
-                }
-            }
-
-            closeBtn.onclick = function() {
-                if (outgoingSchemasModal) {
-                    outgoingSchemasModal.style.display = 'none';
-                }
-            }
-
-            // Close modal if user clicks outside of the modal content
-            window.onclick = function(event) {
-                if (event.target == outgoingSchemasModal) {
-                    outgoingSchemasModal.style.display = "none";
-                }
-            }
-        }
     });
     </script>
 </body>
