@@ -148,7 +148,7 @@
     </div>
     <div class="container">
         <a href="/dial/?enterprise={{ enterprise.number }}" class="btn btn-primary">Входящие схемы</a>
-        <button class="btn btn-primary" type="button" data-action="show-outgoing-schemas">Исходящие схемы</button>
+        <a href="/dial/?enterprise={{ enterprise.number }}&type=outgoing" class="btn btn-primary">Исходящие схемы</a>
         <button class="btn btn-primary" type="button" data-action="show-users">Пользователи</button>
         <button class="btn btn-success" type="button" id="btn-gsm-lines">GSM-линии</button>
         <button class="btn btn-warning" type="button" data-action="show-audiofiles">Аудиофайлы</button>
@@ -160,22 +160,6 @@
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Интеграции</button>
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Прочие настройки</button>
         <p>Здесь будет содержимое админки для предприятия.</p>
-    </div>
-
-    <!-- Модальное окно-заглушка для "Исходящие схемы" -->
-    <div id="outgoing-schemas-placeholder-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Исходящие схемы для предприятия: {{ enterprise.number }}</h2>
-                <span data-action="close-modal" class="close-button" style="cursor:pointer; font-size: 1.5rem;">&times;</span>
-            </div>
-            <div class="modal-body" style="padding: 20px 0;">
-                <p>Функционал исходящих схем находится в разработке.</p>
-            </div>
-            <div class="modal-footer">
-                <button class="add-schema-button">Добавить новую схему</button>
-            </div>
-        </div>
     </div>
 
     <!-- Модальное окно для СХЕМ (DIALPLAN) -->
@@ -528,7 +512,6 @@
         const departmentsModal = document.getElementById('departments-modal');
         const departmentFormModal = document.getElementById('department-form-modal');
         const schemaModal = document.getElementById('schema-modal');
-        const outgoingSchemasPlaceholderModal = document.getElementById('outgoing-schemas-placeholder-modal');
 
         // --- Event Delegation ---
         document.body.addEventListener('click', async (e) => {
@@ -561,11 +544,14 @@
             } else if (action === 'remove-department-member') {
                 e.target.closest('li').remove();
             } else if (action === 'open-sip-line-form') {
+                document.getElementById('sip-line-form-modal').style.display = 'block';
+                // Опционально: сбросить форму при открытии
                 document.getElementById('sip-line-form').reset();
+                document.getElementById('sip-line-id').value = '';
                 document.getElementById('sip-line-modal-title').textContent = 'Добавить SIP-линию';
-                document.getElementById('sip-line-id').value = ''; // Очищаем ID
-                loadSipProviders();
-                sipLineFormModal.style.display = 'block';
+            } else if (action === 'add-outgoing-schema') {
+                const enterpriseNumber = '{{ enterprise.number }}';
+                window.location.href = `/dial/?enterprise=${enterpriseNumber}&type=outgoing`;
             } else if (action === 'edit-sip-line') {
                 const lineId = e.target.dataset.lineId;
                 openSipLineForEdit(lineId);
@@ -590,7 +576,9 @@
             } else if (action === 'add-internal-line') {
                 openSelectLinesModal();
             } else if (action === 'close-modal') {
-                closeModal(target.closest('.modal'));
+                const modal = e.target.closest('.modal');
+                if (modal) modal.style.display = 'none';
+
             } else if (action === 'confirm-line-selection') {
                 confirmLineSelection();
             } else if (action === 'go-to-create-line') {
@@ -606,7 +594,7 @@
             }
 
             // Закрываем все модалки, если клик вне их контента
-            [usersModal, createUserModal, gsmLinesModal, audioFilesModal, departmentsModal, departmentFormModal, schemaModal, outgoingSchemasPlaceholderModal].forEach(modal => {
+            [usersModal, createUserModal, gsmLinesModal, audioFilesModal, departmentsModal, departmentFormModal, schemaModal].forEach(modal => {
                 if (modal && e.target === modal) {
                     modal.style.display = 'none';
                     if (modal.id === 'schema-modal') {
