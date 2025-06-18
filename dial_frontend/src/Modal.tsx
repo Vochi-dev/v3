@@ -104,7 +104,14 @@ const Modal: React.FC = () => {
              return;
         }
 
-        const defaultNodes: Node[] = isOutgoing ? [] : [{
+        const defaultNodes: Node[] = isOutgoing ? [{
+            id: 'start-outgoing',
+            type: 'outgoing-call',
+            position: { x: 600, y: 30 },
+            data: { label: 'Начало исходящего звонка' },
+            draggable: false,
+            deletable: false,
+        }] : [{
             id: '1',
             type: 'custom',
             position: { x: 600, y: 30 },
