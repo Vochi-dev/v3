@@ -108,7 +108,7 @@ const Modal: React.FC = () => {
             id: 'start-outgoing',
             type: 'outgoing-call',
             position: { x: 600, y: 30 },
-            data: { label: 'Начало исходящего звонка' },
+            data: { label: 'Исходящий звонок' },
             draggable: false,
             deletable: false,
         }] : [{
