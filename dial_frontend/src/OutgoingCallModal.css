@@ -1,0 +1,161 @@
+/* Стили для OutgoingCallModal */
+.modal-header-buttons {
+    display: flex;
+    align-items: center;
+}
+
+.delete-node-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0 10px;
+    color: #888;
+}
+
+.delete-node-button:hover {
+    color: #e53935;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1001;
+    width: 80%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.modal-header h3 {
+    margin: 0;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.phones-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.phones-table-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.phones-table-container h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.phones-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.phones-table th,
+.phones-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.phones-table th {
+    background-color: #f2f2f2;
+}
+
+.phones-table tr:hover {
+    background-color: #fdfdfd;
+}
+
+.phones-table td:first-child,
+.phones-table th:first-child {
+    width: 40px;
+    text-align: center;
+}
+
+.unassigned-user {
+    color: #999;
+    font-style: italic;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.footer-right-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.ok-button,
+.cancel-button,
+.delete-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.ok-button {
+    background-color: #007bff;
+    color: white;
+}
+
+.cancel-button {
+    background-color: #6c757d;
+    color: white;
+}
+
+.delete-button {
+    background-color: #dc3545;
+    color: white;
+    margin-right: auto;
+}
+
+.loading-message,
+.error-message {
+    padding: 20px;
+    text-align: center;
+} 

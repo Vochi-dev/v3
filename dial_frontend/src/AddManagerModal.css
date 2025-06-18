@@ -4,18 +4,21 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1003; /* Выше, чем DialModal */
+    z-index: 1050;
 }
 
 .add-manager-modal-content {
     background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 600px;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.25);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
     display: flex;
     flex-direction: column;
 }
@@ -24,19 +27,30 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 20px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
 }
 
 .add-manager-modal-header h3 {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 1.6rem;
+    font-weight: 600;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: #6c757d;
 }
 
 .add-manager-modal-body {
-    padding: 20px;
-    max-height: 500px;
     overflow-y: auto;
+    flex-grow: 1;
+    margin-right: -15px;
+    padding-right: 15px;
 }
 
 .manager-table {
@@ -44,61 +58,59 @@
     border-collapse: collapse;
 }
 
-.manager-table th,
-.manager-table td {
-    border-bottom: 1px solid #eee;
-    padding: 10px 8px;
+.manager-table th, .manager-table td {
+    padding: 12px 15px;
     text-align: left;
+    border-bottom: 1px solid #dee2e6;
 }
 
 .manager-table th {
-    background-color: #f7f7f7;
+    background-color: #f8f9fa;
     font-weight: 600;
 }
 
 .manager-table tr:hover {
-    background-color: #fdfdfd;
+    background-color: #f1f3f5;
 }
 
-.manager-table td:first-child,
-.manager-table th:first-child {
+.manager-table td:first-child, .manager-table th:first-child {
     width: 40px;
     text-align: center;
 }
 
+.manager-table input[type="checkbox"] {
+    transform: scale(1.2);
+}
+
+.unassigned-user {
+    color: #6c757d;
+    font-style: italic;
+}
+
 .add-manager-modal-footer {
     display: flex;
-    justify-content: flex-end; /* Кнопки справа */
-    align-items: center;
-    padding: 15px 20px;
-    border-top: 1px solid #eee;
+    justify-content: flex-end;
     gap: 10px;
+    border-top: 1px solid #e9ecef;
+    padding-top: 20px;
+    margin-top: 20px;
 }
 
-/* Общие стили кнопок можно вынести, если они повторяются */
-.add-manager-modal-footer .ok-button,
-.add-manager-modal-footer .cancel-button {
-     padding: 8px 15px;
-    border-radius: 4px;
+.ok-button, .cancel-button {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: 1px solid transparent;
     cursor: pointer;
     font-size: 1rem;
-    border: 1px solid #ccc;
+    font-weight: 500;
 }
 
-.add-manager-modal-footer .ok-button {
-    background-color: #337ab7;
+.ok-button {
+    background-color: #0d6efd;
     color: white;
-    border-color: #2e6da4;
 }
 
-.add-manager-modal-footer .cancel-button {
-     background-color: #fff;
-    color: #333;
-}
-
-.add-manager-modal-content .close-button {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
+.cancel-button {
+    background-color: #6c757d;
+    color: white;
 } 
