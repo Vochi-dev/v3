@@ -17,7 +17,8 @@ import './SchemaEditor.css';
 import IncomingCallNode from './nodes/IncomingCallNode';
 import OutgoingCallNode from './nodes/OutgoingCallNode';
 import GenericNode from './nodes/GenericNode';
-import { Schema, Line } from './types';
+// ИЗМЕНЕНИЕ: ManagerInfo теперь импортируется из единого источника.
+import { Schema, Line, ManagerInfo } from './types';
 import IncomingCallModal from './IncomingCallModal';
 import NodeActionModal from './NodeActionModal';
 import DialModal from './DialModal';
@@ -25,12 +26,9 @@ import AddManagerModal from './AddManagerModal';
 import GreetingModal from './GreetingModal';
 import WorkScheduleModal, { SchedulePeriod } from './WorkScheduleModal';
 import { NodeType, getNodeRule } from './nodeRules';
+import OutgoingCallModal from './OutgoingCallModal';
 
-interface ManagerInfo {
-    userId: number;
-    name: string;
-    phone: string;
-}
+// ИЗМЕНЕНИЕ: Локальный интерфейс удален.
 
 interface SchemaEditorProps {
     enterpriseId: string;
@@ -90,6 +88,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const [isAddManagerModalOpen, setIsAddManagerModalOpen] = useState(false);
     const [isGreetingModalOpen, setIsGreetingModalOpen] = useState(false);
     const [isWorkScheduleModalOpen, setIsWorkScheduleModalOpen] = useState(false);
+    const [isOutgoingCallModalOpen, setIsOutgoingCallModalOpen] = useState(false);
     const [dialManagers, setDialManagers] = useState<ManagerInfo[]>([]);
     const [editingNode, setEditingNode] = useState<Node | null>(null);
     
@@ -177,6 +176,9 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         setEditingNode(node);
 
         switch(node.type) {
+            case 'outgoing-call':
+                setIsOutgoingCallModalOpen(true);
+                break;
             case NodeType.Start:
                 setIsLinesModalOpen(true);
                 break;
@@ -266,7 +268,6 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         let nextEdges = [...edges];
         let workScheduleNode: Node | undefined;
     
-        // Шаг 1: Определяем или создаем узел "График работы"
         if (editingNode) {
             workScheduleNode = editingNode;
             const updatedData = {
@@ -297,14 +298,11 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     
         if (!workScheduleNode) return;
     
-        // Шаг 2: Удаляем старые дочерние узлы и ребра
         const childEdges = nextEdges.filter(e => e.source === workScheduleNode!.id);
         const childNodeIds = new Set(childEdges.map(e => e.target));
         nextEdges = nextEdges.filter(e => e.source !== workScheduleNode!.id);
-        // Мы не удаляем дочерние узлы из nextNodes, а просто перезаписываем их ниже
         let finalNodes = nextNodes.filter(n => !childNodeIds.has(n.id));
     
-        // Шаг 3: Создаем новые дочерние узлы и ребра
         let lastNodeId = Math.max(0, ...nodes.map(n => parseInt(n.id, 10)), ...finalNodes.map(n => parseInt(n.id, 10)));
         const parentPos = workScheduleNode.position;
         const horizontalSpacing = 280;
@@ -339,7 +337,6 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         finalNodes.push(elseNode);
         nextEdges.push({ id: `e${workScheduleNode!.id}-${elseNodeId}`, source: workScheduleNode!.id, target: elseNodeId });
     
-        // Шаг 4: Атомарно обновляем состояние
         setNodes(finalNodes);
         setEdges(nextEdges);
     
@@ -375,6 +372,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         setIsGreetingModalOpen(false);
         setIsWorkScheduleModalOpen(false);
         setIsLinesModalOpen(false);
+        setIsOutgoingCallModalOpen(false);
         setEditingNode(null);
         setDialManagers([]);
     };
@@ -382,9 +380,10 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const handleOpenAddManagerModal = () => {
         setIsAddManagerModalOpen(true);
     };
-
-    const handleAddManagers = (selected: ManagerInfo[]) => {
-        setDialManagers(prev => [...prev, ...selected]);
+    
+    const handleAddManagers = (selectedManagers: ManagerInfo[]) => {
+        setDialManagers(selectedManagers);
+        setIsAddManagerModalOpen(false);
     };
 
     const handleRemoveManager = (indexToRemove: number) => {
@@ -425,13 +424,11 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         return nodes.map(node => {
             let onAddClick: ((nodeId: string, nodeType: string) => void) | undefined = handleAddNodeClick;
 
-            // Правило 1: "График работы" никогда не имеет кнопки "+".
             if (node.type === NodeType.WorkSchedule) {
                 onAddClick = undefined;
             }
 
-            // Правило 2: Узлы с одним выходом теряют "+" при наличии дочернего узла.
-            const singleOutputNodes: string[] = [NodeType.Start, NodeType.Greeting, NodeType.Dial];
+            const singleOutputNodes: string[] = [NodeType.Start, NodeType.Greeting, NodeType.Dial, 'outgoing-call'];
             if ((singleOutputNodes.includes(node.type as string) || node.data.isSingleOutput) && sourceNodeIds.has(node.id)) {
                 onAddClick = undefined;
             }
@@ -449,7 +446,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const handleDeleteNode = () => {
         if (!editingNode) return;
 
-        if (editingNode.id === '1') {
+        if (editingNode.id === '1' && schema.schema_type !== 'outgoing') {
             alert("Стартовый узел 'Входящий звонок' удалить нельзя.");
             return;
         }
@@ -511,7 +508,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
             </div>
             <div className="schema-editor-footer">
                 <div className="footer-buttons-left">
-                    <button onClick={() => schema.schema_id && onDelete(schema.schema_id)} className="delete-button" disabled={isLoading || !schema.schema_id}>Удалить схему</button>
+                    {schema.schema_id && <button onClick={() => onDelete(schema.schema_id!)} className="delete-button" disabled={isLoading || !schema.schema_id}>Удалить схему</button>}
                 </div>
                 <div className="footer-buttons-right">
                     <button onClick={onCancel} className="cancel-button">Отмена</button>
@@ -556,7 +553,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     enterpriseId={enterpriseId}
                     onClose={() => setIsAddManagerModalOpen(false)}
                     onAdd={handleAddManagers}
-                    addedManagerIds={new Set(dialManagers.map(m => m.userId))}
+                    addedPhones={new Set(dialManagers.map(m => m.phone))}
                 />
             )}
             {isGreetingModalOpen && (
@@ -576,11 +573,20 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     onDelete={handleDeleteNode}
                 />
             )}
+            {isOutgoingCallModalOpen && editingNode && (
+                <OutgoingCallModal
+                    isOpen={isOutgoingCallModalOpen}
+                    onClose={handleCloseModals}
+                    onConfirm={updateNodeData}
+                    node={editingNode}
+                    enterpriseId={enterpriseId}
+                    onDelete={handleDeleteNode}
+                />
+            )}
         </div>
     );
 };
 
-// Обертка для доступа к хуку useReactFlow
 const SchemaEditorWrapper: React.FC<SchemaEditorProps> = (props) => {
     return (
         <ReactFlowProvider>
@@ -589,4 +595,4 @@ const SchemaEditorWrapper: React.FC<SchemaEditorProps> = (props) => {
     );
 };
 
-export default SchemaEditorWrapper; 
+export default SchemaEditorWrapper;

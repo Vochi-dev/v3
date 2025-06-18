@@ -13,6 +13,7 @@ from typing import List, Dict, Any
 from dotenv import load_dotenv
 from datetime import datetime
 from psycopg2.extras import DictCursor
+from fastapi.templating import Jinja2Templates
 
 load_dotenv()
 
@@ -207,6 +208,114 @@ async def get_enterprise_users(enterprise_number: str):
         logger.error(f"Database error while fetching users for {enterprise_number}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
+@app.get("/api/enterprises/{enterprise_number}/internal_users_and_phones")
+async def get_internal_users_and_phones(enterprise_number: str):
+    """
+    Возвращает список пользователей с их внутренними номерами, 
+    а также внутренние номера, не привязанные к пользователям.
+    """
+    logger.info(f"Fetching internal users and phones for enterprise_number: {enterprise_number}")
+    
+    query = """
+    SELECT
+        p.phone_number,
+        u.id as user_id,
+        (u.first_name || ' ' || u.last_name) AS full_name,
+        TRUE as is_internal
+    FROM user_internal_phones p
+    LEFT JOIN users u ON p.user_id = u.id
+    WHERE p.enterprise_number = %s
+    ORDER BY p.phone_number::int;
+    """
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(query, (enterprise_number,))
+                results = cur.fetchall()
+                
+        logger.info(f"Found {len(results)} internal phones for enterprise {enterprise_number}")
+        return JSONResponse(content=results)
+    except psycopg2.Error as e:
+        logger.error(f"Database error while fetching internal phones for {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+@app.get("/api/enterprises/{enterprise_number}/all_numbers_with_users")
+async def get_all_numbers_with_users(enterprise_number: str):
+    """
+    Агрегирует всех пользователей и все номера (внутренние, личные) для предприятия.
+    GSM и SIP линии исключены.
+    """
+    logger.info(f"Fetching all numbers and users for enterprise_number: {enterprise_number}")
+    
+    # Запрос для пользователей и их внутренних номеров
+    users_query = """
+    SELECT 
+        u.id as user_id, 
+        (u.first_name || ' ' || u.last_name) AS full_name,
+        p.phone_number,
+        'internal' as type
+    FROM users u
+    JOIN user_internal_phones p ON u.id = p.user_id
+    WHERE u.enterprise_number = %s;
+    """
+
+    # Запрос для внутренних номеров без пользователей
+    unassigned_internal_query = """
+    SELECT
+        null as user_id,
+        null as full_name,
+        p.phone_number,
+        'internal' as type
+    FROM user_internal_phones p
+    WHERE p.enterprise_number = %s AND p.user_id IS NULL;
+    """
+
+    # Запрос для личных мобильных номеров сотрудников
+    personal_phones_query = """
+    SELECT
+        u.id as user_id,
+        (u.first_name || ' ' || u.last_name) AS full_name,
+        u.personal_phone as phone_number,
+        'personal' as type
+    FROM users u
+    WHERE u.enterprise_number = %s AND u.personal_phone IS NOT NULL AND u.personal_phone <> '';
+    """
+    
+    all_numbers = []
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # Пользователи с внутренними номерами
+                cur.execute(users_query, (enterprise_number,))
+                all_numbers.extend(cur.fetchall())
+                
+                # Внутренние без пользователей
+                cur.execute(unassigned_internal_query, (enterprise_number,))
+                all_numbers.extend(cur.fetchall())
+
+                # Личные мобильные номера
+                cur.execute(personal_phones_query, (enterprise_number,))
+                all_numbers.extend(cur.fetchall())
+                
+                # Преобразуем в корректный формат для фронтенда
+                results = [
+                    {
+                        "user_id": row[0],
+                        "full_name": row[1],
+                        "phone_number": row[2],
+                        "is_internal": row[3] == 'internal'
+                    }
+                    for row in all_numbers
+                ]
+                
+        logger.info(f"Found {len(results)} total numbers for enterprise {enterprise_number}")
+        return JSONResponse(content=results)
+    except psycopg2.Error as e:
+        logger.error(f"Database error while fetching all numbers for {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
 @app.put("/api/enterprises/{enterprise_number}/schemas/{schema_id}/assign_lines")
 async def assign_lines_to_schema(enterprise_number: str, schema_id: str, line_ids: List[str] = Body(...)):
     """
@@ -377,6 +486,8 @@ if not os.path.exists(INDEX_PATH):
 
 # Mount the 'assets' directory for JS/CSS files
 app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
+app.mount("/static", StaticFiles(directory="dial_frontend/dist/assets"), name="static")
+templates = Jinja2Templates(directory="dial_frontend/dist")
 
 @app.get("/{full_path:path}")
 async def serve_react_app(request: Request, full_path: str):

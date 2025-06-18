@@ -84,15 +84,21 @@
                     "id": "3",
                     "type": "ivr",
                     "position": {
-                        "x": 460,
-                        "y": 300
+                        "x": 459,
+                        "y": 298
                     },
                     "data": {
                         "label": "\u043f\u043d-\u043f\u0442 09:00-18:00",
                         "isSingleOutput": true
                     },
                     "width": 196,
-                    "height": 58
+                    "height": 58,
+                    "selected": true,
+                    "positionAbsolute": {
+                        "x": 459,
+                        "y": 298
+                    },
+                    "dragging": false
                 },
                 {
                     "id": "4",
@@ -107,7 +113,7 @@
                     },
                     "width": 189,
                     "height": 58,
-                    "selected": true,
+                    "selected": false,
                     "dragging": false
                 },
                 {
@@ -130,6 +136,43 @@
                                 "userId": 4,
                                 "name": "YAUHENI BAYEUSKI",
                                 "phone": "152",
+                                "isInternal": true
+                            }
+                        ],
+                        "holdMusic": null,
+                        "waitTime": 5
+                    },
+                    "width": 189,
+                    "height": 56,
+                    "selected": false,
+                    "dragging": false
+                },
+                {
+                    "id": "6",
+                    "type": "dial",
+                    "position": {
+                        "x": 459,
+                        "y": 448
+                    },
+                    "data": {
+                        "label": "\u0417\u0432\u043e\u043d\u043e\u043a \u043d\u0430 \u0441\u043f\u0438\u0441\u043e\u043a",
+                        "managers": [
+                            {
+                                "userId": 4,
+                                "name": "YAUHENI BAYEUSKI",
+                                "phone": "154",
+                                "isInternal": true
+                            },
+                            {
+                                "userId": 4,
+                                "name": "YAUHENI BAYEUSKI",
+                                "phone": "157",
+                                "isInternal": true
+                            },
+                            {
+                                "userId": 10,
+                                "name": "\u0415\u0432\u0433\u0435\u043d\u0438\u0439 \u0411\u0430\u0435\u0432\u0441\u043a\u0438\u0439",
+                                "phone": "151",
                                 "isInternal": true
                             }
                         ],
@@ -160,6 +203,11 @@
                     "id": "e4-5",
                     "source": "4",
                     "target": "5"
+                },
+                {
+                    "id": "e3-6",
+                    "source": "3",
+                    "target": "6"
                 }
             ],
             "viewport": {
@@ -438,9 +486,154 @@
                     "deletable": false,
                     "width": 238,
                     "height": 56
+                },
+                {
+                    "id": "2",
+                    "type": "workSchedule",
+                    "position": {
+                        "x": 600,
+                        "y": 180
+                    },
+                    "data": {
+                        "label": "\u0413\u0440\u0430\u0444\u0438\u043a \u0440\u0430\u0431\u043e\u0442\u044b",
+                        "periods": [
+                            {
+                                "id": 1,
+                                "name": "\u0420\u0430\u0431\u043e\u0447\u0435\u0435 \u0432\u0440\u0435\u043c\u044f",
+                                "days": [
+                                    "\u043f\u043d",
+                                    "\u0432\u0442",
+                                    "\u0441\u0440",
+                                    "\u0447\u0442",
+                                    "\u043f\u0442"
+                                ],
+                                "startTime": "09:00",
+                                "endTime": "18:00"
+                            },
+                            {
+                                "name": "\u0413\u0440\u0430\u0444\u0438\u043a \u0440\u0430\u0431\u043e\u0442\u044b 1",
+                                "days": [
+                                    "\u0441\u0431"
+                                ],
+                                "startTime": "09:00",
+                                "endTime": "18:00",
+                                "id": 1750253257012
+                            }
+                        ]
+                    },
+                    "width": 170,
+                    "height": 56
+                },
+                {
+                    "id": "3",
+                    "type": "ivr",
+                    "position": {
+                        "x": 320,
+                        "y": 300
+                    },
+                    "data": {
+                        "label": "\u043f\u043d-\u043f\u0442 09:00-18:00",
+                        "isSingleOutput": true
+                    },
+                    "width": 194,
+                    "height": 56,
+                    "selected": false,
+                    "dragging": false
+                },
+                {
+                    "id": "4",
+                    "type": "ivr",
+                    "position": {
+                        "x": 600,
+                        "y": 300
+                    },
+                    "data": {
+                        "label": "\u0441\u0431 09:00-18:00",
+                        "isSingleOutput": true
+                    },
+                    "width": 169,
+                    "height": 56
+                },
+                {
+                    "id": "5",
+                    "type": "ivr",
+                    "position": {
+                        "x": 880,
+                        "y": 300
+                    },
+                    "data": {
+                        "label": "\u041e\u0441\u0442\u0430\u043b\u044c\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f",
+                        "isSingleOutput": true
+                    },
+                    "width": 188,
+                    "height": 56
+                },
+                {
+                    "id": "6",
+                    "type": "dial",
+                    "position": {
+                        "x": 320,
+                        "y": 449
+                    },
+                    "data": {
+                        "label": "\u0417\u0432\u043e\u043d\u043e\u043a \u043d\u0430 \u0441\u043f\u0438\u0441\u043e\u043a",
+                        "managers": [
+                            {
+                                "userId": 4,
+                                "name": "YAUHENI BAYEUSKI",
+                                "phone": "150"
+                            },
+                            {
+                                "userId": 10,
+                                "name": "\u0415\u0432\u0433\u0435\u043d\u0438\u0439 \u0411\u0430\u0435\u0432\u0441\u043a\u0438\u0439",
+                                "phone": "151"
+                            },
+                            {
+                                "userId": null,
+                                "name": null,
+                                "phone": "156"
+                            }
+                        ],
+                        "holdMusic": null,
+                        "waitTime": 5
+                    },
+                    "width": 189,
+                    "height": 56,
+                    "selected": true,
+                    "positionAbsolute": {
+                        "x": 320,
+                        "y": 449
+                    },
+                    "dragging": false
                 }
             ],
-            "edges": [],
+            "edges": [
+                {
+                    "id": "e1-2",
+                    "source": "1",
+                    "target": "2"
+                },
+                {
+                    "id": "e2-3",
+                    "source": "2",
+                    "target": "3"
+                },
+                {
+                    "id": "e2-4",
+                    "source": "2",
+                    "target": "4"
+                },
+                {
+                    "id": "e2-5",
+                    "source": "2",
+                    "target": "5"
+                },
+                {
+                    "id": "e3-6",
+                    "source": "3",
+                    "target": "6"
+                }
+            ],
             "viewport": {
                 "x": 0.0,
                 "y": 0.0,
@@ -448,5 +641,42 @@
             }
         },
         "created_at": "2025-06-18T11:14:37.300658"
+    },
+    {
+        "schema_id": "be3cdb42-eea4-40e7-bd13-2bad9a34544e",
+        "enterprise_id": "0201",
+        "schema_name": "\u0418\u0441\u0445\u043e\u0434\u044f\u0449\u0430\u044f \u0441\u0445\u0435\u043c\u0430 2",
+        "schema_data": {
+            "nodes": [
+                {
+                    "id": "start-outgoing",
+                    "type": "outgoing-call",
+                    "position": {
+                        "x": 600,
+                        "y": 30
+                    },
+                    "data": {
+                        "label": "\u0418\u0441\u0445\u043e\u0434\u044f\u0449\u0438\u0439 \u0437\u0432\u043e\u043d\u043e\u043a",
+                        "phones": [
+                            "150",
+                            "152",
+                            "153"
+                        ]
+                    },
+                    "draggable": false,
+                    "deletable": false,
+                    "width": 200,
+                    "height": 56,
+                    "selected": true
+                }
+            ],
+            "edges": [],
+            "viewport": {
+                "x": 0.0,
+                "y": -2.0,
+                "zoom": 1.0
+            }
+        },
+        "created_at": "2025-06-18T15:13:39.630725"
     }
 ]

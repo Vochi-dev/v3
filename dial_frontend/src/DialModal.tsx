@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './DialModal.css';
 import MusicModal from './MusicModal';
+import { ManagerInfo } from './types';
 
 interface MusicFile {
     id: number;
@@ -14,7 +15,7 @@ interface DialModalProps {
     onAddManager: () => void;
     onDelete: () => void;
     onRemoveManager: (index: number) => void;
-    managers: { name: string, phone: string }[];
+    managers: ManagerInfo[];
     initialData?: any;
 }
 
@@ -94,7 +95,7 @@ const DialModal: React.FC<DialModalProps> = ({
                             <tbody>
                                 {managers.map((manager, index) => (
                                     <tr key={`${manager.phone}-${index}`}>
-                                        <td className="name-column">{manager.name}</td>
+                                        <td className="name-column">{manager.name || 'Не назначен'}</td>
                                         <td className="phone-column">{manager.phone}</td>
                                         <td className="action-column">
                                             <button className="remove-manager-button" onClick={() => onRemoveManager(index)}>
