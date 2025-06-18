@@ -5,9 +5,8 @@ import './IncomingCallNode.css'; // Используем те же стили д
 const OutgoingCallNode: React.FC<NodeProps> = ({ data }) => {
   return (
     <div className="incoming-call-node">
-      <div className="node-header">Исходящий звонок</div>
       <div className="node-content">
-        {data.label || 'Начало исходящей схемы'}
+        {data.label || 'Исходящий звонок'}
       </div>
       <Handle
         type="source"
