@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import ReactFlow, {
     applyNodeChanges,
     applyEdgeChanges,
@@ -102,20 +102,24 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
     useEffect(() => {
-        if (schema.schema_id) {
-            fetch(`/dial/api/enterprises/${enterpriseId}/lines`)
-                .then(res => res.ok ? res.json() : Promise.reject(res))
-                .then((data: Line[]) => {
-                    setAllLines(data);
-                    const normalizedSchemaName = schemaName.trim().toLowerCase();
+        fetch(`/dial/api/enterprises/${enterpriseId}/lines`)
+            .then(res => res.ok ? res.json() : Promise.reject(res))
+            .then((data: Line[]) => {
+                setAllLines(data);
+                // Если мы редактируем существующую схему, подставляем ее линии
+                if (schema.schema_id) {
+                    const normalizedSchemaName = schema.schema_name?.trim().toLowerCase();
                     const initiallySelected = new Set(
                         data.filter(line => line.in_schema && line.in_schema.trim().toLowerCase() === normalizedSchemaName).map(line => line.id)
                     );
                     setSelectedLines(initiallySelected);
-                })
-                .catch(err => console.error("Не удалось загрузить линии для схемы", err));
-        }
-    }, [schema.schema_id, schema.schema_name, enterpriseId, schemaName]);
+                } else {
+                    // Для новой схемы начинаем с пустого сета
+                    setSelectedLines(new Set());
+                }
+            })
+            .catch(err => console.error("Не удалось загрузить линии для схемы", err));
+    }, [schema.schema_id, schema.schema_name, enterpriseId]);
 
 
     useEffect(() => {
@@ -394,6 +398,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         setSelectedLines(newSelectedLines);
         setIsLinesModalOpen(false);
 
+        // Немедленно отправляем изменения на сервер, если схема уже существует
         if (schema.schema_id) {
             setIsLoading(true);
             try {
@@ -410,13 +415,22 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
             } catch (error) {
                 console.error("Failed to update line assignments:", error);
                 alert(error instanceof Error ? error.message : 'Произошла ошибка');
+                // Если произошла ошибка, возвращаем состояние к исходному, чтобы избежать рассинхронизации
+                
+                // Для этого нам нужно знать, какими были линии ДО открытия модалки.
+                // К сожалению, в текущей реализации у нас нет прямого доступа к `initialSelectedLines` из `IncomingCallModal`.
+                // Самый простой способ - перезагрузить данные.
+                // TODO: Передать initialSelectedLines в handleLinesUpdate в будущем.
+                window.location.reload(); 
             } finally {
                 setIsLoading(false);
             }
         }
     };
 
-    const assignedLines = allLines.filter(line => selectedLines.has(line.id));
+    const assignedLines = useMemo(() => {
+        return allLines.filter(line => selectedLines.has(line.id));
+    }, [allLines, selectedLines]);
 
     const nodesWithCallbacks = React.useMemo(() => {
         const sourceNodeIds = new Set(edges.map(edge => edge.source));
