@@ -552,7 +552,9 @@
                         "isSingleOutput": true
                     },
                     "width": 169,
-                    "height": 56
+                    "height": 56,
+                    "selected": false,
+                    "dragging": false
                 },
                 {
                     "id": "5",
@@ -573,7 +575,7 @@
                     "type": "dial",
                     "position": {
                         "x": 320,
-                        "y": 449
+                        "y": 448
                     },
                     "data": {
                         "label": "\u0417\u0432\u043e\u043d\u043e\u043a \u043d\u0430 \u0441\u043f\u0438\u0441\u043e\u043a",
@@ -591,6 +593,11 @@
                             {
                                 "userId": null,
                                 "name": null,
+                                "phone": "153"
+                            },
+                            {
+                                "userId": null,
+                                "name": null,
                                 "phone": "156"
                             }
                         ],
@@ -599,11 +606,67 @@
                     },
                     "width": 189,
                     "height": 56,
-                    "selected": true,
+                    "selected": false,
                     "positionAbsolute": {
                         "x": 320,
-                        "y": 449
+                        "y": 448
                     },
+                    "dragging": false
+                },
+                {
+                    "id": "7",
+                    "type": "dial",
+                    "position": {
+                        "x": 600,
+                        "y": 450
+                    },
+                    "data": {
+                        "label": "\u0417\u0432\u043e\u043d\u043e\u043a \u043d\u0430 \u0441\u043f\u0438\u0441\u043e\u043a",
+                        "managers": [
+                            {
+                                "userId": 10,
+                                "name": "\u0415\u0432\u0433\u0435\u043d\u0438\u0439 \u0411\u0430\u0435\u0432\u0441\u043a\u0438\u0439",
+                                "phone": "151"
+                            },
+                            {
+                                "userId": 4,
+                                "name": "YAUHENI BAYEUSKI",
+                                "phone": "152"
+                            }
+                        ],
+                        "holdMusic": null,
+                        "waitTime": 5
+                    },
+                    "width": 191,
+                    "height": 58
+                },
+                {
+                    "id": "8",
+                    "type": "dial",
+                    "position": {
+                        "x": 320,
+                        "y": 598
+                    },
+                    "data": {
+                        "label": "\u0417\u0432\u043e\u043d\u043e\u043a \u043d\u0430 \u0441\u043f\u0438\u0441\u043e\u043a",
+                        "managers": [
+                            {
+                                "userId": 4,
+                                "name": "YAUHENI BAYEUSKI",
+                                "phone": "150"
+                            },
+                            {
+                                "userId": 4,
+                                "name": "YAUHENI BAYEUSKI",
+                                "phone": "154"
+                            }
+                        ],
+                        "holdMusic": null,
+                        "waitTime": 5
+                    },
+                    "width": 190,
+                    "height": 56,
+                    "selected": true,
                     "dragging": false
                 }
             ],
@@ -632,6 +695,16 @@
                     "id": "e3-6",
                     "source": "3",
                     "target": "6"
+                },
+                {
+                    "id": "e4-7",
+                    "source": "4",
+                    "target": "7"
+                },
+                {
+                    "id": "e6-8",
+                    "source": "6",
+                    "target": "8"
                 }
             ],
             "viewport": {
