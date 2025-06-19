@@ -59,9 +59,10 @@
 }
 
 .manager-table th, .manager-table td {
-    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    padding: 6px 8px;
     text-align: left;
-    border-bottom: 1px solid #dee2e6;
+    vertical-align: middle;
 }
 
 .manager-table th {
