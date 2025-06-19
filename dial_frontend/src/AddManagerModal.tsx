@@ -46,13 +46,52 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({ enterpriseId, onClose
         fetchAllNumbers();
     }, [enterpriseId, addedPhones]);
     
-    // Мемоизируем отсортированный список для рендера
     const sortedNumbers = useMemo(() => {
-        return [...allNumbers].sort((a, b) => {
-            if (a.is_internal && !b.is_internal) return -1;
-            if (!a.is_internal && b.is_internal) return 1;
-            return a.phone_number.localeCompare(b.phone_number, undefined, { numeric: true });
+        const assignedNumbers = allNumbers.filter(num => num.user_id !== null);
+        const unassignedNumbers = allNumbers.filter(num => num.user_id === null);
+
+        const groupedByManager = assignedNumbers.reduce((acc, num) => {
+            if (num.user_id) {
+                if (!acc[num.user_id]) {
+                    acc[num.user_id] = [];
+                }
+                acc[num.user_id].push(num);
+            }
+            return acc;
+        }, {} as Record<number, AllNumbersData[]>);
+        
+        const managerSortOrder = Object.keys(groupedByManager).map(userIdStr => {
+            const userId = parseInt(userIdStr, 10);
+            const managerNumbers = groupedByManager[userId];
+            const internalNumbers = managerNumbers
+                .filter(n => n.is_internal)
+                .map(n => parseInt(n.phone_number, 10));
+            
+            const minInternal = internalNumbers.length > 0 ? Math.min(...internalNumbers) : Infinity;
+            
+            return { userId, minInternal };
+        }).sort((a, b) => a.minInternal - b.minInternal);
+
+        const sortedAssigned = managerSortOrder.flatMap(({ userId }) => {
+            const managerNumbers = groupedByManager[userId];
+            
+            return managerNumbers.sort((a, b) => {
+                if (a.is_internal && !b.is_internal) return -1;
+                if (!a.is_internal && b.is_internal) return 1;
+                
+                if (a.is_internal && b.is_internal) {
+                    return a.phone_number.localeCompare(b.phone_number, undefined, { numeric: true });
+                }
+                
+                return 0; 
+            });
         });
+
+        const sortedUnassigned = unassignedNumbers.sort((a, b) => {
+             return a.phone_number.localeCompare(b.phone_number, undefined, { numeric: true });
+        });
+        
+        return [...sortedAssigned, ...sortedUnassigned];
     }, [allNumbers]);
 
     const handleToggle = (phone: string) => {
