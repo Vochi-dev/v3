@@ -66,7 +66,34 @@ const OutgoingCallModal: React.FC<OutgoingCallModalProps> = ({
     }, [isOpen, enterpriseId]);
     
     const sortedPhones = useMemo(() => {
-        return [...allInternalPhones].sort((a, b) => a.phone_number.localeCompare(b.phone_number, undefined, { numeric: true }));
+        const groupedByManager: { [key: string]: AllNumbersData[] } = {};
+        const unassigned: AllNumbersData[] = [];
+
+        allInternalPhones.forEach(phone => {
+            if (phone.full_name) {
+                if (!groupedByManager[phone.full_name]) {
+                    groupedByManager[phone.full_name] = [];
+                }
+                groupedByManager[phone.full_name].push(phone);
+            } else {
+                unassigned.push(phone);
+            }
+        });
+
+        Object.values(groupedByManager).forEach(group => {
+            group.sort((a, b) => parseInt(a.phone_number, 10) - parseInt(b.phone_number, 10));
+        });
+
+        const sortedManagerGroups = Object.values(groupedByManager).sort((a, b) => {
+            const minPhoneA = Math.min(...a.map(p => parseInt(p.phone_number, 10)));
+            const minPhoneB = Math.min(...b.map(p => parseInt(p.phone_number, 10)));
+            return minPhoneA - minPhoneB;
+        });
+
+        const sortedAssigned = sortedManagerGroups.flat();
+        const sortedUnassigned = unassigned.sort((a, b) => parseInt(a.phone_number, 10) - parseInt(b.phone_number, 10));
+
+        return [...sortedAssigned, ...sortedUnassigned];
     }, [allInternalPhones]);
 
     const handleToggle = (phone: string) => {
