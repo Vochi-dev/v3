@@ -396,41 +396,104 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     };
 
     const handlePatternCheckConfirm = (patterns: any[]) => {
-        const sourceNode = sourceNodeForAction?.node;
-        const nodeToEdit = editingNode;
+        if (!sourceNodeForAction?.node && !editingNode) {
+            console.error("No source or editing node defined for pattern check");
+            return;
+        }
+
+        let lastNodeId = Math.max(0, ...nodes.map(n => parseInt(n.id, 10) || 0));
+
+        const generateNewNodesAndEdges = (parentNode: Node, newPatterns: any[]) => {
+            const newNodes: Node[] = [];
+            const newEdges: Edge[] = [];
+            
+            const parentPosition = parentNode.position || { x: 0, y: 0 };
+            const horizontalOffset = 200;
+            const yOffset = 180;
+            const totalWidth = (newPatterns.length - 1) * horizontalOffset;
+            const startX = parentPosition.x - totalWidth / 2;
+
+            newPatterns.forEach((pattern, index) => {
+                lastNodeId++;
+                const childNodeId = lastNodeId.toString();
+
+                const childNode: Node = {
+                    id: childNodeId,
+                    type: NodeType.Greeting,
+                    position: {
+                        x: startX + (index * horizontalOffset),
+                        y: parentPosition.y + yOffset
+                    },
+                    data: {
+                        label: pattern.name || 'Новая ветка',
+                        onAddClick: handleAddNodeClick
+                    }
+                };
+                newNodes.push(childNode);
+
+                const childEdge: Edge = {
+                    id: `e${parentNode.id}-${childNodeId}`,
+                    source: parentNode.id,
+                    target: childNodeId,
+                    type: 'default',
+                };
+                newEdges.push(childEdge);
+            });
+
+            return { newNodes, newEdges };
+        };
 
         // СЦЕНАРИЙ 2: РЕДАКТИРОВАНИЕ СУЩЕСТВУЮЩЕГО УЗЛА
-        if (nodeToEdit) {
-            updateNodeData(nodeToEdit.id, { patterns });
+        if (editingNode) {
+            const existingChildEdges = edges.filter(e => e.source === editingNode.id);
+            const existingChildNodeIds = new Set(existingChildEdges.map(e => e.target));
+
+            const { newNodes, newEdges } = generateNewNodesAndEdges(editingNode, patterns);
+
+            setNodes(nds => 
+                nds.filter(n => !existingChildNodeIds.has(n.id)) // Удаляем старые дочерние узлы
+                   .map(n => n.id === editingNode.id ? { ...n, data: { ...n.data, patterns } } : n) // Обновляем patterns у родителя
+                   .concat(newNodes) // Добавляем новые дочерние узлы
+            );
+            setEdges(eds => 
+                eds.filter(e => e.source !== editingNode.id) // Удаляем старые дочерние связи
+                   .concat(newEdges) // Добавляем новые
+            );
         }
-        // СЦЕНАРИЙ 1: СОЗДАНИЕ НОВОГО УЗЛА
-        else if (sourceNode) {
+        // СЦЕНАРИЙ 1: СОЗДАНИЕ НОВОГО УЗЛА "ПРОВЕРКА ПО ШАБЛОНУ" И ЕГО ВЕТОК
+        else if (sourceNodeForAction?.node) {
+            const sourceNode = sourceNodeForAction.node;
             const rule = getNodeRule(NodeType.PatternCheck)!;
-            const newNodeId = (Math.max(0, ...nodes.map(n => parseInt(n.id, 10))) + 1).toString();
             
-            const newNode: Node = {
-                id: newNodeId,
+            lastNodeId++;
+            const patternCheckNodeId = lastNodeId.toString();
+            
+            const patternCheckNode: Node = {
+                id: patternCheckNodeId,
                 type: NodeType.PatternCheck,
                 position: { x: sourceNode.position.x, y: sourceNode.position.y + 150 },
                 data: { 
                     label: rule.name,
                     patterns: patterns,
-                    // Этот узел можно будет редактировать, кликнув по нему,
-                    // но у него нет кнопки для добавления следующих узлов.
-                    onAddClick: undefined 
+                    onAddClick: undefined // У этого узла нет кнопки "+"
                 },
             };
 
-            const newEdge: Edge = {
-                id: `e${sourceNode.id}-${newNodeId}`,
+            const edgeToPatternCheck: Edge = {
+                id: `e${sourceNode.id}-${patternCheckNodeId}`,
                 source: sourceNode.id,
-                target: newNodeId,
+                target: patternCheckNodeId,
                 type: 'smoothstep'
             };
-            
-            // Убираем "+" у родителя и добавляем новый узел и связь
-            setNodes(nds => [...nds.map(n => n.id === sourceNode.id ? { ...n, data: { ...n.data, onAddClick: undefined } } : n), newNode]);
-            setEdges(eds => [...eds, newEdge]);
+
+            const { newNodes: childNodes, newEdges: childEdges } = generateNewNodesAndEdges(patternCheckNode, patterns);
+
+            setNodes(nds => 
+                nds.map(n => n.id === sourceNode.id ? { ...n, data: { ...n.data, onAddClick: undefined } } : n) // Убираем "+" у родителя
+                   .concat(patternCheckNode)
+                   .concat(childNodes)
+            );
+            setEdges(eds => [...eds, edgeToPatternCheck, ...childEdges]);
         }
 
         handleCloseModals();
@@ -717,7 +780,6 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     isOpen={isPatternCheckModalOpen}
                     onClose={handleCloseModals}
                     onSave={handlePatternCheckConfirm}
-                    onDelete={handleDeleteNode}
                     initialPatterns={editingNode?.data.patterns || []}
                 />
             )}

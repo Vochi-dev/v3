@@ -13,7 +13,7 @@ interface PatternCheckModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (patterns: Pattern[]) => void; 
-    onDelete: () => void;
+    onDelete?: () => void;
     initialPatterns: Pattern[];
 }
 
@@ -111,7 +111,7 @@ const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ isOpen, onClose, 
                          <button className="add-template-button" onClick={handleAddPatternClick}>+ Добавить шаблон</button>
                      </div>
                     <div className="modal-footer">
-                        <button onClick={onDelete} className="delete-button">Удалить узел</button>
+                        {onDelete && <button onClick={onDelete} className="delete-button">Удалить узел</button>}
                         <div className="footer-right-buttons">
                             <button onClick={onClose} className="cancel-button">Отмена</button>
                             <button onClick={() => onSave(patterns)} className="ok-button">Сохранить</button>
