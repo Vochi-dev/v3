@@ -89,6 +89,11 @@ class MusicFile(BaseModel):
     id: int
     display_name: str
 
+class MobileTemplate(BaseModel):
+    id: int
+    name: str
+    shablon: str
+
 # --- NEW: API for Lines ---
 @app.get("/api/enterprises/{enterprise_number}/lines")
 async def get_lines_for_enterprise(enterprise_number: str):
@@ -637,4 +642,24 @@ async def get_enterprise_music_files(enterprise_number: str):
                 return files
     except Exception as e:
         # Log the exception e
-        raise HTTPException(status_code=500, detail="Failed to fetch music files") 
+        raise HTTPException(status_code=500, detail="Failed to fetch music files")
+
+# --- API for Templates ---
+@app.get("/api/templates", response_model=List[MobileTemplate])
+async def get_mobile_templates():
+    """
+    Fetches all templates from the 'mobile' table.
+    """
+    logger.info("Fetching all mobile templates")
+    query = "SELECT id, name, shablon FROM mobile ORDER BY id;"
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(query)
+                templates = cur.fetchall()
+                logger.info(f"Found {len(templates)} mobile templates.")
+                return [MobileTemplate(**t) for t in templates]
+    except psycopg2.Error as e:
+        logger.error(f"Database error while fetching mobile templates: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database error: {e}") 

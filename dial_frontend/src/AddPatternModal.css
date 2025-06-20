@@ -1,0 +1,34 @@
+.add-pattern-modal {
+    width: 600px;
+}
+
+.add-pattern-modal .table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.add-pattern-modal table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.add-pattern-modal th,
+.add-pattern-modal td {
+    border-bottom: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.add-pattern-modal th {
+    background-color: #f2f2f2;
+    position: sticky;
+    top: 0;
+}
+
+.add-pattern-modal .modal-footer {
+  justify-content: flex-end;
+} 
