@@ -44,7 +44,6 @@ async def log_requests(request: Request, call_next):
 # --- End Middleware ---
 
 # --- DB Config ---
-DB_FILE = "schemas_db.json"
 # Конфигурация подключения, как в app/services/postgres.py
 POSTGRES_CONFIG = {
     'host': 'localhost',
@@ -89,20 +88,6 @@ class SchemaUpdateModel(BaseModel):
 class MusicFile(BaseModel):
     id: int
     display_name: str
-
-# --- JSON DB for Schemas ---
-def read_db():
-    if not os.path.exists(DB_FILE):
-        return []
-    with open(DB_FILE, "r") as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return []
-
-def write_db(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=4)
 
 # --- NEW: API for Lines ---
 @app.get("/api/enterprises/{enterprise_number}/lines")
@@ -322,10 +307,21 @@ async def assign_lines_to_schema(enterprise_number: str, schema_id: str, line_id
     Assigns a list of lines to a schema, clearing old assignments for THIS schema.
     It will overwrite assignments from other schemas.
     """
-    db = read_db()
+    logger.info(f"Assigning lines for schema {schema_id} for enterprise {enterprise_number}")
+    get_name_query = "SELECT schema_name FROM dial_schemas WHERE schema_id = %s AND enterprise_id = %s;"
+    schema_name = None
     try:
-        schema_name = [s['schema_name'] for s in db if s['schema_id'] == schema_id and s['enterprise_id'] == enterprise_number][0]
-    except IndexError:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(get_name_query, (schema_id, enterprise_number))
+                result = cur.fetchone()
+                if result:
+                    schema_name = result[0]
+    except psycopg2.Error as e:
+        logger.error(f"DB error getting schema name for {schema_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Ошибка базы данных при получении имени схемы.")
+
+    if not schema_name:
         raise HTTPException(status_code=404, detail="Schema not found")
 
     gsm_ids_to_set = [line.replace('gsm_', '') for line in line_ids if line.startswith('gsm_')]
@@ -372,106 +368,205 @@ async def assign_lines_to_schema(enterprise_number: str, schema_id: str, line_id
 # --- REFACTORED: API for Schemas ---
 @app.get("/api/enterprises/{enterprise_number}/schemas", response_model=List[SchemaModel])
 async def get_schemas_list(enterprise_number: str):
-    db = read_db()
-    enterprise_schemas = [SchemaModel(**s) for s in db if s.get('enterprise_id') == enterprise_number]
-    return enterprise_schemas
+    logger.info(f"Fetching schemas from DB for enterprise_number: {enterprise_number}")
+    query = "SELECT * FROM dial_schemas WHERE enterprise_id = %s ORDER BY created_at;"
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(query, (enterprise_number,))
+                schemas = cur.fetchall()
+        
+        # Преобразуем created_at в строку ISO, если это необходимо
+        result_schemas = []
+        for s in schemas:
+            schema_dict = dict(s)
+            if 'created_at' in schema_dict and hasattr(schema_dict['created_at'], 'isoformat'):
+                schema_dict['created_at'] = schema_dict['created_at'].isoformat()
+            result_schemas.append(SchemaModel(**schema_dict))
+
+        logger.info(f"Found {len(result_schemas)} schemas in DB for enterprise {enterprise_number}")
+        return result_schemas
+    except psycopg2.Error as e:
+        logger.error(f"DB error fetching schemas for {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error while fetching schemas.")
 
 @app.get("/api/enterprises/{enterprise_number}/schemas/{schema_id}", response_model=SchemaModel)
 async def get_schema_by_id(enterprise_number: str, schema_id: str):
-    db = read_db()
-    schema = next((s for s in db if s.get('schema_id') == schema_id and s.get('enterprise_id') == enterprise_number), None)
-    if not schema:
-        raise HTTPException(status_code=404, detail="Schema not found")
-    return SchemaModel(**schema)
+    logger.info(f"Fetching schema from DB by id: {schema_id} for enterprise {enterprise_number}")
+    query = "SELECT * FROM dial_schemas WHERE schema_id = %s AND enterprise_id = %s;"
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(query, (schema_id, enterprise_number))
+                schema_data = cur.fetchone()
+        
+        if not schema_data:
+            logger.warning(f"Schema not found in DB: id {schema_id}")
+            raise HTTPException(status_code=404, detail="Schema not found")
+
+        schema_dict = dict(schema_data)
+        if 'created_at' in schema_dict and hasattr(schema_dict['created_at'], 'isoformat'):
+            schema_dict['created_at'] = schema_dict['created_at'].isoformat()
+        
+        logger.info(f"Successfully fetched schema from DB: id {schema_id}")
+        return SchemaModel(**schema_dict)
+        
+    except psycopg2.Error as e:
+        logger.error(f"DB error fetching schema {schema_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error while fetching schema.")
 
 @app.post("/api/enterprises/{enterprise_number}/schemas", response_model=SchemaModel)
 async def create_schema(enterprise_number: str, schema_in: SchemaUpdateModel):
-    db = read_db()
-    
     new_schema = SchemaModel(
         enterprise_id=enterprise_number,
         schema_name=schema_in.schema_name,
         schema_data=schema_in.schema_data
     )
     
-    db.append(new_schema.dict())
-    write_db(db)
-    return new_schema
+    # Конвертируем Pydantic модель в JSON-строку для PostgreSQL
+    schema_data_json = json.dumps(new_schema.schema_data.dict())
+
+    query = """
+        INSERT INTO dial_schemas (schema_id, enterprise_id, schema_name, schema_data, created_at)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING *;
+    """
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(query, (
+                    new_schema.schema_id,
+                    new_schema.enterprise_id,
+                    new_schema.schema_name,
+                    schema_data_json,
+                    datetime.fromisoformat(new_schema.created_at)
+                ))
+                created_record = cur.fetchone()
+                conn.commit()
+        
+        if not created_record:
+            raise HTTPException(status_code=500, detail="Failed to create schema in DB.")
+
+        logger.info(f"Schema created in DB with id: {new_schema.schema_id}")
+        
+        # Преобразуем для ответа
+        response_schema = dict(created_record)
+        response_schema['created_at'] = response_schema['created_at'].isoformat()
+        return SchemaModel(**response_schema)
+
+    except psycopg2.Error as e:
+        logger.error(f"DB error creating schema for {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error while creating schema.")
 
 @app.put("/api/enterprises/{enterprise_number}/schemas/{schema_id}", response_model=SchemaModel)
 async def update_schema(enterprise_number: str, schema_id: str, schema_update: SchemaUpdateModel):
-    db = read_db()
-    schema_index = -1
-    for i, s in enumerate(db):
-        if s.get('schema_id') == schema_id and s.get('enterprise_id') == enterprise_number:
-            schema_index = i
-            break
-            
-    if schema_index == -1:
-        raise HTTPException(status_code=404, detail="Schema not found")
+    logger.info(f"Updating schema in DB: {schema_id}")
+    
+    schema_data_json = json.dumps(schema_update.schema_data.dict())
+    
+    query = """
+        UPDATE dial_schemas
+        SET schema_name = %s, schema_data = %s
+        WHERE schema_id = %s AND enterprise_id = %s
+        RETURNING *;
+    """
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(query, (
+                    schema_update.schema_name,
+                    schema_data_json,
+                    schema_id,
+                    enterprise_number
+                ))
+                updated_record = cur.fetchone()
+                conn.commit()
+
+        if not updated_record:
+            logger.warning(f"Schema not found in DB for update: {schema_id}")
+            raise HTTPException(status_code=404, detail="Schema not found")
+
+        logger.info(f"Schema updated in DB: {schema_id}")
         
-    existing_schema = db[schema_index]
-    updated_data = schema_update.dict(exclude_unset=True)
-    
-    # Обновляем только переданные поля
-    existing_schema['schema_name'] = updated_data.get('schema_name', existing_schema['schema_name'])
-    existing_schema['schema_data'] = updated_data.get('schema_data', existing_schema['schema_data'])
-    
-    db[schema_index] = existing_schema
-    write_db(db)
-    return SchemaModel(**existing_schema)
+        response_schema = dict(updated_record)
+        response_schema['created_at'] = response_schema['created_at'].isoformat()
+        return SchemaModel(**response_schema)
+        
+    except psycopg2.Error as e:
+        logger.error(f"DB error updating schema {schema_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error while updating schema.")
 
 @app.delete("/api/enterprises/{enterprise_number}/schemas/{schema_id}", status_code=204)
 async def delete_schema(enterprise_number: str, schema_id: str):
-    db = read_db()
+    logger.info(f"Attempting to delete schema from DB: {schema_id}")
     
-    # Найти схему, чтобы получить ее имя для проверки в PG
-    schema_to_delete = next((s for s in db if s.get('schema_id') == schema_id and s.get('enterprise_id') == enterprise_number), None)
+    # Сначала нужно получить имя схемы, чтобы проверить внешние зависимости
+    get_name_query = "SELECT schema_name FROM dial_schemas WHERE schema_id = %s AND enterprise_id = %s;"
+    schema_name = None
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(get_name_query, (schema_id, enterprise_number))
+                result = cur.fetchone()
+                if result:
+                    schema_name = result[0]
+    except psycopg2.Error as e:
+        logger.error(f"DB error getting schema name for {schema_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Ошибка базы данных при получении имени схемы.")
 
-    if not schema_to_delete:
-        # Если схемы и так нет, можно просто вернуть успешный ответ или 404. 
-        # В данном случае, ничего не делаем, идем дальше к возможному 404.
-        pass
-    else:
-        schema_name = schema_to_delete.get('schema_name')
-        
-        # Проверка привязанных линий в PostgreSQL
-        try:
-            with get_db_connection() as conn:
-                with conn.cursor() as cur:
-                    # Проверяем gsm_lines
-                    cur.execute(
-                        "SELECT 1 FROM gsm_lines WHERE enterprise_number = %s AND in_schema = %s LIMIT 1",
-                        (enterprise_number, schema_name)
-                    )
-                    if cur.fetchone():
-                        raise HTTPException(
-                            status_code=409, # Conflict
-                            detail="Невозможно удалить схему, так как к ней привязаны GSM линии. Сначала отвяжите их."
-                        )
-                    
-                    # Проверяем sip_unit
-                    cur.execute(
-                        "SELECT 1 FROM sip_unit WHERE enterprise_number = %s AND in_schema = %s LIMIT 1",
-                        (enterprise_number, schema_name)
-                    )
-                    if cur.fetchone():
-                        raise HTTPException(
-                            status_code=409, # Conflict
-                            detail="Невозможно удалить схему, так как к ней привязаны SIP линии. Сначала отвяжите их."
-                        )
-        except psycopg2.Error as e:
-            logger.error(f"Database error while checking assigned lines for schema {schema_id}: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Ошибка базы данных при проверке привязанных линий.")
+    if not schema_name:
+        # Если схемы нет, то и удалять нечего. Можно считать операцию успешной (идемпотентность)
+        # или вернуть 404. Для консистентности с остальным кодом, вернем 404.
+        raise HTTPException(status_code=404, detail="Schema not found to get name for checks.")
 
-    # Если проверки пройдены, удаляем схему из JSON
-    initial_len = len(db)
-    db = [s for s in db if not (s.get('schema_id') == schema_id and s.get('enterprise_id') == enterprise_number)]
+    # Проверка привязанных линий в PostgreSQL
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT 1 FROM gsm_lines WHERE enterprise_number = %s AND in_schema = %s LIMIT 1",
+                    (enterprise_number, schema_name)
+                )
+                if cur.fetchone():
+                    raise HTTPException(
+                        status_code=409, # Conflict
+                        detail="Невозможно удалить схему, так как к ней привязаны GSM линии. Сначала отвяжите их."
+                    )
+                
+                cur.execute(
+                    "SELECT 1 FROM sip_unit WHERE enterprise_number = %s AND in_schema = %s LIMIT 1",
+                    (enterprise_number, schema_name)
+                )
+                if cur.fetchone():
+                    raise HTTPException(
+                        status_code=409, # Conflict
+                        detail="Невозможно удалить схему, так как к ней привязаны SIP линии. Сначала отвяжите их."
+                    )
+    except psycopg2.Error as e:
+        logger.error(f"Database error while checking assigned lines for schema {schema_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Ошибка базы данных при проверке привязанных линий.")
+
+    # Если проверки пройдены, удаляем схему из БД
+    delete_query = "DELETE FROM dial_schemas WHERE schema_id = %s AND enterprise_id = %s;"
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(delete_query, (schema_id, enterprise_number))
+                # Проверяем, была ли строка на самом деле удалена
+                if cur.rowcount == 0:
+                    # Этого не должно произойти, если мы дошли сюда, но для надежности
+                    logger.warning(f"Schema not found in DB for deletion, though it existed for checks: {schema_id}")
+                    raise HTTPException(status_code=404, detail="Schema not found for deletion.")
+                conn.commit()
+        logger.info(f"Successfully deleted schema from DB: {schema_id}")
+    except psycopg2.Error as e:
+        logger.error(f"DB error deleting schema {schema_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error while deleting schema.")
     
-    if len(db) == initial_len:
-        raise HTTPException(status_code=404, detail="Schema not found")
-        
-    write_db(db)
     return
 
 # --- Static Files Serving ---
