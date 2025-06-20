@@ -259,12 +259,14 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     }
     
     const updateNodeData = (nodeId: string, data: any) => {
-        setNodes(nds => nds.map(n => {
-            if (n.id === nodeId) {
-                return { ...n, data: { ...n.data, ...data } };
-            }
-            return n;
-        }));
+        setNodes((nds) =>
+            nds.map((node) => {
+                if (node.id === nodeId) {
+                    return { ...node, data: { ...node.data, ...data } };
+                }
+                return node;
+            })
+        );
     };
 
     const handleConfirmWorkSchedule = (periods: SchedulePeriod[]) => {
@@ -361,6 +363,36 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         }
         setIsGreetingModalOpen(false);
         setEditingNode(null);
+    };
+
+    const autosaveSchema = (updatedNodes?: Node[]) => {
+        // Эта функция сохраняет схему в фоне, без закрытия редактора.
+        const viewport = reactFlowInstance?.getViewport() || { x: 0, y: 0, zoom: 1 };
+        const schemaToSave: Partial<Schema> = {
+            ...schema,
+            enterprise_id: enterpriseId,
+            schema_name: schemaName,
+            schema_data: { nodes: updatedNodes || nodes, edges, viewport }
+        };
+
+        onSave(schemaToSave).catch(error => {
+            console.error("Autosave failed:", error);
+            // Здесь можно добавить уведомление для пользователя, если необходимо
+        });
+    };
+
+    const handleOutgoingNodeConfirm = (nodeId: string, data: any) => {
+        // Обновляем состояние узлов локально
+        const newNodes = nodes.map(node => {
+            if (node.id === nodeId) {
+                return { ...node, data: { ...node.data, ...data } };
+            }
+            return node;
+        });
+        setNodes(newNodes);
+        
+        // Сразу же сохраняем изменения на сервере
+        autosaveSchema(newNodes);
     };
 
     const handleConfirmDial = (dialData: any) => {
@@ -616,7 +648,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                 <OutgoingCallModal
                     isOpen={isOutgoingCallModalOpen}
                     onClose={handleCloseModals}
-                    onConfirm={updateNodeData}
+                    onConfirm={handleOutgoingNodeConfirm}
                     node={editingNode}
                     enterpriseId={enterpriseId}
                     onDelete={handleDeleteNode}

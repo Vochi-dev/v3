@@ -164,8 +164,14 @@ const Modal: React.FC = () => {
 
         const savedSchema = await response.json();
         
-        // Удаляем прямое обновление состояния. Теперь оно будет происходить через fetchData.
-        
+        // Обновляем состояние списка схем и ВЫБРАННОЙ схемы
+        const updatedSchemas = isNewSchema
+            ? [...schemas, savedSchema]
+            : schemas.map(s => s.schema_id === savedSchema.schema_id ? savedSchema : s);
+
+        setSchemas(updatedSchemas);
+        setSelectedSchema(savedSchema);
+
         return savedSchema;
     };
 
