@@ -504,24 +504,34 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
 async def delete_schema(enterprise_number: str, schema_id: str):
     logger.info(f"Attempting to delete schema from DB: {schema_id}")
     
-    # Сначала нужно получить имя схемы, чтобы проверить внешние зависимости
-    get_name_query = "SELECT schema_name FROM dial_schemas WHERE schema_id = %s AND enterprise_id = %s;"
+    # Сначала нужно получить схему, чтобы проверить зависимости
+    get_schema_query = "SELECT schema_name, schema_data FROM dial_schemas WHERE schema_id = %s AND enterprise_id = %s;"
     schema_name = None
+    schema_data = None
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(get_name_query, (schema_id, enterprise_number))
+                cur.execute(get_schema_query, (schema_id, enterprise_number))
                 result = cur.fetchone()
                 if result:
                     schema_name = result[0]
+                    schema_data = result[1]
     except psycopg2.Error as e:
         logger.error(f"DB error getting schema name for {schema_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Ошибка базы данных при получении имени схемы.")
 
     if not schema_name:
-        # Если схемы нет, то и удалять нечего. Можно считать операцию успешной (идемпотентность)
-        # или вернуть 404. Для консистентности с остальным кодом, вернем 404.
         raise HTTPException(status_code=404, detail="Schema not found to get name for checks.")
+
+    # Новая проверка для исходящих схем
+    if schema_name.startswith('Исходящая') and schema_data:
+        nodes = schema_data.get('nodes', [])
+        outgoing_node = next((node for node in nodes if node.get('type') == 'outgoing-call'), None)
+        if outgoing_node and outgoing_node.get('data', {}).get('phones'):
+            raise HTTPException(
+                status_code=409, # Conflict
+                detail="Невозможно удалить схему, так как в узле 'Исходящий звонок' выбраны номера. Сначала отвяжите их."
+            )
 
     # Проверка привязанных линий в PostgreSQL
     try:
