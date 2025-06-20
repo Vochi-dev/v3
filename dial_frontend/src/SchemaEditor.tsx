@@ -45,7 +45,8 @@ const nodeTypes = {
     [NodeType.Greeting]: GenericNode,
     [NodeType.Dial]: GenericNode,
     [NodeType.WorkSchedule]: GenericNode,
-    [NodeType.IVR]: GenericNode, // For future use
+    [NodeType.PatternCheck]: GenericNode,
+    [NodeType.IVR]: GenericNode,
 };
 
 const DAYS_OF_WEEK_ORDER = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
@@ -202,6 +203,9 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
             case NodeType.WorkSchedule:
                 setIsWorkScheduleModalOpen(true);
                 break;
+            case NodeType.PatternCheck:
+                setIsPatternCheckModalOpen(true);
+                break;
             default:
                 setEditingNode(null);
                 break;
@@ -217,11 +221,8 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     };
 
     const handleAddPatternCheckNode = (sourceNodeId: string) => {
-        if (edges.some(e => e.source === sourceNodeId)) return;
-
         const sourceNode = nodes.find(n => n.id === sourceNodeId);
         if (sourceNode) {
-            setEditingNode(sourceNode); // Устанавливаем editingNode перед открытием модалки
             setSourceNodeForAction({ node: sourceNode, type: sourceNode.type as NodeType });
             setIsPatternCheckModalOpen(true);
         }
@@ -395,8 +396,43 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     };
 
     const handlePatternCheckConfirm = (patterns: any[]) => {
-        if (!editingNode) return;
-        updateNodeData(editingNode.id, { patterns });
+        const sourceNode = sourceNodeForAction?.node;
+        const nodeToEdit = editingNode;
+
+        // СЦЕНАРИЙ 2: РЕДАКТИРОВАНИЕ СУЩЕСТВУЮЩЕГО УЗЛА
+        if (nodeToEdit) {
+            updateNodeData(nodeToEdit.id, { patterns });
+        }
+        // СЦЕНАРИЙ 1: СОЗДАНИЕ НОВОГО УЗЛА
+        else if (sourceNode) {
+            const rule = getNodeRule(NodeType.PatternCheck)!;
+            const newNodeId = (Math.max(0, ...nodes.map(n => parseInt(n.id, 10))) + 1).toString();
+            
+            const newNode: Node = {
+                id: newNodeId,
+                type: NodeType.PatternCheck,
+                position: { x: sourceNode.position.x, y: sourceNode.position.y + 150 },
+                data: { 
+                    label: rule.name,
+                    patterns: patterns,
+                    // Этот узел можно будет редактировать, кликнув по нему,
+                    // но у него нет кнопки для добавления следующих узлов.
+                    onAddClick: undefined 
+                },
+            };
+
+            const newEdge: Edge = {
+                id: `e${sourceNode.id}-${newNodeId}`,
+                source: sourceNode.id,
+                target: newNodeId,
+                type: 'smoothstep'
+            };
+            
+            // Убираем "+" у родителя и добавляем новый узел и связь
+            setNodes(nds => [...nds.map(n => n.id === sourceNode.id ? { ...n, data: { ...n.data, onAddClick: undefined } } : n), newNode]);
+            setEdges(eds => [...eds, newEdge]);
+        }
+
         handleCloseModals();
     };
 
@@ -498,30 +534,23 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         const sourceNodeIds = new Set(edges.map(edge => edge.source));
 
         return nodes.map(node => {
-            let onAddClick: ((nodeId: string, nodeType: string) => void) | undefined;
+            // Определяем `onAddClick` один раз
+            let onAddClick: ((nodeId: string) => void) | undefined = handleAddNodeClick;
 
             if (node.type === 'outgoing-call') {
-                onAddClick = handleAddPatternCheckNode as any; 
-            } else {
-                onAddClick = handleAddNodeClick;
-            }
-
-            if (node.type === NodeType.WorkSchedule) {
+                onAddClick = handleAddPatternCheckNode;
+            } else if ([NodeType.WorkSchedule, NodeType.PatternCheck].includes(node.type as NodeType)) {
+                // У этих узлов нет кнопки "+"
                 onAddClick = undefined;
             }
-
+            
+            // Общая логика для скрытия "+", если выход уже есть
             const singleOutputNodes: string[] = [NodeType.Start as string, NodeType.Greeting, NodeType.Dial, 'outgoing-call'];
             if ((singleOutputNodes.includes(node.type as string) || node.data.isSingleOutput) && sourceNodeIds.has(node.id)) {
                 onAddClick = undefined;
             }
 
-            return {
-                ...node,
-                data: {
-                    ...node.data,
-                    onAddClick: onAddClick,
-                },
-            };
+            return { ...node, data: { ...node.data, onAddClick } };
         });
     }, [nodes, edges]);
 
@@ -683,13 +712,13 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     onDelete={handleDeleteNode}
                 />
             )}
-            {isPatternCheckModalOpen && editingNode && (
+            {isPatternCheckModalOpen && (
                 <PatternCheckModal
                     isOpen={isPatternCheckModalOpen}
                     onClose={handleCloseModals}
                     onSave={handlePatternCheckConfirm}
                     onDelete={handleDeleteNode}
-                    initialPatterns={editingNode.data.patterns || []}
+                    initialPatterns={editingNode?.data.patterns || []}
                 />
             )}
         </div>
