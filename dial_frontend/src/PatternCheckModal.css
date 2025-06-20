@@ -14,9 +14,10 @@
 }
 
 .pattern-check-modal .table-container {
-    max-height: 400px;
+    max-height: 200px;
     overflow-y: auto;
-    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    margin-bottom: 15px;
 }
 
 .pattern-check-modal table {
@@ -24,7 +25,8 @@
     border-collapse: collapse;
 }
 
-.pattern-check-modal th, .pattern-check-modal td {
+.pattern-check-modal th,
+.pattern-check-modal td {
     border: 1px solid #ddd;
     padding: 8px;
     text-align: left;
@@ -41,34 +43,49 @@
     text-align: center;
 }
 
-.add-template-button-container {
-    margin-bottom: 20px;
+.pattern-check-modal .delete-pattern-btn {
+    background: none;
+    border: none;
+    color: red;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
 }
 
-.add-template-button {
+.pattern-check-modal .add-template-button-container {
+    margin-bottom: 15px;
+}
+
+.pattern-check-modal .add-template-button {
     width: 100%;
     padding: 10px;
-    background-color: #e7e7e7;
+    background-color: #f0f0f0;
     border: 1px dashed #ccc;
     cursor: pointer;
-    text-align: center;
-    color: #333;
-    font-size: 1em;
-}
-
-.add-template-button:hover {
-    background-color: #ddd;
 }
 
 .pattern-check-modal .modal-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-top: 20px;
-    border-top: 1px solid #eee;
+}
+
+.pattern-check-modal .delete-button {
+    background-color: #dc3545;
+    color: white;
 }
 
 .pattern-check-modal .footer-right-buttons {
     display: flex;
     gap: 10px;
+}
+
+.pattern-check-modal .ok-button,
+.pattern-check-modal .cancel-button {
+    padding: 8px 16px;
+}
+
+.pattern-check-modal .ok-button {
+    background-color: #007bff;
+    color: white;
 } 
