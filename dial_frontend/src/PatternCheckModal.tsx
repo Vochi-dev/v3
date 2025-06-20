@@ -36,12 +36,8 @@ const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ isOpen, onClose, 
     };
 
     const handleConfirmAddPattern = (selectedPatterns: Pattern[]) => {
-        // Добавляем новые шаблоны, избегая дубликатов по id
-        setPatterns(prevPatterns => {
-            const existingIds = new Set(prevPatterns.map(p => p.id));
-            const newPatterns = selectedPatterns.filter(p => !existingIds.has(p.id));
-            return [...prevPatterns, ...newPatterns];
-        });
+        // Просто устанавливаем новый список выбранных шаблонов, полностью заменяя старый.
+        setPatterns(selectedPatterns);
     };
     
     const handleRemovePattern = (patternId: number) => {
@@ -106,6 +102,7 @@ const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ isOpen, onClose, 
                 isOpen={isAddPatternModalOpen}
                 onClose={handleCloseAddPatternModal}
                 onConfirm={handleConfirmAddPattern}
+                existingPatterns={patterns}
             />
         </>
     );
