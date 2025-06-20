@@ -543,7 +543,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         }
 
         setNodes(nds => nds.filter(n => !idsToDelete.has(n.id)));
-        setEdges(eds => eds.filter(e => !idsToDelete.has(e.source)));
+        setEdges(eds => eds.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target)));
         
         handleCloseModals();
     };
