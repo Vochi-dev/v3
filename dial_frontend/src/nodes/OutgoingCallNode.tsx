@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import './IncomingCallNode.css'; // Используем те же стили для единообразия
 
-const OutgoingCallNode: React.FC<NodeProps> = ({ data }) => {
+interface OutgoingCallNodeProps extends NodeProps {
+    data: {
+        label: string;
+        onAddClick?: (nodeId: string) => void;
+    };
+}
+
+const OutgoingCallNode: React.FC<OutgoingCallNodeProps> = ({ id, data }) => {
   return (
     <div className="incoming-call-node">
       <div className="node-content">
@@ -14,8 +21,13 @@ const OutgoingCallNode: React.FC<NodeProps> = ({ data }) => {
         id="a"
         className="react-flow__handle"
       />
+      {data.onAddClick && (
+        <div className="add-button-container">
+          <button className="add-button" onClick={(e) => { e.stopPropagation(); data.onAddClick && data.onAddClick(id); }}>+</button>
+        </div>
+      )}
     </div>
   );
 };
 
-export default OutgoingCallNode; 
+export default memo(OutgoingCallNode); 
