@@ -1,8 +1,10 @@
 export enum NodeType {
     Start = 'custom', // Matches the existing type for IncomingCallNode
+    OutgoingCall = 'outgoing-call',
     Greeting = 'greeting',
     Dial = 'dial',
     WorkSchedule = 'workSchedule',
+    PatternCheck = 'patternCheck',
     IVR = 'ivr',
 }
 
@@ -32,6 +34,12 @@ export const nodeRules: NodeRule[] = [
         name: 'График работы',
         maxInstances: 1,
         allowedSources: [NodeType.Start], // Follows 1
+    },
+    {
+        type: NodeType.PatternCheck,
+        name: 'Проверка по шаблону',
+        maxInstances: 0, 
+        allowedSources: [NodeType.OutgoingCall], // Может следовать только за исходящим звонком
     },
     {
         type: NodeType.IVR,

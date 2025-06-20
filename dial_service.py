@@ -505,41 +505,31 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
         logger.error(f"DB error updating schema {schema_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error while updating schema.")
 
-@app.delete("/api/enterprises/{enterprise_number}/schemas/{schema_id}", status_code=204)
+@app.delete("/api/enterprises/{enterprise_number}/schemas/{schema_id}")
 async def delete_schema(enterprise_number: str, schema_id: str):
-    """
-    Deletes a schema by its ID.
-    """
     logger.info(f"Attempting to delete schema {schema_id} for enterprise {enterprise_number}")
-    
-    # Сначала удаляем связанные записи в dial_plan_rules
-    delete_rules_sql = "DELETE FROM dial_plan_rules WHERE schema_id = %s AND enterprise_id = %s"
-    # Затем удаляем саму схему
-    delete_schema_sql = "DELETE FROM schemas WHERE schema_id = %s AND enterprise_id = %s RETURNING id"
-    
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                # Удаляем правила
-                cur.execute(delete_rules_sql, (schema_id, enterprise_number))
-                logger.info(f"Deleted dial plan rules for schema {schema_id}")
                 
-                # Удаляем схему
+                delete_schema_sql = "DELETE FROM dial_schemas WHERE schema_id = %s AND enterprise_id = %s"
                 cur.execute(delete_schema_sql, (schema_id, enterprise_number))
-                deleted_row = cur.fetchone()
-                conn.commit()
                 
-                if deleted_row is None:
-                    logger.warning(f"Schema {schema_id} not found for enterprise {enterprise_number} during deletion.")
+                if cur.rowcount == 0:
+                    logger.warning(f"Schema {schema_id} not found for enterprise {enterprise_number} or already deleted.")
                     raise HTTPException(status_code=404, detail="Schema not found")
+                
+                conn.commit()
+        
+        logger.info(f"Successfully deleted schema {schema_id}")
+        return JSONResponse(status_code=200, content={"message": "Schema deleted successfully"})
 
     except psycopg2.Error as e:
-        logger.error(f"Database error deleting schema {schema_id}: {e}", exc_info=True)
-        conn.rollback()
+        logger.error(f"Database error while deleting schema {schema_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
-
-    logger.info(f"Successfully deleted schema {schema_id}")
-    return
+    except Exception as e:
+        logger.error(f"Unexpected error while deleting schema {schema_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
 
 @app.get("/api/templates", response_model=List[MobileTemplate])
 async def get_mobile_templates():
