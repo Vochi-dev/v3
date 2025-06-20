@@ -507,95 +507,71 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
 
 @app.delete("/api/enterprises/{enterprise_number}/schemas/{schema_id}", status_code=204)
 async def delete_schema(enterprise_number: str, schema_id: str):
-    logger.info(f"Attempting to delete schema from DB: {schema_id}")
+    """
+    Deletes a schema by its ID.
+    """
+    logger.info(f"Attempting to delete schema {schema_id} for enterprise {enterprise_number}")
     
-    # Сначала нужно получить схему, чтобы проверить зависимости
-    get_schema_query = "SELECT schema_name, schema_data FROM dial_schemas WHERE schema_id = %s AND enterprise_id = %s;"
-    schema_name = None
-    schema_data = None
+    # Сначала удаляем связанные записи в dial_plan_rules
+    delete_rules_sql = "DELETE FROM dial_plan_rules WHERE schema_id = %s AND enterprise_id = %s"
+    # Затем удаляем саму схему
+    delete_schema_sql = "DELETE FROM schemas WHERE schema_id = %s AND enterprise_id = %s RETURNING id"
+    
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(get_schema_query, (schema_id, enterprise_number))
-                result = cur.fetchone()
-                if result:
-                    schema_name = result[0]
-                    schema_data = result[1]
-    except psycopg2.Error as e:
-        logger.error(f"DB error getting schema name for {schema_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Ошибка базы данных при получении имени схемы.")
-
-    if not schema_name:
-        raise HTTPException(status_code=404, detail="Schema not found to get name for checks.")
-
-    # Новая проверка для исходящих схем
-    if schema_name.startswith('Исходящая') and schema_data:
-        nodes = schema_data.get('nodes', [])
-        outgoing_node = next((node for node in nodes if node.get('type') == 'outgoing-call'), None)
-        if outgoing_node and outgoing_node.get('data', {}).get('phones'):
-            raise HTTPException(
-                status_code=409, # Conflict
-                detail="Невозможно удалить схему, так как в узле 'Исходящий звонок' выбраны номера. Сначала отвяжите их."
-            )
-
-    # Проверка привязанных линий в PostgreSQL
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT 1 FROM gsm_lines WHERE enterprise_number = %s AND in_schema = %s LIMIT 1",
-                    (enterprise_number, schema_name)
-                )
-                if cur.fetchone():
-                    raise HTTPException(
-                        status_code=409, # Conflict
-                        detail="Невозможно удалить схему, так как к ней привязаны GSM линии. Сначала отвяжите их."
-                    )
+                # Удаляем правила
+                cur.execute(delete_rules_sql, (schema_id, enterprise_number))
+                logger.info(f"Deleted dial plan rules for schema {schema_id}")
                 
-                cur.execute(
-                    "SELECT 1 FROM sip_unit WHERE enterprise_number = %s AND in_schema = %s LIMIT 1",
-                    (enterprise_number, schema_name)
-                )
-                if cur.fetchone():
-                    raise HTTPException(
-                        status_code=409, # Conflict
-                        detail="Невозможно удалить схему, так как к ней привязаны SIP линии. Сначала отвяжите их."
-                    )
-    except psycopg2.Error as e:
-        logger.error(f"Database error while checking assigned lines for schema {schema_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Ошибка базы данных при проверке привязанных линий.")
-
-    # Если проверки пройдены, удаляем схему из БД
-    delete_query = "DELETE FROM dial_schemas WHERE schema_id = %s AND enterprise_id = %s;"
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(delete_query, (schema_id, enterprise_number))
-                # Проверяем, была ли строка на самом деле удалена
-                if cur.rowcount == 0:
-                    # Этого не должно произойти, если мы дошли сюда, но для надежности
-                    logger.warning(f"Schema not found in DB for deletion, though it existed for checks: {schema_id}")
-                    raise HTTPException(status_code=404, detail="Schema not found for deletion.")
+                # Удаляем схему
+                cur.execute(delete_schema_sql, (schema_id, enterprise_number))
+                deleted_row = cur.fetchone()
                 conn.commit()
-        logger.info(f"Successfully deleted schema from DB: {schema_id}")
+                
+                if deleted_row is None:
+                    logger.warning(f"Schema {schema_id} not found for enterprise {enterprise_number} during deletion.")
+                    raise HTTPException(status_code=404, detail="Schema not found")
+
     except psycopg2.Error as e:
-        logger.error(f"DB error deleting schema {schema_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Database error while deleting schema.")
-    
+        logger.error(f"Database error deleting schema {schema_id}: {e}", exc_info=True)
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+    logger.info(f"Successfully deleted schema {schema_id}")
     return
 
-# --- Static Files Serving ---
-STATIC_DIR = "dial_frontend/dist"
-INDEX_PATH = os.path.join(STATIC_DIR, "index.html")
+@app.get("/api/templates", response_model=List[MobileTemplate])
+async def get_mobile_templates():
+    """
+    Fetches all templates from the 'mobile' table.
+    """
+    logger.info("Fetching all mobile templates.")
+    query = "SELECT id, name, shablon FROM mobile ORDER BY name;"
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(query)
+                results = cur.fetchall()
+        logger.info(f"Found {len(results)} mobile templates.")
+        # Преобразуем DictRow в стандартные словари для корректной валидации FastAPI
+        return [dict(row) for row in results]
+    except psycopg2.Error as e:
+        logger.error(f"Database error while fetching mobile templates: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+# --- Static Files & React App ---
+# Mount the static directory for the React build
+static_files_path = os.path.join(os.path.dirname(__file__), "dial_frontend/dist")
 
 # Ensure the static directory and index.html exist
-os.makedirs(STATIC_DIR, exist_ok=True)
-if not os.path.exists(INDEX_PATH):
-    with open(INDEX_PATH, "w") as f:
+os.makedirs(static_files_path, exist_ok=True)
+if not os.path.exists(os.path.join(static_files_path, "index.html")):
+    with open(os.path.join(static_files_path, "index.html"), "w") as f:
         f.write('<!DOCTYPE html><html><head></head><body><div id="root"></div></body></html>')
 
 # Mount the 'assets' directory for JS/CSS files
-app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
+app.mount("/assets", StaticFiles(directory=os.path.join(static_files_path, "assets")), name="assets")
 app.mount("/static", StaticFiles(directory="dial_frontend/dist/assets"), name="static")
 templates = Jinja2Templates(directory="dial_frontend/dist")
 
@@ -618,48 +594,23 @@ async def serve_react_app(request: Request, full_path: str):
         "Pragma": "no-cache",
         "Expires": "0",
     }
-    return FileResponse(INDEX_PATH, headers=headers)
-
-# Если у вас будут API-ручки для взаимодействия с фронтендом, они будут здесь
-# Например:
-# @app.get("/api/v1/schemas/{schema_id}")
-# async def get_schema(schema_id: int):
-#     # Здесь будет логика получения схемы из базы данных
-#     return {"schema_id": schema_id, "data": "..."}
+    return FileResponse(os.path.join(static_files_path, "index.html"), headers=headers)
 
 @app.get("/api/enterprises/{enterprise_number}/music-files", response_model=List[MusicFile])
 async def get_enterprise_music_files(enterprise_number: str):
-    query = """
-        SELECT id, display_name FROM music_files
-        WHERE enterprise_number = %s AND file_type = 'hold'
-        ORDER BY display_name;
-    """
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor(cursor_factory=DictCursor) as cur:
-                cur.execute(query, (enterprise_number,))
-                files = [MusicFile(id=row['id'], display_name=row['display_name']) for row in cur.fetchall()]
-                return files
-    except Exception as e:
-        # Log the exception e
-        raise HTTPException(status_code=500, detail="Failed to fetch music files")
-
-# --- API for Templates ---
-@app.get("/api/templates", response_model=List[MobileTemplate])
-async def get_mobile_templates():
-    """
-    Fetches all templates from the 'mobile' table.
-    """
-    logger.info("Fetching all mobile templates")
-    query = "SELECT id, name, shablon FROM mobile ORDER BY id;"
+    logger.info(f"Fetching music files for enterprise_number: {enterprise_number}")
+    base_dir = os.path.abspath("music")
+    enterprise_dir = os.path.join(base_dir, enterprise_number, "start")
     
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor(cursor_factory=DictCursor) as cur:
-                cur.execute(query)
-                templates = cur.fetchall()
-                logger.info(f"Found {len(templates)} mobile templates.")
-                return [MobileTemplate(**t) for t in templates]
-    except psycopg2.Error as e:
-        logger.error(f"Database error while fetching mobile templates: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Database error: {e}") 
+    music_files = []
+    if os.path.exists(enterprise_dir) and os.path.isdir(enterprise_dir):
+        for index, filename in enumerate(os.listdir(enterprise_dir)):
+            if filename.endswith(".wav"):
+                music_files.append({"id": index, "display_name": filename})
+    
+    logger.info(f"Found {len(music_files)} music files for enterprise {enterprise_number}")
+    return music_files
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8005) 
