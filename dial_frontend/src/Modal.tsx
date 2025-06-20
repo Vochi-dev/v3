@@ -47,18 +47,19 @@ const Modal: React.FC = () => {
     const schemaType = getSchemaTypeFromUrl();
     const backgroundUrl = document.referrer;
 
-    useEffect(() => {
+    const fetchData = useCallback(() => {
         if (enterpriseId) {
+            setIsLoading(true);
             Promise.all([
                 fetch(`/dial/api/enterprises/${enterpriseId}/schemas`).then(res => res.json()),
                 fetch(`/dial/api/enterprises/${enterpriseId}/lines`).then(res => res.json())
             ]).then(([schemasData, linesData]) => {
                 setSchemas(schemasData);
                 setAllLines(linesData);
-                setIsLoading(false);
             }).catch(err => {
                 console.error("Error fetching data:", err);
                 setError('Не удалось загрузить данные.');
+            }).finally(() => {
                 setIsLoading(false);
             });
         } else {
@@ -66,6 +67,10 @@ const Modal: React.FC = () => {
             setIsLoading(false);
         }
     }, [enterpriseId]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     const handleEditSchema = (schema: Schema) => {
         setSelectedSchema(schema);
@@ -159,22 +164,17 @@ const Modal: React.FC = () => {
 
         const savedSchema = await response.json();
         
-        // Обновляем состояние списка схем
-        if (isNewSchema) {
-            setSchemas(prev => [...prev, savedSchema]);
-        } else {
-            setSchemas(schemas.map(s => s.schema_id === savedSchema.schema_id ? savedSchema : s));
-        }
-
-        // Возвращаем сохраненную схему, чтобы SchemaEditor мог продолжить работу
+        // Удаляем прямое обновление состояния. Теперь оно будет происходить через fetchData.
+        
         return savedSchema;
     };
 
     // Вызывается из SchemaEditor для возврата к списку
     const handleBackToList = useCallback(() => {
+        fetchData(); // Добавляем перезагрузку данных
         setCurrentView('list');
         setSelectedSchema(null);
-    }, []);
+    }, [fetchData]);
 
     const handleDeleteSchema = async (schemaId: string) => {
         if (!enterpriseId || !schemaId) return;

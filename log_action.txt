@@ -4133,3 +4133,15 @@
 2025-06-19 16:15:35,031 - enterprise_admin_service - INFO - Запрос обработан за 0.1740 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
 2025-06-19 16:15:35,134 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
 2025-06-19 16:15:35,367 - enterprise_admin_service - INFO - Запрос обработан за 0.2333 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-20 10:24:59,695 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-20 10:24:59,895 - enterprise_admin_service - INFO - Запрос обработан за 0.2008 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-20 10:24:59,995 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-20 10:25:00,198 - enterprise_admin_service - INFO - Запрос обработан за 0.2029 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-20 10:29:39,257 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-20 10:29:39,461 - enterprise_admin_service - INFO - Запрос обработан за 0.2041 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-20 10:29:39,786 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-20 10:29:40,045 - enterprise_admin_service - INFO - Запрос обработан за 0.2587 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-20 10:50:02,120 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-20 10:50:02,313 - enterprise_admin_service - INFO - Запрос обработан за 0.1938 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-20 10:50:02,455 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-20 10:50:02,653 - enterprise_admin_service - INFO - Запрос обработан за 0.1979 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
