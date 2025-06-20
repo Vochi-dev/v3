@@ -11,9 +11,10 @@ interface AddPatternModalProps {
     isOpen: boolean;
     onClose: () => void;
     onConfirm: (selectedTemplates: Template[]) => void;
+    existingPatterns: Template[];
 }
 
-const AddPatternModal: React.FC<AddPatternModalProps> = ({ isOpen, onClose, onConfirm }) => {
+const AddPatternModal: React.FC<AddPatternModalProps> = ({ isOpen, onClose, onConfirm, existingPatterns }) => {
     const [templates, setTemplates] = useState<Template[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -23,7 +24,15 @@ const AddPatternModal: React.FC<AddPatternModalProps> = ({ isOpen, onClose, onCo
         if (isOpen) {
             setIsLoading(true);
             setError(null);
-            setSelected({}); // Сбрасываем выбор при каждом открытии
+            // Инициализируем 'selected' на основе существующих шаблонов
+            const initialSelected: Record<number, boolean> = {};
+            if (existingPatterns) {
+                for (const pattern of existingPatterns) {
+                    initialSelected[pattern.id] = true;
+                }
+            }
+            setSelected(initialSelected);
+
             fetch('/dial/api/templates')
                 .then(res => {
                     if (!res.ok) {
@@ -42,7 +51,7 @@ const AddPatternModal: React.FC<AddPatternModalProps> = ({ isOpen, onClose, onCo
                     setIsLoading(false);
                 });
         }
-    }, [isOpen]);
+    }, [isOpen, existingPatterns]);
 
     const handleCheckboxChange = (templateId: number) => {
         setSelected(prevSelected => ({
