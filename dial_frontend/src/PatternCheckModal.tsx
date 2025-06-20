@@ -44,6 +44,14 @@ const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ isOpen, onClose, 
         setPatterns(prevPatterns => prevPatterns.filter(p => p.id !== patternId));
     };
 
+    const handlePatternChange = (patternId: number, field: 'name' | 'shablon', value: string) => {
+        setPatterns(prevPatterns =>
+            prevPatterns.map(p =>
+                p.id === patternId ? { ...p, [field]: value } : p
+            )
+        );
+    };
+
     if (!isOpen) {
         return null;
     }
@@ -65,8 +73,22 @@ const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ isOpen, onClose, 
                             <tbody>
                                 {patterns.map(pattern => (
                                     <tr key={pattern.id}>
-                                        <td>{pattern.name}</td>
-                                        <td>{pattern.shablon}</td>
+                                        <td>
+                                            <input
+                                                type="text"
+                                                value={pattern.name}
+                                                onChange={(e) => handlePatternChange(pattern.id, 'name', e.target.value)}
+                                                className="pattern-input"
+                                            />
+                                        </td>
+                                        <td>
+                                            <input
+                                                type="text"
+                                                value={pattern.shablon}
+                                                onChange={(e) => handlePatternChange(pattern.id, 'shablon', e.target.value)}
+                                                className="pattern-input"
+                                            />
+                                        </td>
                                         <td>
                                             <button 
                                                 className="delete-pattern-btn"
