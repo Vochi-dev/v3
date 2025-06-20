@@ -1,0 +1,74 @@
+.pattern-check-modal {
+    width: 600px;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    z-index: 1001;
+}
+
+.pattern-check-modal h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.pattern-check-modal .table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+.pattern-check-modal table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.pattern-check-modal th, .pattern-check-modal td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.pattern-check-modal th {
+    background-color: #f2f2f2;
+    position: sticky;
+    top: 0;
+}
+
+.pattern-check-modal th:last-child, .pattern-check-modal td:last-child {
+    width: 50px;
+    text-align: center;
+}
+
+.add-template-button-container {
+    margin-bottom: 20px;
+}
+
+.add-template-button {
+    width: 100%;
+    padding: 10px;
+    background-color: #e7e7e7;
+    border: 1px dashed #ccc;
+    cursor: pointer;
+    text-align: center;
+    color: #333;
+    font-size: 1em;
+}
+
+.add-template-button:hover {
+    background-color: #ddd;
+}
+
+.pattern-check-modal .modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.pattern-check-modal .footer-right-buttons {
+    display: flex;
+    gap: 10px;
+} 

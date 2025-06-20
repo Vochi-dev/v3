@@ -27,6 +27,7 @@ import GreetingModal from './GreetingModal';
 import WorkScheduleModal, { SchedulePeriod } from './WorkScheduleModal';
 import { NodeType, getNodeRule } from './nodeRules';
 import OutgoingCallModal from './OutgoingCallModal';
+import PatternCheckModal from './PatternCheckModal';
 
 // ИЗМЕНЕНИЕ: Локальный интерфейс удален.
 
@@ -89,6 +90,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const [isGreetingModalOpen, setIsGreetingModalOpen] = useState(false);
     const [isWorkScheduleModalOpen, setIsWorkScheduleModalOpen] = useState(false);
     const [isOutgoingCallModalOpen, setIsOutgoingCallModalOpen] = useState(false);
+    const [isPatternCheckModalOpen, setIsPatternCheckModalOpen] = useState(false);
     const [dialManagers, setDialManagers] = useState<ManagerInfo[]>([]);
     const [editingNode, setEditingNode] = useState<Node | null>(null);
     
@@ -211,6 +213,14 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         if (sourceNode) {
             setSourceNodeForAction({ node: sourceNode, type: sourceNode.type as NodeType });
             setIsNodeActionModalOpen(true);
+        }
+    };
+
+    const handleAddPatternCheckNode = (nodeId: string) => {
+        const sourceNode = nodes.find(n => n.id === nodeId);
+        if (sourceNode) {
+            setSourceNodeForAction({ node: sourceNode, type: sourceNode.type as NodeType });
+            setIsPatternCheckModalOpen(true);
         }
     };
 
@@ -413,8 +423,10 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         setIsWorkScheduleModalOpen(false);
         setIsLinesModalOpen(false);
         setIsOutgoingCallModalOpen(false);
+        setIsPatternCheckModalOpen(false);
         setEditingNode(null);
         setDialManagers([]);
+        setSourceNodeForAction(null);
     };
 
     const handleOpenAddManagerModal = () => {
@@ -477,13 +489,19 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         const sourceNodeIds = new Set(edges.map(edge => edge.source));
 
         return nodes.map(node => {
-            let onAddClick: ((nodeId: string, nodeType: string) => void) | undefined = handleAddNodeClick;
+            let onAddClick: ((nodeId: string, nodeType: string) => void) | undefined;
+
+            if (node.type === 'outgoing-call') {
+                onAddClick = handleAddPatternCheckNode as any; 
+            } else {
+                onAddClick = handleAddNodeClick;
+            }
 
             if (node.type === NodeType.WorkSchedule) {
                 onAddClick = undefined;
             }
 
-            const singleOutputNodes: string[] = [NodeType.Start, NodeType.Greeting, NodeType.Dial, 'outgoing-call'];
+            const singleOutputNodes: string[] = [NodeType.Start as string, NodeType.Greeting, NodeType.Dial, 'outgoing-call'];
             if ((singleOutputNodes.includes(node.type as string) || node.data.isSingleOutput) && sourceNodeIds.has(node.id)) {
                 onAddClick = undefined;
             }
@@ -499,16 +517,18 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     }, [nodes, edges]);
 
     const handleDeleteNode = () => {
-        if (!editingNode) return;
+        const nodeToDelete = editingNode || (sourceNodeForAction ? sourceNodeForAction.node : null);
 
-        if (editingNode.id === '1' && schema.schema_type !== 'outgoing') {
+        if (!nodeToDelete) return;
+
+        if (nodeToDelete.id === '1' && schema.schema_type !== 'outgoing') {
             alert("Стартовый узел 'Входящий звонок' удалить нельзя.");
             return;
         }
 
         const idsToDelete = new Set<string>();
-        const queue: string[] = [editingNode.id];
-        idsToDelete.add(editingNode.id);
+        const queue: string[] = [nodeToDelete.id];
+        idsToDelete.add(nodeToDelete.id);
 
         while (queue.length > 0) {
             const currentId = queue.shift()!;
@@ -651,6 +671,16 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     onConfirm={handleOutgoingNodeConfirm}
                     node={editingNode}
                     enterpriseId={enterpriseId}
+                    onDelete={handleDeleteNode}
+                />
+            )}
+            {isPatternCheckModalOpen && (
+                <PatternCheckModal
+                    onClose={handleCloseModals}
+                    onConfirm={() => {
+                        console.log("Confirm pattern check");
+                        handleCloseModals();
+                    }}
                     onDelete={handleDeleteNode}
                 />
             )}
