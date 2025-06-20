@@ -17,11 +17,13 @@ const AddPatternModal: React.FC<AddPatternModalProps> = ({ isOpen, onClose, onCo
     const [templates, setTemplates] = useState<Template[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [selected, setSelected] = useState<Record<number, boolean>>({});
 
     useEffect(() => {
         if (isOpen) {
             setIsLoading(true);
             setError(null);
+            setSelected({}); // Сбрасываем выбор при каждом открытии
             fetch('/dial/api/templates')
                 .then(res => {
                     if (!res.ok) {
@@ -41,6 +43,19 @@ const AddPatternModal: React.FC<AddPatternModalProps> = ({ isOpen, onClose, onCo
                 });
         }
     }, [isOpen]);
+
+    const handleCheckboxChange = (templateId: number) => {
+        setSelected(prevSelected => ({
+            ...prevSelected,
+            [templateId]: !prevSelected[templateId]
+        }));
+    };
+
+    const handleConfirm = () => {
+        const selectedTemplates = templates.filter(t => selected[t.id]);
+        onConfirm(selectedTemplates);
+        onClose(); // Закрываем модалку после подтверждения
+    };
 
     if (!isOpen) {
         return null;
@@ -65,7 +80,13 @@ const AddPatternModal: React.FC<AddPatternModalProps> = ({ isOpen, onClose, onCo
                             <tbody>
                                 {templates.map(template => (
                                     <tr key={template.id}>
-                                        <td><input type="checkbox" /></td>
+                                        <td>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={!!selected[template.id]}
+                                                onChange={() => handleCheckboxChange(template.id)}
+                                            />
+                                        </td>
                                         <td>{template.name}</td>
                                         <td>{template.shablon}</td>
                                     </tr>
@@ -76,7 +97,13 @@ const AddPatternModal: React.FC<AddPatternModalProps> = ({ isOpen, onClose, onCo
                 </div>
                 <div className="add-pattern-modal-footer">
                     <button className="cancel-button" onClick={onClose}>Отмена</button>
-                    <button className="ok-button" onClick={() => onConfirm([])}>ОК</button>
+                    <button 
+                        className="ok-button" 
+                        onClick={handleConfirm}
+                        disabled={Object.values(selected).every(v => !v)}
+                    >
+                        ОК
+                    </button>
                 </div>
             </div>
         </div>

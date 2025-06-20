@@ -1,18 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './PatternCheckModal.css';
 import AddPatternModal from './AddPatternModal';
 
-interface PatternCheckModalProps {
-    onClose: () => void;
-    onConfirm: () => void;
-    onDelete: () => void;
+// Локально определяем тип, чтобы не трогать глобальные файлы
+interface Pattern {
+    id: number;
+    name: string;
+    shablon: string;
 }
 
-const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ onClose, onConfirm, onDelete }) => {
-    const [isAddPatternModalOpen, setIsAddPatternModalOpen] = useState(false);
+interface PatternCheckModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (patterns: Pattern[]) => void; 
+    onDelete: () => void;
+    initialPatterns: Pattern[];
+}
 
-    const openAddModal = () => setIsAddPatternModalOpen(true);
-    const closeAddModal = () => setIsAddPatternModalOpen(false);
+const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ isOpen, onClose, onSave, onDelete, initialPatterns }) => {
+    const [isAddPatternModalOpen, setAddPatternModalOpen] = useState(false);
+    const [patterns, setPatterns] = useState<Pattern[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            setPatterns(initialPatterns || []);
+        }
+    }, [isOpen, initialPatterns]);
+
+    const handleAddPatternClick = () => {
+        setAddPatternModalOpen(true);
+    };
+
+    const handleCloseAddPatternModal = () => {
+        setAddPatternModalOpen(false);
+    };
+
+    const handleConfirmAddPattern = (selectedPatterns: Pattern[]) => {
+        // Добавляем новые шаблоны, избегая дубликатов по id
+        setPatterns(prevPatterns => {
+            const existingIds = new Set(prevPatterns.map(p => p.id));
+            const newPatterns = selectedPatterns.filter(p => !existingIds.has(p.id));
+            return [...prevPatterns, ...newPatterns];
+        });
+    };
+    
+    const handleRemovePattern = (patternId: number) => {
+        setPatterns(prevPatterns => prevPatterns.filter(p => p.id !== patternId));
+    };
+
+    if (!isOpen) {
+        return null;
+    }
 
     return (
         <>
@@ -29,32 +67,46 @@ const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ onClose, onConfir
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* Rows will be added here later */}
+                                {patterns.map(pattern => (
+                                    <tr key={pattern.id}>
+                                        <td>{pattern.name}</td>
+                                        <td>{pattern.shablon}</td>
+                                        <td>
+                                            <button 
+                                                className="delete-pattern-btn"
+                                                onClick={() => handleRemovePattern(pattern.id)}
+                                            >
+                                                &#x2715;
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {patterns.length === 0 && (
+                                    <tr>
+                                        <td colSpan={3}>Шаблоны не добавлены</td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
-                    <div className="add-template-button-container">
-                        <button className="add-template-button" onClick={openAddModal}>+ Добавить шаблон</button>
-                    </div>
+                     <div className="add-template-button-container">
+                         <button className="add-template-button" onClick={handleAddPatternClick}>+ Добавить шаблон</button>
+                     </div>
                     <div className="modal-footer">
-                        <button onClick={onDelete} className="delete-button">Удалить</button>
+                        <button onClick={onDelete} className="delete-button">Удалить узел</button>
                         <div className="footer-right-buttons">
-                            <button onClick={onConfirm} className="ok-button">OK</button>
                             <button onClick={onClose} className="cancel-button">Отмена</button>
+                            <button onClick={() => onSave(patterns)} className="ok-button">Сохранить</button>
                         </div>
                     </div>
                 </div>
             </div>
-            {isAddPatternModalOpen && (
-                <AddPatternModal
-                    isOpen={isAddPatternModalOpen}
-                    onClose={closeAddModal}
-                    onConfirm={(selectedPatterns) => {
-                        console.log('Выбранные шаблоны:', selectedPatterns);
-                        closeAddModal();
-                    }}
-                />
-            )}
+
+            <AddPatternModal
+                isOpen={isAddPatternModalOpen}
+                onClose={handleCloseAddPatternModal}
+                onConfirm={handleConfirmAddPattern}
+            />
         </>
     );
 };

@@ -216,9 +216,12 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         }
     };
 
-    const handleAddPatternCheckNode = (nodeId: string) => {
-        const sourceNode = nodes.find(n => n.id === nodeId);
+    const handleAddPatternCheckNode = (sourceNodeId: string) => {
+        if (edges.some(e => e.source === sourceNodeId)) return;
+
+        const sourceNode = nodes.find(n => n.id === sourceNodeId);
         if (sourceNode) {
+            setEditingNode(sourceNode); // Устанавливаем editingNode перед открытием модалки
             setSourceNodeForAction({ node: sourceNode, type: sourceNode.type as NodeType });
             setIsPatternCheckModalOpen(true);
         }
@@ -389,6 +392,12 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
             console.error("Autosave failed:", error);
             // Здесь можно добавить уведомление для пользователя, если необходимо
         });
+    };
+
+    const handlePatternCheckConfirm = (patterns: any[]) => {
+        if (!editingNode) return;
+        updateNodeData(editingNode.id, { patterns });
+        handleCloseModals();
     };
 
     const handleOutgoingNodeConfirm = (nodeId: string, data: any) => {
@@ -674,14 +683,13 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     onDelete={handleDeleteNode}
                 />
             )}
-            {isPatternCheckModalOpen && (
+            {isPatternCheckModalOpen && editingNode && (
                 <PatternCheckModal
+                    isOpen={isPatternCheckModalOpen}
                     onClose={handleCloseModals}
-                    onConfirm={() => {
-                        console.log("Confirm pattern check");
-                        handleCloseModals();
-                    }}
+                    onSave={handlePatternCheckConfirm}
                     onDelete={handleDeleteNode}
+                    initialPatterns={editingNode.data.patterns || []}
                 />
             )}
         </div>
