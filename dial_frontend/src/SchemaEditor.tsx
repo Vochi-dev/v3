@@ -101,7 +101,11 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
+    const isOutgoingSchema = useMemo(() => schema.schema_name?.startsWith('Исходящая'), [schema.schema_name]);
+
     useEffect(() => {
+        if (isOutgoingSchema) return;
+
         fetch(`/dial/api/enterprises/${enterpriseId}/lines`)
             .then(res => res.ok ? res.json() : Promise.reject(res))
             .then((data: Line[]) => {
@@ -119,7 +123,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                 }
             })
             .catch(err => console.error("Не удалось загрузить линии для схемы", err));
-    }, [schema.schema_id, schema.schema_name, enterpriseId]);
+    }, [schema.schema_id, schema.schema_name, enterpriseId, isOutgoingSchema]);
 
 
     useEffect(() => {
@@ -432,6 +436,11 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         return allLines.filter(line => selectedLines.has(line.id));
     }, [allLines, selectedLines]);
 
+    const outgoingCallNode = useMemo(() => {
+        if (!isOutgoingSchema) return null;
+        return nodes.find(n => n.type === 'outgoing-call');
+    }, [nodes, isOutgoingSchema]);
+
     const nodesWithCallbacks = React.useMemo(() => {
         const sourceNodeIds = new Set(edges.map(edge => edge.source));
 
@@ -498,12 +507,28 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     placeholder="Название схемы"
                     maxLength={35}
                 />
-                <div style={{ marginTop: '-40px', paddingLeft: '700px' }}>
-                    <h4 style={{ margin: '0', fontSize: '1em', color: '#555' }}>Используются линии:</h4>
-                    {assignedLines.map(line => (
-                        <div key={line.id} style={{ fontSize: '0.9em', color: '#666' }}>{line.display_name}</div>
-                    ))}
-                </div>
+                {isOutgoingSchema ? (
+                    <div style={{ marginTop: '-40px', paddingLeft: '700px' }}>
+                        <h4 style={{ margin: '0', fontSize: '1em', color: '#555' }}>Используются линии:</h4>
+                        {outgoingCallNode?.data?.phones_details && outgoingCallNode.data.phones_details.length > 0 ? (
+                            outgoingCallNode.data.phones_details.sort((a: any, b: any) => a.phone_number.localeCompare(b.phone_number, undefined, { numeric: true })).map((phone: any) => (
+                                <div key={phone.phone_number} style={{ fontSize: '0.9em', color: '#666' }}>
+                                    {phone.phone_number} - {phone.full_name || 'Не назначен'}
+                                </div>
+                            ))
+                        ) : (
+                            <span style={{ fontSize: '0.9em', color: '#666' }}>Номера не выбраны</span>
+                        )}
+                    </div>
+                ) : (
+                    <div style={{ marginTop: '-40px', paddingLeft: '700px' }}>
+                        <h4 style={{ margin: '0', fontSize: '1em', color: '#555' }}>Используются линии:</h4>
+                        {assignedLines.map(line => (
+                            <div key={line.id} style={{ fontSize: '0.9em', color: '#666' }}>{line.display_name}</div>
+                        ))}
+                        {assignedLines.length === 0 && <span style={{ fontSize: '0.9em', color: '#666' }}>Нет привязанных линий</span>}
+                    </div>
+                )}
             </div>
             <div className="react-flow-wrapper" ref={reactFlowWrapper}>
                 <ReactFlow

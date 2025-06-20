@@ -108,7 +108,11 @@ const OutgoingCallModal: React.FC<OutgoingCallModalProps> = ({
 
     const handleConfirmClick = () => {
         if (node) {
-            onConfirm(node.id, { phones: Array.from(selectedPhones) });
+            const selectedPhonesDetails = allInternalPhones.filter(p => selectedPhones.has(p.phone_number));
+            onConfirm(node.id, { 
+                phones: Array.from(selectedPhones),
+                phones_details: selectedPhonesDetails 
+            });
             onClose();
         }
     };
