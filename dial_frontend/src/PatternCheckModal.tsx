@@ -9,10 +9,10 @@ interface PatternCheckModalProps {
 }
 
 const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ onClose, onConfirm, onDelete }) => {
-    const [isAddModalOpen, setAddModalOpen] = useState(false);
+    const [isAddPatternModalOpen, setIsAddPatternModalOpen] = useState(false);
 
-    const openAddModal = () => setAddModalOpen(true);
-    const closeAddModal = () => setAddModalOpen(false);
+    const openAddModal = () => setIsAddPatternModalOpen(true);
+    const closeAddModal = () => setIsAddPatternModalOpen(false);
 
     return (
         <>
@@ -45,10 +45,16 @@ const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ onClose, onConfir
                     </div>
                 </div>
             </div>
-            <AddPatternModal
-                isOpen={isAddModalOpen}
-                onClose={closeAddModal}
-            />
+            {isAddPatternModalOpen && (
+                <AddPatternModal
+                    isOpen={isAddPatternModalOpen}
+                    onClose={closeAddModal}
+                    onConfirm={(selectedPatterns) => {
+                        console.log('Выбранные шаблоны:', selectedPatterns);
+                        closeAddModal();
+                    }}
+                />
+            )}
         </>
     );
 };
