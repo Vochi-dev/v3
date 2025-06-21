@@ -52,6 +52,14 @@ const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ isOpen, onClose, 
         );
     };
 
+    const handleSave = () => {
+        if (patterns.length === 0) {
+            alert("Нельзя сохранить узел 'Проверка по шаблону' без добавления хотя бы одного шаблона.");
+            return;
+        }
+        onSave(patterns);
+    };
+
     if (!isOpen) {
         return null;
     }
@@ -114,7 +122,7 @@ const PatternCheckModal: React.FC<PatternCheckModalProps> = ({ isOpen, onClose, 
                         {onDelete && <button onClick={onDelete} className="delete-button">Удалить узел</button>}
                         <div className="footer-right-buttons">
                             <button onClick={onClose} className="cancel-button">Отмена</button>
-                            <button onClick={() => onSave(patterns)} className="ok-button">Сохранить</button>
+                            <button onClick={handleSave} className="ok-button">Сохранить</button>
                         </div>
                     </div>
                 </div>
