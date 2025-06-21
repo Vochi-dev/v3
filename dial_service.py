@@ -510,18 +510,49 @@ async def delete_schema(enterprise_number: str, schema_id: str):
     logger.info(f"Attempting to delete schema {schema_id} for enterprise {enterprise_number}")
     try:
         with get_db_connection() as conn:
-            with conn.cursor() as cur:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
                 
+                # Шаг 1: Получить имя схемы перед удалением
+                logger.info(f"Fetching schema name for schema_id: {schema_id}")
+                cur.execute("SELECT schema_name FROM dial_schemas WHERE schema_id = %s", (schema_id,))
+                schema_record = cur.fetchone()
+
+                if not schema_record:
+                    logger.warning(f"Schema {schema_id} not found when trying to get its name.")
+                    # Если схемы нет, то и удалять нечего, но для клиента это выглядит как 404
+                    raise HTTPException(status_code=404, detail="Schema not found")
+
+                schema_name = schema_record['schema_name']
+                logger.info(f"Schema name is '{schema_name}'. Proceeding to clear references.")
+
+                # Шаг 2: Очистить ссылки на эту схему в gsm_lines, используя ИМЯ
+                logger.info(f"Clearing gsm_lines references for schema_name '{schema_name}'")
+                clear_gsm_sql = "UPDATE gsm_lines SET in_schema = NULL WHERE in_schema = %s AND enterprise_number = %s"
+                cur.execute(clear_gsm_sql, (schema_name, enterprise_number))
+
+                # Шаг 3: Очистить ссылки на эту схему в sip_unit, используя ИМЯ
+                logger.info(f"Clearing sip_unit references for schema_name '{schema_name}'")
+                # Добавим проверку на существование таблицы/колонки для большей надежности
+                cur.execute("SELECT EXISTS (SELECT FROM information_schema.columns WHERE table_name='sip_unit' AND column_name='in_schema');")
+                if cur.fetchone()[0]:
+                    clear_sip_sql = "UPDATE sip_unit SET in_schema = NULL WHERE in_schema = %s AND enterprise_number = %s"
+                    cur.execute(clear_sip_sql, (schema_name, enterprise_number))
+                else:
+                    logger.info("sip_unit.in_schema column does not exist, skipping cleanup.")
+
+                # Шаг 4: Удалить саму схему
+                logger.info(f"Deleting schema {schema_id} itself")
                 delete_schema_sql = "DELETE FROM dial_schemas WHERE schema_id = %s AND enterprise_id = %s"
                 cur.execute(delete_schema_sql, (schema_id, enterprise_number))
                 
                 if cur.rowcount == 0:
-                    logger.warning(f"Schema {schema_id} not found for enterprise {enterprise_number} or already deleted.")
-                    raise HTTPException(status_code=404, detail="Schema not found")
+                    # Эта ситуация маловероятна, т.к. мы уже проверяли наличие схемы, но оставим на всякий случай
+                    logger.warning(f"Schema {schema_id} not found for enterprise {enterprise_number} or already deleted during the process.")
+                    raise HTTPException(status_code=404, detail="Schema not found or was deleted during operation")
                 
                 conn.commit()
         
-        logger.info(f"Successfully deleted schema {schema_id}")
+        logger.info(f"Successfully deleted schema {schema_id} and all its references")
         return JSONResponse(status_code=200, content={"message": "Schema deleted successfully"})
 
     except psycopg2.Error as e:
