@@ -28,6 +28,7 @@ import WorkScheduleModal, { SchedulePeriod } from './WorkScheduleModal';
 import { NodeType, getNodeRule } from './nodeRules';
 import OutgoingCallModal from './OutgoingCallModal';
 import PatternCheckModal from './PatternCheckModal';
+import ExternalNumberModal from './ExternalNumberModal';
 
 // ИЗМЕНЕНИЕ: Локальный интерфейс удален.
 
@@ -97,6 +98,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
     const [isWorkScheduleModalOpen, setIsWorkScheduleModalOpen] = useState(false);
     const [isOutgoingCallModalOpen, setIsOutgoingCallModalOpen] = useState(false);
     const [isPatternCheckModalOpen, setIsPatternCheckModalOpen] = useState(false);
+    const [isExternalNumberModalOpen, setIsExternalNumberModalOpen] = useState(false);
     const [dialManagers, setDialManagers] = useState<ManagerInfo[]>([]);
     const [editingNode, setEditingNode] = useState<Node | null>(null);
     
@@ -254,6 +256,9 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                 setIsLinesModalOpen(true);
                 break;
             case NodeType.Greeting:
+                if (isOutgoingSchema) {
+                    return;
+                }
                 setIsGreetingModalOpen(true);
                 break;
             case NodeType.Dial:
@@ -275,6 +280,12 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
     const handleAddNodeClick = (nodeId: string) => {
         const sourceNode = nodes.find(n => n.id === nodeId);
         if (sourceNode) {
+            if (isOutgoingSchema && sourceNode.type === NodeType.Greeting) {
+                setEditingNode(sourceNode);
+                setIsExternalNumberModalOpen(true);
+                return;
+            }
+
             setSourceNodeForAction({ node: sourceNode, type: sourceNode.type as NodeType });
             setIsNodeActionModalOpen(true);
         }
@@ -592,6 +603,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         setIsLinesModalOpen(false);
         setIsOutgoingCallModalOpen(false);
         setIsPatternCheckModalOpen(false);
+        setIsExternalNumberModalOpen(false);
         setEditingNode(null);
         setDialManagers([]);
         setSourceNodeForAction(null);
@@ -814,6 +826,13 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                     onClose={handleCloseModals}
                     onSave={handlePatternCheckConfirm}
                     initialPatterns={editingNode?.data.patterns || []}
+                />
+            )}
+            {isExternalNumberModalOpen && (
+                <ExternalNumberModal
+                    isOpen={isExternalNumberModalOpen}
+                    onClose={handleCloseModals}
+                    onDelete={handleDeleteNode}
                 />
             )}
         </div>
