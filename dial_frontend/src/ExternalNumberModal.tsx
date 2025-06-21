@@ -5,16 +5,23 @@ interface ExternalNumberModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDelete: () => void;
+  onConfirm: () => void;
 }
 
 const ExternalNumberModal: React.FC<ExternalNumberModalProps> = ({ 
   isOpen, 
   onClose,
-  onDelete
+  onDelete,
+  onConfirm
 }) => {
     if (!isOpen) {
         return null;
     }
+
+    const handleConfirm = () => {
+        onConfirm();
+        onClose();
+    };
 
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -34,7 +41,7 @@ const ExternalNumberModal: React.FC<ExternalNumberModalProps> = ({
                     </div>
                     <div className="footer-buttons-right">
                         <button className="cancel-button" onClick={onClose}>ОТМЕНА</button>
-                        <button className="ok-button" onClick={onClose}>ОК</button>
+                        <button className="ok-button" onClick={handleConfirm}>ОК</button>
                     </div>
                 </div>
             </div>

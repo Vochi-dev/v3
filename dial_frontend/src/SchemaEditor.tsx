@@ -138,8 +138,21 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
 
     const handleDeleteNode = () => {
         const nodeToDelete = editingNode || (sourceNodeForAction ? sourceNodeForAction.node : null);
-
         if (!nodeToDelete) return;
+
+        // --- НАЧАЛО: Логика восстановления плюса ---
+        // Если удаляем узел "Внешние линии", находим его родителя и возвращаем ему "+"
+        if (nodeToDelete.data.label === 'Внешние линии') {
+            const parentEdge = edges.find(e => e.target === nodeToDelete.id);
+            if (parentEdge) {
+                setNodes(nds => nds.map(n => 
+                    n.id === parentEdge.source 
+                    ? { ...n, data: { ...n.data, onAddClick: handleAddNodeClick } } 
+                    : n
+                ));
+            }
+        }
+        // --- КОНЕЦ: Логика восстановления плюса ---
 
         if (nodeToDelete.id === '1' && schemaType !== 'outgoing') {
             alert("Стартовый узел 'Входящий звонок' удалить нельзя.");
@@ -257,6 +270,11 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                 break;
             case NodeType.Greeting:
                 if (isOutgoingSchema) {
+                    // ИСПРАВЛЕНИЕ: Открываем модалку, если это узел "Внешние линии"
+                    if (node.data.label === 'Внешние линии') {
+                        setIsExternalNumberModalOpen(true);
+                    }
+                    // Для остальных (Life, MTS) - ничего не делаем, как и договаривались
                     return;
                 }
                 setIsGreetingModalOpen(true);
@@ -665,21 +683,59 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         return nodes.find(n => n.type === 'outgoing-call');
     }, [nodes, isOutgoingSchema]);
 
+    const handleConfirmExternalNumber = () => {
+        if (!editingNode) return;
+
+        const parentNode = editingNode;
+
+        setNodes(nds => {
+            // 1. Убираем "+" у родительского узла
+            const updatedNodes = nds.map(n =>
+                n.id === parentNode.id
+                ? { ...n, data: { ...n.data, onAddClick: undefined } }
+                : n
+            );
+            
+            // 2. Создаем новый узел "Внешние линии" с надежным ID
+            const newId = Math.max(0, ...updatedNodes.map(n => parseInt(n.id, 10)).filter(id => !isNaN(id))) + 1;
+            const newNodeId = newId.toString();
+
+            const newNode: Node = {
+                id: newNodeId,
+                type: NodeType.Greeting,
+                position: { x: parentNode.position.x, y: parentNode.position.y + 120 },
+                data: { 
+                    label: 'Внешние линии',
+                },
+            };
+            
+            // 3. Создаем связь и возвращаем новый массив узлов
+            const newEdge: Edge = {
+                id: `e${parentNode.id}-${newNodeId}`,
+                source: parentNode.id,
+                target: newNodeId,
+            };
+            setEdges(eds => [...eds, newEdge]);
+            
+            return [...updatedNodes, newNode];
+        });
+    };
+
     const nodesWithCallbacks = React.useMemo(() => {
         const sourceNodeIds = new Set(edges.map(edge => edge.source));
 
         return nodes.map(node => {
-            // Определяем `onAddClick` один раз
             let onAddClick: ((nodeId: string) => void) | undefined = handleAddNodeClick;
 
-            if (node.type === 'outgoing-call') {
+            // ИСПРАВЛЕНИЕ: Узел "Внешние линии" всегда тупиковый
+            if (node.data.label === 'Внешние линии') {
+                onAddClick = undefined;
+            } else if (node.type === 'outgoing-call') {
                 onAddClick = handleAddPatternCheckNode;
             } else if ([NodeType.WorkSchedule, NodeType.PatternCheck].includes(node.type as NodeType)) {
-                // У этих узлов нет кнопки "+"
                 onAddClick = undefined;
             }
             
-            // Общая логика для скрытия "+", если выход уже есть
             const singleOutputNodes: string[] = [NodeType.Start as string, NodeType.Greeting, NodeType.Dial, 'outgoing-call'];
             if ((singleOutputNodes.includes(node.type as string) || node.data.isSingleOutput) && sourceNodeIds.has(node.id)) {
                 onAddClick = undefined;
@@ -833,6 +889,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                     isOpen={isExternalNumberModalOpen}
                     onClose={handleCloseModals}
                     onDelete={handleDeleteNode}
+                    onConfirm={handleConfirmExternalNumber}
                 />
             )}
         </div>
