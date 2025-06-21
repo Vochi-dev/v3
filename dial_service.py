@@ -373,28 +373,29 @@ async def assign_lines_to_schema(enterprise_number: str, schema_id: str, line_id
 # --- REFACTORED: API for Schemas ---
 @app.get("/api/enterprises/{enterprise_number}/schemas", response_model=List[SchemaModel])
 async def get_schemas_list(enterprise_number: str):
-    logger.info(f"Fetching schemas from DB for enterprise_number: {enterprise_number}")
-    query = "SELECT * FROM dial_schemas WHERE enterprise_id = %s ORDER BY created_at;"
-    
+    """
+    Fetches a list of schemas for a given enterprise from the DB.
+    Now fetches the full schema_data.
+    """
+    query = "SELECT schema_id, enterprise_id, schema_name, created_at, schema_data FROM dial_schemas WHERE enterprise_id = %s"
     try:
         with get_db_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
                 cur.execute(query, (enterprise_number,))
-                schemas = cur.fetchall()
-        
-        # Преобразуем created_at в строку ISO, если это необходимо
-        result_schemas = []
-        for s in schemas:
-            schema_dict = dict(s)
-            if 'created_at' in schema_dict and hasattr(schema_dict['created_at'], 'isoformat'):
-                schema_dict['created_at'] = schema_dict['created_at'].isoformat()
-            result_schemas.append(SchemaModel(**schema_dict))
+                results = cur.fetchall()
 
-        logger.info(f"Found {len(result_schemas)} schemas in DB for enterprise {enterprise_number}")
-        return result_schemas
+                # Manually convert datetime to string before sending JSON
+                processed_results = []
+                for row in results:
+                    row_dict = dict(row)
+                    if 'created_at' in row_dict and isinstance(row_dict['created_at'], datetime):
+                        row_dict['created_at'] = row_dict['created_at'].isoformat()
+                    processed_results.append(row_dict)
+
+                return JSONResponse(content=processed_results)
     except psycopg2.Error as e:
         logger.error(f"DB error fetching schemas for {enterprise_number}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Database error while fetching schemas.")
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
 @app.get("/api/enterprises/{enterprise_number}/schemas/{schema_id}", response_model=SchemaModel)
 async def get_schema_by_id(enterprise_number: str, schema_id: str):

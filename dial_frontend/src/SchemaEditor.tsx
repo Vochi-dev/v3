@@ -112,10 +112,14 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
     const isOutgoingSchema = useMemo(() => schema.schema_name?.startsWith('Исходящая'), [schema.schema_name]);
 
     const startNode = useMemo(() => nodes.find(node => node.type === 'start' || node.type === NodeType.Start), [nodes]);
+    const outgoingStartNode = useMemo(() => nodes.find(node => node.id === 'start-outgoing'), [nodes]);
+
     const hasAssignedLines = useMemo(() => {
-        if (isOutgoingSchema) return false;
+        if (isOutgoingSchema) {
+            return (outgoingStartNode?.data?.phones?.length > 0);
+        }
         return (startNode?.data?.assignedLines?.length > 0) || (selectedLines.size > 0);
-    }, [startNode, selectedLines, isOutgoingSchema]);
+    }, [isOutgoingSchema, startNode, outgoingStartNode, selectedLines]);
 
     const handleDeleteClick = () => {
         if (hasAssignedLines) {
