@@ -39,6 +39,10 @@ interface SchemaEditorProps {
     onDelete: (schemaId: string) => void;
 }
 
+interface SchemaEditorWithProviderProps extends SchemaEditorProps {
+    schemaType?: 'incoming' | 'outgoing';
+}
+
 const nodeTypes = {
     [NodeType.Start]: IncomingCallNode,
     'outgoing-call': OutgoingCallNode,
@@ -80,7 +84,8 @@ const formatDays = (days: Set<string> | string[]): string => {
     return ranges.join(', ');
 };
 
-const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSave, onCancel, onDelete }) => {
+const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
+    const { enterpriseId, schema, onSave, onCancel, onDelete, schemaType = 'incoming' } = props;
     const [nodes, setNodes] = useState<Node[]>(schema.schema_data?.nodes || []);
     const [edges, setEdges] = useState<Edge[]>(schema.schema_data?.edges || []);
     const [schemaName, setSchemaName] = useState(schema.schema_name || 'Новая схема');
@@ -105,6 +110,57 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
     const isOutgoingSchema = useMemo(() => schema.schema_name?.startsWith('Исходящая'), [schema.schema_name]);
+
+    const startNode = useMemo(() => nodes.find(node => node.type === 'start' || node.type === NodeType.Start), [nodes]);
+    const hasAssignedLines = useMemo(() => {
+        if (isOutgoingSchema) return false;
+        return (startNode?.data?.assignedLines?.length > 0) || (selectedLines.size > 0);
+    }, [startNode, selectedLines, isOutgoingSchema]);
+
+    const handleDeleteClick = () => {
+        if (hasAssignedLines) {
+            alert("Нельзя удалить схему, пока к ней привязаны линии. Сначала отвяжите их в узле 'Поступил новый звонок'.");
+            return;
+        }
+
+        if (schema.schema_id) {
+            onDelete(schema.schema_id);
+        } else {
+            onCancel();
+        }
+    };
+
+    const handleDeleteNode = () => {
+        const nodeToDelete = editingNode || (sourceNodeForAction ? sourceNodeForAction.node : null);
+
+        if (!nodeToDelete) return;
+
+        if (nodeToDelete.id === '1' && schemaType !== 'outgoing') {
+            alert("Стартовый узел 'Входящий звонок' удалить нельзя.");
+            return;
+        }
+
+        const idsToDelete = new Set<string>();
+        const queue: string[] = [nodeToDelete.id];
+        idsToDelete.add(nodeToDelete.id);
+
+        while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            const childrenEdges = edges.filter(edge => edge.source === currentId);
+
+            for (const edge of childrenEdges) {
+                if (!idsToDelete.has(edge.target)) {
+                    idsToDelete.add(edge.target);
+                    queue.push(edge.target);
+                }
+            }
+        }
+
+        setNodes(nds => nds.filter(n => !idsToDelete.has(n.id)));
+        setEdges(eds => eds.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target)));
+        
+        handleCloseModals();
+    };
 
     useEffect(() => {
         if (isOutgoingSchema) return;
@@ -617,38 +673,6 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
         });
     }, [nodes, edges]);
 
-    const handleDeleteNode = () => {
-        const nodeToDelete = editingNode || (sourceNodeForAction ? sourceNodeForAction.node : null);
-
-        if (!nodeToDelete) return;
-
-        if (nodeToDelete.id === '1' && schema.schema_type !== 'outgoing') {
-            alert("Стартовый узел 'Входящий звонок' удалить нельзя.");
-            return;
-        }
-
-        const idsToDelete = new Set<string>();
-        const queue: string[] = [nodeToDelete.id];
-        idsToDelete.add(nodeToDelete.id);
-
-        while (queue.length > 0) {
-            const currentId = queue.shift()!;
-            const childrenEdges = edges.filter(edge => edge.source === currentId);
-
-            for (const edge of childrenEdges) {
-                if (!idsToDelete.has(edge.target)) {
-                    idsToDelete.add(edge.target);
-                    queue.push(edge.target);
-                }
-            }
-        }
-
-        setNodes(nds => nds.filter(n => !idsToDelete.has(n.id)));
-        setEdges(eds => eds.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target)));
-        
-        handleCloseModals();
-    };
-
     return (
         <div className="schema-editor-container">
             <div className="schema-editor-header">
@@ -700,7 +724,13 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
             </div>
             <div className="schema-editor-footer">
                 <div className="footer-buttons-left">
-                    {schema.schema_id && <button onClick={() => onDelete(schema.schema_id!)} className="delete-button" disabled={isLoading || !schema.schema_id}>Удалить схему</button>}
+                    <button 
+                        onClick={handleDeleteClick} 
+                        className="delete-button" 
+                        disabled={isLoading}
+                    >
+                        Удалить схему
+                    </button>
                 </div>
                 <div className="footer-buttons-right">
                     <button onClick={onCancel} className="cancel-button">Отмена</button>
@@ -772,7 +802,6 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
                     onConfirm={handleOutgoingNodeConfirm}
                     node={editingNode}
                     enterpriseId={enterpriseId}
-                    onDelete={handleDeleteNode}
                 />
             )}
             {isPatternCheckModalOpen && (
@@ -787,7 +816,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ enterpriseId, schema, onSav
     );
 };
 
-const SchemaEditorWrapper: React.FC<SchemaEditorProps> = (props) => {
+const SchemaEditorWrapper: React.FC<SchemaEditorWithProviderProps> = (props) => {
     return (
         <ReactFlowProvider>
             <SchemaEditor {...props} />

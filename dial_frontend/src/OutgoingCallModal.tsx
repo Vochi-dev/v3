@@ -15,7 +15,6 @@ interface OutgoingCallModalProps {
   enterpriseId: string;
   node: Node | null;
   onConfirm: (nodeId: string, data: any) => void;
-  onDelete: (nodeId: string) => void;
 }
 
 const OutgoingCallModal: React.FC<OutgoingCallModalProps> = ({ 
@@ -23,8 +22,7 @@ const OutgoingCallModal: React.FC<OutgoingCallModalProps> = ({
   onClose,
   enterpriseId,
   node,
-  onConfirm,
-  onDelete
+  onConfirm
 }) => {
     const [allInternalPhones, setAllInternalPhones] = useState<AllNumbersData[]>([]);
     const [selectedPhones, setSelectedPhones] = useState<Set<string>>(new Set());
@@ -117,13 +115,6 @@ const OutgoingCallModal: React.FC<OutgoingCallModalProps> = ({
         }
     };
     
-    const handleDeleteClick = () => {
-        if(node) {
-            onDelete(node.id);
-            onClose();
-        }
-    }
-
     const renderContent = () => {
         if (isLoading) return <div className="loading-message">Загрузка...</div>;
         if (error) return <div className="error-message">{error}</div>;
@@ -176,7 +167,6 @@ const OutgoingCallModal: React.FC<OutgoingCallModalProps> = ({
                     {renderContent()}
                 </div>
                 <div className="modal-footer">
-                     <button className="delete-button" onClick={handleDeleteClick}>Удалить узел</button>
                     <div className="footer-right-buttons">
                         <button className="cancel-button" onClick={onClose}>Отмена</button>
                         <button className="ok-button" onClick={handleConfirmClick}>ОК</button>
