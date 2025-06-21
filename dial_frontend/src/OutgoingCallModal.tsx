@@ -7,6 +7,7 @@ interface AllNumbersData {
     full_name: string | null;
     phone_number: string;
     is_internal: boolean;
+    outgoing_schema?: string | null;
 }
 
 interface OutgoingCallModalProps {
@@ -128,6 +129,7 @@ const OutgoingCallModal: React.FC<OutgoingCallModalProps> = ({
                             <th></th>
                             <th>Номер</th>
                             <th>Имя</th>
+                            <th>Схемы</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -144,6 +146,7 @@ const OutgoingCallModal: React.FC<OutgoingCallModalProps> = ({
                                 <td className={!item.full_name ? 'unassigned-user' : ''}>
                                     {item.full_name || 'Не назначен'}
                                 </td>
+                                <td>{item.outgoing_schema}</td>
                             </tr>
                         ))}
                     </tbody>
