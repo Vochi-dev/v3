@@ -346,21 +346,53 @@ async def assign_lines_to_schema(enterprise_number: str, schema_id: str, line_id
 async def get_schemas_list(enterprise_number: str):
     """
     Fetches a list of schemas for a given enterprise from the DB.
-    Now fetches the full schema_data.
+    For outgoing schemas, it dynamically injects the most current phone assignments
+    directly from the user_internal_phones table, ensuring data consistency.
     """
     query = "SELECT schema_id, enterprise_id, schema_name, created_at, schema_data FROM dial_schemas WHERE enterprise_id = %s"
+    
+    # Запрос для получения актуальных привязок для ОДНОЙ схемы
+    phones_query = """
+        SELECT
+            p.phone_number,
+            (u.first_name || ' ' || u.last_name) AS full_name
+        FROM user_internal_phones p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.enterprise_number = %s AND p.outgoing_schema_id = %s
+        ORDER BY p.phone_number::int;
+    """
+
     try:
         with get_db_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
                 cur.execute(query, (enterprise_number,))
                 results = cur.fetchall()
 
-                # Manually convert datetime to string before sending JSON
                 processed_results = []
                 for row in results:
                     row_dict = dict(row)
+                    
+                    # Если это исходящая схема, получаем актуальные данные
+                    if row_dict['schema_name'].startswith("Исходящая"):
+                        cur.execute(phones_query, (enterprise_number, row_dict['schema_id']))
+                        assigned_phones = [dict(p) for p in cur.fetchall()]
+                        
+                        # Находим узел и перезаписываем данные
+                        schema_data = row_dict['schema_data']
+                        if schema_data and 'nodes' in schema_data:
+                            for node in schema_data['nodes']:
+                                # Ищем узел исходящего звонка по типу
+                                if node.get('type') == 'outgoing-call':
+                                    # Гарантируем, что data существует
+                                    if 'data' not in node:
+                                        node['data'] = {}
+                                    # Перезаписываем details свежими данными из БД
+                                    node['data']['phones_details'] = assigned_phones
+                                    break # Нашли и обновили, выходим из цикла по узлам
+
                     if 'created_at' in row_dict and isinstance(row_dict['created_at'], datetime):
                         row_dict['created_at'] = row_dict['created_at'].isoformat()
+                    
                     processed_results.append(row_dict)
 
                 return JSONResponse(content=processed_results)

@@ -37,7 +37,6 @@ const Modal: React.FC = () => {
     const [currentView, setCurrentView] = useState<'list' | 'editor'>('list');
     const [schemas, setSchemas] = useState<Schema[]>([]);
     const [allLines, setAllLines] = useState<any[]>([]);
-    const [internalPhones, setInternalPhones] = useState<any[]>([]);
     const [selectedSchema, setSelectedSchema] = useState<Schema | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -53,12 +52,10 @@ const Modal: React.FC = () => {
             setIsLoading(true);
             Promise.all([
                 fetch(`/dial/api/enterprises/${enterpriseId}/schemas`).then(res => res.json()),
-                fetch(`/dial/api/enterprises/${enterpriseId}/lines`).then(res => res.json()),
-                fetch(`/dial/api/enterprises/${enterpriseId}/internal_users_and_phones`).then(res => res.json())
-            ]).then(([schemasData, linesData, internalPhonesData]) => {
+                fetch(`/dial/api/enterprises/${enterpriseId}/lines`).then(res => res.json())
+            ]).then(([schemasData, linesData]) => {
                 setSchemas(schemasData);
                 setAllLines(linesData);
-                setInternalPhones(internalPhonesData);
             }).catch(err => {
                 console.error("Error fetching data:", err);
                 setError('Не удалось загрузить данные.');
@@ -260,9 +257,9 @@ const Modal: React.FC = () => {
 
                         // --- START: Logic for outgoing schemas ---
                         const outgoingNode = schemaType === 'outgoing' 
-                            ? schema.schema_data?.nodes.find(n => n.id === 'start-outgoing') 
+                            ? schema.schema_data?.nodes.find(n => n.type === 'outgoing-call') 
                             : null;
-                        const assignedPhoneNumbers = outgoingNode?.data?.phones || [];
+                        const assignedPhonesDetails = outgoingNode?.data?.phones_details || [];
                         // --- END: Logic for outgoing schemas ---
 
                         return (
@@ -279,17 +276,13 @@ const Modal: React.FC = () => {
                                         </div>
                                     )}
                                     {/* --- START: Rendering for outgoing schemas --- */}
-                                    {assignedPhoneNumbers.length > 0 && schemaType === 'outgoing' && (
+                                    {assignedPhonesDetails.length > 0 && schemaType === 'outgoing' && (
                                         <div className="assigned-lines-list">
-                                            {assignedPhoneNumbers.map((phone: string) => {
-                                                const phoneInfo = internalPhones.find(p => p.phone_number === phone);
-                                                const displayName = phoneInfo ? `${phone} - ${phoneInfo.full_name || 'Не назначен'}` : `${phone} - Неизвестно`;
-                                                return (
-                                                    <div key={phone} className="assigned-line-item">
-                                                        {displayName}
-                                                    </div>
-                                                );
-                                            })}
+                                            {assignedPhonesDetails.map((phoneDetail: { phone_number: string; full_name: string }) => (
+                                                <div key={phoneDetail.phone_number} className="assigned-line-item">
+                                                    {`${phoneDetail.phone_number} - ${phoneDetail.full_name || 'Не назначен'}`}
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                     {/* --- END: Rendering for outgoing schemas --- */}
