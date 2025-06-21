@@ -234,72 +234,43 @@ async def get_internal_users_and_phones(enterprise_number: str):
 async def get_all_numbers_with_users(enterprise_number: str):
     """
     Агрегирует всех пользователей и все номера (внутренние, личные) для предприятия.
-    GSM и SIP линии исключены.
+    Добавлена информация о принадлежности внутреннего номера к исходящей схеме.
     """
     logger.info(f"Fetching all numbers and users for enterprise_number: {enterprise_number}")
     
-    # Запрос для пользователей и их внутренних номеров
-    users_query = """
+    # Запрос для пользователей и их внутренних номеров с информацией о схеме
+    query = """
     SELECT 
         u.id as user_id, 
         (u.first_name || ' ' || u.last_name) AS full_name,
         p.phone_number,
-        'internal' as type
-    FROM users u
-    JOIN user_internal_phones p ON u.id = p.user_id
-    WHERE u.enterprise_number = %s;
-    """
-
-    # Запрос для внутренних номеров без пользователей
-    unassigned_internal_query = """
-    SELECT
-        null as user_id,
-        null as full_name,
-        p.phone_number,
-        'internal' as type
+        ds.schema_name as outgoing_schema,
+        'internal' as type,
+        true as is_internal
     FROM user_internal_phones p
-    WHERE p.enterprise_number = %s AND p.user_id IS NULL;
-    """
+    LEFT JOIN users u ON p.user_id = u.id AND p.enterprise_number = u.enterprise_number
+    LEFT JOIN dial_schemas ds ON p.outgoing_schema_id = ds.schema_id
+    WHERE p.enterprise_number = %s
 
-    # Запрос для личных мобильных номеров сотрудников
-    personal_phones_query = """
-    SELECT
+    UNION ALL
+
+    SELECT 
         u.id as user_id,
         (u.first_name || ' ' || u.last_name) AS full_name,
         u.personal_phone as phone_number,
-        'personal' as type
+        NULL as outgoing_schema,
+        'personal' as type,
+        false as is_internal
     FROM users u
-    WHERE u.enterprise_number = %s AND u.personal_phone IS NOT NULL AND u.personal_phone <> '';
+    WHERE u.enterprise_number = %s AND u.personal_phone IS NOT NULL;
     """
-    
-    all_numbers = []
     
     try:
         with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                # Пользователи с внутренними номерами
-                cur.execute(users_query, (enterprise_number,))
-                all_numbers.extend(cur.fetchall())
-                
-                # Внутренние без пользователей
-                cur.execute(unassigned_internal_query, (enterprise_number,))
-                all_numbers.extend(cur.fetchall())
-
-                # Личные мобильные номера
-                cur.execute(personal_phones_query, (enterprise_number,))
-                all_numbers.extend(cur.fetchall())
-                
-                # Преобразуем в корректный формат для фронтенда
-                results = [
-                    {
-                        "user_id": row[0],
-                        "full_name": row[1],
-                        "phone_number": row[2],
-                        "is_internal": row[3] == 'internal'
-                    }
-                    for row in all_numbers
-                ]
-                
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(query, (enterprise_number, enterprise_number))
+                results = [dict(row) for row in cur.fetchall()]
+        
         logger.info(f"Found {len(results)} total numbers for enterprise {enterprise_number}")
         return JSONResponse(content=results)
     except psycopg2.Error as e:
@@ -469,39 +440,82 @@ async def create_schema(enterprise_number: str, schema_in: SchemaUpdateModel):
 
 @app.put("/api/enterprises/{enterprise_number}/schemas/{schema_id}", response_model=SchemaModel)
 async def update_schema(enterprise_number: str, schema_id: str, schema_update: SchemaUpdateModel):
-    logger.info(f"Updating schema in DB: {schema_id}")
-    
-    schema_data_json = json.dumps(schema_update.schema_data.dict())
-    
-    query = """
-        UPDATE dial_schemas
-        SET schema_name = %s, schema_data = %s
-        WHERE schema_id = %s AND enterprise_id = %s
-        RETURNING *;
     """
+    Обновляет существующую схему и обрабатывает логику привязки/отвязки
+    внутренних номеров к исходящим схемам.
+    """
+    logger.info(f"Updating schema {schema_id} for enterprise {enterprise_number}")
+    
+    current_schema_name = schema_update.schema_name
     
     try:
         with get_db_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
-                cur.execute(query, (
-                    schema_update.schema_name,
+                # --- Логика для исходящих схем ---
+                if current_schema_name.startswith("Исходящая"):
+                    # Находим узел исходящего звонка
+                    outgoing_node = next((node for node in schema_update.schema_data.nodes if node.get('id') == 'start-outgoing'), None)
+                    
+                    if outgoing_node:
+                        current_phones_in_schema = set(outgoing_node.get('data', {}).get('phones', []))
+                        
+                        # 1. Получаем телефоны, которые БЫЛИ в этой схеме до обновления
+                        cur.execute(
+                            "SELECT phone_number FROM user_internal_phones WHERE enterprise_number = %s AND outgoing_schema_id = %s",
+                            (enterprise_number, schema_id)
+                        )
+                        phones_before_update = {row['phone_number'] for row in cur.fetchall()}
+
+                        # 2. Определяем, какие номера были удалены из схемы
+                        phones_to_unassign = phones_before_update - current_phones_in_schema
+                        if phones_to_unassign:
+                            logger.info(f"Unassigning phones {phones_to_unassign} from schema '{current_schema_name}'")
+                            cur.execute(
+                                "UPDATE user_internal_phones SET outgoing_schema_id = NULL WHERE enterprise_number = %s AND phone_number = ANY(%s::varchar[])",
+                                (enterprise_number, list(phones_to_unassign))
+                            )
+
+                        # 3. Определяем, какие номера были добавлены в схему
+                        phones_to_assign = current_phones_in_schema - phones_before_update
+                        if phones_to_assign:
+                            logger.info(f"Assigning phones {phones_to_assign} to schema '{current_schema_name}'")
+                            cur.execute(
+                                "UPDATE user_internal_phones SET outgoing_schema_id = %s WHERE enterprise_number = %s AND phone_number = ANY(%s::varchar[])",
+                                (schema_id, enterprise_number, list(phones_to_assign))
+                            )
+
+                # --- Основное обновление схемы ---
+                schema_data_json = json.dumps(schema_update.schema_data.dict())
+                
+                update_query = """
+                    UPDATE dial_schemas
+                    SET schema_name = %s, schema_data = %s
+                    WHERE schema_id = %s AND enterprise_id = %s
+                    RETURNING *;
+                """
+                cur.execute(update_query, (
+                    current_schema_name,
                     schema_data_json,
                     schema_id,
                     enterprise_number
                 ))
+                
                 updated_record = cur.fetchone()
                 conn.commit()
 
-        if not updated_record:
-            logger.warning(f"Schema not found in DB for update: {schema_id}")
-            raise HTTPException(status_code=404, detail="Schema not found")
+                if not updated_record:
+                    logger.warning(f"Schema not found for update: id {schema_id}")
+                    raise HTTPException(status_code=404, detail="Schema to update not found.")
 
-        logger.info(f"Schema updated in DB: {schema_id}")
-        
-        response_schema = dict(updated_record)
-        response_schema['created_at'] = response_schema['created_at'].isoformat()
-        return SchemaModel(**response_schema)
-        
+                logger.info(f"Successfully updated schema {schema_id}")
+
+                # Преобразуем для ответа
+                response_schema = dict(updated_record)
+                if 'created_at' in response_schema and hasattr(response_schema['created_at'], 'isoformat'):
+                    response_schema['created_at'] = response_schema['created_at'].isoformat()
+                
+                return SchemaModel(**response_schema)
+
     except psycopg2.Error as e:
         logger.error(f"DB error updating schema {schema_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error while updating schema.")
