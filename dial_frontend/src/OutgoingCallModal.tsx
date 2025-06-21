@@ -31,8 +31,8 @@ const OutgoingCallModal: React.FC<OutgoingCallModalProps> = ({
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (node?.data?.phones) {
-            setSelectedPhones(new Set(node.data.phones));
+        if (node?.data?.phones_details && Array.isArray(node.data.phones_details)) {
+            setSelectedPhones(new Set(node.data.phones_details.map((detail: any) => detail.phone_number)));
         } else {
             setSelectedPhones(new Set());
         }
