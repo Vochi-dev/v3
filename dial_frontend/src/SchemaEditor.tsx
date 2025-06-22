@@ -299,14 +299,14 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         const sourceNode = nodes.find(n => n.id === nodeId);
         if (!sourceNode) return;
 
-        // ВОССТАНАВЛИВАЕМ И ИСПРАВЛЯЕМ ЛОГИКУ ДЛЯ ИСХОДЯЩИХ СХЕМ
         if (isOutgoingSchema && sourceNode.type === NodeType.Greeting) {
             
-            // 1. Определяем ID и данные для НОВОГО узла
-            const newNodeId = (Math.max(0, ...nodes.map(n => parseInt(n.id, 10))) + 1).toString();
+            // ИСПРАВЛЕНИЕ: Используем Date.now() для гарантированно уникального ID
+            const newNodeId = Date.now().toString();
+
             const newNode: Node = {
                 id: newNodeId,
-                type: NodeType.Greeting, // Тип-хак для "Внешних линий"
+                type: NodeType.Greeting,
                 position: {
                     x: sourceNode.position.x,
                     y: sourceNode.position.y + 150,
@@ -314,30 +314,26 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                 data: {
                     label: 'Внешние линии',
                     external_lines: [],
-                    onAddClick: undefined // Сразу делаем тупиковым
+                    onAddClick: undefined 
                 },
             };
 
-            // 2. Создаем связь
             const newEdge: Edge = {
                 id: `e${sourceNode.id}-${newNodeId}`,
                 source: sourceNode.id,
                 target: newNodeId,
             };
 
-            // 3. Обновляем состояние: убираем "+" у родителя, добавляем новый узел и связь
             updateNodeData(sourceNode.id, { ...sourceNode.data, onAddClick: undefined });
             setNodes(nds => [...nds, newNode]);
             setEdges(eds => [...eds, newEdge]);
             
-            // 4. Открываем модалку для НОВОГО, только что созданного узла
             setEditingNode(newNode);
             setIsExternalNumberModalOpen(true);
 
-            return; // Завершаем выполнение, чтобы не открылась вторая модалка
+            return;
         }
 
-        // Стандартная логика для всех остальных случаев
         setSourceNodeForAction({ node: sourceNode, type: sourceNode.type as NodeType });
         setIsNodeActionModalOpen(true);
     };
