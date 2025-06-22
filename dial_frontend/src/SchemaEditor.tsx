@@ -297,16 +297,49 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
 
     const handleAddNodeClick = (nodeId: string) => {
         const sourceNode = nodes.find(n => n.id === nodeId);
-        if (sourceNode) {
-            if (isOutgoingSchema && sourceNode.type === NodeType.Greeting) {
-                setEditingNode(sourceNode);
-                setIsExternalNumberModalOpen(true);
-                return;
-            }
+        if (!sourceNode) return;
 
-            setSourceNodeForAction({ node: sourceNode, type: sourceNode.type as NodeType });
-            setIsNodeActionModalOpen(true);
+        // ВОССТАНАВЛИВАЕМ И ИСПРАВЛЯЕМ ЛОГИКУ ДЛЯ ИСХОДЯЩИХ СХЕМ
+        if (isOutgoingSchema && sourceNode.type === NodeType.Greeting) {
+            
+            // 1. Определяем ID и данные для НОВОГО узла
+            const newNodeId = (Math.max(0, ...nodes.map(n => parseInt(n.id, 10))) + 1).toString();
+            const newNode: Node = {
+                id: newNodeId,
+                type: NodeType.Greeting, // Тип-хак для "Внешних линий"
+                position: {
+                    x: sourceNode.position.x,
+                    y: sourceNode.position.y + 150,
+                },
+                data: {
+                    label: 'Внешние линии',
+                    external_lines: [],
+                    onAddClick: undefined // Сразу делаем тупиковым
+                },
+            };
+
+            // 2. Создаем связь
+            const newEdge: Edge = {
+                id: `e${sourceNode.id}-${newNodeId}`,
+                source: sourceNode.id,
+                target: newNodeId,
+            };
+
+            // 3. Обновляем состояние: убираем "+" у родителя, добавляем новый узел и связь
+            updateNodeData(sourceNode.id, { ...sourceNode.data, onAddClick: undefined });
+            setNodes(nds => [...nds, newNode]);
+            setEdges(eds => [...eds, newEdge]);
+            
+            // 4. Открываем модалку для НОВОГО, только что созданного узла
+            setEditingNode(newNode);
+            setIsExternalNumberModalOpen(true);
+
+            return; // Завершаем выполнение, чтобы не открылась вторая модалка
         }
+
+        // Стандартная логика для всех остальных случаев
+        setSourceNodeForAction({ node: sourceNode, type: sourceNode.type as NodeType });
+        setIsNodeActionModalOpen(true);
     };
 
     const handleAddPatternCheckNode = (sourceNodeId: string) => {
@@ -351,15 +384,83 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
     };
 
     const handleOpenModalFor = (type: NodeType) => {
-        setIsNodeActionModalOpen(false);
-        setEditingNode(null);
-        if(type === NodeType.Dial) {
-            setDialManagers([]);
-            setIsDialModalOpen(true);
+        console.log(`--- handleOpenModalFor ЗАПУЩЕНА для типа: ${type} ---`);
+        if (!sourceNodeForAction) {
+            console.error("ОШИБКА: sourceNodeForAction не определен. Невозможно создать узел.");
+            return;
         }
-        if(type === NodeType.Greeting) setIsGreetingModalOpen(true);
-        if(type === NodeType.WorkSchedule) setIsWorkScheduleModalOpen(true);
-    }
+
+        const parentNode = sourceNodeForAction.node;
+        const rule = getNodeRule(type)!;
+        
+        console.log("Родительский узел:", parentNode);
+        
+        // 1. Определяем ID и базовые данные для нового узла
+        const newNodeId = (Math.max(0, ...nodes.map(n => parseInt(n.id, 10))) + 1).toString();
+        let nodeData: any = { 
+            label: rule.name,
+            onAddClick: handleAddNodeClick,
+        };
+
+        // 2. HACK: Особая логика для "Внешних линий"
+        if (type === NodeType.Greeting && sourceNodeForAction.type === NodeType.Dial) {
+            console.log("Обнаружен особый случай: 'Внешние линии'.");
+            nodeData = {
+                label: 'Внешние линии',
+                external_lines: [],
+                onAddClick: undefined // Сразу делаем тупиковым
+            };
+        }
+
+        // 3. Создаем новый узел
+        const newNode: Node = {
+            id: newNodeId,
+            type: type,
+            position: {
+                x: parentNode.position.x,
+                y: parentNode.position.y + 150,
+            },
+            data: nodeData,
+        };
+        console.log("СОЗДАН НОВЫЙ УЗЕЛ:", newNode);
+
+        // 4. Создаем связь
+        const newEdge: Edge = {
+            id: `e${parentNode.id}-${newNodeId}`,
+            source: parentNode.id,
+            target: newNodeId,
+        };
+        console.log("СОЗДАНА НОВАЯ СВЯЗЬ:", newEdge);
+        
+        // 5. Обновляем состояние
+        console.log("ОБНОВЛЕНИЕ СОСТОЯНИЯ: удаляем '+' у родителя, добавляем узел и связь.");
+        updateNodeData(parentNode.id, { ...parentNode.data, onAddClick: undefined });
+        setNodes(nds => [...nds, newNode]);
+        setEdges(eds => [...eds, newEdge]);
+        
+        // 6. Открываем соответствующую модалку для нового узла
+        console.log(`ОТКРЫТИЕ МОДАЛЬНОГО ОКНА для узла ${newNode.id}`);
+        setEditingNode(newNode);
+        setIsNodeActionModalOpen(false);
+        switch (type) {
+            case NodeType.Dial:
+                setDialManagers([]);
+                setIsDialModalOpen(true);
+                break;
+            case NodeType.Greeting:
+                if (newNode.data.label === 'Внешние линии') {
+                    console.log("Открываем ExternalNumberModal");
+                    setIsExternalNumberModalOpen(true);
+                } else {
+                    console.log("Открываем GreetingModal");
+                    setIsGreetingModalOpen(true);
+                }
+                break;
+            case NodeType.WorkSchedule:
+                setIsWorkScheduleModalOpen(true);
+                break;
+        }
+    };
     
     const updateNodeData = (nodeId: string, data: any) => {
         setNodes((nds) =>
