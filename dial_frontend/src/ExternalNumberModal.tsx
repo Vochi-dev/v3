@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import './ExternalNumberModal.css';
+import { Line } from './types';
 
 interface ExternalNumberModalProps {
     isOpen: boolean;
     onClose: () => void;
     onDelete?: () => void; 
-    onConfirm: (lines: { line_id: string, priority: number }[]) => void;
+    onConfirm: (lines: { line_id: string, priority: number }[], allLines: Line[]) => void;
     enterpriseId: string;
     initialData?: { line_id: string, priority: number }[];
 }
@@ -14,11 +15,6 @@ interface TableRow {
     id: number;
     selectedLine: string;
     priority: string;
-}
-
-interface Line {
-    id: string;
-    display_name: string;
 }
 
 const ExternalNumberModal: React.FC<ExternalNumberModalProps> = ({ 
@@ -100,7 +96,7 @@ const ExternalNumberModal: React.FC<ExternalNumberModalProps> = ({
             }))
             .filter(line => line.line_id && !isNaN(line.priority));
         
-        onConfirm(linesToSave);
+        onConfirm(linesToSave, availableLines);
         onClose();
     };
 
