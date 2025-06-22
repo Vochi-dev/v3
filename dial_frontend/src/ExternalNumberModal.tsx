@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './ExternalNumberModal.css';
 
 interface ExternalNumberModalProps {
     isOpen: boolean;
     onClose: () => void;
     onDelete?: () => void; 
-    onConfirm: () => void;
+    onConfirm: (lines: { line_id: string, priority: number }[]) => void;
+    enterpriseId: string;
+    initialData?: { line_id: string, priority: number }[];
 }
 
 interface TableRow {
@@ -14,23 +16,70 @@ interface TableRow {
     priority: string;
 }
 
+interface Line {
+    id: string;
+    display_name: string;
+}
+
 const ExternalNumberModal: React.FC<ExternalNumberModalProps> = ({ 
   isOpen, 
   onClose,
   onDelete,
   onConfirm,
+  enterpriseId,
+  initialData = []
 }) => {
     const [tableRows, setTableRows] = useState<TableRow[]>([]);
+    const [availableLines, setAvailableLines] = useState<Line[]>([]);
+
+    useEffect(() => {
+        if (isOpen && enterpriseId) {
+            fetch(`/dial/api/enterprises/${enterpriseId}/lines`)
+                .then(res => res.json())
+                .then((data: Line[]) => {
+                    const isGsm = (line: Line) => /^\d+$/.test(line.id);
+
+                    const sortedData = [...data].sort((a, b) => {
+                        const aIsGsm = isGsm(a);
+                        const bIsGsm = isGsm(b);
+
+                        if (aIsGsm && !bIsGsm) return -1;
+                        if (!aIsGsm && bIsGsm) return 1;
+                        
+                        const aId = parseInt(a.id.replace(/\D/g, ''), 10);
+                        const bId = parseInt(b.id.replace(/\D/g, ''), 10);
+                        return aId - bId;
+                    });
+                    setAvailableLines(sortedData);
+                })
+                .catch(error => console.error("Ошибка загрузки линий:", error));
+        }
+    }, [isOpen, enterpriseId]);
+    
+    useEffect(() => {
+        if (isOpen) {
+            const transformedData = (initialData || []).map((item, index) => ({
+                id: Date.now() + index,
+                selectedLine: item.line_id,
+                priority: item.priority.toString(),
+            }));
+            setTableRows(transformedData);
+        }
+    }, [initialData, isOpen]);
+
 
     if (!isOpen) {
         return null;
     }
 
     const handleAddRow = () => {
+        const maxPriority = tableRows.length > 0
+            ? Math.max(0, ...tableRows.map(row => parseInt(row.priority, 10)).filter(p => !isNaN(p)))
+            : 0;
         const newRow: TableRow = {
-            id: Date.now(), // Простое уникальное ID
+            id: Date.now(),
             selectedLine: '',
-            priority: '1',
+            priority: (maxPriority + 1).toString(),
         };
         setTableRows([...tableRows, newRow]);
     };
@@ -43,12 +92,19 @@ const ExternalNumberModal: React.FC<ExternalNumberModalProps> = ({
         setTableRows(tableRows.map(row => (row.id === id ? { ...row, [field]: value } : row)));
     };
     
-    const handleConfirm = () => {
-        // TODO: Добавить логику сохранения данных
-        console.log('Сохраняемые строки:', tableRows);
-        onConfirm();
+    const handleConfirmClick = () => {
+        const linesToSave = tableRows
+            .map(row => ({
+                line_id: row.selectedLine,
+                priority: parseInt(row.priority, 10),
+            }))
+            .filter(line => line.line_id && !isNaN(line.priority));
+        
+        onConfirm(linesToSave);
         onClose();
     };
+
+    const selectedLineIds = new Set(tableRows.map(row => row.selectedLine));
 
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -83,7 +139,19 @@ const ExternalNumberModal: React.FC<ExternalNumberModalProps> = ({
                                                 className="line-select"
                                             >
                                                 <option value="" disabled>Выберите линию...</option>
-                                                {/* TODO: Заполнить реальными данными */}
+                                                {availableLines.map(line => {
+                                                    const isSelected = selectedLineIds.has(line.id);
+                                                    const isCurrentlySelectedInThisRow = row.selectedLine === line.id;
+                                                    return (
+                                                        <option 
+                                                            key={line.id} 
+                                                            value={line.id} 
+                                                            disabled={isSelected && !isCurrentlySelectedInThisRow}
+                                                        >
+                                                            {line.display_name}
+                                                        </option>
+                                                    );
+                                                })}
                                             </select>
                                         </td>
                                         <td>
@@ -114,7 +182,7 @@ const ExternalNumberModal: React.FC<ExternalNumberModalProps> = ({
                 <div className="modal-footer">
                     <button onClick={onClose} className="btn-cancel">Отмена</button>
                     {onDelete && <button onClick={onDelete} className="btn-delete">Удалить узел</button>}
-                    <button onClick={handleConfirm} className="btn-confirm">Сохранить</button>
+                    <button onClick={handleConfirmClick} className="btn-confirm">Сохранить</button>
                 </div>
             </div>
         </div>
