@@ -683,42 +683,18 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         return nodes.find(n => n.type === 'outgoing-call');
     }, [nodes, isOutgoingSchema]);
 
-    const handleConfirmExternalNumber = () => {
+    const handleSaveExternalNumber = (lines: { line_id: string, priority: number }[]) => {
         if (!editingNode) return;
 
-        const parentNode = editingNode;
+        const newData = {
+            ...editingNode.data,
+            external_lines: lines,
+            // Обновляем иконку или другой индикатор, если нужно
+            hasExternalLines: lines.length > 0,
+        };
 
-        setNodes(nds => {
-            // 1. Убираем "+" у родительского узла
-            const updatedNodes = nds.map(n =>
-                n.id === parentNode.id
-                ? { ...n, data: { ...n.data, onAddClick: undefined } }
-                : n
-            );
-            
-            // 2. Создаем новый узел "Внешние линии" с надежным ID
-            const newId = Math.max(0, ...updatedNodes.map(n => parseInt(n.id, 10)).filter(id => !isNaN(id))) + 1;
-            const newNodeId = newId.toString();
-
-            const newNode: Node = {
-                id: newNodeId,
-                type: NodeType.Greeting,
-                position: { x: parentNode.position.x, y: parentNode.position.y + 120 },
-                data: { 
-                    label: 'Внешние линии',
-                },
-            };
-            
-            // 3. Создаем связь и возвращаем новый массив узлов
-            const newEdge: Edge = {
-                id: `e${parentNode.id}-${newNodeId}`,
-                source: parentNode.id,
-                target: newNodeId,
-            };
-            setEdges(eds => [...eds, newEdge]);
-            
-            return [...updatedNodes, newNode];
-        });
+        updateNodeData(editingNode.id, newData);
+        handleCloseModals();
     };
 
     const nodesWithCallbacks = React.useMemo(() => {
@@ -884,12 +860,14 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                     initialPatterns={editingNode?.data.patterns || []}
                 />
             )}
-            {isExternalNumberModalOpen && (
+            {isExternalNumberModalOpen && editingNode && (
                 <ExternalNumberModal
                     isOpen={isExternalNumberModalOpen}
                     onClose={handleCloseModals}
                     onDelete={handleDeleteNode}
-                    onConfirm={handleConfirmExternalNumber}
+                    onConfirm={handleSaveExternalNumber}
+                    enterpriseId={enterpriseId}
+                    initialData={editingNode.data.external_lines || []}
                 />
             )}
         </div>
