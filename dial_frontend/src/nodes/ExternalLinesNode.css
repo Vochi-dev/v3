@@ -1,0 +1,31 @@
+.external-lines-node {
+    background: #f0f8ff;
+    border: 1px solid #1a192b;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 12px;
+    min-width: 150px;
+    text-align: center;
+}
+
+.external-lines-node .node-header {
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.external-lines-node .line-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+}
+
+.external-lines-node .line-item {
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 4px 8px;
+    margin-top: 4px;
+    font-size: 11px;
+} 

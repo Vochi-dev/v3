@@ -17,6 +17,7 @@ import './SchemaEditor.css';
 import IncomingCallNode from './nodes/IncomingCallNode';
 import OutgoingCallNode from './nodes/OutgoingCallNode';
 import GenericNode from './nodes/GenericNode';
+import ExternalLinesNode from './nodes/ExternalLinesNode';
 // ИЗМЕНЕНИЕ: ManagerInfo теперь импортируется из единого источника.
 import { Schema, Line, ManagerInfo } from './types';
 import IncomingCallModal from './IncomingCallModal';
@@ -52,6 +53,7 @@ const nodeTypes = {
     [NodeType.WorkSchedule]: GenericNode,
     [NodeType.PatternCheck]: GenericNode,
     [NodeType.IVR]: GenericNode,
+    'externalLines': ExternalLinesNode,
 };
 
 const DAYS_OF_WEEK_ORDER = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
@@ -268,6 +270,9 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
             case NodeType.Start:
                 setIsLinesModalOpen(true);
                 break;
+            case 'externalLines':
+                setIsExternalNumberModalOpen(true);
+                break;
             case NodeType.Greeting:
                 if (isOutgoingSchema) {
                     // ИСПРАВЛЕНИЕ: Открываем модалку, если это узел "Внешние линии"
@@ -306,7 +311,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
 
             const newNode: Node = {
                 id: newNodeId,
-                type: NodeType.Greeting,
+                type: 'externalLines',
                 position: {
                     x: sourceNode.position.x,
                     y: sourceNode.position.y + 150,
@@ -780,13 +785,13 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         return nodes.find(n => n.type === 'outgoing-call');
     }, [nodes, isOutgoingSchema]);
 
-    const handleSaveExternalNumber = (lines: { line_id: string, priority: number }[]) => {
+    const handleSaveExternalNumber = (lines: { line_id: string, priority: number }[], allLinesFromModal: Line[]) => {
         if (!editingNode) return;
 
         const newData = {
             ...editingNode.data,
             external_lines: lines,
-            // Обновляем иконку или другой индикатор, если нужно
+            allLines: allLinesFromModal,
             hasExternalLines: lines.length > 0,
         };
 
@@ -814,9 +819,9 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                 onAddClick = undefined;
             }
 
-            return { ...node, data: { ...node.data, onAddClick } };
+            return { ...node, data: { ...node.data, onAddClick, allLines: node.data.allLines || allLines } };
         });
-    }, [nodes, edges]);
+    }, [nodes, edges, allLines]);
 
     return (
         <div className="schema-editor-container">
