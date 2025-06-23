@@ -653,7 +653,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
             const newEdges: Edge[] = [];
             
             const parentPosition = parentNode.position || { x: 0, y: 0 };
-            const horizontalOffset = 200;
+            const horizontalOffset = 300;
             const yOffset = 180;
             const totalWidth = (newPatterns.length - 1) * horizontalOffset;
             const startX = parentPosition.x - totalWidth / 2;
