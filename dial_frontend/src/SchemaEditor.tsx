@@ -516,89 +516,102 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
     };
 
     const handleConfirmWorkSchedule = (periods: SchedulePeriod[]) => {
-        const parentNodeFromAction = sourceNodeForAction ? sourceNodeForAction.node : null;
-        const parentNode = editingNode || parentNodeFromAction;
+        const parentNode = editingNode;
         if (!parentNode) return;
-    
-        let nextNodes = [...nodes];
-        let nextEdges = [...edges];
-        let workScheduleNode: Node | undefined;
-    
-        if (editingNode) {
-            workScheduleNode = editingNode;
-            const updatedData = {
-                label: workScheduleNode.data.label,
-                periods: periods.map(p => ({...p, days: Array.from(p.days)})),
-                onAddClick: undefined
-            };
-            nextNodes = nextNodes.map(n => n.id === editingNode.id ? { ...n, data: updatedData } : n);
-        } else if (parentNodeFromAction) {
-            const rule = getNodeRule(NodeType.WorkSchedule)!;
-            const newNodeId = (Math.max(0, ...nextNodes.map(n => parseInt(n.id, 10))) + 1).toString();
-            
-            workScheduleNode = {
-                id: newNodeId,
-                type: NodeType.WorkSchedule,
-                position: { x: parentNodeFromAction.position.x, y: parentNodeFromAction.position.y + 150 },
-                data: { 
-                    label: rule.name,
-                    periods: periods.map(p => ({ ...p, days: Array.from(p.days) })),
-                    onAddClick: undefined
-                },
-            };
-            nextNodes.push(workScheduleNode);
-    
-            const newEdge: Edge = { id: `e${parentNodeFromAction.id}-${workScheduleNode.id}`, source: parentNodeFromAction.id, target: workScheduleNode.id };
-            nextEdges.push(newEdge);
+
+        // 1. Создаем Set с лейблами для НОВОГО состояния (из модального окна)
+        const newLabels = new Set(periods.map(period => {
+            const daysLabel = formatDays(period.days);
+            return `${daysLabel} ${period.startTime}-${period.endTime}`;
+        }));
+        newLabels.add('Остальное время');
+
+        // 2. Находим СТАРЫХ непосредственных детей и создаем карту "лейбл -> узел"
+        const oldChildEdges = edges.filter(e => e.source === parentNode.id);
+        const oldChildren = oldChildEdges.map(edge => nodes.find(n => n.id === edge.target)).filter((n): n is Node => !!n);
+        const oldChildrenMap = new Map(oldChildren.map(n => [n.data.label, n]));
+
+        // 3. Определяем, какие ветки нужно удалить
+        const labelsToDelete = [...oldChildrenMap.keys()].filter(label => !newLabels.has(label));
+        const nodesToDelete = labelsToDelete.map(label => oldChildrenMap.get(label)!).filter(Boolean);
+
+        // 4. Рекурсивно собираем ID всех узлов в удаляемых ветках
+        const idsToDelete = new Set<string>();
+        const queue: Node[] = [...nodesToDelete];
+        nodesToDelete.forEach(n => idsToDelete.add(n.id));
+
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            const childrenOfCurrent = edges
+                .filter(e => e.source === current.id)
+                .map(e => nodes.find(n => n.id === e.target))
+                .filter((n): n is Node => !!n);
+
+            for (const child of childrenOfCurrent) {
+                if (!idsToDelete.has(child.id)) {
+                    idsToDelete.add(child.id);
+                    queue.push(child);
+                }
+            }
         }
-    
-        if (!workScheduleNode) return;
-    
-        const childEdges = nextEdges.filter(e => e.source === workScheduleNode!.id);
-        const childNodeIds = new Set(childEdges.map(e => e.target));
-        nextEdges = nextEdges.filter(e => e.source !== workScheduleNode!.id);
-        let finalNodes = nextNodes.filter(n => !childNodeIds.has(n.id));
-    
-        let lastNodeId = Math.max(0, ...nodes.map(n => parseInt(n.id, 10)), ...finalNodes.map(n => parseInt(n.id, 10)));
-        const parentPos = workScheduleNode.position;
+
+        // 5. Фильтруем узлы и связи, удаляя помеченные ветки
+        let finalNodes = nodes.filter(n => !idsToDelete.has(n.id));
+        let finalEdges = edges.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target));
+
+        // 6. Обновляем данные в самом узле "График работы"
+        finalNodes = finalNodes.map(n => 
+            n.id === parentNode.id 
+            ? { ...n, data: { ...parentNode.data, periods: periods.map(p => ({ ...p, days: Array.from(p.days) })) } } 
+            : n
+        );
+
+        // 7. Готовимся к перерисовке/добавлению дочерних узлов
+        const preservedChildren = oldChildren.filter(child => newLabels.has(child.data.label));
+        const allFinalChildrenLabels = periods.map(p => `${formatDays(p.days)} ${p.startTime}-${p.endTime}`);
+        allFinalChildrenLabels.push('Остальное время');
+
+        let lastNodeId = Math.max(0, ...nodes.map(n => parseInt(n.id, 10) || 0));
+        const parentPos = parentNode.position;
         const horizontalSpacing = 280;
         const verticalSpacing = 120;
-        const totalWidth = horizontalSpacing * (periods.length + 1);
+        const totalWidth = horizontalSpacing * allFinalChildrenLabels.length;
         const startX = parentPos.x - totalWidth / 2 + horizontalSpacing / 2;
-    
-        periods.forEach((period, index) => {
-            lastNodeId++;
-            const newNodeId = lastNodeId.toString();
-            const daysLabel = formatDays(period.days);
-            const label = `${daysLabel} ${period.startTime}-${period.endTime}`;
-            
-            const newNode: Node = {
-                id: newNodeId,
-                type: NodeType.IVR,
-                position: { x: startX + index * horizontalSpacing, y: parentPos.y + verticalSpacing },
-                data: { label, onAddClick: handleAddNodeClick, isSingleOutput: true },
-            };
-            finalNodes.push(newNode);
-            nextEdges.push({ id: `e${workScheduleNode!.id}-${newNodeId}`, source: workScheduleNode!.id, target: newNodeId });
+        
+        const preservedChildrenMap = new Map(preservedChildren.map(n => [n.data.label, n]));
+        const nodesToAdd: Node[] = [];
+        const edgesToAdd: Edge[] = [];
+        
+        // 8. Проходим по ВСЕМ финальным лейблам, чтобы расставить узлы по порядку
+        allFinalChildrenLabels.forEach((label, index) => {
+            const existingChild = preservedChildrenMap.get(label);
+            const newPosition = { x: startX + index * horizontalSpacing, y: parentPos.y + verticalSpacing };
+
+            if (existingChild) {
+                // Если узел уже есть (сохранился), просто обновляем его позицию
+                finalNodes = finalNodes.map(n => n.id === existingChild.id ? { ...n, position: newPosition } : n);
+            } else {
+                // Если узла нет, создаем новый
+                lastNodeId++;
+                const newNodeId = lastNodeId.toString();
+                const newNode: Node = {
+                    id: newNodeId,
+                    type: NodeType.IVR,
+                    position: newPosition,
+                    data: { label, onAddClick: handleAddNodeClick, isSingleOutput: true },
+                };
+                nodesToAdd.push(newNode);
+                edgesToAdd.push({ id: `e${parentNode.id}-${newNodeId}`, source: parentNode.id, target: newNodeId });
+            }
         });
-    
-        lastNodeId++;
-        const elseNodeId = lastNodeId.toString();
-        const elseNode: Node = {
-            id: elseNodeId,
-            type: NodeType.IVR,
-            position: { x: startX + periods.length * horizontalSpacing, y: parentPos.y + verticalSpacing },
-            data: { label: 'Остальное время', onAddClick: handleAddNodeClick, isSingleOutput: true },
-        };
-        finalNodes.push(elseNode);
-        nextEdges.push({ id: `e${workScheduleNode!.id}-${elseNodeId}`, source: workScheduleNode!.id, target: elseNodeId });
-    
-        setNodes(finalNodes);
-        setEdges(nextEdges);
-    
+
+        // 9. Устанавливаем финальное состояние
+        setNodes([...finalNodes, ...nodesToAdd]);
+        setEdges([...finalEdges, ...edgesToAdd]);
+
+        // 10. Закрываем модальное окно
         setIsWorkScheduleModalOpen(false);
         setEditingNode(null);
-        setSourceNodeForAction(null);
     };
 
     const handleConfirmGreeting = (greetingData: any) => {
