@@ -930,7 +930,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                     </div>
                 ) : (
                     <div style={{ marginTop: '-40px', paddingLeft: '700px' }}>
-                        <h4 style={{ margin: '0', fontSize: '1em', color: '#555' }}>Используются линии:</h4>
+                        <h4 style={{ margin: '0', fontSize: '1em', color: '#555' }}>Используются линиями:</h4>
                         {assignedLines.map(line => (
                             <div key={line.id} style={{ fontSize: '0.9em', color: '#666' }}>{line.display_name}</div>
                         ))}
