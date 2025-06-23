@@ -70,6 +70,7 @@ const DialModal: React.FC<DialModalProps> = ({
             managers: managers,
             holdMusic: holdMusic,
             waitTime: waitTime,
+            waitingRings: waitingRings,
         });
     };
 
