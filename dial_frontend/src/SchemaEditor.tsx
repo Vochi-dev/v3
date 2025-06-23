@@ -430,6 +430,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
             label: rule.name,
             onAddClick: handleAddNodeClick,
         };
+        let initialManagers: ManagerInfo[] = [];
 
         // 2. HACK: Особая логика для "Внешних линий"
         if (isOutgoingSchema && type === NodeType.Greeting && sourceNodeForAction.type === NodeType.Dial) {
@@ -440,6 +441,18 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                 onAddClick: undefined // Сразу делаем тупиковым
             };
         }
+
+        // --- НАЧАЛО: Логика наследования для узла "Звонок на список" ---
+        if (type === NodeType.Dial && parentNode.type === NodeType.Dial) {
+            const parentData = parentNode.data;
+            if (parentData.managers) {
+                initialManagers = parentData.managers.filter((m: ManagerInfo) => m.phone && m.phone.length <= 4);
+            }
+            if (parentData.holdMusic) {
+                nodeData.holdMusic = parentData.holdMusic;
+            }
+        }
+        // --- КОНЕЦ: Логика наследования ---
 
         // 3. Создаем новый узел
         const newNode: Node = {
@@ -473,7 +486,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         setIsNodeActionModalOpen(false);
         switch (type) {
             case NodeType.Dial:
-                setDialManagers([]);
+                setDialManagers(initialManagers);
                 setIsDialModalOpen(true);
                 break;
             case NodeType.Greeting:
