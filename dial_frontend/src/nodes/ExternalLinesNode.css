@@ -1,16 +1,19 @@
 .external-lines-node {
-    background: #f0f8ff;
-    border: 1px solid #1a192b;
-    border-radius: 5px;
-    padding: 10px;
-    font-size: 12px;
-    min-width: 150px;
+    border: 2px solid #63B3ED;
+    border-radius: 0;
+    padding: 15px;
+    background: white;
+    font-size: 1rem;
+    font-weight: 500;
+    position: relative;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    min-width: 170px;
     text-align: center;
 }
 
 .external-lines-node .node-header {
     font-weight: bold;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     color: #333;
 }
 
@@ -19,13 +22,14 @@
     padding: 0;
     margin: 0;
     text-align: left;
+    font-size: 0.8rem;
+    font-weight: 400;
 }
 
 .external-lines-node .line-item {
-    background: #ffffff;
-    border: 1px solid #ddd;
+    background: #f9f9f9;
+    border: 1px solid #eee;
     border-radius: 3px;
-    padding: 4px 8px;
-    margin-top: 4px;
-    font-size: 11px;
+    padding: 5px 8px;
+    margin-top: 5px;
 } 
