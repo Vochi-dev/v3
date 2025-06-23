@@ -129,7 +129,11 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
 
     const handleDeleteClick = () => {
         if (hasAssignedLines) {
-            alert("Нельзя удалить схему, пока к ней привязаны линии. Сначала отвяжите их в узле 'Поступил новый звонок'.");
+            if (isOutgoingSchema) {
+                alert("Нельзя удалить схему, пока к ней привязаны менеджеры. Сначала отвяжите их в узле 'Исходящий звонок'.");
+            } else {
+                alert("Нельзя удалить схему, пока к ней привязаны линии. Сначала отвяжите их в узле 'Поступил новый звонок'.");
+            }
             return;
         }
 
@@ -890,7 +894,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                 />
                 {isOutgoingSchema ? (
                     <div style={{ marginTop: '-40px', paddingLeft: '700px' }}>
-                        <h4 style={{ margin: '0', fontSize: '1em', color: '#555' }}>Используются линии:</h4>
+                        <h4 style={{ margin: '0', fontSize: '1em', color: '#555' }}>Используется менеджерами:</h4>
                         {outgoingCallNode?.data?.phones_details && outgoingCallNode.data.phones_details.length > 0 ? (
                             outgoingCallNode.data.phones_details.sort((a: any, b: any) => a.phone_number.localeCompare(b.phone_number, undefined, { numeric: true })).map((phone: any) => {
                                 const nameParts = phone.full_name?.split(' ') || [];
