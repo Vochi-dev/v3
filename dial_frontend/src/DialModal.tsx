@@ -8,6 +8,12 @@ interface MusicFile {
     display_name: string;
 }
 
+interface HoldMusicInfo {
+    type: 'default' | 'none' | 'custom';
+    id?: number;
+    name?: string;
+}
+
 interface DialModalProps {
     enterpriseId: string;
     onClose: () => void;
@@ -16,7 +22,11 @@ interface DialModalProps {
     onDelete: () => void;
     onRemoveManager: (index: number) => void;
     managers: ManagerInfo[];
-    initialData?: any;
+    initialData?: {
+        holdMusic?: HoldMusicInfo;
+        waitingRings?: number;
+        [key: string]: any;
+    };
 }
 
 const DialModal: React.FC<DialModalProps> = ({ 
@@ -29,18 +39,26 @@ const DialModal: React.FC<DialModalProps> = ({
     managers,
     initialData 
 }) => {
-    const [musicOption, setMusicOption] = useState('default');
+    const [musicOption, setMusicOption] = useState<'default' | 'none' | 'custom'>('default');
     const [isMusicModalOpen, setMusicModalOpen] = useState(false);
     const [selectedMusicFile, setSelectedMusicFile] = useState<MusicFile | null>(null);
     const [waitingRings, setWaitingRings] = useState(3);
-    const [holdMusic, setHoldMusic] = useState<{ id: string, name: string } | null>(null);
-    const [waitTime, setWaitTime] = useState(5);
 
     useEffect(() => {
         if (initialData) {
-            setHoldMusic(initialData.holdMusic || null);
-            setWaitTime(initialData.waitTime || 5);
-            // Менеджеры устанавливаются из `SchemaEditor`
+            setWaitingRings(initialData.waitingRings || 3);
+            if (initialData.holdMusic) {
+                const music = initialData.holdMusic;
+                setMusicOption(music.type || 'default');
+                if (music.type === 'custom' && music.id && music.name) {
+                    setSelectedMusicFile({ id: music.id, display_name: music.name });
+                } else {
+                    setSelectedMusicFile(null);
+                }
+            } else {
+                setMusicOption('default');
+                setSelectedMusicFile(null);
+            }
         }
     }, [initialData]);
 
@@ -65,11 +83,17 @@ const DialModal: React.FC<DialModalProps> = ({
             alert("Нельзя сохранить узел 'Звонок на список' без сотрудников. Добавьте хотя бы одного сотрудника.");
             return;
         }
+        
+        let holdMusicData: HoldMusicInfo | null = { type: 'default' };
+        if (musicOption === 'custom' && selectedMusicFile) {
+            holdMusicData = { type: 'custom', id: selectedMusicFile.id, name: selectedMusicFile.display_name };
+        } else if (musicOption === 'none') {
+            holdMusicData = { type: 'none' };
+        }
 
         onConfirm({
             managers: managers,
-            holdMusic: holdMusic,
-            waitTime: waitTime,
+            holdMusic: holdMusicData,
             waitingRings: waitingRings,
         });
     };
@@ -122,7 +146,7 @@ const DialModal: React.FC<DialModalProps> = ({
                                 name="music"
                                 value="default"
                                 checked={musicOption === 'default'}
-                                onChange={(e) => setMusicOption(e.target.value)}
+                                onChange={(e) => setMusicOption(e.target.value as 'default')}
                             />
                             <label htmlFor="music-default">По умолчанию</label>
                         </div>
@@ -133,7 +157,7 @@ const DialModal: React.FC<DialModalProps> = ({
                                 name="music"
                                 value="none"
                                 checked={musicOption === 'none'}
-                                onChange={(e) => setMusicOption(e.target.value)}
+                                onChange={(e) => setMusicOption(e.target.value as 'none')}
                             />
                             <label htmlFor="music-none">Без музыки</label>
                         </div>
@@ -144,7 +168,7 @@ const DialModal: React.FC<DialModalProps> = ({
                                 name="music"
                                 value="custom"
                                 checked={musicOption === 'custom'}
-                                onChange={(e) => setMusicOption(e.target.value)}
+                                onChange={(e) => setMusicOption(e.target.value as 'custom')}
                             />
                             <label htmlFor="music-custom">Своя</label>
                             {musicOption === 'custom' && (
