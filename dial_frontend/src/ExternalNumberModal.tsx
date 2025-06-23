@@ -89,17 +89,17 @@ const ExternalNumberModal: React.FC<ExternalNumberModalProps> = ({
     };
     
     const handleConfirmClick = () => {
-        const linesToSave = tableRows
-            .map(row => ({
-                line_id: row.selectedLine,
-                priority: parseInt(row.priority, 10),
-            }))
-            .filter(line => line.line_id && !isNaN(line.priority));
-        
-        if (linesToSave.length === 0) {
+        const validRows = tableRows.filter(row => row.selectedLine);
+
+        if (validRows.length === 0) {
             alert("Необходимо выбрать хотя бы одну внешнюю линию");
             return;
         }
+        
+        const linesToSave = validRows.map((row, index) => ({
+            line_id: row.selectedLine,
+            priority: index + 1,
+        }));
 
         onConfirm(linesToSave, availableLines);
         onClose();
