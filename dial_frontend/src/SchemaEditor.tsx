@@ -892,11 +892,15 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                     <div style={{ marginTop: '-40px', paddingLeft: '700px' }}>
                         <h4 style={{ margin: '0', fontSize: '1em', color: '#555' }}>Используются линии:</h4>
                         {outgoingCallNode?.data?.phones_details && outgoingCallNode.data.phones_details.length > 0 ? (
-                            outgoingCallNode.data.phones_details.sort((a: any, b: any) => a.phone_number.localeCompare(b.phone_number, undefined, { numeric: true })).map((phone: any) => (
-                                <div key={phone.phone_number} style={{ fontSize: '0.9em', color: '#666' }}>
-                                    {phone.phone_number} - {phone.full_name || 'Не назначен'}
-                                </div>
-                            ))
+                            outgoingCallNode.data.phones_details.sort((a: any, b: any) => a.phone_number.localeCompare(b.phone_number, undefined, { numeric: true })).map((phone: any) => {
+                                const nameParts = phone.full_name?.split(' ') || [];
+                                const reversedName = nameParts.length > 1 ? [nameParts[1], nameParts[0]].join(' ') : phone.full_name;
+                                return (
+                                    <div key={phone.phone_number} style={{ fontSize: '0.9em', color: '#666' }}>
+                                        {phone.phone_number} - {reversedName || 'Не назначен'}
+                                    </div>
+                                );
+                            })
                         ) : (
                             <span style={{ fontSize: '0.9em', color: '#666' }}>Номера не выбраны</span>
                         )}
