@@ -42,11 +42,11 @@ const DialModal: React.FC<DialModalProps> = ({
     const [musicOption, setMusicOption] = useState<'default' | 'none' | 'custom'>('default');
     const [isMusicModalOpen, setMusicModalOpen] = useState(false);
     const [selectedMusicFile, setSelectedMusicFile] = useState<MusicFile | null>(null);
-    const [waitingRings, setWaitingRings] = useState(3);
+    const [waitingRings, setWaitingRings] = useState<number | ''>(3);
 
     useEffect(() => {
         if (initialData) {
-            setWaitingRings(initialData.waitingRings || 3);
+            setWaitingRings(initialData.waitingRings !== undefined ? initialData.waitingRings : 3);
             if (initialData.holdMusic) {
                 const music = initialData.holdMusic;
                 setMusicOption(music.type || 'default');
@@ -67,15 +67,22 @@ const DialModal: React.FC<DialModalProps> = ({
     };
 
     const handleWaitingRingsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = parseInt(e.target.value, 10);
-        if (isNaN(value)) {
-            value = 1; // или setWaitingRings('')
-        } else if (value < 1) {
-            value = 1;
-        } else if (value > 15) {
-            value = 15;
+        const rawValue = e.target.value;
+        if (rawValue === '') {
+            setWaitingRings('');
+            return;
         }
-        setWaitingRings(value);
+        const value = parseInt(rawValue, 10);
+        if (!isNaN(value)) {
+            if (value > 15) {
+                setWaitingRings(15);
+            } else if (value < 0) {
+                setWaitingRings(1);
+            }
+            else {
+                setWaitingRings(value);
+            }
+        }
     };
 
     const handleConfirm = () => {
@@ -84,6 +91,15 @@ const DialModal: React.FC<DialModalProps> = ({
             return;
         }
         
+        const rings = (waitingRings === '' || (typeof waitingRings === 'number' && waitingRings < 1)) ? 3 : waitingRings;
+
+        const hasExternalNumber = managers.some(manager => manager.phone && manager.phone.length > 4);
+        let finalWaitingRings = rings;
+
+        if (hasExternalNumber && (typeof rings === 'number' && rings < 6)) {
+            finalWaitingRings = 6;
+        }
+
         let holdMusicData: HoldMusicInfo | null = { type: 'default' };
         if (musicOption === 'custom' && selectedMusicFile) {
             holdMusicData = { type: 'custom', id: selectedMusicFile.id, name: selectedMusicFile.display_name };
@@ -94,7 +110,7 @@ const DialModal: React.FC<DialModalProps> = ({
         onConfirm({
             managers: managers,
             holdMusic: holdMusicData,
-            waitingRings: waitingRings,
+            waitingRings: finalWaitingRings,
         });
     };
 
