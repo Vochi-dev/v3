@@ -6,6 +6,7 @@ import './DialNode.css';
 interface DialNodeData {
     label: string;
     managers?: ManagerInfo[];
+    waitingRings?: number;
     onAddClick?: (nodeId: string, nodeType: string) => void;
 }
 
@@ -19,12 +20,13 @@ const formatName = (fullName: string | undefined | null): string => {
 
 const DialNode: React.FC<NodeProps<DialNodeData>> = ({ id, type, data }) => {
     const hasManagers = data.managers && data.managers.length > 0;
+    const nodeLabel = data.waitingRings ? `${data.label} (${data.waitingRings}г)` : data.label;
 
     return (
         <div className="dial-node">
             <Handle type="target" position={Position.Top} className="react-flow__handle" />
             <div className="node-content">
-                <div className="node-label">{data.label}</div>
+                <div className="node-label">{nodeLabel}</div>
                 {hasManagers && (
                     <div className="managers-list">
                         {data.managers?.map((manager, index) => (
