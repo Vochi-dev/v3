@@ -256,6 +256,25 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                    throw new Error('Ошибка привязки линий');
                 }
             }
+            // >>> НАЧАЛО: Вызов сервиса генерации конфига
+            if (isOutgoingSchema && savedSchema && savedSchema.schema_id) {
+                try {
+                    console.log(`Вызов генерации конфига для предприятия: ${enterpriseId}`);
+                    const genRes = await fetch('/plan/generate_config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ enterprise_id: enterpriseId })
+                    });
+                    if (!genRes.ok) {
+                        console.error("Ошибка при вызове сервиса генерации конфигурации.");
+                    } else {
+                        console.log("Сервис генерации успешно вызван.");
+                    }
+                } catch (genError) {
+                    console.error("Критическая ошибка при вызове fetch к сервису генерации:", genError);
+                }
+            }
+            // <<< КОНЕЦ: Вызов сервиса генерации конфига
             onCancel();
         } catch (error) {
             console.error("Failed to save schema or assign lines:", error);
