@@ -131,21 +131,26 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({ enterpriseId, onClose
                     </tr>
                 </thead>
                 <tbody>
-                    {sortedNumbers.map((item) => (
-                        <tr key={item.phone_number}>
-                            <td>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedPhones.has(item.phone_number)}
-                                    onChange={() => handleToggle(item.phone_number)}
-                                />
-                            </td>
-                            <td>{item.phone_number}</td>
-                            <td className={!item.full_name ? 'unassigned-user' : ''}>
-                                {item.full_name || 'Не назначен'}
-                            </td>
-                        </tr>
-                    ))}
+                    {sortedNumbers.map((item) => {
+                        const nameParts = item.full_name?.split(' ') || [];
+                        const reversedName = nameParts.length > 1 ? [nameParts[1], nameParts[0]].join(' ') : item.full_name;
+
+                        return (
+                            <tr key={item.phone_number}>
+                                <td>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedPhones.has(item.phone_number)}
+                                        onChange={() => handleToggle(item.phone_number)}
+                                    />
+                                </td>
+                                <td>{item.phone_number}</td>
+                                <td className={!item.full_name ? 'unassigned-user' : ''}>
+                                    {reversedName || 'Не назначен'}
+                                </td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
         );

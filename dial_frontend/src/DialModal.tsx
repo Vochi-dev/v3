@@ -134,17 +134,22 @@ const DialModal: React.FC<DialModalProps> = ({
                                 </tr>
                             </thead>
                             <tbody>
-                                {managers.map((manager, index) => (
-                                    <tr key={`${manager.phone}-${index}`}>
-                                        <td className="name-column">{manager.name || 'Не назначен'}</td>
-                                        <td className="phone-column">{manager.phone}</td>
-                                        <td className="action-column">
-                                            <button className="remove-manager-button" onClick={() => onRemoveManager(index)}>
-                                                &times;
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {managers.map((manager, index) => {
+                                    const nameParts = manager.name?.split(' ') || [];
+                                    const reversedName = nameParts.length > 1 ? [nameParts[1], nameParts[0]].join(' ') : manager.name;
+
+                                    return (
+                                        <tr key={`${manager.phone}-${index}`}>
+                                            <td className="name-column">{reversedName || 'Не назначен'}</td>
+                                            <td className="phone-column">{manager.phone}</td>
+                                            <td className="action-column">
+                                                <button className="remove-manager-button" onClick={() => onRemoveManager(index)}>
+                                                    &times;
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
