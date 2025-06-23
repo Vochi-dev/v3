@@ -19,6 +19,7 @@ import OutgoingCallNode from './nodes/OutgoingCallNode';
 import GenericNode from './nodes/GenericNode';
 import ExternalLinesNode from './nodes/ExternalLinesNode';
 import DialNode from './nodes/DialNode';
+import GreetingNode from './nodes/GreetingNode';
 // ИЗМЕНЕНИЕ: ManagerInfo теперь импортируется из единого источника.
 import { Schema, Line, ManagerInfo } from './types';
 import IncomingCallModal from './IncomingCallModal';
@@ -49,7 +50,7 @@ interface SchemaEditorWithProviderProps extends SchemaEditorProps {
 const nodeTypes = {
     [NodeType.Start]: IncomingCallNode,
     'outgoing-call': OutgoingCallNode,
-    [NodeType.Greeting]: GenericNode,
+    [NodeType.Greeting]: GreetingNode,
     [NodeType.Dial]: DialNode,
     [NodeType.WorkSchedule]: GenericNode,
     [NodeType.PatternCheck]: GenericNode,
@@ -432,17 +433,17 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         };
         let initialManagers: ManagerInfo[] = [];
 
-        // 2. HACK: Особая логика для "Внешних линий"
+        // ИСПРАВЛЕНИЕ: Добавлена проверка на isOutgoingSchema, чтобы в исходящей схеме
+        // после "Звонка на список" создавался специальный узел "Внешние линии"
         if (isOutgoingSchema && type === NodeType.Greeting && sourceNodeForAction.type === NodeType.Dial) {
-            console.log("Обнаружен особый случай: 'Внешние линии'.");
-            nodeData = {
+             nodeData = {
                 label: 'Внешние линии',
                 external_lines: [],
-                onAddClick: undefined // Сразу делаем тупиковым
+                onAddClick: undefined // У этого узла нет кнопки "+"
             };
         }
 
-        // --- НАЧАЛО: Логика наследования для узла "Звонок на список" ---
+        // Логика наследования для узла "Звонок на список"
         if (type === NodeType.Dial && parentNode.type === NodeType.Dial) {
             const parentData = parentNode.data;
             if (parentData.managers) {
@@ -452,7 +453,6 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                 nodeData.holdMusic = parentData.holdMusic;
             }
         }
-        // --- КОНЕЦ: Логика наследования ---
 
         // 3. Создаем новый узел
         const newNode: Node = {
