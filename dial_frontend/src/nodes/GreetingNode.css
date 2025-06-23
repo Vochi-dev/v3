@@ -1,0 +1,47 @@
+.greeting-node {
+    border: 2px solid #63B3ED;
+    border-radius: 0;
+    padding: 15px;
+    background: white;
+    font-size: 1rem;
+    font-weight: 500;
+    text-align: center;
+    width: 200px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.greeting-node .react-flow__handle {
+    background: #555;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid white;
+}
+
+.greeting-node .node-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.greeting-node .node-label {
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #333;
+    font-size: 1rem;
+}
+
+.greeting-node .greeting-name {
+    background-color: #f9f9f9;
+    border-radius: 3px;
+    padding: 4px 8px;
+    margin-top: 8px;
+    font-size: 0.8rem;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    box-sizing: border-box;
+} 
