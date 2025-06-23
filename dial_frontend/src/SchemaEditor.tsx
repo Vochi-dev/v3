@@ -257,28 +257,39 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                 }
             }
             // >>> НАЧАЛО: Вызов сервиса генерации конфига
-            if (isOutgoingSchema && savedSchema && savedSchema.schema_id) {
-                try {
-                    console.log(`Вызов генерации конфига для предприятия: ${enterpriseId}`);
-                    const genRes = await fetch('/plan/generate_config', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ enterprise_id: enterpriseId })
-                    });
-                    if (!genRes.ok) {
-                        console.error("Ошибка при вызове сервиса генерации конфигурации.");
-                    } else {
-                        console.log("Сервис генерации успешно вызван.");
-                    }
-                } catch (genError) {
-                    console.error("Критическая ошибка при вызове fetch к сервису генерации:", genError);
+            alert('Схема успешно сохранена!');
+            
+            // Запускаем генерацию конфига для ЛЮБОЙ схемы (и входящей, и исходящей)
+            try {
+                const planResponse = await fetch('/plan/generate_config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        enterprise_id: enterpriseId,
+                        schema_id: savedSchema.schema_id // Передаем ID сохраненной схемы
+                    }),
+                });
+
+                if (!planResponse.ok) {
+                    const errorData = await planResponse.json();
+                    throw new Error(errorData.detail || 'Failed to generate plan config');
                 }
+
+                const planResult = await planResponse.json();
+                console.log('Plan generation result:', planResult.message);
+
+            } catch (error: any) {
+                // Уведомляем пользователя об ошибке, но не прерываем основной процесс
+                console.error('Error generating plan config:', error);
+                alert(`Не удалось сгенерировать конфигурационный файл: ${error.message}`);
             }
             // <<< КОНЕЦ: Вызов сервиса генерации конфига
             onCancel();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to save schema or assign lines:", error);
-            alert("Не удалось сохранить схему или привязать линии.");
+            alert(`Не удалось сохранить схему или привязать линии: ${error.message}`);
         } finally {
             setIsLoading(false);
         }
