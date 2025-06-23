@@ -18,6 +18,7 @@ import IncomingCallNode from './nodes/IncomingCallNode';
 import OutgoingCallNode from './nodes/OutgoingCallNode';
 import GenericNode from './nodes/GenericNode';
 import ExternalLinesNode from './nodes/ExternalLinesNode';
+import DialNode from './nodes/DialNode';
 // ИЗМЕНЕНИЕ: ManagerInfo теперь импортируется из единого источника.
 import { Schema, Line, ManagerInfo } from './types';
 import IncomingCallModal from './IncomingCallModal';
@@ -49,7 +50,7 @@ const nodeTypes = {
     [NodeType.Start]: IncomingCallNode,
     'outgoing-call': OutgoingCallNode,
     [NodeType.Greeting]: GenericNode,
-    [NodeType.Dial]: GenericNode,
+    [NodeType.Dial]: DialNode,
     [NodeType.WorkSchedule]: GenericNode,
     [NodeType.PatternCheck]: GenericNode,
     [NodeType.IVR]: GenericNode,
@@ -395,6 +396,33 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         const rule = getNodeRule(type)!;
         
         console.log("Родительский узел:", parentNode);
+
+        // --- НАЧАЛО: Улучшенная логика расчета позиции ---
+        const margin = 50; // Пространство между узлами
+
+        // Находим все существующие дочерние узлы родителя (сиблинги для нового узла)
+        const siblingEdges = edges.filter(e => e.source === parentNode.id);
+        const siblingNodes = siblingEdges
+            .map(e => nodes.find(n => n.id === e.target))
+            .filter((n): n is Node => !!n);
+
+        let yPos;
+
+        if (siblingNodes.length > 0) {
+            // Если сиблинги есть, находим самую нижнюю точку среди них
+            const lowestPoint = siblingNodes.reduce((maxBottom, node) => {
+                // Используем реальную высоту узла, если она доступна, или запасное значение 150
+                const nodeBottom = node.position.y + (node.height || 150);
+                return Math.max(maxBottom, nodeBottom);
+            }, -Infinity); // Начинаем с минус бесконечности для корректного сравнения
+            
+            yPos = lowestPoint + margin;
+        } else {
+            // Если сиблингов нет, позиционируем узел под родителем
+            const parentBottom = parentNode.position.y + (parentNode.height || 75); // Запасная высота для родителя 75
+            yPos = parentBottom + margin;
+        }
+        // --- КОНЕЦ: Улучшенная логика расчета позиции ---
         
         // 1. Определяем ID и базовые данные для нового узла
         const newNodeId = (Math.max(0, ...nodes.map(n => parseInt(n.id, 10))) + 1).toString();
@@ -404,7 +432,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         };
 
         // 2. HACK: Особая логика для "Внешних линий"
-        if (type === NodeType.Greeting && sourceNodeForAction.type === NodeType.Dial) {
+        if (isOutgoingSchema && type === NodeType.Greeting && sourceNodeForAction.type === NodeType.Dial) {
             console.log("Обнаружен особый случай: 'Внешние линии'.");
             nodeData = {
                 label: 'Внешние линии',
@@ -419,7 +447,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
             type: type,
             position: {
                 x: parentNode.position.x,
-                y: parentNode.position.y + 150,
+                y: yPos, // Используем вычисленную позицию
             },
             data: nodeData,
         };
