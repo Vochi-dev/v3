@@ -96,6 +96,11 @@ const ExternalNumberModal: React.FC<ExternalNumberModalProps> = ({
             }))
             .filter(line => line.line_id && !isNaN(line.priority));
         
+        if (linesToSave.length === 0) {
+            alert("Необходимо выбрать хотя бы одну внешнюю линию");
+            return;
+        }
+
         onConfirm(linesToSave, availableLines);
         onClose();
     };
