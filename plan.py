@@ -281,19 +281,7 @@ async def generate_config(request: GenerateConfigRequest):
 
         # --- Generation ---
         
-        # [dialexecute]
-        dialexecute_lines = [
-            "[dialexecute]",
-            "exten => _XXX,1,NoOp(Local call to ${EXTEN})",
-            "same => n,MixMonitor(${UNIQUEID}.wav)",
-            "same => n,NoOp(LOCALCALL=========================================================)",
-            "same => n,Macro(localcall_start,${EXTEN})",
-            "same => n,NoOp(LOCALCALL======================================================END)",
-            "same => n,Dial(SIP/${EXTEN},,tTkK)",
-            "exten => _XXXX.,1,NoOp(Call to ${EXTEN} from ${CHANNEL(name):4:3}) and ${CALLERID(num)})",
-        ]
-        
-        # Manager rules
+        all_managers_routing = {}
         for r in schema_records:
             schema = {"id": r['schema_id'], "data": json.loads(r['schema_data'])}
             start_node = get_node_by_id(schema['data']['nodes'], 'start-outgoing')
@@ -305,8 +293,24 @@ async def generate_config(request: GenerateConfigRequest):
             
             target_context = generate_context_name(schema['id'], first_node_id)
             for phone in managers:
-                dialexecute_lines.append(f'same => n,GotoIf($["${{CHANNEL(name):4:3}}" = "{phone}"]?{target_context},${{EXTEN}},1)')
-                dialexecute_lines.append(f'same => n,GotoIf($["${{CALLERID(num)}}" = "{phone}"]?{target_context},${{EXTEN}},1) ')
+                all_managers_routing[phone] = target_context
+
+        dialexecute_lines = [
+            "[dialexecute]",
+            "exten => _XXX,1,NoOp(Local call to ${EXTEN})",
+            "same => n,MixMonitor(${UNIQUEID}.wav)",
+            "same => n,NoOp(LOCALCALL=========================================================)",
+            "same => n,Macro(localcall_start,${EXTEN})",
+            "same => n,NoOp(LOCALCALL======================================================END)",
+            "same => n,Dial(SIP/${EXTEN},,tTkK)",
+            "exten => _XXXX.,1,NoOp(Call to ${EXTEN} from ${CHANNEL(name):4:3}) and ${CALLERID(num)})",
+        ]
+        
+        sorted_managers = sorted(all_managers_routing.items(), key=lambda item: int(item[0]))
+
+        for phone, context in sorted_managers:
+            dialexecute_lines.append(f'same => n,GotoIf($["${{CHANNEL(name):4:3}}" = "{phone}"]?{context},${{EXTEN}},1)')
+            dialexecute_lines.append(f'same => n,GotoIf($["${{CALLERID(num)}}" = "{phone}"]?{context},${{EXTEN}},1) ')
 
         # Department rules
         for dept in department_records:
