@@ -6933,3 +6933,5 @@
 2025-06-24 10:28:01,021 - enterprise_admin_service - INFO - Запрос обработан за 0.1492 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
 2025-06-24 10:28:01,156 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
 2025-06-24 10:28:01,384 - enterprise_admin_service - INFO - Запрос обработан за 0.2271 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-24 11:22:05,253 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-24 11:22:05,366 - enterprise_admin_service - INFO - Запрос обработан за 0.1132 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
