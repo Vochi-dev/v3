@@ -239,7 +239,8 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
             ...schema,
             enterprise_id: enterpriseId,
             schema_name: schemaName,
-            schema_data: { nodes, edges, viewport }
+            schema_data: { nodes, edges, viewport },
+            schema_type: schemaType,
         };
 
         try {

@@ -80,10 +80,17 @@ class SchemaModel(BaseModel):
     schema_name: str
     schema_data: SchemaDataModel
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    schema_type: str = 'incoming'
+
+class SchemaCreateModel(BaseModel):
+    schema_name: str
+    schema_data: SchemaDataModel
+    schema_type: str
 
 class SchemaUpdateModel(BaseModel):
     schema_name: str
     schema_data: SchemaDataModel
+    schema_type: str
 
 class MusicFile(BaseModel):
     id: int
@@ -384,7 +391,7 @@ async def get_schemas_list(enterprise_number: str):
     For outgoing schemas, it dynamically injects the most current phone assignments
     directly from the user_internal_phones table, ensuring data consistency.
     """
-    query = "SELECT schema_id, enterprise_id, schema_name, created_at, schema_data FROM dial_schemas WHERE enterprise_id = %s"
+    query = "SELECT schema_id, enterprise_id, schema_name, created_at, schema_data, schema_type FROM dial_schemas WHERE enterprise_id = %s"
     
     # Запрос для получения актуальных привязок для ОДНОЙ схемы
     phones_query = """
@@ -408,7 +415,7 @@ async def get_schemas_list(enterprise_number: str):
                     row_dict = dict(row)
                     
                     # Если это исходящая схема, получаем актуальные данные
-                    if row_dict['schema_name'].startswith("Исходящая"):
+                    if row_dict.get('schema_type') == 'outgoing':
                         cur.execute(phones_query, (enterprise_number, row_dict['schema_id']))
                         assigned_phones = [dict(p) for p in cur.fetchall()]
                         
@@ -462,19 +469,19 @@ async def get_schema_by_id(enterprise_number: str, schema_id: str):
         raise HTTPException(status_code=500, detail="Database error while fetching schema.")
 
 @app.post("/api/enterprises/{enterprise_number}/schemas", response_model=SchemaModel)
-async def create_schema(enterprise_number: str, schema_in: SchemaUpdateModel):
+async def create_schema(enterprise_number: str, schema_in: SchemaCreateModel):
     new_schema = SchemaModel(
         enterprise_id=enterprise_number,
         schema_name=schema_in.schema_name,
-        schema_data=schema_in.schema_data
+        schema_data=schema_in.schema_data,
+        schema_type=schema_in.schema_type
     )
     
-    # Конвертируем Pydantic модель в JSON-строку для PostgreSQL
     schema_data_json = json.dumps(new_schema.schema_data.dict())
 
     query = """
-        INSERT INTO dial_schemas (schema_id, enterprise_id, schema_name, schema_data, created_at)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO dial_schemas (schema_id, enterprise_id, schema_name, schema_data, created_at, schema_type)
+        VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING *;
     """
     
@@ -486,7 +493,8 @@ async def create_schema(enterprise_number: str, schema_in: SchemaUpdateModel):
                     new_schema.enterprise_id,
                     new_schema.schema_name,
                     schema_data_json,
-                    datetime.fromisoformat(new_schema.created_at)
+                    datetime.fromisoformat(new_schema.created_at),
+                    new_schema.schema_type
                 ))
                 created_record = cur.fetchone()
                 conn.commit()
@@ -494,9 +502,8 @@ async def create_schema(enterprise_number: str, schema_in: SchemaUpdateModel):
         if not created_record:
             raise HTTPException(status_code=500, detail="Failed to create schema in DB.")
 
-        logger.info(f"Schema created in DB with id: {new_schema.schema_id}")
+        logger.info(f"Schema created in DB with id: {new_schema.schema_id} and type: {new_schema.schema_type}")
         
-        # Преобразуем для ответа
         response_schema = dict(created_record)
         response_schema['created_at'] = response_schema['created_at'].isoformat()
         return SchemaModel(**response_schema)
@@ -519,7 +526,7 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
         with get_db_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
                 # --- Логика для исходящих схем ---
-                if current_schema_name.startswith("Исходящая"):
+                if schema_update.schema_type == 'outgoing':
                     # Находим узел исходящего звонка
                     outgoing_node = next((node for node in schema_update.schema_data.nodes if node.get('id') == 'start-outgoing'), None)
                     
@@ -556,13 +563,14 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
                 
                 update_query = """
                     UPDATE dial_schemas
-                    SET schema_name = %s, schema_data = %s
+                    SET schema_name = %s, schema_data = %s, schema_type = %s
                     WHERE schema_id = %s AND enterprise_id = %s
                     RETURNING *;
                 """
                 cur.execute(update_query, (
                     current_schema_name,
                     schema_data_json,
+                    schema_update.schema_type,
                     schema_id,
                     enterprise_number
                 ))
@@ -716,4 +724,4 @@ async def get_enterprise_music_files(enterprise_number: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8005) 
+    uvicorn.run(app, host="0.0.0.0", port=8005)
