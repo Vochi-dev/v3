@@ -347,7 +347,7 @@ async def generate_config(request: GenerateConfigRequest):
 
         # Fetch data
         schema_records = await conn.fetch(
-            "SELECT schema_id, schema_data, schema_name FROM dial_schemas WHERE enterprise_id = $1 AND schema_name LIKE 'Исходящая%' ORDER BY schema_name", enterprise_id
+            "SELECT * FROM dial_schemas WHERE enterprise_id = $1", enterprise_id
         )
         department_records = await conn.fetch(
             """
@@ -421,7 +421,7 @@ async def generate_config(request: GenerateConfigRequest):
 
         # Outgoing Schema contexts
         for r in schema_records:
-            if not r['schema_name'].lower().startswith('исходящая'):
+            if r.get('schema_type') != 'outgoing':
                 continue
             schema_id, data = r['schema_id'], json.loads(r['schema_data'])
             nodes, edges = data['nodes'], data['edges']
