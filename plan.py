@@ -114,24 +114,40 @@ def generate_greeting_context(schema_id, node, nodes, edges):
         
     return "\n".join(lines)
 
-def generate_external_lines_context(schema_id, node, nodes, edges):
-    """Генерирует диалплан для узла 'externalLines'."""
+def generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_info):
+    """Генерирует диалплан для узла 'externalLines' в новом формате."""
     context_name = generate_context_name(schema_id, node['id'])
-    lines = [f"[{context_name}]", f"exten => _X.,1,NoOp"]
+    lines = [f"[{context_name}]", "exten => _X.,1,NoOp"]
 
     external_lines = node.get('data', {}).get('external_lines', [])
-    sorted_lines = sorted(external_lines, key=lambda x: x.get('priority', 99))
-
-    for line in sorted_lines:
-        line_id = line.get('line_id', '')
-        if not line_id or '_' not in line_id: continue
-        line_type, line_name = line_id.split('_', 1)
-        # Using PJSIP for goip lines as it was correct
-        if line_type == 'gsm':
-            dial_string = f"PJSIP/goip_{line_name}/${{EXTEN}}"
-            lines.append(f"same => n,Dial({dial_string},60)")
     
-    lines.append("same => n,Hangup()")
+    if not external_lines:
+        lines.append("same => n,Hangup()")
+    else:
+        for line in sorted(external_lines, key=lambda x: x.get('priority', 99)):
+            line_id_full = line.get('line_id', '')
+            if not line_id_full or not line_id_full.startswith('gsm_'):
+                continue
+            
+            line_id = line_id_full.split('_', 1)[1]
+            
+            gsm_info = gsm_lines_info.get(line_id)
+            if not gsm_info or 'prefix' not in gsm_info:
+                continue
+
+            prefix = gsm_info['prefix']
+            
+            lines.append(f"same => n,Macro(outcall_dial,{line_id},${{EXTEN}})")
+            lines.append(f"same => n,Dial(SIP/{line_id}/{prefix}${{EXTEN}},,tTkK)")
+
+        lines.append("same => n,Hangup")
+        lines.extend([
+            "exten => h,1,NoOp(Call is end)",
+            'exten => h,n,Set(AGISIGHUP="no")',
+            "exten => h,n,StopMixMonitor()",
+            "same => n,Macro(outcall_end,${Trunk})"
+        ])
+        
     return "\n".join(lines)
 
 def generate_department_context(enterprise_id, dept):
@@ -161,7 +177,7 @@ def generate_department_context(enterprise_id, dept):
 NODE_GENERATORS = {
     'patternCheck': generate_pattern_check_context,
     'greeting': generate_greeting_context,
-    'externalLines': generate_external_lines_context,
+    'externalLines': lambda schema_id, node, nodes, edges, gsm_lines_info: generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_info),
 }
 
 # --- Статические части конфига ---
@@ -292,6 +308,9 @@ async def generate_config(request: GenerateConfigRequest):
             """,
             enterprise_id,
         )
+        
+        gsm_lines_records = await conn.fetch("SELECT line_id, prefix FROM gsm_lines WHERE enterprise_number = $1", enterprise_id)
+        gsm_lines_info = {rec['line_id']: {'prefix': rec['prefix']} for rec in gsm_lines_records}
 
         # --- Generation ---
         
@@ -340,37 +359,37 @@ async def generate_config(request: GenerateConfigRequest):
             "same => n,NoOp(CALL======================================================END)",
         ])
 
-        # --- First-level Child Contexts ---
-        child_contexts = []
+        all_contexts = []
         
         # Department Contexts
         for dept in department_records:
-            child_contexts.append(generate_department_context(enterprise_id, dept))
+            all_contexts.append(generate_department_context(enterprise_id, dept))
 
-        # Outgoing Schema FIRST contexts
+        # Outgoing Schema contexts
         for r in schema_records:
             if not r['schema_name'].lower().startswith('исходящая'):
                 continue
             schema_id, data = r['schema_id'], json.loads(r['schema_data'])
             nodes, edges = data['nodes'], data['edges']
             
-            first_node_id = get_target_node_id(edges, 'start-outgoing')
-            if not first_node_id: continue
-            
-            first_node = get_node_by_id(nodes, first_node_id)
-            if not first_node: continue
-            
-            node_type = first_node.get('type')
-            if node_type in NODE_GENERATORS:
-                context_str = NODE_GENERATORS[node_type](schema_id, first_node, nodes, edges)
-                if context_str: child_contexts.append(context_str)
+            for node in nodes:
+                node_type = node.get('type')
+                if node_type in NODE_GENERATORS:
+                    if node_type == 'externalLines':
+                        context_str = NODE_GENERATORS[node_type](schema_id, node, nodes, edges, gsm_lines_info)
+                    else:
+                        # Pass None for gsm_lines_info to other generators
+                        context_str = NODE_GENERATORS[node_type](schema_id, node, nodes, edges)
+                    
+                    if context_str:
+                        all_contexts.append(context_str)
 
         # --- Assembly ---
         config_parts = [
             get_config_header(token),
             "\n".join(dialexecute_lines),
         ]
-        config_parts.extend(child_contexts) # Add ONLY the direct children
+        config_parts.extend(all_contexts)
         config_parts.append(get_config_footer())
 
         final_config = "\n\n".join(filter(None, config_parts))
