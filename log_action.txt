@@ -7111,3 +7111,7 @@
 2025-06-24 15:11:26,245 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/start/wrfslsvg.wav
 2025-06-24 15:11:26,245 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/start/wrfslsvg.wav с media_type audio/wav
 2025-06-24 15:11:26,247 - enterprise_admin_service - INFO - Запрос обработан за 0.2006 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/1
+2025-06-24 15:16:32,141 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-24 15:16:32,329 - enterprise_admin_service - INFO - Запрос обработан за 0.1879 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-24 15:16:32,468 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-24 15:16:32,675 - enterprise_admin_service - INFO - Запрос обработан за 0.2078 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users

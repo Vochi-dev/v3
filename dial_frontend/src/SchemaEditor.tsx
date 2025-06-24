@@ -105,6 +105,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
     const [isExternalNumberModalOpen, setIsExternalNumberModalOpen] = useState(false);
     const [dialManagers, setDialManagers] = useState<ManagerInfo[]>([]);
     const [editingNode, setEditingNode] = useState<Node | null>(null);
+    const [newNodeId, setNewNodeId] = useState<string | null>(null);
     
     const [sourceNodeForAction, setSourceNodeForAction] = useState<{node: Node, type: NodeType} | null>(null);
 
@@ -534,6 +535,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         // 6. Открываем соответствующую модалку для нового узла
         console.log(`ОТКРЫТИЕ МОДАЛЬНОГО ОКНА для узла ${newNode.id}`);
         setEditingNode(newNode);
+        setNewNodeId(newNode.id);
         setIsNodeActionModalOpen(false);
         switch (type) {
             case NodeType.Dial:
@@ -555,6 +557,24 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         }
     };
     
+    const handleCancelNodeCreation = () => {
+        if (newNodeId) {
+            setNodes(nds => nds.filter(n => n.id !== newNodeId));
+            setEdges(eds => eds.filter(e => e.target !== newNodeId));
+            
+            // Восстанавливаем "+" у родителя
+            const edge = edges.find(e => e.target === newNodeId);
+            if (edge) {
+                setNodes(nds => nds.map(n => 
+                    n.id === edge.source 
+                    ? { ...n, data: { ...n.data, onAddClick: handleAddNodeClick } } 
+                    : n
+                ));
+            }
+        }
+        handleCloseModals();
+    };
+
     const updateNodeData = (nodeId: string, data: any) => {
         setNodes((nds) =>
             nds.map((node) => {
@@ -845,6 +865,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         }
         setIsDialModalOpen(false);
         setEditingNode(null);
+        setNewNodeId(null);
         setDialManagers([]);
     };
 
@@ -859,6 +880,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         setEditingNode(null);
         setDialManagers([]);
         setSourceNodeForAction(null);
+        setNewNodeId(null);
     };
 
     const handleOpenAddManagerModal = () => {
@@ -1048,7 +1070,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                 <DialModal
                     enterpriseId={enterpriseId}
                     managers={dialManagers}
-                    onClose={handleCloseModals}
+                    onClose={newNodeId ? handleCancelNodeCreation : handleCloseModals}
                     onConfirm={handleConfirmDial}
                     onAddManager={handleOpenAddManagerModal}
                     onRemoveManager={handleRemoveManager}
@@ -1067,7 +1089,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
             {isGreetingModalOpen && (
                 <GreetingModal
                     enterpriseId={enterpriseId}
-                    onClose={handleCloseModals}
+                    onClose={newNodeId ? handleCancelNodeCreation : handleCloseModals}
                     onConfirm={handleConfirmGreeting}
                     initialData={editingNode?.data}
                     onDelete={handleDeleteNode}
@@ -1075,7 +1097,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
             )}
             {isWorkScheduleModalOpen && (
                  <WorkScheduleModal 
-                    onClose={handleCloseModals}
+                    onClose={newNodeId ? handleCancelNodeCreation : handleCloseModals}
                     onConfirm={handleConfirmWorkSchedule}
                     initialData={editingNode?.data}
                     onDelete={handleDeleteNode}
