@@ -658,138 +658,165 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         setEditingNode(null);
     };
 
-    const autosaveSchema = (updatedNodes?: Node[]) => {
-        // Эта функция сохраняет схему в фоне, без закрытия редактора.
-        const viewport = reactFlowInstance?.getViewport() || { x: 0, y: 0, zoom: 1 };
-        const schemaToSave: Partial<Schema> = {
-            ...schema,
-            enterprise_id: enterpriseId,
-            schema_name: schemaName,
-            schema_data: { nodes: updatedNodes || nodes, edges, viewport }
-        };
+    const handlePatternCheckConfirm = (patterns: { name: string }[]) => {
+        const parentNode = editingNode || (sourceNodeForAction ? sourceNodeForAction.node : null);
 
-        onSave(schemaToSave).catch(error => {
-            console.error("Autosave failed:", error);
-            // Здесь можно добавить уведомление для пользователя, если необходимо
-        });
-    };
-
-    const handlePatternCheckConfirm = (patterns: any[]) => {
-        if (!sourceNodeForAction?.node && !editingNode) {
+        if (!parentNode) {
             console.error("No source or editing node defined for pattern check");
+            setIsPatternCheckModalOpen(false);
             return;
         }
 
-        let lastNodeId = Math.max(0, ...nodes.map(n => parseInt(n.id, 10) || 0));
-
-        const generateNewNodesAndEdges = (parentNode: Node, newPatterns: any[]) => {
-            const newNodes: Node[] = [];
-            const newEdges: Edge[] = [];
-            
-            const parentPosition = parentNode.position || { x: 0, y: 0 };
-            const horizontalOffset = 300;
-            const yOffset = 180;
-            const totalWidth = (newPatterns.length - 1) * horizontalOffset;
-            const startX = parentPosition.x - totalWidth / 2;
-
-            newPatterns.forEach((pattern, index) => {
-                lastNodeId++;
-                const childNodeId = lastNodeId.toString();
-
-                const childNode: Node = {
-                    id: childNodeId,
-                    type: NodeType.Greeting,
-                    position: {
-                        x: startX + (index * horizontalOffset),
-                        y: parentPosition.y + yOffset
-                    },
-                    data: {
-                        label: pattern.name || 'Новая ветка',
-                        onAddClick: handleAddNodeClick
-                    }
-                };
-                newNodes.push(childNode);
-
-                const childEdge: Edge = {
-                    id: `e${parentNode.id}-${childNodeId}`,
-                    source: parentNode.id,
-                    target: childNodeId,
-                    type: 'default',
-                };
-                newEdges.push(childEdge);
-            });
-
-            return { newNodes, newEdges };
-        };
-
-        // СЦЕНАРИЙ 2: РЕДАКТИРОВАНИЕ СУЩЕСТВУЮЩЕГО УЗЛА
-        if (editingNode) {
-            const existingChildEdges = edges.filter(e => e.source === editingNode.id);
-            const existingChildNodeIds = new Set(existingChildEdges.map(e => e.target));
-
-            const { newNodes, newEdges } = generateNewNodesAndEdges(editingNode, patterns);
-
-            setNodes(nds => 
-                nds.filter(n => !existingChildNodeIds.has(n.id)) // Удаляем старые дочерние узлы
-                   .map(n => n.id === editingNode.id ? { ...n, data: { ...n.data, patterns } } : n) // Обновляем patterns у родителя
-                   .concat(newNodes) // Добавляем новые дочерние узлы
-            );
-            setEdges(eds => 
-                eds.filter(e => e.source !== editingNode.id) // Удаляем старые дочерние связи
-                   .concat(newEdges) // Добавляем новые
-            );
-        }
-        // СЦЕНАРИЙ 1: СОЗДАНИЕ НОВОГО УЗЛА "ПРОВЕРКА ПО ШАБЛОНУ" И ЕГО ВЕТОК
-        else if (sourceNodeForAction?.node) {
-            const sourceNode = sourceNodeForAction.node;
-            const rule = getNodeRule(NodeType.PatternCheck)!;
+        if (sourceNodeForAction) {
+            let lastNodeId = Math.max(0, ...nodes.map(n => parseInt(n.id, 10) || 0));
             
             lastNodeId++;
             const patternCheckNodeId = lastNodeId.toString();
-            
             const patternCheckNode: Node = {
                 id: patternCheckNodeId,
                 type: NodeType.PatternCheck,
-                position: { x: sourceNode.position.x, y: sourceNode.position.y + 150 },
-                data: { 
-                    label: rule.name,
-                    patterns: patterns,
-                    onAddClick: undefined // У этого узла нет кнопки "+"
-                },
+                position: { x: parentNode.position.x, y: parentNode.position.y + 150 },
+                data: { label: 'Проверка по шаблону', patterns, onNodeClick: handleNodeClick },
             };
+
+            const childrenResult = createPatternChildren(patternCheckNode, patterns, lastNodeId);
+            const childNodes = childrenResult.nodes;
+            const childEdges = childrenResult.edges;
+            lastNodeId = childrenResult.lastId;
 
             const edgeToPatternCheck: Edge = {
-                id: `e${sourceNode.id}-${patternCheckNodeId}`,
-                source: sourceNode.id,
+                id: `e${parentNode.id}-${patternCheckNodeId}`,
+                source: parentNode.id,
                 target: patternCheckNodeId,
-                type: 'smoothstep'
             };
 
-            const { newNodes: childNodes, newEdges: childEdges } = generateNewNodesAndEdges(patternCheckNode, patterns);
-
             setNodes(nds => 
-                nds.map(n => n.id === sourceNode.id ? { ...n, data: { ...n.data, onAddClick: undefined } } : n) // Убираем "+" у родителя
-                   .concat(patternCheckNode)
-                   .concat(childNodes)
+                nds.map(n => n.id === parentNode.id ? { ...n, data: { ...n.data, onAddClick: undefined } } : n)
+                   .concat(patternCheckNode, ...childNodes)
             );
-            setEdges(eds => [...eds, edgeToPatternCheck, ...childEdges]);
+            setEdges(eds => eds.concat(edgeToPatternCheck, ...childEdges));
+        
+        } else if (editingNode) {
+            const newPatternNames = new Set(patterns.map(p => p.name));
+    
+            const oldChildEdges = edges.filter(e => e.source === editingNode.id);
+            const oldChildren = oldChildEdges.map(edge => nodes.find(n => n.id === edge.target)).filter((n): n is Node => !!n);
+            const oldChildrenMap = new Map(oldChildren.map(n => [n.data.label, n]));
+    
+            const namesToDelete = [...oldChildrenMap.keys()].filter(name => !newPatternNames.has(name));
+            const nodesToDelete = namesToDelete.map(name => oldChildrenMap.get(name)!).filter(Boolean);
+    
+            const idsToDelete = new Set<string>();
+            const queue: Node[] = [...nodesToDelete];
+            nodesToDelete.forEach(n => idsToDelete.add(n.id));
+    
+            while (queue.length > 0) {
+                const current = queue.shift()!;
+                const childrenOfCurrent = edges
+                    .filter(e => e.source === current.id)
+                    .map(e => nodes.find(n => n.id === e.target))
+                    .filter((n): n is Node => !!n);
+    
+                for (const child of childrenOfCurrent) {
+                    if (!idsToDelete.has(child.id)) {
+                        idsToDelete.add(child.id);
+                        queue.push(child);
+                    }
+                }
+            }
+    
+            let finalNodes = nodes.filter(n => !idsToDelete.has(n.id));
+            let finalEdges = edges.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target));
+    
+            finalNodes = finalNodes.map(n => 
+                n.id === editingNode.id 
+                ? { ...n, data: { ...editingNode.data, patterns } } 
+                : n
+            );
+    
+            const preservedChildren = oldChildren.filter(child => newPatternNames.has(child.data.label));
+            
+            let lastNodeId = Math.max(0, ...finalNodes.map(n => parseInt(n.id, 10) || 0));
+            const parentPos = editingNode.position;
+            const horizontalSpacing = 300;
+            const verticalSpacing = 120;
+            const totalWidth = horizontalSpacing * patterns.length;
+            const startX = parentPos.x - totalWidth / 2 + horizontalSpacing / 2;
+            
+            const preservedChildrenMap = new Map(preservedChildren.map(n => [n.data.label, n]));
+            const nodesToAdd: Node[] = [];
+            const edgesToAdd: Edge[] = [];
+            
+            patterns.forEach((pattern, index) => {
+                const existingChild = preservedChildrenMap.get(pattern.name);
+                const newPosition = { x: startX + index * horizontalSpacing, y: parentPos.y + verticalSpacing };
+    
+                if (existingChild) {
+                    finalNodes = finalNodes.map(n => n.id === existingChild.id ? { ...n, position: newPosition } : n);
+                } else {
+                    lastNodeId++;
+                    const newNodeId = lastNodeId.toString();
+                    const newNode: Node = {
+                        id: newNodeId,
+                        type: NodeType.Greeting,
+                        position: newPosition,
+                        data: { label: pattern.name, onAddClick: handleAddNodeClick },
+                    };
+                    nodesToAdd.push(newNode);
+                    edgesToAdd.push({ id: `e${editingNode.id}-${newNodeId}`, source: editingNode.id, target: newNodeId });
+                }
+            });
+    
+            setNodes([...finalNodes, ...nodesToAdd]);
+            setEdges([...finalEdges, ...edgesToAdd]);
         }
 
         handleCloseModals();
     };
 
-    const handleOutgoingNodeConfirm = (nodeId: string, data: any) => {
-        // Обновляем состояние узлов локально
-        const newNodes = nodes.map(node => {
-            if (node.id === nodeId) {
-                return { ...node, data: { ...node.data, ...data } };
-            }
-            return node;
-        });
-        setNodes(newNodes);
+    const createPatternChildren = (parentNode: Node, patterns: { name: string }[], startingId: number) => {
+        const newNodes: Node[] = [];
+        const newEdges: Edge[] = [];
+        let lastNodeId = startingId;
         
-        // Сразу же сохраняем изменения на сервере
-        autosaveSchema(newNodes);
+        const parentPosition = parentNode.position;
+        const horizontalSpacing = 300;
+        const verticalSpacing = 120;
+        const totalWidth = horizontalSpacing * patterns.length;
+        const startX = parentPosition.x - totalWidth / 2 + horizontalSpacing / 2;
+
+        patterns.forEach((pattern, index) => {
+            lastNodeId++;
+            const childNodeId = lastNodeId.toString();
+
+            const childNode: Node = {
+                id: childNodeId,
+                type: NodeType.Greeting,
+                position: {
+                    x: startX + index * horizontalSpacing,
+                    y: parentPosition.y + verticalSpacing
+                },
+                data: {
+                    label: pattern.name || 'Новая ветка',
+                    onAddClick: handleAddNodeClick
+                }
+            };
+            newNodes.push(childNode);
+
+            const childEdge: Edge = {
+                id: `e${parentNode.id}-${childNodeId}`,
+                source: parentNode.id,
+                target: childNodeId,
+            };
+            newEdges.push(childEdge);
+        });
+
+        return { nodes: newNodes, edges: newEdges, lastId: lastNodeId };
+    };
+
+    const handleOutgoingNodeConfirm = (nodeId: string, data: any) => {
+        updateNodeData(nodeId, data);
+        handleCloseModals();
     };
 
     const handleConfirmDial = (dialData: any) => {
