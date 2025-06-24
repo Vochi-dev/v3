@@ -360,10 +360,10 @@ async def generate_config(request: GenerateConfigRequest):
             enterprise_id,
         )
         
-        gsm_lines_records = await conn.fetch("SELECT line_id, prefix FROM gsm_lines WHERE enterprise_number = $1", enterprise_id)
+        gsm_lines_records = await conn.fetch("SELECT * FROM gsm_lines WHERE enterprise_number = $1", enterprise_id)
         gsm_lines_info = {rec['line_id']: {'prefix': rec['prefix']} for rec in gsm_lines_records}
         
-        sip_unit_records = await conn.fetch("SELECT line_name, prefix FROM sip_unit WHERE enterprise_number = $1", enterprise_id)
+        sip_unit_records = await conn.fetch("SELECT * FROM sip_unit WHERE enterprise_number = $1", enterprise_id)
         sip_unit_info = {rec['line_name']: {'prefix': rec['prefix']} for rec in sip_unit_records}
 
         # --- Generation ---
@@ -437,6 +437,70 @@ async def generate_config(request: GenerateConfigRequest):
                     
                     if context_str:
                         all_contexts.append(context_str)
+
+        # --- Generate from-out-office context ---
+        from_out_office_lines = [
+            "[from-out-office]",
+            "exten => _X.,1,Set(AUDIOHOOK_INHERIT(MixMonitor)=yes)",
+            "same => n,Set(Trunk=${EXTEN})",
+            "same => n,Answer",
+            "same => n,Macro(incall_start,${Trunk})",
+            "same => n,Set(CALLERID(num)=${CALLERID(name)})",
+            "same => n,Set(CALLERID(name)=${NEWNAME}-${CALLERID(name)})",
+            "same => n,Set(CDR(userfield)=${NEWNAME}-${CALLERID(name)})",
+            "same => n,Answer",
+            "exten => _X.,n,MixMonitor(${UNIQUEID}.wav)",
+            "exten => _X.,n,NoOp(NOW is ${CALLERID(num)})"
+        ]
+        
+        # Prepare lines with their schema context
+        lines_with_context = []
+
+        # GSM Lines
+        incoming_gsm_lines = [line for line in gsm_lines_records if line['in_schema'] is not None]
+        sorted_gsm = sorted(incoming_gsm_lines, key=lambda x: int(x['line_id']))
+
+        for line in sorted_gsm:
+            schema_name = line['in_schema']
+            schema = next((s for s in schema_records if s['schema_name'] == schema_name and s.get('schema_type') == 'incoming'), None)
+            if schema:
+                nodes = json.loads(schema['schema_data'])['nodes']
+                edges = json.loads(schema['schema_data'])['edges']
+                start_node = get_node_by_id(nodes, '1')
+                if start_node:
+                    target_node_id = find_first_meaningful_node(start_node['id'], nodes, edges)
+                    if target_node_id:
+                        context_name = generate_context_name(schema['schema_id'], target_node_id)
+                        lines_with_context.append({'line_id': line['line_id'], 'context': context_name})
+        
+        # SIP Lines
+        incoming_sip_lines = [line for line in sip_unit_records if line['in_schema'] is not None]
+        sorted_sip = sorted(incoming_sip_lines, key=lambda x: x['id'])
+
+        for line in sorted_sip:
+            schema_name = line['in_schema']
+            schema = next((s for s in schema_records if s['schema_name'] == schema_name and s.get('schema_type') == 'incoming'), None)
+            if schema:
+                nodes = json.loads(schema['schema_data'])['nodes']
+                edges = json.loads(schema['schema_data'])['edges']
+                start_node = get_node_by_id(nodes, '1')
+                if start_node:
+                    target_node_id = find_first_meaningful_node(start_node['id'], nodes, edges)
+                    if target_node_id:
+                        context_name = generate_context_name(schema['schema_id'], target_node_id)
+                        lines_with_context.append({'line_id': line['line_name'], 'context': context_name})
+        
+        for item in lines_with_context:
+            from_out_office_lines.append(f'exten => _X.,n,GotoIf($["${{EXTEN}}" = "{item["line_id"]}"]?{item["context"]},${{EXTEN}},1)')
+
+        from_out_office_lines.extend([
+            "exten => _X.,n,Hangup",
+            "exten => h,1,NoOp(Call is end)",
+            "exten => h,n,Set(AGISIGHUP=\"no\")",
+            "exten => h,n,StopMixMonitor()",
+            "same => n,Macro(incall_end,${Trunk})"
+        ])
+        all_contexts.append("\n".join(from_out_office_lines))
 
         # --- Assembly ---
         config_parts = [

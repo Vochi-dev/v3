@@ -7153,3 +7153,7 @@
 2025-06-24 16:01:28,560 - enterprise_admin_service - INFO - Запрос обработан за 0.1270 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
 2025-06-24 16:01:28,645 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
 2025-06-24 16:01:28,809 - enterprise_admin_service - INFO - Запрос обработан за 0.1638 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-24 16:03:26,469 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-24 16:03:26,668 - enterprise_admin_service - INFO - Запрос обработан за 0.1998 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-24 16:03:26,743 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-24 16:03:26,926 - enterprise_admin_service - INFO - Запрос обработан за 0.1833 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
