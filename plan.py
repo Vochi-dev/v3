@@ -60,23 +60,37 @@ def generate_department_context_name(enterprise_id, department_number):
 def generate_pattern_check_context(schema_id, node, nodes, edges):
     """Генерирует диалплан для узла 'patternCheck'."""
     context_name = generate_context_name(schema_id, node['id'])
-    # No "Entering..." NoOp, just like in the example
     lines = [
         f"[{context_name}]",
         f"exten => _X.,1,NoOp(To external from ${{CALLERID(num)}})",
         f"same => n,MixMonitor(${{UNIQUEID}}.wav)",
     ]
-    
-    target_node_id = get_target_node_id(edges, node['id'])
-    if not target_node_id:
-        return "" # Or handle error appropriately
 
-    target_context_name = generate_context_name(schema_id, target_node_id)
-    pattern = node.get('data', {}).get('patterns', [{}])[0].get('shablon', '')
+    child_edges = [edge for edge in edges if edge['source'] == node['id']]
+    child_nodes = [get_node_by_id(nodes, edge['target']) for edge in child_edges]
+    child_nodes = [cn for cn in child_nodes if cn] # Filter out None
+
+    child_label_to_id_map = {cn.get('data', {}).get('label'): cn['id'] for cn in child_nodes}
+
+    patterns = node.get('data', {}).get('patterns', [])
     
-    if pattern:
-        lines.append(f'same => n,GotoIf($[{{REGEX("{pattern}" ${{EXTEN}})}}]?{target_context_name},${{EXTEN}},1)')
-    # NO Hangup() at the end, as per the user's example
+    if not patterns:
+        lines.append("same => n,Hangup()")
+        return "\n".join(lines)
+
+    for pattern in patterns:
+        pattern_name = pattern.get('name')
+        pattern_shablon = pattern.get('shablon')
+
+        if not pattern_name or not pattern_shablon:
+            continue
+
+        child_node_id = child_label_to_id_map.get(pattern_name)
+
+        if child_node_id:
+            target_context_name = generate_context_name(schema_id, child_node_id)
+            lines.append(f'same => n,GotoIf($[{{REGEX("{pattern_shablon}" ${{EXTEN}})}}]?{target_context_name},${{EXTEN}},1)')
+            
     return "\n".join(lines)
 
 
@@ -266,7 +280,7 @@ async def generate_config(request: GenerateConfigRequest):
 
         # Fetch data
         schema_records = await conn.fetch(
-            "SELECT schema_id, schema_data FROM dial_schemas WHERE enterprise_id = $1 AND schema_name LIKE 'Исходящая%' ORDER BY schema_name", enterprise_id
+            "SELECT schema_id, schema_data, schema_name FROM dial_schemas WHERE enterprise_id = $1 AND schema_name LIKE 'Исходящая%' ORDER BY schema_name", enterprise_id
         )
         department_records = await conn.fetch(
             """
@@ -319,8 +333,8 @@ async def generate_config(request: GenerateConfigRequest):
             dialexecute_lines.append(f"exten => {dept_num},1,Goto({context_name},${{EXTEN}},1)")
 
         dialexecute_lines.extend([
-            "exten => _[+]X.,1,Goto(dialexecute,${EXTEN:1},1)",
-            "exten => _00X.,1,Goto(dialexecute,${EXTEN:2},1)",
+            "exten => _[+]X.,1,Goto(dialexecute,${{EXTEN:1}},1)",
+            "exten => _00X.,1,Goto(dialexecute,${{EXTEN:2}},1)",
             "exten => h,1,NoOp(CALL=========================================================)",
             "same => n,Macro(localcall_end)",
             "same => n,NoOp(CALL======================================================END)",
@@ -335,6 +349,8 @@ async def generate_config(request: GenerateConfigRequest):
 
         # Outgoing Schema FIRST contexts
         for r in schema_records:
+            if not r['schema_name'].lower().startswith('исходящая'):
+                continue
             schema_id, data = r['schema_id'], json.loads(r['schema_data'])
             nodes, edges = data['nodes'], data['edges']
             
@@ -344,10 +360,9 @@ async def generate_config(request: GenerateConfigRequest):
             first_node = get_node_by_id(nodes, first_node_id)
             if not first_node: continue
             
-            # Generate context ONLY for this first node (which should be 'patternCheck')
             node_type = first_node.get('type')
-            if node_type == 'patternCheck':
-                context_str = generate_pattern_check_context(schema_id, first_node, nodes, edges)
+            if node_type in NODE_GENERATORS:
+                context_str = NODE_GENERATORS[node_type](schema_id, first_node, nodes, edges)
                 if context_str: child_contexts.append(context_str)
 
         # --- Assembly ---
