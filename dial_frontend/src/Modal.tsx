@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef, MouseEvent } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Node, Edge } from 'reactflow';
 import SchemaEditor from './SchemaEditor';
 import './Modal.css';
 
-// Определяем типы, которые будут использоваться во всем приложении
 export interface SchemaData {
     nodes: Node[];
     edges: Edge[];
@@ -17,6 +16,7 @@ export interface Schema {
     schema_name: string;
     schema_data: SchemaData;
     created_at: string;
+    schema_type: 'incoming' | 'outgoing';
 }
 
 const getEnterpriseIdFromUrl = (): string | null => {
@@ -27,17 +27,14 @@ const getEnterpriseIdFromUrl = (): string | null => {
 const getSchemaTypeFromUrl = (): 'incoming' | 'outgoing' => {
     const queryParams = new URLSearchParams(window.location.search);
     const type = queryParams.get('type');
-    if (type === 'outgoing') {
-        return 'outgoing';
-    }
-    return 'incoming';
+    return type === 'outgoing' ? 'outgoing' : 'incoming';
 };
 
 const Modal: React.FC = () => {
     const [currentView, setCurrentView] = useState<'list' | 'editor'>('list');
     const [schemas, setSchemas] = useState<Schema[]>([]);
     const [allLines, setAllLines] = useState<any[]>([]);
-    const [selectedSchema, setSelectedSchema] = useState<Schema | null>(null);
+    const [selectedSchema, setSelectedSchema] = useState<Partial<Schema> | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -89,7 +86,7 @@ const Modal: React.FC = () => {
 
         const existingSchemaNumbers = new Set(
             schemas
-                .filter(s => s.schema_name.startsWith(schemaPrefix))
+                .filter(s => s.schema_type === schemaType)
                 .map(s => {
                     const match = s.schema_name.match(regex);
                     return match ? parseInt(match[1], 10) : 0;
@@ -102,12 +99,6 @@ const Modal: React.FC = () => {
         }
         
         const newSchemaName = `${schemaPrefix} ${newSchemaNumber}`;
-        
-        // Дополнительная проверка на уникальность, на всякий случай
-        if (schemas.some(s => s.schema_name === newSchemaName)) {
-             alert(`Ошибка: Имя схемы "${newSchemaName}" уже существует. Пожалуйста, создайте схему с другим именем.`);
-             return;
-        }
 
         const defaultNodes: Node[] = isOutgoing ? [{
             id: 'start-outgoing',
@@ -118,16 +109,17 @@ const Modal: React.FC = () => {
             deletable: false,
         }] : [{
             id: '1',
-            type: 'custom',
+            type: 'custom', // ВОЗВРАЩАЮ ИСХОДНЫЙ ТИП
             position: { x: 600, y: 30 },
             data: { label: 'Поступил новый звонок' },
             draggable: false,
             deletable: false,
         }];
         
-        const newSchemaTemplate: Omit<Schema, 'schema_id' | 'created_at'> & { schema_id?: string } = {
+        const newSchemaTemplate: Partial<Schema> = {
             enterprise_id: enterpriseId,
             schema_name: newSchemaName,
+            schema_type: schemaType,
             schema_data: {
                 nodes: defaultNodes,
                 edges: [],
@@ -135,17 +127,16 @@ const Modal: React.FC = () => {
             }
         };
 
-        setSelectedSchema(newSchemaTemplate as Schema);
+        setSelectedSchema(newSchemaTemplate);
         setCurrentView('editor');
     };
 
     const handleSaveSchema = async (schemaToSave: Partial<Schema>): Promise<Schema> => {
         if (!enterpriseId) {
-            alert("ID предприятия не найдено. Невозможно сохранить.");
             throw new Error("Enterprise ID not found");
         }
         
-        const isNewSchema = !('schema_id' in schemaToSave) || !schemaToSave.schema_id;
+        const isNewSchema = !schemaToSave.schema_id;
         const url = isNewSchema 
             ? `/dial/api/enterprises/${enterpriseId}/schemas`
             : `/dial/api/enterprises/${enterpriseId}/schemas/${schemaToSave.schema_id}`;
@@ -154,7 +145,7 @@ const Modal: React.FC = () => {
         const response = await fetch(url, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(schemaToSave), // Отправляем объект как есть
+            body: JSON.stringify(schemaToSave),
         });
 
         if (!response.ok) {
@@ -164,20 +155,17 @@ const Modal: React.FC = () => {
 
         const savedSchema = await response.json();
         
-        // Обновляем состояние списка схем и ВЫБРАННОЙ схемы
         const updatedSchemas = isNewSchema
             ? [...schemas, savedSchema]
             : schemas.map(s => s.schema_id === savedSchema.schema_id ? savedSchema : s);
 
         setSchemas(updatedSchemas);
         setSelectedSchema(savedSchema);
-
         return savedSchema;
     };
 
-    // Вызывается из SchemaEditor для возврата к списку
     const handleBackToList = useCallback(() => {
-        fetchData(); // Добавляем перезагрузку данных
+        fetchData();
         setCurrentView('list');
         setSelectedSchema(null);
     }, [fetchData]);
@@ -192,15 +180,14 @@ const Modal: React.FC = () => {
                 });
 
                 if (!response.ok) {
-                    if (response.status === 409) { // Conflict
+                    if (response.status === 409) {
                         const errorData = await response.json();
-                        alert(errorData.detail); // Показываем сообщение с бэкенда
-                        return; // Остаемся в редакторе
+                        alert(errorData.detail);
+                        return;
                     }
                     throw new Error('Не удалось удалить схему');
                 }
                 
-                // Успешное удаление
                 setSchemas(schemas.filter(s => s.schema_id !== schemaId));
                 setCurrentView('list');
                 setSelectedSchema(null);
@@ -212,8 +199,7 @@ const Modal: React.FC = () => {
         }
     };
     
-    const handleClickOutside = useCallback((event: MouseEvent<HTMLDivElement>) => {
-        // Проверяем, что клик был именно по оверлею, а не по его дочерним элементам (самому модальному окну)
+    const handleClickOutside = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
         if (event.target === event.currentTarget) {
              if (currentView === 'list') {
                 navigate(-1);
@@ -224,9 +210,7 @@ const Modal: React.FC = () => {
     }, [navigate, currentView, handleBackToList]);
 
     const renderListView = () => {
-        const schemaPrefix = schemaType === 'outgoing' ? 'Исходящая' : 'Входящая';
-
-        const filteredSchemas = schemas.filter(s => s.schema_name.startsWith(schemaPrefix));
+        const filteredSchemas = schemas.filter(s => s.schema_type === schemaType);
 
         const sortedSchemas = [...filteredSchemas].sort((a, b) => {
             const regex = /^(.*?)\s*(\d+)$/;
@@ -240,33 +224,30 @@ const Modal: React.FC = () => {
                 const numB = parseInt(matchB[2], 10);
 
                 if (nameA === nameB) {
-                    return numA - numB; // Сортировка по номеру, от меньшего к большему
+                    return numA - numB;
                 }
             }
-            // Для всех остальных случаев - стандартная сортировка по имени
             return a.schema_name.localeCompare(b.schema_name);
         });
 
         return (
             <>
+                {isLoading && <p>Загрузка...</p>}
+                {error && <p className="error">{error}</p>}
                 <ul className="schema-list">
-                    {isLoading && <p>Загрузка...</p>}
-                    {error && <p className="error">{error}</p>}
                     {!isLoading && !error && sortedSchemas.map(schema => {
                         const assignedLines = allLines.filter(line => line.in_schema === schema.schema_name);
 
-                        // --- START: Logic for outgoing schemas ---
-                        const outgoingNode = schemaType === 'outgoing' 
-                            ? schema.schema_data?.nodes.find(n => n.type === 'outgoing-call') 
+                        const outgoingNode = schema.schema_type === 'outgoing' 
+                            ? schema.schema_data?.nodes.find(n => n.id === 'start-outgoing') 
                             : null;
                         const assignedPhonesDetails = outgoingNode?.data?.phones_details || [];
-                        // --- END: Logic for outgoing schemas ---
 
                         return (
                             <li key={schema.schema_id} className="schema-item">
-                                <div className="schema-info">
+                                <div className="schema-info" onClick={() => handleEditSchema(schema)}>
                                     <span>{schema.schema_name}</span>
-                                    {assignedLines.length > 0 && schemaType === 'incoming' && (
+                                    {assignedLines.length > 0 && schema.schema_type === 'incoming' && (
                                         <div className="assigned-lines-list">
                                             {assignedLines.map(line => (
                                                 <div key={line.id} className="assigned-line-item">
@@ -275,8 +256,7 @@ const Modal: React.FC = () => {
                                             ))}
                                         </div>
                                     )}
-                                    {/* --- START: Rendering for outgoing schemas --- */}
-                                    {assignedPhonesDetails.length > 0 && schemaType === 'outgoing' && (
+                                    {assignedPhonesDetails.length > 0 && schema.schema_type === 'outgoing' && (
                                         <div className="assigned-lines-list">
                                             {assignedPhonesDetails.map((phoneDetail: { phone_number: string; full_name: string }) => (
                                                 <div key={phoneDetail.phone_number} className="assigned-line-item">
@@ -285,9 +265,8 @@ const Modal: React.FC = () => {
                                             ))}
                                         </div>
                                     )}
-                                    {/* --- END: Rendering for outgoing schemas --- */}
                                 </div>
-                                <button onClick={() => handleEditSchema(schema)}>Редактировать</button>
+                                <button onClick={(e) => { e.stopPropagation(); handleEditSchema(schema as Schema); }}>Редактировать</button>
                             </li>
                         );
                     })}
@@ -303,12 +282,13 @@ const Modal: React.FC = () => {
         if (!selectedSchema || !enterpriseId) return null;
 
         return (
-            <SchemaEditor 
-                schema={selectedSchema} 
+            <SchemaEditor
+                enterpriseId={enterpriseId}
+                schema={selectedSchema}
                 onSave={handleSaveSchema}
                 onCancel={handleBackToList}
                 onDelete={handleDeleteSchema}
-                enterpriseId={enterpriseId}
+                schemaType={schemaType}
             />
         );
     };
