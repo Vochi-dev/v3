@@ -246,14 +246,30 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
             const savedSchema = await onSave(schemaToSave);
             
             if (savedSchema && savedSchema.schema_id) {
-                const res = await fetch(`/dial/api/enterprises/${enterpriseId}/schemas/${savedSchema.schema_id}/assign_lines`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(Array.from(selectedLines)),
-                });
+                // Блок для ВХОДЯЩИХ схем
+                if (!isOutgoingSchema) {
+                    const res = await fetch(`/dial/api/enterprises/${enterpriseId}/schemas/${savedSchema.schema_id}/assign_lines`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(Array.from(selectedLines)),
+                    });
 
-                if (!res.ok) {
-                   throw new Error('Ошибка привязки линий');
+                    if (!res.ok) {
+                       throw new Error('Ошибка привязки линий');
+                    }
+                } else { // Блок для ИСХОДЯЩИХ схем
+                    const outgoingNode = nodes.find(n => n.type === 'outgoing-call');
+                    const phoneIds = outgoingNode?.data?.phones || [];
+
+                    const res = await fetch(`/dial/api/enterprises/${enterpriseId}/schemas/${savedSchema.schema_id}/assign_phones`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(phoneIds),
+                    });
+
+                    if (!res.ok) {
+                        throw new Error('Ошибка привязки менеджеров к исходящей схеме');
+                    }
                 }
             }
             // >>> НАЧАЛО: Вызов сервиса генерации конфига
