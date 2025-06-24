@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import hashlib
 import logging
+import re
 
 app = FastAPI()
 
@@ -144,8 +145,8 @@ def generate_greeting_context(schema_id, node, nodes, edges):
         
     return "\n".join(lines)
 
-def generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_info):
-    """Генерирует диалплан для узла 'externalLines' в новом формате."""
+def generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info):
+    """Генерирует диалплан для узла 'externalLines' с учетом типа линии (GSM/SIP)."""
     context_name = generate_context_name(schema_id, node['id'])
     lines = [f"[{context_name}]", "exten => _X.,1,NoOp"]
 
@@ -156,19 +157,39 @@ def generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_inf
     else:
         for line in sorted(external_lines, key=lambda x: x.get('priority', 99)):
             line_id_full = line.get('line_id', '')
-            if not line_id_full or not line_id_full.startswith('gsm_'):
-                continue
-            
-            line_id = line_id_full.split('_', 1)[1]
-            
-            gsm_info = gsm_lines_info.get(line_id)
-            if not gsm_info or 'prefix' not in gsm_info:
-                continue
 
-            prefix = gsm_info['prefix']
-            
-            lines.append(f"same => n,Macro(outcall_dial,{line_id},${{EXTEN}})")
-            lines.append(f"same => n,Dial(SIP/{line_id}/{prefix}${{EXTEN}},,tTkK)")
+            if line_id_full.startswith('gsm_'):
+                line_id = line_id_full.split('_', 1)[1]
+                gsm_info = gsm_lines_info.get(line_id)
+                if not gsm_info or 'prefix' not in gsm_info:
+                    continue
+                prefix = gsm_info['prefix']
+                lines.append(f"same => n,Macro(outcall_dial,{line_id},${{EXTEN}})")
+                lines.append(f"same => n,Dial(SIP/{line_id}/{prefix}${{EXTEN}},,tTkK)")
+
+            elif line_id_full.startswith('sip_'):
+                line_name = line_id_full.split('_', 1)[1]
+                sip_info = sip_unit_info.get(line_name)
+                if not sip_info:
+                    continue
+
+                prefix_str = sip_info.get('prefix')
+                
+                # Сценарий А: префикс с фигурными скобками
+                if prefix_str and '{' in prefix_str and '}' in prefix_str:
+                    match = re.match(r'([^\{]+)\{(\d+)\}', prefix_str)
+                    if match:
+                        prefix_part = match.group(1)
+                        offset_val = int(match.group(2))
+                        offset = 12 - offset_val
+                        
+                        lines.append(f"same => n,Macro(outcall_dial,{line_name},${{EXTEN}})")
+                        lines.append(f"same => n,Set(CALLERID(num)={line_name})")
+                        lines.append(f"same => n,Dial(SIP/{line_name}/{prefix_part}${{EXTEN:{offset}}},,tTkK)")
+                # Сценарий Б: префикс отсутствует или простой
+                else:
+                    lines.append(f"same => n,Macro(outcall_dial,{line_name},${{EXTEN}})")
+                    lines.append(f"same => n,Dial(SIP/{line_name}/${{EXTEN}},,tTkK)")
 
         lines.append("same => n,Hangup")
         lines.extend([
@@ -207,7 +228,7 @@ def generate_department_context(enterprise_id, dept):
 NODE_GENERATORS = {
     'patternCheck': generate_pattern_check_context,
     'greeting': generate_greeting_context,
-    'externalLines': lambda schema_id, node, nodes, edges, gsm_lines_info: generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_info),
+    'externalLines': lambda schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info: generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info),
 }
 
 # --- Статические части конфига ---
@@ -341,6 +362,9 @@ async def generate_config(request: GenerateConfigRequest):
         
         gsm_lines_records = await conn.fetch("SELECT line_id, prefix FROM gsm_lines WHERE enterprise_number = $1", enterprise_id)
         gsm_lines_info = {rec['line_id']: {'prefix': rec['prefix']} for rec in gsm_lines_records}
+        
+        sip_unit_records = await conn.fetch("SELECT line_name, prefix FROM sip_unit WHERE enterprise_number = $1", enterprise_id)
+        sip_unit_info = {rec['line_name']: {'prefix': rec['prefix']} for rec in sip_unit_records}
 
         # --- Generation ---
         
@@ -407,7 +431,7 @@ async def generate_config(request: GenerateConfigRequest):
                 node['enterprise_id'] = enterprise_id
                 if node_type in NODE_GENERATORS:
                     if node_type == 'externalLines':
-                        context_str = NODE_GENERATORS[node_type](schema_id, node, nodes, edges, gsm_lines_info)
+                        context_str = NODE_GENERATORS[node_type](schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info)
                     else:
                         context_str = NODE_GENERATORS[node_type](schema_id, node, nodes, edges)
                     
