@@ -47,6 +47,32 @@ def get_all_target_node_ids(edges, source_node_id):
     """Находит все ID целевых узлов для данного исходного узла."""
     return [edge.get('target') for edge in edges if edge['source'] == source_node_id]
 
+def find_first_meaningful_node(start_node_id, nodes, edges):
+    """Находит ID первого 'значимого' узла, пропуская пустые транзитные узлы."""
+    current_node_id = start_node_id
+    visited = set()
+
+    while current_node_id and current_node_id not in visited:
+        visited.add(current_node_id)
+        node = get_node_by_id(nodes, current_node_id)
+        if not node:
+            return None
+
+        # Условие, при котором узел считается "пустым" и транзитным.
+        # В данном случае - это узел "greeting" без указанного файла.
+        is_passthrough = (
+            node.get('type') == 'greeting' and
+            not node.get('data', {}).get('greetingFile', {}).get('name')
+        )
+
+        if is_passthrough:
+            # Узел пустой, ищем следующий.
+            current_node_id = get_target_node_id(edges, current_node_id)
+        else:
+            # Найден значимый узел.
+            return current_node_id
+    
+    return None # Обнаружен цикл или конец пути.
 
 def generate_context_name(schema_id, node_id):
     """Генерирует уникальное имя контекста."""
@@ -67,28 +93,26 @@ def generate_pattern_check_context(schema_id, node, nodes, edges):
     ]
 
     child_edges = [edge for edge in edges if edge['source'] == node['id']]
-    child_nodes = [get_node_by_id(nodes, edge['target']) for edge in child_edges]
-    child_nodes = [cn for cn in child_nodes if cn] # Filter out None
 
-    child_label_to_id_map = {cn.get('data', {}).get('label'): cn['id'] for cn in child_nodes}
+    for edge in child_edges:
+        target_id = edge.get('target')
+        if not target_id: continue
 
-    patterns = node.get('data', {}).get('patterns', [])
-    
-    if not patterns:
-        lines.append("same => n,Hangup()")
-        return "\n".join(lines)
+        child_node = get_node_by_id(nodes, target_id)
+        if not child_node: continue
 
-    for pattern in patterns:
-        pattern_name = pattern.get('name')
-        pattern_shablon = pattern.get('shablon')
-
-        if not pattern_name or not pattern_shablon:
+        pattern_name = child_node.get('data', {}).get('label')
+        
+        pattern_data = next((p for p in node.get('data', {}).get('patterns', []) if p.get('name') == pattern_name), None)
+        if not pattern_data or not pattern_data.get('shablon'):
             continue
+            
+        pattern_shablon = pattern_data['shablon']
 
-        child_node_id = child_label_to_id_map.get(pattern_name)
+        final_target_id = find_first_meaningful_node(target_id, nodes, edges)
 
-        if child_node_id:
-            target_context_name = generate_context_name(schema_id, child_node_id)
+        if final_target_id:
+            target_context_name = generate_context_name(schema_id, final_target_id)
             lines.append(f'same => n,GotoIf($[{{REGEX("{pattern_shablon}" ${{EXTEN}})}}]?{target_context_name},${{EXTEN}},1)')
             
     return "\n".join(lines)
@@ -96,19 +120,25 @@ def generate_pattern_check_context(schema_id, node, nodes, edges):
 
 def generate_greeting_context(schema_id, node, nodes, edges):
     """Генерирует диалплан для узла 'greeting'."""
+    # Не генерируем контекст для пустого узла.
+    if not node.get('data', {}).get('greetingFile', {}).get('name'):
+        return ""
+
     context_name = generate_context_name(schema_id, node['id'])
-    lines = [f"[{context_name}]", f"exten => _X.,1,NoOp"] # Minimalistic NoOp
+    lines = [f"[{context_name}]", f"exten => _X.,1,NoOp"] 
 
     audio_file_data = node.get('data', {}).get('greetingFile', {})
-    if audio_file_data and audio_file_data.get('name'):
-         # Assuming path logic from before
-        audio_path = f"music/{node.get('enterprise_id')}/start/{audio_file_data['name']}"
-        lines.append(f"same => n,Playback({audio_path})")
+    audio_path = f"music/{node.get('enterprise_id')}/start/{audio_file_data['name']}"
+    lines.append(f"same => n,Playback({audio_path})")
 
     target_node_id = get_target_node_id(edges, node['id'])
     if target_node_id:
-        target_context_name = generate_context_name(schema_id, target_node_id)
-        lines.append(f"same => n,Goto({target_context_name},${{EXTEN}},1)")
+        final_target_id = find_first_meaningful_node(target_node_id, nodes, edges)
+        if final_target_id:
+            target_context_name = generate_context_name(schema_id, final_target_id)
+            lines.append(f"same => n,Goto({target_context_name},${{EXTEN}},1)")
+        else:
+            lines.append("same => n,Hangup()")
     else:
         lines.append("same => n,Hangup()")
         
@@ -374,11 +404,11 @@ async def generate_config(request: GenerateConfigRequest):
             
             for node in nodes:
                 node_type = node.get('type')
+                node['enterprise_id'] = enterprise_id
                 if node_type in NODE_GENERATORS:
                     if node_type == 'externalLines':
                         context_str = NODE_GENERATORS[node_type](schema_id, node, nodes, edges, gsm_lines_info)
                     else:
-                        # Pass None for gsm_lines_info to other generators
                         context_str = NODE_GENERATORS[node_type](schema_id, node, nodes, edges)
                     
                     if context_str:
