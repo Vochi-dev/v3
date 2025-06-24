@@ -341,6 +341,41 @@ async def assign_lines_to_schema(enterprise_number: str, schema_id: str, line_id
 
     return {"status": "ok"}
 
+@app.put("/api/enterprises/{enterprise_number}/schemas/{schema_id}/assign_phones")
+async def assign_phones_to_schema(enterprise_number: str, schema_id: str, phone_ids: List[str] = Body(...)):
+    """
+    Привязывает список внутренних номеров (телефонов) к исходящей схеме и отвязывает все остальные.
+    """
+    logger.info(f"Assigning phones {phone_ids} to schema {schema_id} for enterprise {enterprise_number}")
+
+    if not schema_id or not enterprise_number:
+        raise HTTPException(status_code=400, detail="Schema ID and Enterprise Number are required.")
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # Шаг 1: Отвязываем ВСЕ телефоны от ДАННОЙ схемы для ДАННОГО предприятия
+                sql_unbind = "UPDATE user_internal_phones SET outgoing_schema_id = NULL WHERE enterprise_number = %s AND outgoing_schema_id = %s;"
+                cur.execute(sql_unbind, (enterprise_number, schema_id))
+                logger.info(f"Unbound all phones from schema {schema_id} for enterprise {enterprise_number}. {cur.rowcount} rows affected.")
+
+                # Шаг 2: Привязываем выбранные телефоны к схеме
+                if phone_ids:
+                    # Убедимся, что все ID - строки, на случай если придут числа
+                    safe_phone_ids = [str(p) for p in phone_ids]
+                    
+                    sql_bind = "UPDATE user_internal_phones SET outgoing_schema_id = %s WHERE enterprise_number = %s AND phone_number = ANY(%s::text[]);"
+                    cur.execute(sql_bind, (schema_id, enterprise_number, safe_phone_ids))
+                    logger.info(f"Bound phones {safe_phone_ids} to schema {schema_id}. {cur.rowcount} rows affected.")
+                
+                conn.commit()
+
+    except psycopg2.Error as e:
+        logger.error(f"Database error while assigning phones: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+    
+    return JSONResponse(content={"message": "Phones assigned successfully"})
+
 # --- REFACTORED: API for Schemas ---
 @app.get("/api/enterprises/{enterprise_number}/schemas", response_model=List[SchemaModel])
 async def get_schemas_list(enterprise_number: str):
