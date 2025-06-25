@@ -75,12 +75,13 @@ def find_first_meaningful_node(start_node_id, nodes, edges):
 
         # Условие, при котором узел считается "пустым" и транзитным.
         # В данном случае - это узел "greeting" без указанного файла.
-        is_passthrough = (
+        is_empty_greeting = (
             node.get('type') == 'greeting' and
             not node.get('data', {}).get('greetingFile', {}).get('name')
         )
+        is_start_node = node.get('type') == 'custom'
 
-        if is_passthrough:
+        if is_empty_greeting or is_start_node:
             # Узел пустой, ищем следующий.
             current_node_id = get_target_node_id(edges, current_node_id)
         else:
