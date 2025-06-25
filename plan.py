@@ -432,13 +432,6 @@ def generate_work_schedule_context(schema_id, node, nodes, edges):
     # Финальный Hangup
     lines.append("same => n,Hangup")
     
-    lines.extend([
-        "exten => h,1,NoOp(Call is end)",
-        "exten => h,n,Set(AGISIGHUP=\"no\")",
-        "exten => h,n,StopMixMonitor()",
-        "same => n,Macro(incall_end,${Trunk})"
-    ])
-
     return "\n".join(lines)
 
 # --- Словарь генераторов ---
@@ -506,7 +499,7 @@ exten => _X.,3,Playback(custom/${FILEPLAYBACK})
 exten => _X.,4,Goto(waitredirect,${EXTEN},1)
 
 [waitredirect]
-exten => _X.,1,Noop(wait for redirect ${CHANNEL} - ${CALLERID(all)})
+exten => _X.,1,NoOp(wait for redirect ${CHANNEL} - ${CALLERID(all)})
 exten => _X.,2,Wait(10)
 exten => _X.,3,Goto(apphangup,${EXTEN},1)
 
@@ -514,7 +507,7 @@ exten => _X.,3,Goto(apphangup,${EXTEN},1)
 exten => _X.,1,Hangup(17)
 
 [appchanspy]
-exten => _X.,1,Noop(start chanspy ${SPYSTRING})
+exten => _X.,1,NoOp(start chanspy ${SPYSTRING})
 exten => _X.,2,ChanSpy(${SPYSTRING},qv(-1))
 
 [appchanspywhisp]
