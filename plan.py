@@ -233,34 +233,57 @@ def generate_pattern_check_context(schema_id, node, nodes, edges):
     return "\n".join(lines)
 
 
-def generate_greeting_context(schema_id, node, nodes, edges):
+def generate_greeting_context(schema_id, node, nodes, edges, music_files_info):
     """Генерирует диалплан для узла 'greeting'."""
-    # Не генерируем контекст для пустого узла.
-    if not node.get('data', {}).get('greetingFile', {}).get('name'):
+    greeting_data = node.get('data', {}).get('greetingFile')
+    if not greeting_data or not greeting_data.get('name'):
+        logging.info(f"Skipping empty greeting node {node['id']}.")
         return ""
 
     context_name = generate_context_name(schema_id, node['id'])
-    lines = [f"[{context_name}]", f"exten => _X.,1,NoOp"] 
+    display_name = greeting_data.get('name')
 
-    audio_file_data = node.get('data', {}).get('greetingFile', {})
-    audio_path = f"music/{node.get('enterprise_id')}/start/{audio_file_data['name']}"
-    lines.append(f"same => n,Playback({audio_path})")
+    # Ищем internal_filename в переданной информации, учитывая file_type = 'start'
+    music_info = None
+    for key, info in music_files_info.items():
+        if key == display_name and info.get('file_type') == 'start':
+            music_info = info
+            break
+    
+    if not music_info or 'internal_filename' not in music_info:
+        logging.warning(f"Could not find 'start' music file info for '{display_name}' in node {node['id']}. Skipping.")
+        return ""
+
+    internal_filename_no_ext = music_info['internal_filename'].replace('.wav', '')
+    
+    lines = [
+        f"[{context_name}]",
+        "exten => _X.,1,Noop",
+        f"same => n,Playback(custom/{internal_filename_no_ext})"
+    ]
 
     target_node_id = get_target_node_id(edges, node['id'])
+    final_target_id = None
     if target_node_id:
         final_target_id = find_first_meaningful_node(target_node_id, nodes, edges)
-        if final_target_id:
-            target_context_name = generate_context_name(schema_id, final_target_id)
-            lines.append(f"same => n,Goto({target_context_name},${{EXTEN}},1)")
-        else:
-            lines.append("same => n,Hangup()")
+
+    if final_target_id:
+        target_context_name = generate_context_name(schema_id, final_target_id)
+        lines.append(f"same => n,Goto({target_context_name},${{EXTEN}},1)")
     else:
-        lines.append("same => n,Hangup()")
-        
+        lines.append("same => n,Hangup")
+
+    lines.extend([
+        "exten => h,1,NoOp(Call is end)",
+        'exten => h,n,Set(AGISIGHUP="no")',
+        "exten => h,n,StopMixMonitor()",
+        "same => n,Macro(incall_end,${Trunk})"
+    ])
+    
     return "\n".join(lines)
 
 def generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info):
-    """Генерирует диалплан для узла 'externalLines' с учетом типа линии (GSM/SIP)."""
+    """Генерирует диалплан для узла 'Внешние линии'."""
     context_name = generate_context_name(schema_id, node['id'])
     lines = [f"[{context_name}]", "exten => _X.,1,NoOp"]
 
@@ -469,8 +492,14 @@ async def generate_config(request: GenerateConfigRequest):
         gsm_lines_info = {rec['line_id']: {'prefix': rec['prefix']} for rec in gsm_lines_records}
         sip_unit_records = await conn.fetch("SELECT * FROM sip_unit WHERE enterprise_number = $1", enterprise_id)
         sip_unit_info = {rec['line_name']: {'prefix': rec['prefix']} for rec in sip_unit_records}
-        music_files_records = await conn.fetch("SELECT * FROM music_files WHERE enterprise_number = $1", enterprise_id)
-        music_files_info = {file['display_name']: file for file in music_files_records}
+        
+        music_files_records = await conn.fetch("SELECT display_name, internal_filename, file_type FROM music_files WHERE enterprise_number = $1", enterprise_id)
+        music_files_info = {
+            r['display_name']: {
+                'internal_filename': r['internal_filename'],
+                'file_type': r['file_type']
+            } for r in music_files_records
+        }
         
         user_records = await conn.fetch("""
             SELECT u.id, array_agg(uip.phone_number) as internal_phones
@@ -553,6 +582,8 @@ async def generate_config(request: GenerateConfigRequest):
                         # Входящие dial-узлы используют свою логику с картой маршрутов
                         if schema_type == 'incoming':
                             context_str = generator_func(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map, user_phones_map)
+                    elif node_type == 'greeting':
+                        context_str = generator_func(schema_id, node, nodes, edges, music_files_info)
                     else: 
                         context_str = generator_func(schema_id, node, nodes, edges)
                     
