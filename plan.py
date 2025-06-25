@@ -80,8 +80,9 @@ def find_first_meaningful_node(start_node_id, nodes, edges):
             not node.get('data', {}).get('greetingFile', {}).get('name')
         )
         is_start_node = node.get('type') == 'custom'
+        is_passthrough_ivr = node.get('type') == 'ivr' and node.get('data', {}).get('isSingleOutput', False)
 
-        if is_empty_greeting or is_start_node:
+        if is_empty_greeting or is_start_node or is_passthrough_ivr:
             # Узел пустой, ищем следующий.
             current_node_id = get_target_node_id(edges, current_node_id)
         else:
