@@ -362,6 +362,85 @@ def generate_department_context(enterprise_id, dept):
     ]
     return "\n".join(lines)
 
+def generate_work_schedule_context(schema_id, node, nodes, edges):
+    """
+    Генерирует диалплан для узла 'График работы' строго по заданным правилам.
+    """
+    context_name = generate_context_name(schema_id, node['id'])
+    
+    lines = [
+        f"[{context_name}]",
+        "exten => _X.,1,NoOp",
+    ]
+    
+    periods = node.get('data', {}).get('periods', [])
+    source_edges = [edge for edge in edges if edge['source'] == node['id']]
+    
+    # Сортируем ребра, чтобы обеспечить детерминированный порядок.
+    # Ручки периодов (sourceHandle) обычно именуются "0", "1", "2"...
+    # Ручка нерабочего времени - 'no-match' или отсутствует.
+    # Сортировка по строковому представлению поставит numerics первыми.
+    source_edges.sort(key=lambda x: str(x.get('sourceHandle', 'z')))
+
+    num_periods = len(periods)
+    period_edges = source_edges[:num_periods]
+    off_hours_edge = source_edges[num_periods] if len(source_edges) > num_periods else None
+
+    day_map = {
+        'пн': 'mon', 'вт': 'tue', 'ср': 'wed', 'чт': 'thu',
+        'пт': 'fri', 'сб': 'sat', 'вс': 'sun'
+    }
+
+    # Генерация GotoIfTime для рабочих периодов
+    if periods and period_edges:
+        for i, period_data in enumerate(periods):
+            # Проверяем, что для периода есть соответствующее ребро
+            if i < len(period_edges):
+                target_node_id = period_edges[i].get('target')
+                if not target_node_id: continue
+                
+                final_target_id = find_first_meaningful_node(target_node_id, nodes, edges)
+                if not final_target_id: continue
+                
+                target_context_name = generate_context_name(schema_id, final_target_id)
+                time_from = period_data.get('startTime', '00:00')
+                time_to = period_data.get('endTime', '23:59')
+                time_range = f"{time_from}-{time_to}"
+
+                # Обработка дней недели
+                days_of_week = period_data.get('days', [])
+                
+                # Специальный случай для 'пн-пт'
+                if set(days_of_week) == {'пн', 'вт', 'ср', 'чт', 'пт'}:
+                    lines.append(f"same => n,GotoIfTime({time_range},mon-fri,1-31,jan-dec?{target_context_name},${{EXTEN}},1)")
+                else:
+                    for day_short in days_of_week:
+                        day_eng = day_map.get(day_short.lower())
+                        if day_eng:
+                            lines.append(f"same => n,GotoIfTime({time_range},{day_eng},1-31,jan-dec?{target_context_name},${{EXTEN}},1)")
+            else:
+                break
+    
+    # Генерация Goto для нерабочего времени
+    if off_hours_edge:
+        off_hours_target_id = off_hours_edge.get('target')
+        final_off_hours_target_id = find_first_meaningful_node(off_hours_target_id, nodes, edges)
+        if final_off_hours_target_id:
+            off_hours_context_name = generate_context_name(schema_id, final_off_hours_target_id)
+            lines.append(f"same => n,Goto({off_hours_context_name},${{EXTEN}},1)")
+
+    # Финальный Hangup
+    lines.append("same => n,Hangup")
+    
+    lines.extend([
+        "exten => h,1,NoOp(Call is end)",
+        "exten => h,n,Set(AGISIGHUP=\"no\")",
+        "exten => h,n,StopMixMonitor()",
+        "same => n,Macro(incall_end,${Trunk})"
+    ])
+
+    return "\n".join(lines)
+
 # --- Словарь генераторов ---
 NODE_GENERATORS = {
     'patternCheck': generate_pattern_check_context,
@@ -558,6 +637,7 @@ async def generate_config(request: GenerateConfigRequest):
             'greeting': generate_greeting_context,
             'externalLines': generate_external_lines_context,
             'dial': generate_dial_in_context,
+            'workSchedule': generate_work_schedule_context,
         }
 
         for r in schema_records:
@@ -585,7 +665,7 @@ async def generate_config(request: GenerateConfigRequest):
                             context_str = generator_func(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map, user_phones_map)
                     elif node_type == 'greeting':
                         context_str = generator_func(schema_id, node, nodes, edges, music_files_info)
-                    else: 
+                    elif node_type in ['patternCheck', 'workSchedule']:
                         context_str = generator_func(schema_id, node, nodes, edges)
                     
                     if context_str:
