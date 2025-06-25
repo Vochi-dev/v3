@@ -10,6 +10,19 @@ import re
 
 app = FastAPI()
 
+# --- Logging Setup ---
+log_dir = Path("logs")
+log_dir.mkdir(exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_dir / "plan.log", mode='w'),
+        logging.StreamHandler()
+    ],
+    force=True
+)
+
 # --- НАЧАЛО: Добавление CORS Middleware ---
 origins = [
     "https://bot.vochi.by",
@@ -81,6 +94,64 @@ def generate_context_name(schema_id, node_id):
 
 def generate_department_context_name(enterprise_id, department_number):
      return hashlib.md5(f"dep-{enterprise_id}-{department_number}".encode()).hexdigest()[:8]
+
+def generate_dial_in_context(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map):
+    """Генерирует диалплан для узла 'Звонок на список номеров'."""
+    logging.info(f"Generating dial_in context for node {node['id']} in schema {schema_id}")
+    context_name = generate_context_name(schema_id, node['id'])
+    
+    data = node.get('data', {})
+    managers_flat = data.get('managers', [])
+    logging.info(f"Node data: {data}")
+    logging.info(f"Managers flat: {managers_flat}")
+    wait_time = data.get('waitingRings', 3) * 5
+    music_data = data.get('holdMusic', {'type': 'default'})
+    music_option = music_data.get('type', 'default')
+
+    # 1. Определяем опции музыки (пока заглушка, будет расширено)
+    dial_options = "TtKk"
+    if music_option == 'default':
+        dial_options = "m" + dial_options
+    elif music_option == 'custom':
+        music_name = music_data.get('name')
+        if music_name and music_name in music_files_info:
+            internal_filename = music_files_info[music_name]['internal_filename'].replace('.wav', '')
+            dial_options = f"m({internal_filename})" + dial_options
+
+    # 2. Группируем номера (пока базовая логика)
+    internal_numbers = [m['phone'] for m in managers_flat if m['phone'].isdigit() and len(m['phone']) <= 4]
+    dial_command_string = "&".join([f"SIP/{num}" for num in internal_numbers])
+    
+    if not dial_command_string:
+        logging.warning(f"No internal numbers found for node {node['id']}. Skipping context generation.")
+        return "" # Некому звонить
+    
+    logging.info(f"Dial command string: {dial_command_string}")
+
+    # 3. Собираем контекст
+    lines = [
+        f"[{context_name}]",
+        "exten => _X.,1,Noop",
+        f"same => n,Dial({dial_command_string},{wait_time},{dial_options})",
+    ]
+
+    # 4. Проверяем следующий узел
+    target_node_id = get_target_node_id(edges, node['id'])
+    if target_node_id:
+        final_target_id = find_first_meaningful_node(target_node_id, nodes, edges)
+        if final_target_id:
+            target_context_name = generate_context_name(schema_id, final_target_id)
+            lines.append(f"same => n,Goto({target_context_name},${{EXTEN}},1)")
+
+    lines.append("same => n,Hangup")
+    lines.extend([
+        "exten => h,1,NoOp(Call is end)",
+        'exten => h,n,Set(AGISIGHUP="no")',
+        "exten => h,n,StopMixMonitor()",
+        "same => n,Macro(incall_end,${Trunk})"
+    ])
+    
+    return "\n".join(lines)
 
 # --- Context Generators ---
 
@@ -229,6 +300,7 @@ NODE_GENERATORS = {
     'patternCheck': generate_pattern_check_context,
     'greeting': generate_greeting_context,
     'externalLines': lambda schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info: generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info),
+    'dialIn': generate_dial_in_context,
 }
 
 # --- Статические части конфига ---
@@ -337,6 +409,7 @@ exten => 1,1,Dial(${WHO},,tT)
 @app.post("/generate_config")
 async def generate_config(request: GenerateConfigRequest):
     enterprise_id = request.enterprise_id
+    logging.info(f"--- Starting config generation for enterprise: {enterprise_id} ---")
     conn = None
     try:
         conn = await asyncpg.connect(DB_CONFIG)
@@ -345,61 +418,41 @@ async def generate_config(request: GenerateConfigRequest):
         if not token:
             raise HTTPException(status_code=404, detail=f"Enterprise '{enterprise_id}' not found")
 
-        # Fetch data
-        schema_records = await conn.fetch(
-            "SELECT * FROM dial_schemas WHERE enterprise_id = $1", enterprise_id
-        )
-        department_records = await conn.fetch(
-            """
-            SELECT d.number AS department_number, array_agg(uip.phone_number) AS members
-            FROM departments d
-            JOIN department_members dm ON d.id = dm.department_id
-            JOIN user_internal_phones uip ON dm.internal_phone_id = uip.id
-            WHERE d.enterprise_number = $1 GROUP BY d.id
-            """,
-            enterprise_id,
-        )
-        
+        # --- Предварительная загрузка данных ---
+        schema_records = await conn.fetch("SELECT * FROM dial_schemas WHERE enterprise_id = $1", enterprise_id)
+        logging.info(f"Found {len(schema_records)} schemas for enterprise {enterprise_id}")
+        department_records = await conn.fetch("SELECT d.number AS department_number, array_agg(uip.phone_number) AS members FROM departments d JOIN department_members dm ON d.id = dm.department_id JOIN user_internal_phones uip ON dm.internal_phone_id = uip.id WHERE d.enterprise_number = $1 GROUP BY d.id", enterprise_id)
         gsm_lines_records = await conn.fetch("SELECT * FROM gsm_lines WHERE enterprise_number = $1", enterprise_id)
         gsm_lines_info = {rec['line_id']: {'prefix': rec['prefix']} for rec in gsm_lines_records}
-        
         sip_unit_records = await conn.fetch("SELECT * FROM sip_unit WHERE enterprise_number = $1", enterprise_id)
         sip_unit_info = {rec['line_name']: {'prefix': rec['prefix']} for rec in sip_unit_records}
+        music_files_records = await conn.fetch("SELECT * FROM music_files WHERE enterprise_number = $1", enterprise_id)
+        music_files_info = {file['display_name']: file for file in music_files_records}
 
-        # --- Generation ---
-        
-        all_managers_routing = {}
+        # --- Этап 1: Генерация dialexecute и карты маршрутов для Local/
+        dialexecute_contexts_map = {}
         for r in schema_records:
+            if r.get('schema_type') != 'outgoing': continue
             schema = {"id": r['schema_id'], "data": json.loads(r['schema_data'])}
             start_node = get_node_by_id(schema['data']['nodes'], 'start-outgoing')
             if not start_node: continue
-            
             managers = start_node.get('data', {}).get('phones', [])
             first_node_id = get_target_node_id(schema['data']['edges'], 'start-outgoing')
             if not managers or not first_node_id: continue
-            
             target_context = generate_context_name(schema['id'], first_node_id)
             for phone in managers:
-                all_managers_routing[phone] = target_context
-
+                dialexecute_contexts_map[phone] = target_context
+        
         dialexecute_lines = [
             "[dialexecute]",
             "exten => _XXX,1,NoOp(Local call to ${EXTEN})",
-            "same => n,MixMonitor(${UNIQUEID}.wav)",
-            "same => n,NoOp(LOCALCALL=========================================================)",
-            "same => n,Macro(localcall_start,${EXTEN})",
-            "same => n,NoOp(LOCALCALL======================================================END)",
             "same => n,Dial(SIP/${EXTEN},,tTkK)",
             "exten => _XXXX.,1,NoOp(Call to ${EXTEN} from ${CHANNEL(name):4:3}) and ${CALLERID(num)})",
         ]
-        
-        sorted_managers = sorted(all_managers_routing.items(), key=lambda item: int(item[0]))
-
-        for phone, context in sorted_managers:
+        for phone, context in sorted(dialexecute_contexts_map.items(), key=lambda item: int(item[0])):
             dialexecute_lines.append(f'same => n,GotoIf($["${{CHANNEL(name):4:3}}" = "{phone}"]?{context},${{EXTEN}},1)')
             dialexecute_lines.append(f'same => n,GotoIf($["${{CALLERID(num)}}" = "{phone}"]?{context},${{EXTEN}},1) ')
-
-        # Department rules
+        
         for dept in department_records:
             dept_num = dept['department_number']
             context_name = generate_department_context_name(enterprise_id, dept_num)
@@ -413,32 +466,47 @@ async def generate_config(request: GenerateConfigRequest):
             "same => n,NoOp(CALL======================================================END)",
         ])
 
-        all_contexts = []
-        
-        # Department Contexts
-        for dept in department_records:
-            all_contexts.append(generate_department_context(enterprise_id, dept))
+        # --- Этап 2: Генерация всех контекстов с разделением ---
+        pre_from_out_office_contexts = [generate_department_context(enterprise_id, dept) for dept in department_records]
+        post_from_out_office_contexts = []
 
-        # Outgoing Schema contexts
+        # Обновленный NODE_GENERATORS
+        NODE_GENERATORS_UPDATED = {
+            'patternCheck': generate_pattern_check_context,
+            'greeting': generate_greeting_context,
+            'externalLines': lambda schema_id, node, nodes, edges: generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info),
+            'dial': lambda schema_id, node, nodes, edges: generate_dial_in_context(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map),
+        }
+
         for r in schema_records:
-            if r.get('schema_type') != 'outgoing':
-                continue
-            schema_id, data = r['schema_id'], json.loads(r['schema_data'])
+            schema_id, data, schema_type = r['schema_id'], json.loads(r['schema_data']), r.get('schema_type', 'outgoing')
+            logging.info(f"Processing schema_id: {schema_id}, schema_type: {schema_type}")
             nodes, edges = data['nodes'], data['edges']
+            
+            context_list = post_from_out_office_contexts if schema_type == 'incoming' else pre_from_out_office_contexts
             
             for node in nodes:
                 node_type = node.get('type')
-                node['enterprise_id'] = enterprise_id
-                if node_type in NODE_GENERATORS:
-                    if node_type == 'externalLines':
-                        context_str = NODE_GENERATORS[node_type](schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info)
-                    else:
-                        context_str = NODE_GENERATORS[node_type](schema_id, node, nodes, edges)
-                    
-                    if context_str:
-                        all_contexts.append(context_str)
+                node['enterprise_id'] = enterprise_id 
+                
+                if node_type == 'dial' and schema_type == 'incoming':
+                     logging.info(f"Found 'dial' node ({node['id']}) in 'incoming' schema ({schema_id}). Calling generator.")
 
-        # --- Generate from-out-office context ---
+                if node_type in NODE_GENERATORS_UPDATED:
+                    generator_func = NODE_GENERATORS_UPDATED[node_type]
+                    # Передаем только те аргументы, которые ожидает функция
+                    # Это упрощенная версия, в идеале нужно проверять сигнатуру
+                    if node_type in ['externalLines', 'dial']:
+                         context_str = generator_func(schema_id, node, nodes, edges)
+                    else:
+                         context_str = generator_func(schema_id, node, nodes, edges)
+
+                    if context_str:
+                        context_list.append(context_str)
+
+        logging.info(f"Generated {len(pre_from_out_office_contexts)} pre-contexts and {len(post_from_out_office_contexts)} post-contexts.")
+
+        # --- Этап 3: Генерация from-out-office ---
         from_out_office_lines = [
             "[from-out-office]",
             "exten => _X.,1,Set(AUDIOHOOK_INHERIT(MixMonitor)=yes)",
@@ -452,20 +520,12 @@ async def generate_config(request: GenerateConfigRequest):
             "exten => _X.,n,MixMonitor(${UNIQUEID}.wav)",
             "exten => _X.,n,NoOp(NOW is ${CALLERID(num)})"
         ]
-        
-        # Prepare lines with their schema context
         lines_with_context = []
-
-        # GSM Lines
         incoming_gsm_lines = [line for line in gsm_lines_records if line['in_schema'] is not None]
-        sorted_gsm = sorted(incoming_gsm_lines, key=lambda x: int(x['line_id']))
-
-        for line in sorted_gsm:
-            schema_name = line['in_schema']
-            schema = next((s for s in schema_records if s['schema_name'] == schema_name and s.get('schema_type') == 'incoming'), None)
+        for line in sorted(incoming_gsm_lines, key=lambda x: int(x['line_id'])):
+            schema = next((s for s in schema_records if s['schema_name'] == line['in_schema'] and s.get('schema_type') == 'incoming'), None)
             if schema:
-                nodes = json.loads(schema['schema_data'])['nodes']
-                edges = json.loads(schema['schema_data'])['edges']
+                nodes, edges = json.loads(schema['schema_data'])['nodes'], json.loads(schema['schema_data'])['edges']
                 start_node = get_node_by_id(nodes, '1')
                 if start_node:
                     target_node_id = find_first_meaningful_node(start_node['id'], nodes, edges)
@@ -473,26 +533,9 @@ async def generate_config(request: GenerateConfigRequest):
                         context_name = generate_context_name(schema['schema_id'], target_node_id)
                         lines_with_context.append({'line_id': line['line_id'], 'context': context_name})
         
-        # SIP Lines
-        incoming_sip_lines = [line for line in sip_unit_records if line['in_schema'] is not None]
-        sorted_sip = sorted(incoming_sip_lines, key=lambda x: x['id'])
-
-        for line in sorted_sip:
-            schema_name = line['in_schema']
-            schema = next((s for s in schema_records if s['schema_name'] == schema_name and s.get('schema_type') == 'incoming'), None)
-            if schema:
-                nodes = json.loads(schema['schema_data'])['nodes']
-                edges = json.loads(schema['schema_data'])['edges']
-                start_node = get_node_by_id(nodes, '1')
-                if start_node:
-                    target_node_id = find_first_meaningful_node(start_node['id'], nodes, edges)
-                    if target_node_id:
-                        context_name = generate_context_name(schema['schema_id'], target_node_id)
-                        lines_with_context.append({'line_id': line['line_name'], 'context': context_name})
-        
         for item in lines_with_context:
             from_out_office_lines.append(f'exten => _X.,n,GotoIf($["${{EXTEN}}" = "{item["line_id"]}"]?{item["context"]},${{EXTEN}},1)')
-
+        
         from_out_office_lines.extend([
             "exten => _X.,n,Hangup",
             "exten => h,1,NoOp(Call is end)",
@@ -500,17 +543,19 @@ async def generate_config(request: GenerateConfigRequest):
             "exten => h,n,StopMixMonitor()",
             "same => n,Macro(incall_end,${Trunk})"
         ])
-        all_contexts.append("\n".join(from_out_office_lines))
 
-        # --- Assembly ---
+        # --- Этап 4: Финальная сборка ---
         config_parts = [
             get_config_header(token),
             "\n".join(dialexecute_lines),
         ]
-        config_parts.extend(all_contexts)
+        config_parts.extend(filter(None, pre_from_out_office_contexts))
+        config_parts.append("\n".join(from_out_office_lines))
+        config_parts.extend(filter(None, post_from_out_office_contexts))
         config_parts.append(get_config_footer())
 
         final_config = "\n\n".join(filter(None, config_parts))
+        logging.info(f"Final config generated. Length: {len(final_config)}. Writing to file.")
 
         config_dir = Path(f"music/{enterprise_id}")
         config_dir.mkdir(parents=True, exist_ok=True)
@@ -518,6 +563,7 @@ async def generate_config(request: GenerateConfigRequest):
         with open(config_path, "w") as f:
             f.write(final_config)
 
+        logging.info(f"--- Finished config generation for enterprise: {enterprise_id} ---")
         return {"message": "Config generated", "path": str(config_path), "config": final_config}
 
     except Exception as e:
