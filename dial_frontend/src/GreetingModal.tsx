@@ -35,7 +35,6 @@ const GreetingModal: React.FC<GreetingModalProps> = ({ enterpriseId, onClose, on
         onConfirm({
             greetingFile: greetingFile,
         });
-        onClose();
     };
 
     return (

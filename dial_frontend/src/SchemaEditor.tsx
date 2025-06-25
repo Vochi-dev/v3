@@ -693,6 +693,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         }
         setIsGreetingModalOpen(false);
         setEditingNode(null);
+        setNewNodeId(null);
     };
 
     const handlePatternCheckConfirm = (patterns: { name: string }[]) => {
