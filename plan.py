@@ -7,6 +7,7 @@ from pathlib import Path
 import hashlib
 import logging
 import re
+from collections import defaultdict
 
 app = FastAPI()
 
@@ -47,7 +48,7 @@ class GenerateConfigRequest(BaseModel):
 # --- Helper Functions ---
 def get_node_by_id(nodes, node_id):
     """Находит узел в списке по его ID."""
-    return next((node for node in nodes if node['id'] == node_id), None)
+    return next((n for n in nodes if n['id'] == node_id), None)
 
 def get_target_node_id(edges, source_node_id, source_handle=None):
     """Находит ID целевого узла для данного исходного узла."""
@@ -88,27 +89,78 @@ def find_first_meaningful_node(start_node_id, nodes, edges):
     
     return None # Обнаружен цикл или конец пути.
 
-def generate_context_name(schema_id, node_id):
+def generate_context_name(schema_id, node_id, suffix=None):
     """Генерирует уникальное имя контекста."""
-    return hashlib.md5(f"{schema_id}-{node_id}".encode()).hexdigest()[:8]
+    base_string = f"{schema_id}-{node_id}"
+    if suffix:
+        base_string += f"-{suffix}"
+    return hashlib.md5(base_string.encode()).hexdigest()[:8]
 
 def generate_department_context_name(enterprise_id, department_number):
      return hashlib.md5(f"dep-{enterprise_id}-{department_number}".encode()).hexdigest()[:8]
 
-def generate_dial_in_context(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map):
-    """Генерирует диалплан для узла 'Звонок на список номеров'."""
+def generate_dial_in_context(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map, user_phones_map):
+    """Генерирует диалплан для узла 'Звонок на список номеров' с учетом внешних номеров."""
     logging.info(f"Generating dial_in context for node {node['id']} in schema {schema_id}")
     context_name = generate_context_name(schema_id, node['id'])
     
     data = node.get('data', {})
     managers_flat = data.get('managers', [])
     logging.info(f"Node data: {data}")
-    logging.info(f"Managers flat: {managers_flat}")
+
+    # Группируем номера по userId
+    managers_by_user = defaultdict(lambda: {'internal': [], 'external': []})
+    for m in managers_flat:
+        user_id = m.get('userId')
+        phone = m.get('phone', '').lstrip('+')
+        if not user_id or not phone:
+            continue
+        if phone.isdigit() and len(phone) <= 4:
+            managers_by_user[user_id]['internal'].append(phone)
+        else:
+            managers_by_user[user_id]['external'].append(phone)
+
+    all_dial_parts = []
+    all_log_numbers = []
+
+    for user_id, numbers in managers_by_user.items():
+        # Сначала добавляем все внутренние номера
+        all_log_numbers.extend(numbers['internal'])
+        for num in numbers['internal']:
+            all_dial_parts.append(f"SIP/{num}")
+
+        # Теперь обрабатываем внешние номера
+        if numbers['external']:
+            # Ищем контекст для исходящих через ВСЕ внутренние номера этого юзера
+            outgoing_context = None
+            all_internal_for_user = user_phones_map.get(user_id, [])
+            sorted_internal = sorted(all_internal_for_user)
+            
+            for internal_num in sorted_internal:
+                if internal_num in dialexecute_contexts_map:
+                    outgoing_context = dialexecute_contexts_map[internal_num]
+                    logging.info(f"Found outgoing context '{outgoing_context}' for user {user_id} via internal number {internal_num}")
+                    break
+            
+            if outgoing_context:
+                all_log_numbers.extend(numbers['external'])
+                for ext_num in numbers['external']:
+                    all_dial_parts.append(f"Local/{ext_num}@{outgoing_context}")
+            else:
+                logging.warning(f"No outgoing context found for any internal numbers of user {user_id}. External numbers {numbers['external']} will be ignored.")
+
+    if not all_dial_parts:
+        logging.warning(f"No numbers to dial for node {node['id']}. Skipping context generation.")
+        return ""
+
+    dial_command_string = "&".join(all_dial_parts)
+    log_command_string = "&".join(all_log_numbers)
+    logging.info(f"Dial command string: {dial_command_string}")
+
     wait_time = data.get('waitingRings', 3) * 5
     music_data = data.get('holdMusic', {'type': 'default'})
     music_option = music_data.get('type', 'default')
 
-    # 1. Определяем опции музыки (пока заглушка, будет расширено)
     dial_options = "TtKk"
     if music_option == 'default':
         dial_options = "m" + dial_options
@@ -116,26 +168,17 @@ def generate_dial_in_context(schema_id, node, nodes, edges, music_files_info, di
         music_name = music_data.get('name')
         if music_name and music_name in music_files_info:
             internal_filename = music_files_info[music_name]['internal_filename'].replace('.wav', '')
-            dial_options = f"m({internal_filename})" + dial_options
+            music_context_name = generate_context_name(schema_id, node['id'], "moh")
+            dial_options = f"m({music_context_name})" + dial_options
+            # TODO: Add music context generation if needed. For now, using Asterisk's default moh directory logic.
 
-    # 2. Группируем номера (пока базовая логика)
-    internal_numbers = [m['phone'] for m in managers_flat if m['phone'].isdigit() and len(m['phone']) <= 4]
-    dial_command_string = "&".join([f"SIP/{num}" for num in internal_numbers])
-    
-    if not dial_command_string:
-        logging.warning(f"No internal numbers found for node {node['id']}. Skipping context generation.")
-        return "" # Некому звонить
-    
-    logging.info(f"Dial command string: {dial_command_string}")
-
-    # 3. Собираем контекст
     lines = [
         f"[{context_name}]",
         "exten => _X.,1,Noop",
+        f"same => n,Macro(incall_dial,${{Trunk}},{log_command_string})",
         f"same => n,Dial({dial_command_string},{wait_time},{dial_options})",
     ]
 
-    # 4. Проверяем следующий узел
     target_node_id = get_target_node_id(edges, node['id'])
     if target_node_id:
         final_target_id = find_first_meaningful_node(target_node_id, nodes, edges)
@@ -428,6 +471,15 @@ async def generate_config(request: GenerateConfigRequest):
         sip_unit_info = {rec['line_name']: {'prefix': rec['prefix']} for rec in sip_unit_records}
         music_files_records = await conn.fetch("SELECT * FROM music_files WHERE enterprise_number = $1", enterprise_id)
         music_files_info = {file['display_name']: file for file in music_files_records}
+        
+        user_records = await conn.fetch("""
+            SELECT u.id, array_agg(uip.phone_number) as internal_phones
+            FROM users u
+            LEFT JOIN user_internal_phones uip ON u.id = uip.user_id
+            WHERE u.enterprise_number = $1 AND uip.phone_number IS NOT NULL
+            GROUP BY u.id;
+        """, enterprise_id)
+        user_phones_map = {user['id']: user['internal_phones'] for user in user_records}
 
         # --- Этап 1: Генерация dialexecute и карты маршрутов для Local/
         dialexecute_contexts_map = {}
@@ -469,7 +521,7 @@ async def generate_config(request: GenerateConfigRequest):
         # --- Этап 2: Генерация всех контекстов с разделением ---
         pre_from_out_office_contexts = [generate_department_context(enterprise_id, dept) for dept in department_records]
         post_from_out_office_contexts = []
-
+        
         # Обновленный NODE_GENERATORS
         NODE_GENERATORS_UPDATED = {
             'patternCheck': generate_pattern_check_context,
@@ -498,9 +550,10 @@ async def generate_config(request: GenerateConfigRequest):
                     if node_type == 'externalLines':
                         context_str = generator_func(schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info)
                     elif node_type == 'dial':
+                        # Входящие dial-узлы используют свою логику с картой маршрутов
                         if schema_type == 'incoming':
-                            context_str = generator_func(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map)
-                    else: # Для остальных (greeting, patternCheck)
+                            context_str = generator_func(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map, user_phones_map)
+                    else: 
                         context_str = generator_func(schema_id, node, nodes, edges)
                     
                     if context_str:
