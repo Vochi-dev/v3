@@ -474,8 +474,8 @@ async def generate_config(request: GenerateConfigRequest):
         NODE_GENERATORS_UPDATED = {
             'patternCheck': generate_pattern_check_context,
             'greeting': generate_greeting_context,
-            'externalLines': lambda schema_id, node, nodes, edges: generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info),
-            'dial': lambda schema_id, node, nodes, edges: generate_dial_in_context(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map),
+            'externalLines': generate_external_lines_context,
+            'dial': generate_dial_in_context,
         }
 
         for r in schema_records:
@@ -494,13 +494,15 @@ async def generate_config(request: GenerateConfigRequest):
 
                 if node_type in NODE_GENERATORS_UPDATED:
                     generator_func = NODE_GENERATORS_UPDATED[node_type]
-                    # Передаем только те аргументы, которые ожидает функция
-                    # Это упрощенная версия, в идеале нужно проверять сигнатуру
-                    if node_type in ['externalLines', 'dial']:
-                         context_str = generator_func(schema_id, node, nodes, edges)
-                    else:
-                         context_str = generator_func(schema_id, node, nodes, edges)
-
+                    context_str = None
+                    if node_type == 'externalLines':
+                        context_str = generator_func(schema_id, node, nodes, edges, gsm_lines_info, sip_unit_info)
+                    elif node_type == 'dial':
+                        if schema_type == 'incoming':
+                            context_str = generator_func(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map)
+                    else: # Для остальных (greeting, patternCheck)
+                        context_str = generator_func(schema_id, node, nodes, edges)
+                    
                     if context_str:
                         context_list.append(context_str)
 
@@ -521,6 +523,8 @@ async def generate_config(request: GenerateConfigRequest):
             "exten => _X.,n,NoOp(NOW is ${CALLERID(num)})"
         ]
         lines_with_context = []
+        
+        # GSM Lines
         incoming_gsm_lines = [line for line in gsm_lines_records if line['in_schema'] is not None]
         for line in sorted(incoming_gsm_lines, key=lambda x: int(x['line_id'])):
             schema = next((s for s in schema_records if s['schema_name'] == line['in_schema'] and s.get('schema_type') == 'incoming'), None)
@@ -533,6 +537,19 @@ async def generate_config(request: GenerateConfigRequest):
                         context_name = generate_context_name(schema['schema_id'], target_node_id)
                         lines_with_context.append({'line_id': line['line_id'], 'context': context_name})
         
+        # SIP Lines
+        incoming_sip_lines = [line for line in sip_unit_records if line['in_schema'] is not None]
+        for line in sorted(incoming_sip_lines, key=lambda x: x['id']):
+            schema = next((s for s in schema_records if s['schema_name'] == line['in_schema'] and s.get('schema_type') == 'incoming'), None)
+            if schema:
+                nodes, edges = json.loads(schema['schema_data'])['nodes'], json.loads(schema['schema_data'])['edges']
+                start_node = get_node_by_id(nodes, '1')
+                if start_node:
+                    target_node_id = find_first_meaningful_node(start_node['id'], nodes, edges)
+                    if target_node_id:
+                        context_name = generate_context_name(schema['schema_id'], target_node_id)
+                        lines_with_context.append({'line_id': line['line_name'], 'context': context_name})
+
         for item in lines_with_context:
             from_out_office_lines.append(f'exten => _X.,n,GotoIf($["${{EXTEN}}" = "{item["line_id"]}"]?{item["context"]},${{EXTEN}},1)')
         
