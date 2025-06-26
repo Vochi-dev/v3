@@ -37,4 +37,13 @@ CREATE TABLE IF NOT EXISTS enterprise_users (
     PRIMARY KEY (telegram_id, enterprise_id),
     FOREIGN KEY (telegram_id) REFERENCES telegram_users(tg_id),
     FOREIGN KEY (enterprise_id) REFERENCES enterprises(number)
+);
+
+-- Связующая таблица для отношения "многие ко многим" между SIP-линиями и исходящими схемами
+CREATE TABLE IF NOT EXISTS sip_outgoing_schema_assignments (
+    id SERIAL PRIMARY KEY,
+    enterprise_number VARCHAR(255) NOT NULL,
+    sip_line_name VARCHAR(255) NOT NULL,
+    schema_name VARCHAR(255) NOT NULL,
+    UNIQUE (enterprise_number, sip_line_name, schema_name)
 ); 
