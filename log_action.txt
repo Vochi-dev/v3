@@ -8182,3 +8182,271 @@ asyncpg.exceptions.UndefinedColumnError: column ds_in.name does not exist
 2025-06-26 05:51:47,087 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
 2025-06-26 05:51:47,088 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
 2025-06-26 05:51:47,090 - enterprise_admin_service - INFO - Запрос обработан за 0.2110 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-26 06:13:30,694 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:13:30,912 - enterprise_admin_service - INFO - Запрос обработан за 0.2183 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:13:31,112 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:13:31,284 - enterprise_admin_service - INFO - Запрос обработан за 0.1720 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:16:53,987 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:16:54,180 - enterprise_admin_service - INFO - Запрос обработан за 0.1928 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:16:54,228 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:16:54,422 - enterprise_admin_service - INFO - Запрос обработан за 0.1940 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:17:02,160 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:17:02,328 - enterprise_admin_service - INFO - Запрос обработан за 0.1678 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:17:02,374 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:17:02,598 - enterprise_admin_service - INFO - Запрос обработан за 0.2235 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:17:08,341 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:17:08,497 - enterprise_admin_service - INFO - Запрос обработан за 0.1561 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:17:08,550 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:17:08,765 - enterprise_admin_service - INFO - Запрос обработан за 0.2146 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:25:07,793 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:25:08,007 - enterprise_admin_service - INFO - Запрос обработан за 0.2146 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:25:08,273 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:25:08,480 - enterprise_admin_service - INFO - Запрос обработан за 0.2070 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:25:10,751 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 06:25:10,851 - enterprise_admin_service - INFO - Запрос обработан за 0.1007 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 06:25:18,084 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-26 06:25:18,295 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-26 06:25:18,296 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-26 06:25:18,298 - enterprise_admin_service - INFO - Запрос обработан за 0.2141 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-26 06:29:59,121 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:29:59,341 - enterprise_admin_service - INFO - Запрос обработан за 0.2200 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:31:25,778 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:31:25,998 - enterprise_admin_service - INFO - Запрос обработан за 0.2200 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:31:26,234 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:31:26,457 - enterprise_admin_service - INFO - Запрос обработан за 0.2228 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:31:28,283 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 06:31:28,373 - enterprise_admin_service - INFO - Запрос обработан за 0.0903 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 06:36:00,292 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:36:00,492 - enterprise_admin_service - INFO - Запрос обработан за 0.1998 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:36:02,712 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise//users
+2025-06-26 06:36:02,713 - enterprise_admin_service - INFO - Запрос обработан за 0.0012 сек. Статус: 404. Адрес: GET https://bot.vochi.by/enterprise//users
+2025-06-26 06:36:40,613 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise//users
+2025-06-26 06:36:40,616 - enterprise_admin_service - INFO - Запрос обработан за 0.0039 сек. Статус: 404. Адрес: GET https://bot.vochi.by/enterprise//users
+2025-06-26 06:37:49,581 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:37:49,777 - enterprise_admin_service - INFO - Запрос обработан за 0.1963 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:37:55,009 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:37:55,197 - enterprise_admin_service - INFO - Запрос обработан за 0.1878 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:40:50,077 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:40:50,269 - enterprise_admin_service - INFO - Запрос обработан за 0.1919 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:40:50,509 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:40:50,722 - enterprise_admin_service - INFO - Запрос обработан за 0.2134 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:40:52,215 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:40:52,423 - enterprise_admin_service - INFO - Запрос обработан за 0.2072 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:45:05,746 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 06:45:05,834 - enterprise_admin_service - INFO - Запрос обработан за 0.0883 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 06:45:16,752 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:45:16,893 - enterprise_admin_service - INFO - Запрос обработан за 0.1406 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:45:17,107 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:45:17,254 - enterprise_admin_service - INFO - Запрос обработан за 0.1470 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:45:25,551 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:45:25,718 - enterprise_admin_service - INFO - Запрос обработан за 0.1674 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:45:25,771 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:45:25,981 - enterprise_admin_service - INFO - Запрос обработан за 0.2097 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:45:27,945 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:45:28,143 - enterprise_admin_service - INFO - Запрос обработан за 0.1984 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:45:28,198 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:45:28,392 - enterprise_admin_service - INFO - Запрос обработан за 0.1938 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:45:30,533 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-26 06:45:30,713 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0201.
+2025-06-26 06:45:30,713 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 2, 'display_name': 'Ожидание проверка', 'file_type': 'hold', 'file_path': 'music/0201/hold/w5fw4fl3.wav', 'original_filename': 'callrecord_1744619143792.mp3', 'created_at': '2025-06-10T17:18:51.262015+00:00'}, {'id': 1, 'display_name': 'Проба', 'file_type': 'start', 'file_path': 'music/0201/start/wrfslsvg.wav', 'original_filename': 'callrecord_1747834691669.mp3', 'created_at': '2025-06-10T10:22:05.668370+00:00'}]
+2025-06-26 06:45:30,716 - enterprise_admin_service - INFO - Запрос обработан за 0.1836 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-26 06:45:30,792 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/2
+2025-06-26 06:45:30,800 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/1
+2025-06-26 06:45:30,962 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 1 для предприятия: 0201
+2025-06-26 06:45:30,965 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 2 для предприятия: 0201
+2025-06-26 06:45:31,090 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/hold/w5fw4fl3.wav
+2025-06-26 06:45:31,090 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav
+2025-06-26 06:45:31,090 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/hold/w5fw4fl3.wav с media_type audio/wav
+2025-06-26 06:45:31,092 - enterprise_admin_service - INFO - Запрос обработан за 0.3002 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/2
+2025-06-26 06:45:31,101 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/start/wrfslsvg.wav
+2025-06-26 06:45:31,101 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/start/wrfslsvg.wav
+2025-06-26 06:45:31,101 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/start/wrfslsvg.wav с media_type audio/wav
+2025-06-26 06:45:31,103 - enterprise_admin_service - INFO - Запрос обработан за 0.3025 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/1
+2025-06-26 06:48:40,719 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:48:40,898 - enterprise_admin_service - INFO - Запрос обработан за 0.1792 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 06:48:41,103 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:48:41,280 - enterprise_admin_service - INFO - Запрос обработан за 0.1764 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 06:48:43,268 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-26 06:48:43,430 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-26 06:48:43,431 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-26 06:48:43,432 - enterprise_admin_service - INFO - Запрос обработан за 0.1643 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-26 06:48:45,741 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 06:48:45,878 - enterprise_admin_service - INFO - Запрос обработан за 0.1366 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 06:48:48,352 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-26 06:48:48,534 - enterprise_admin_service - INFO - Запрос обработан за 0.1826 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-26 07:04:37,851 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:04:38,069 - enterprise_admin_service - INFO - Запрос обработан за 0.2179 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:04:38,273 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:04:38,411 - enterprise_admin_service - ERROR - Ошибка при получении пользователей и линий: object of type 'TextClause' has no len()
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 285, in get_enterprise_users
+    result = await conn.execute(sql_query, {"enterprise_number": enterprise_number})
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 353, in execute
+    _, status, _ = await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 422, in _get_statement
+    or len(query) <= self._config.max_cacheable_statement_size
+TypeError: object of type 'TextClause' has no len()
+2025-06-26 07:04:38,414 - enterprise_admin_service - INFO - Запрос обработан за 0.1408 сек. Статус: 500. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:04:40,323 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:04:40,484 - enterprise_admin_service - ERROR - Ошибка при получении пользователей и линий: object of type 'TextClause' has no len()
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 285, in get_enterprise_users
+    result = await conn.execute(sql_query, {"enterprise_number": enterprise_number})
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 353, in execute
+    _, status, _ = await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 422, in _get_statement
+    or len(query) <= self._config.max_cacheable_statement_size
+TypeError: object of type 'TextClause' has no len()
+2025-06-26 07:04:40,487 - enterprise_admin_service - INFO - Запрос обработан за 0.1642 сек. Статус: 500. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:05:01,634 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:05:01,851 - enterprise_admin_service - ERROR - Ошибка при получении пользователей и линий: object of type 'TextClause' has no len()
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 285, in get_enterprise_users
+    result = await conn.execute(sql_query, {"enterprise_number": enterprise_number})
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 353, in execute
+    _, status, _ = await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 422, in _get_statement
+    or len(query) <= self._config.max_cacheable_statement_size
+TypeError: object of type 'TextClause' has no len()
+2025-06-26 07:05:01,858 - enterprise_admin_service - INFO - Запрос обработан за 0.2236 сек. Статус: 500. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:06:35,369 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:06:35,543 - enterprise_admin_service - INFO - Запрос обработан за 0.1742 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:06:35,857 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:06:36,047 - enterprise_admin_service - ERROR - Ошибка при получении пользователей и линий: object of type 'TextClause' has no len()
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 285, in get_enterprise_users
+    result = await conn.execute(sql_query, (enterprise_number,))
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 353, in execute
+    _, status, _ = await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 422, in _get_statement
+    or len(query) <= self._config.max_cacheable_statement_size
+TypeError: object of type 'TextClause' has no len()
+2025-06-26 07:06:36,050 - enterprise_admin_service - INFO - Запрос обработан за 0.1930 сек. Статус: 500. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:06:43,047 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:06:43,229 - enterprise_admin_service - ERROR - Ошибка при получении пользователей и линий: object of type 'TextClause' has no len()
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 285, in get_enterprise_users
+    result = await conn.execute(sql_query, (enterprise_number,))
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 353, in execute
+    _, status, _ = await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 422, in _get_statement
+    or len(query) <= self._config.max_cacheable_statement_size
+TypeError: object of type 'TextClause' has no len()
+2025-06-26 07:06:43,233 - enterprise_admin_service - INFO - Запрос обработан за 0.1858 сек. Статус: 500. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:06:52,542 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:06:52,717 - enterprise_admin_service - INFO - Запрос обработан за 0.1748 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:06:52,966 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:06:53,137 - enterprise_admin_service - ERROR - Ошибка при получении пользователей и линий: object of type 'TextClause' has no len()
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 285, in get_enterprise_users
+    result = await conn.execute(sql_query, (enterprise_number,))
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 353, in execute
+    _, status, _ = await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 422, in _get_statement
+    or len(query) <= self._config.max_cacheable_statement_size
+TypeError: object of type 'TextClause' has no len()
+2025-06-26 07:06:53,142 - enterprise_admin_service - INFO - Запрос обработан за 0.1760 сек. Статус: 500. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:06:54,484 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 07:06:54,555 - enterprise_admin_service - INFO - Запрос обработан за 0.0711 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 07:07:03,423 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-26 07:07:03,621 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-26 07:07:03,622 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-26 07:07:03,625 - enterprise_admin_service - INFO - Запрос обработан за 0.2025 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-26 07:07:06,194 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:07:06,352 - enterprise_admin_service - INFO - Запрос обработан за 0.1580 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:07:06,401 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:07:06,570 - enterprise_admin_service - ERROR - Ошибка при получении пользователей и линий: object of type 'TextClause' has no len()
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 285, in get_enterprise_users
+    result = await conn.execute(sql_query, (enterprise_number,))
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 353, in execute
+    _, status, _ = await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 422, in _get_statement
+    or len(query) <= self._config.max_cacheable_statement_size
+TypeError: object of type 'TextClause' has no len()
+2025-06-26 07:07:06,572 - enterprise_admin_service - INFO - Запрос обработан за 0.1705 сек. Статус: 500. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:07:11,701 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:07:11,866 - enterprise_admin_service - ERROR - Ошибка при получении пользователей и линий: object of type 'TextClause' has no len()
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 285, in get_enterprise_users
+    result = await conn.execute(sql_query, (enterprise_number,))
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 353, in execute
+    _, status, _ = await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 422, in _get_statement
+    or len(query) <= self._config.max_cacheable_statement_size
+TypeError: object of type 'TextClause' has no len()
+2025-06-26 07:07:11,867 - enterprise_admin_service - INFO - Запрос обработан за 0.1657 сек. Статус: 500. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:11:17,928 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:11:18,161 - enterprise_admin_service - INFO - Запрос обработан за 0.2330 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:11:18,370 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:11:18,535 - enterprise_admin_service - INFO - Запрос обработан за 0.1652 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:15:26,067 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/next-available
+2025-06-26 07:15:26,277 - enterprise_admin_service - INFO - Запрос обработан за 0.2108 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/next-available
+2025-06-26 07:32:46,152 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:32:46,344 - enterprise_admin_service - INFO - Запрос обработан за 0.1923 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:32:46,603 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:32:46,853 - enterprise_admin_service - INFO - Запрос обработан за 0.2498 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:33:18,960 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 07:33:19,061 - enterprise_admin_service - INFO - Запрос обработан за 0.1014 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 07:33:21,764 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-26 07:33:21,959 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-26 07:33:21,960 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-26 07:33:21,961 - enterprise_admin_service - INFO - Запрос обработан за 0.1972 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-26 07:33:24,207 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-26 07:33:24,422 - enterprise_admin_service - INFO - Запрос обработан за 0.2144 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-26 07:33:26,622 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:33:26,780 - enterprise_admin_service - INFO - Запрос обработан за 0.1579 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:33:26,821 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:33:27,003 - enterprise_admin_service - INFO - Запрос обработан за 0.1818 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:33:28,563 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:33:28,721 - enterprise_admin_service - INFO - Запрос обработан за 0.1578 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 07:33:28,772 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 07:33:28,956 - enterprise_admin_service - INFO - Запрос обработан за 0.1848 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users

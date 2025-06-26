@@ -1,0 +1,5 @@
+cd dial_frontend && npm run build
+./admin.sh restart
+./dial.sh restart
+./111.sh restart
+./plan.sh restart 
