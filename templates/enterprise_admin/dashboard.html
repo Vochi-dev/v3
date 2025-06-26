@@ -714,9 +714,21 @@
             if (iti) return;
             const phoneInput = document.getElementById('userPersonalPhone');
             iti = window.intlTelInput(phoneInput, {
+                // --- Обязательно для форматирования и плейсхолдеров ---
                 utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/js/utils.js",
-                initialCountry: "by", // Устанавливаем Беларусь по умолчанию
-                formatOnDisplay: false // Отключаем авто-форматирование
+
+                // --- Форматирование ---
+                nationalMode: false,      // Номер всегда в международном формате
+                separateDialCode: true,   // Код страны (+375) будет отдельно от номера
+                
+                // --- Улучшение UX ---
+                initialCountry: "auto",   // Автоматически определять страну
+                geoIpLookup: callback => {
+                  fetch("https://ipapi.co/json")
+                    .then(res => res.json())
+                    .then(data => callback(data.country_code))
+                    .catch(() => callback("by")); // Беларусь как запасной вариант
+                }
             });
         };
 
