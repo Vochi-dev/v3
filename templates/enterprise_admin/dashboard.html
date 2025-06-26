@@ -571,7 +571,10 @@
             } else if (action === 'open-create-line') {
                 openCreateLineModal();
             } else if (action === 'edit-user') {
-                openUserModalForEdit(target.dataset.userId);
+                const userId = target.getAttribute('data-user-id');
+                if (userId) {
+                    openUserModalForEdit(userId);
+                }
             } else if (action === 'delete-user') {
                 deleteUser();
             } else if (action === 'add-internal-line') {
@@ -733,37 +736,48 @@
             iti.setNumber("+");
         };
 
-        const openUserModalForEdit = (userId) => {
-            // ИСПРАВЛЕНИЕ: Ищем пользователя напрямую в кеше, который является массивом
-            const user = usersDataCache?.find(u => u.user_id == userId);
-            if (!user) { 
-                alert("Не удалось найти данные пользователя. ID: " + userId); 
-                console.error("User not found in cache:", usersDataCache);
-                return; 
-            }
-            currentEditingUser = user;
-            
-            document.getElementById('userModalTitle').textContent = 'Редактирование пользователя';
-            createUserForm.reset();
-            openModal(createUserModal);
-            initIti();
-            
-            Object.keys(user).forEach(key => {
-                const el = createUserForm.elements[key];
-                if (el && typeof el.value !== 'undefined') el.value = user[key];
-            });
-            iti.setNumber(user.personal_phone || '+');
+        const openUserModalForEdit = async (userId) => {
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/users/${userId}/details_for_edit`);
+                if (!response.ok) {
+                    const errData = await response.json().catch(()=>null);
+                    throw new Error(errData?.detail || 'Не удалось загрузить данные пользователя.');
+                }
+                const user = await response.json();
+                
+                currentEditingUser = user; // Сохраняем полные данные пользователя
+                
+                document.getElementById('userModalTitle').textContent = 'Редактирование пользователя';
+                createUserForm.reset();
+                initIti();
+                
+                // Заполняем все поля формы
+                document.getElementById('userEmail').value = user.email || '';
+                document.getElementById('userFirstName').value = user.first_name || '';
+                document.getElementById('userLastName').value = user.last_name || '';
+                document.getElementById('userPatronymic').value = user.patronymic || '';
+                iti.setNumber(user.personal_phone || '+');
 
-            const listContainer = document.getElementById('internalNumbersList');
-            listContainer.innerHTML = '';
-            (user.internal_phones || []).forEach(phone => {
-                listContainer.innerHTML += `<div><input type="hidden" name="internal_phones" value="${phone}">${phone}</div>`;
-            });
-            
-            document.getElementById('deleteUserBtn').style.display = 'inline-block';
-        };
-        
-        createUserForm.onsubmit = async (e) => {
+                // Заполняем внутренние номера
+                const listContainer = document.getElementById('internalNumbersList');
+                listContainer.innerHTML = '';
+                if (user.internal_phones && user.internal_phones.length > 0) {
+                    user.internal_phones.forEach(phone => {
+                        // Создаем структуру, которую форма поймет при отправке
+                        listContainer.innerHTML += `<div><input type="hidden" name="internal_phones" value="${phone}">${phone}</div>`;
+                    });
+                }
+                
+                document.getElementById('deleteUserBtn').style.display = 'inline-block';
+                openModal(createUserModal);
+
+             } catch (error) {
+                 alert(error.message);
+                 console.error("Ошибка при открытии модального окна для редактирования:", error);
+             }
+         };
+         
+         createUserForm.onsubmit = async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
