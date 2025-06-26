@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 from datetime import datetime
-from psycopg2.extras import DictCursor
+from psycopg2.extras import DictCursor, execute_values
 from fastapi.templating import Jinja2Templates
 
 load_dotenv()
@@ -621,6 +621,82 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
                     (current_schema_name, json.dumps(schema_update.schema_data.dict()), schema_id)
                 )
                 logger.info(f"Successfully updated schema {schema_id}")
+
+                # --- НАЧАЛО ДОПОЛНИТЕЛЬНОГО БЛОКА ---
+                nodes = schema_update.schema_data.nodes
+
+                if schema_update.schema_type == 'outgoing':
+                    # Обработка исходящих схем (привязка к GSM/SIP линиям)
+                    logger.info(f"Processing MULTIPLE OUTGOING schema assignments for schema_id: {schema_id}")
+                    
+                    gsm_line_ids = []
+                    sip_line_ids = []
+
+                    for node in nodes:
+                        if node.get('type') == 'externalLines' and node.get('data') and isinstance(node['data'].get('external_lines'), list):
+                            for line in node['data']['external_lines']:
+                                line_id = line.get('line_id')
+                                if line_id:
+                                    if line_id.startswith('gsm_'):
+                                        gsm_line_ids.append(line_id.replace('gsm_', ''))
+                                    elif line_id.startswith('sip_'):
+                                        sip_line_ids.append(line_id.replace('sip_', ''))
+                    
+                    # ИСПРАВЛЕНО: Используем schema_name для удаления
+                    current_schema_name = schema_update.schema_name
+                    cur.execute("DELETE FROM gsm_outgoing_schema_assignments WHERE schema_name = %s AND enterprise_number = %s", (current_schema_name, enterprise_number))
+                    cur.execute("DELETE FROM sip_outgoing_schema_assignments WHERE schema_name = %s AND enterprise_number = %s", (current_schema_name, enterprise_number))
+
+                    if gsm_line_ids:
+                        # ИСПРАВЛЕНО: Вставляем schema_name вместо schema_id
+                        gsm_values = [(enterprise_number, gsm_id, current_schema_name) for gsm_id in set(gsm_line_ids)]
+                        execute_values(cur, "INSERT INTO gsm_outgoing_schema_assignments (enterprise_number, gsm_line_id, schema_name) VALUES %s", gsm_values)
+                        logger.info(f"Inserted {len(gsm_values)} GSM line assignments for multiple outgoing.")
+                    
+                    if sip_line_ids:
+                        # ИСПРАВЛЕНО: Вставляем schema_name и enterprise_number
+                        # Предполагаем, что структура sip_outgoing_schema_assignments аналогична gsm_...
+                        sip_values = [(enterprise_number, sip_id, current_schema_name) for sip_id in set(sip_line_ids)]
+                        execute_values(cur, "INSERT INTO sip_outgoing_schema_assignments (enterprise_number, sip_line_name, schema_name) VALUES %s", sip_values)
+                        logger.info(f"Inserted {len(sip_values)} SIP line assignments for multiple outgoing.")
+
+                elif schema_update.schema_type == 'incoming':
+                    # Обработка входящих схем (привязка к личным/внутренним номерам)
+                    logger.info(f"Processing MULTIPLE INCOMING schema assignments for schema_id: {schema_id}")
+
+                    user_ids = set()
+                    internal_phone_numbers = set()
+
+                    for node in nodes:
+                        if node.get('type') == 'dial' and node.get('data') and isinstance(node['data'].get('managers'), list):
+                            for manager in node['data']['managers']:
+                                if manager.get('userId'):
+                                    user_ids.add(manager['userId'])
+                                # Собираем все внутренние номера из узлов dial
+                                if manager.get('phone'):
+                                    internal_phone_numbers.add(manager['phone'])
+                    
+                    cur.execute("DELETE FROM user_personal_phone_incoming_assignments WHERE schema_id = %s", (schema_id,))
+                    if user_ids:
+                        user_values = [(schema_id, user_id, schema_update.schema_name, enterprise_number) for user_id in user_ids]
+                        execute_values(cur, "INSERT INTO user_personal_phone_incoming_assignments (schema_id, user_id, schema_name, enterprise_number) VALUES %s", user_values)
+                        logger.info(f"Inserted {len(user_values)} personal phone (user) assignments for multiple incoming.")
+
+                    # Для внутренних номеров нам нужны их ID
+                    cur.execute("DELETE FROM user_internal_phone_incoming_assignments WHERE schema_id = %s", (schema_id,))
+                    if internal_phone_numbers:
+                        cur.execute("SELECT id, phone_number FROM user_internal_phones WHERE enterprise_number = %s AND phone_number = ANY(%s::varchar[])", (enterprise_number, list(internal_phone_numbers)))
+                        phone_map = {row['phone_number']: row['id'] for row in cur.fetchall()}
+                        
+                        internal_values = []
+                        for phone_num in internal_phone_numbers:
+                            if phone_num in phone_map:
+                                internal_values.append((schema_id, phone_map[phone_num], schema_update.schema_name, enterprise_number))
+                        
+                        if internal_values:
+                            execute_values(cur, "INSERT INTO user_internal_phone_incoming_assignments (schema_id, internal_phone_id, schema_name, enterprise_number) VALUES %s", internal_values)
+                            logger.info(f"Inserted {len(internal_values)} internal phone assignments for multiple incoming.")
+                # --- КОНЕЦ ДОПОЛНИТЕЛЬНОГО БЛОКА ---
 
             conn.commit()
 
