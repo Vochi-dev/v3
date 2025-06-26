@@ -134,8 +134,27 @@ const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose, onConfir
 
     const [isAddPeriodModalOpen, setIsAddPeriodModalOpen] = useState(false);
     const [editingPeriod, setEditingPeriod] = useState<SchedulePeriod | null>(null);
+    const [defaultNewPeriodName, setDefaultNewPeriodName] = useState('');
 
     const handleOpenAddModal = () => {
+        // Вычисляем новое имя для периода
+        const workSchedulePeriods = periods.filter(p => p.name.startsWith('График работы'));
+        let nextNumber = 1;
+        if (workSchedulePeriods.length > 0) {
+            const numbers = workSchedulePeriods.map(p => {
+                const match = p.name.match(/График работы (\d+)/);
+                return match ? parseInt(match[1], 10) : 0;
+            });
+            nextNumber = Math.max(...numbers) + 1;
+        }
+        
+        // Если уже есть "График работы 1", а других номерных нет, то следующий будет "График работы 2"
+        const existingNames = periods.map(p => p.name);
+        if (nextNumber === 1 && existingNames.includes('График работы 1')) {
+            nextNumber = 2;
+        }
+
+        setDefaultNewPeriodName(`График работы ${nextNumber}`);
         setEditingPeriod(null);
         setIsAddPeriodModalOpen(true);
     };
@@ -281,10 +300,11 @@ const WorkScheduleModal: React.FC<WorkScheduleModalProps> = ({ onClose, onConfir
                 </div>
             </div>
             {isAddPeriodModalOpen && (
-                <AddPeriodModal 
-                    initialData={editingPeriod}
+                <AddPeriodModal
                     onClose={() => setIsAddPeriodModalOpen(false)}
-                    onConfirm={handleSavePeriod}
+                    onSave={handleSavePeriod}
+                    initialData={editingPeriod}
+                    defaultName={!editingPeriod ? defaultNewPeriodName : ''}
                 />
             )}
         </>
