@@ -549,6 +549,7 @@
                 document.getElementById('sip-line-form').reset();
                 document.getElementById('sip-line-id').value = '';
                 document.getElementById('sip-line-modal-title').textContent = 'Добавить SIP-линию';
+                loadSipProviders();
             } else if (action === 'add-outgoing-schema') {
                 const enterpriseNumber = '{{ enterprise.number }}';
                 window.location.href = `/dial/?enterprise=${enterpriseNumber}&type=outgoing`;
