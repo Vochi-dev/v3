@@ -522,7 +522,7 @@
             
             if (action === 'show-users') {
                 usersModal.style.display = 'block';
-                if (!usersDataCache) fetchUsers();
+                fetchUsers(); // Всегда запрашиваем свежие данные
             } else if (action === 'show-audiofiles') {
                 document.getElementById('audiofilesModal').style.display = 'block';
                 loadAudioFiles();
