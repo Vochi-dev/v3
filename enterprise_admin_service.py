@@ -432,6 +432,50 @@ async def delete_user(enterprise_number: str, user_id: int, current_enterprise: 
     finally:
         await conn.close()
 
+@app.get("/enterprise/{enterprise_number}/users/{user_id}/details_for_edit", response_class=JSONResponse)
+async def get_user_details_for_edit(enterprise_number: str, user_id: int, current_enterprise: str = Depends(get_current_enterprise)):
+    """
+    Эндпоинт, который отдает полную информацию о пользователе 
+    для модального окна редактирования.
+    """
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        user_query = """
+            SELECT id, email, first_name, last_name, patronymic, personal_phone
+            FROM users
+            WHERE id = $1 AND enterprise_number = $2;
+        """
+        user_record = await conn.fetchrow(user_query, user_id, enterprise_number)
+
+        if not user_record:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        user_details = dict(user_record)
+
+        internal_phones_query = """
+            SELECT phone_number 
+            FROM user_internal_phones 
+            WHERE user_id = $1 AND enterprise_number = $2;
+        """
+        internal_phones_records = await conn.fetch(internal_phones_query, user_id, enterprise_number)
+        
+        user_details['internal_phones'] = [record['phone_number'] for record in internal_phones_records]
+
+        return JSONResponse(content=user_details)
+
+    except Exception as e:
+        logger.error(f"Failed to fetch user details for edit for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch user details")
+    finally:
+        if conn:
+            await conn.close()
+
 @app.put("/enterprise/{enterprise_number}/users/{user_id}", status_code=status.HTTP_200_OK)
 async def update_user(enterprise_number: str, user_id: int, user_data: UserUpdate, current_enterprise: str = Depends(get_current_enterprise)):
     if enterprise_number != current_enterprise:
