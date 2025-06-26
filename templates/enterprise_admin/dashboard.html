@@ -627,41 +627,67 @@
         
         const renderUsersTable = () => {
             usersTableBody.innerHTML = '';
-            // Data is now pre-grouped by the server.
             const data = usersDataCache || [];
-
+ 
             if (data.length === 0) {
                 usersTableBody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Пользователи и линии не найдены.</td></tr>';
                 return;
             }
+ 
+            function formatSchemaCount(schemas) {
+                if (!schemas || schemas.length === 0) return '';
+                const validSchemas = schemas.filter(s => s);
+                const count = validSchemas.length;
 
+                if (count === 0) return '';
+                if (count === 1) return validSchemas[0];
+
+                const lastDigit = count % 10;
+                const lastTwoDigits = count % 100;
+
+                if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
+                    return `${count} схем`;
+                }
+                if (lastDigit === 1) {
+                    return `${count} схема`;
+                }
+                if ([2, 3, 4].includes(lastDigit)) {
+                    return `${count} схемы`;
+                }
+                return `${count} схем`;
+             }
+ 
             data.forEach(user => {
-                const lineCount = user.lines.length;
-                if (lineCount === 0) return; // Пропускаем, если у "пользователя" нет линий
-
-                user.lines.forEach((line, index) => {
+                const hasLines = user.lines && user.lines.length > 0;
+                const lineCount = hasLines ? user.lines.length : 1;
+                const linesToRender = hasLines ? user.lines : [{}];
+ 
+                linesToRender.forEach((line, index) => {
                     const row = document.createElement('tr');
-                    const isFirstRow = index === 0;
-
-                    // Ячейки, специфичные для линии
-                    row.innerHTML += `<td>${line.phone_number || '---'}</td>`;
-                    row.innerHTML += `<td>---</td>`; // IP регистр.
-                    row.innerHTML += `<td>${(line.incoming_schema_names || []).join(', ') || '---'}</td>`;
-                    row.innerHTML += `<td>${line.outgoing_schema_name || '---'}</td>`;
-
-                    // Ячейки, общие для пользователя (создаются только для первой строки)
-                    if (isFirstRow) {
-                        const fullName = user.user_id ? `${user.last_name || ''} ${user.first_name || ''} ${user.patronymic || ''}`.trim() : '---';
-                        const email = user.user_id ? (user.email || '---') : '---';
+                     
+                    // Колонки линии
+                    row.innerHTML = `
+                        <td>${line.phone_number || ''}</td>
+                        <td></td>
+                        <td>${formatSchemaCount(line.incoming_schema_names)}</td>
+                        <td>${line.outgoing_schema_name || ''}</td>
+                    `;
+ 
+                    // Колонки пользователя (добавляются только для первой строки)
+                    if (index === 0) {
+                        const fullName = user.full_name || '';
+                        const email = user.email || '';
                         const editLink = user.user_id ? `<a href="#" data-action="edit-user" data-user-id="${user.user_id}">${fullName}</a>` : fullName;
-
-                        row.innerHTML += `<td rowspan="${lineCount}">${editLink}</td>`;
-                        row.innerHTML += `<td rowspan="${lineCount}">${email}</td>`;
-                        row.innerHTML += `<td rowspan="${lineCount}">---</td>`; // Роли
-                        row.innerHTML += `<td rowspan="${lineCount}">---</td>`; // Отделы
-                        row.innerHTML += `<td rowspan="${lineCount}">---</td>`; // F.Me
+                         
+                        row.innerHTML += `
+                            <td rowspan="${lineCount}">${editLink}</td>
+                            <td rowspan="${lineCount}">${email}</td>
+                            <td rowspan="${lineCount}"></td>
+                            <td rowspan="${lineCount}"></td>
+                            <td rowspan="${lineCount}"></td>
+                        `;
                     }
-                    
+                     
                     usersTableBody.appendChild(row);
                 });
             });
