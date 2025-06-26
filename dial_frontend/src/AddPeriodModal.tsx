@@ -41,12 +41,13 @@ const TimePicker = ({ value, onChange }: { value: string, onChange: (value: stri
 
 interface AddPeriodModalProps {
     onClose: () => void;
-    onConfirm: (data: Omit<SchedulePeriod, 'id'> & { id?: number }) => void;
+    onSave: (data: Omit<SchedulePeriod, 'id'> & { id?: number }) => void;
     initialData?: SchedulePeriod | null;
+    defaultName?: string;
 }
 
-const AddPeriodModal: React.FC<AddPeriodModalProps> = ({ onClose, onConfirm, initialData }) => {
-    const [name, setName] = useState('График работы 1');
+const AddPeriodModal: React.FC<AddPeriodModalProps> = ({ onClose, onSave, initialData, defaultName }) => {
+    const [name, setName] = useState('');
     const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set(['пн', 'вт', 'ср', 'чт', 'пт']));
     const [startTime, setStartTime] = useState('09:00');
     const [endTime, setEndTime] = useState('18:00');
@@ -59,12 +60,12 @@ const AddPeriodModal: React.FC<AddPeriodModalProps> = ({ onClose, onConfirm, ini
             setEndTime(initialData.endTime);
         } else {
             // Reset to default for new period
-            setName('График работы 1');
+            setName(defaultName || 'График работы');
             setSelectedDays(new Set(['пн', 'вт', 'ср', 'чт', 'пт']));
             setStartTime('09:00');
             setEndTime('18:00');
         }
-    }, [initialData]);
+    }, [initialData, defaultName]);
 
     const handleDayClick = (day: string) => {
         const newSelectedDays = new Set(selectedDays);
@@ -76,24 +77,22 @@ const AddPeriodModal: React.FC<AddPeriodModalProps> = ({ onClose, onConfirm, ini
         setSelectedDays(newSelectedDays);
     };
 
-    const handleConfirmClick = () => {
+    const handleSaveClick = () => {
         if (name.trim() === '') {
             alert('Название периода не может быть пустым');
             return;
         }
         
-        const dataToReturn: Omit<SchedulePeriod, 'id'> & { id?: number } = {
+        const dataToReturn = {
             name,
             days: selectedDays,
             startTime,
-            endTime
+            endTime,
+            id: initialData?.id
         };
 
-        if (initialData?.id) {
-            dataToReturn.id = initialData.id;
-        }
-
-        onConfirm(dataToReturn);
+        onSave(dataToReturn);
+        onClose();
     };
 
     return (
@@ -137,7 +136,7 @@ const AddPeriodModal: React.FC<AddPeriodModalProps> = ({ onClose, onConfirm, ini
                     </div>
                 </div>
                 <div className="add-period-modal-footer">
-                    <button onClick={handleConfirmClick} className="ok-button">OK</button>
+                    <button onClick={handleSaveClick} className="ok-button">OK</button>
                     <button onClick={onClose} className="cancel-button">Отмена</button>
                 </div>
             </div>
