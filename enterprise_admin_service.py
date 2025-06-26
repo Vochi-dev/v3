@@ -261,6 +261,7 @@ async def get_enterprise_users(enterprise_number: str, current_enterprise: str =
                     u.first_name,
                     u.last_name,
                     u.patronymic,
+                    TRIM(COALESCE(u.last_name, '') || ' ' || COALESCE(u.first_name, '')) AS full_name,
                     u.email,
                     u.personal_phone AS phone_number,
                     'user' AS line_type,
@@ -277,6 +278,7 @@ async def get_enterprise_users(enterprise_number: str, current_enterprise: str =
                     u.first_name,
                     u.last_name,
                     u.patronymic,
+                    TRIM(COALESCE(u.last_name, '') || ' ' || COALESCE(u.first_name, '')) AS full_name,
                     u.email,
                     uip.phone_number,
                     'internal' AS line_type,
@@ -308,7 +310,7 @@ async def get_enterprise_users(enterprise_number: str, current_enterprise: str =
             if user_id not in users_data:
                 users_data[user_id] = {
                     "user_id": user_id,
-                    "full_name": ' '.join(filter(None, [record['last_name'], record['first_name'], record['patronymic']])),
+                    "full_name": record['full_name'],
                     "email": record['email'],
                     "lines": []
                 }
