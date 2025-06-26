@@ -46,4 +46,13 @@ CREATE TABLE IF NOT EXISTS sip_outgoing_schema_assignments (
     sip_line_name VARCHAR(255) NOT NULL,
     schema_name VARCHAR(255) NOT NULL,
     UNIQUE (enterprise_number, sip_line_name, schema_name)
+);
+
+-- Связующая таблица для отношения "многие ко многим" между GSM-линиями и исходящими схемами
+CREATE TABLE IF NOT EXISTS gsm_outgoing_schema_assignments (
+    id SERIAL PRIMARY KEY,
+    enterprise_number VARCHAR(255) NOT NULL,
+    gsm_line_id VARCHAR(255) NOT NULL, -- Используем line_id, так как он уникален для предприятия
+    schema_name VARCHAR(255) NOT NULL,
+    UNIQUE (enterprise_number, gsm_line_id, schema_name)
 ); 
