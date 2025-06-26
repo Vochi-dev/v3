@@ -734,8 +734,13 @@
         };
 
         const openUserModalForEdit = (userId) => {
-            const user = usersDataCache?.users.find(u => u.id == userId);
-            if (!user) { alert("Не удалось найти данные пользователя."); return; }
+            // ИСПРАВЛЕНИЕ: Ищем пользователя напрямую в кеше, который является массивом
+            const user = usersDataCache?.find(u => u.user_id == userId);
+            if (!user) { 
+                alert("Не удалось найти данные пользователя. ID: " + userId); 
+                console.error("User not found in cache:", usersDataCache);
+                return; 
+            }
             currentEditingUser = user;
             
             document.getElementById('userModalTitle').textContent = 'Редактирование пользователя';
