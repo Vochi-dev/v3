@@ -715,13 +715,8 @@
             const phoneInput = document.getElementById('userPersonalPhone');
             iti = window.intlTelInput(phoneInput, {
                 utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/js/utils.js",
-                initialCountry: "auto",
-                geoIpLookup: callback => {
-                  fetch("https://ipapi.co/json")
-                    .then(res => res.json())
-                    .then(data => callback(data.country_code))
-                    .catch(() => callback("by"));
-                }
+                initialCountry: "by", // Устанавливаем Беларусь по умолчанию
+                formatOnDisplay: false // Отключаем авто-форматирование
             });
         };
 
@@ -756,7 +751,7 @@
                 document.getElementById('userFirstName').value = user.first_name || '';
                 document.getElementById('userLastName').value = user.last_name || '';
                 document.getElementById('userPatronymic').value = user.patronymic || '';
-                iti.setNumber(user.personal_phone || '+');
+                iti.setNumber(user.personal_phone || '');
 
                 // Заполняем внутренние номера
                 const listContainer = document.getElementById('internalNumbersList');
