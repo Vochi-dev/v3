@@ -515,8 +515,10 @@ async def create_schema(enterprise_number: str, schema_in: SchemaCreateModel):
 @app.put("/api/enterprises/{enterprise_number}/schemas/{schema_id}", response_model=SchemaModel)
 async def update_schema(enterprise_number: str, schema_id: str, schema_update: SchemaUpdateModel):
     """
-    Обновляет существующую схему и обрабатывает логику привязки/отвязки
-    внутренних номеров к исходящим схемам.
+    Обновляет существующую схему и обрабатывает логику привязки.
+    - Для исходящих схем: привязывает внутренние телефоны.
+    - Для входящих схем: привязывает SIP-линии к полю in_schema.
+    - Для исходящих схем: привязывает SIP-линии через связующую таблицу.
     """
     logger.info(f"Updating schema {schema_id} for enterprise {enterprise_number}")
     
@@ -525,75 +527,97 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
     try:
         with get_db_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
-                # --- Логика для исходящих схем ---
+                
+                # --- Логика для исходящих схем (ВНУТРЕННИЕ ТЕЛЕФОНЫ) ---
                 if schema_update.schema_type == 'outgoing':
-                    # Находим узел исходящего звонка
                     outgoing_node = next((node for node in schema_update.schema_data.nodes if node.get('id') == 'start-outgoing'), None)
-                    
                     if outgoing_node:
-                        current_phones_in_schema = set(outgoing_node.get('data', {}).get('phones', []))
+                        # Телефоны, которым разрешено использовать эту схему
+                        phones_to_assign = set(outgoing_node.get('data', {}).get('phones', []))
                         
-                        # 1. Получаем телефоны, которые БЫЛИ в этой схеме до обновления
+                        # Сначала отвязываем все телефоны от этой схемы
                         cur.execute(
-                            "SELECT phone_number FROM user_internal_phones WHERE enterprise_number = %s AND outgoing_schema_id = %s",
+                            "UPDATE user_internal_phones SET outgoing_schema_id = NULL WHERE enterprise_number = %s AND outgoing_schema_id = %s",
                             (enterprise_number, schema_id)
                         )
-                        phones_before_update = {row['phone_number'] for row in cur.fetchall()}
-
-                        # 2. Определяем, какие номера были удалены из схемы
-                        phones_to_unassign = phones_before_update - current_phones_in_schema
-                        if phones_to_unassign:
-                            logger.info(f"Unassigning phones {phones_to_unassign} from schema '{current_schema_name}'")
-                            cur.execute(
-                                "UPDATE user_internal_phones SET outgoing_schema_id = NULL WHERE enterprise_number = %s AND phone_number = ANY(%s::varchar[])",
-                                (enterprise_number, list(phones_to_unassign))
-                            )
-
-                        # 3. Определяем, какие номера были добавлены в схему
-                        phones_to_assign = current_phones_in_schema - phones_before_update
+                        logger.info(f"Unbound all phones from schema {schema_id} for enterprise {enterprise_number}. {cur.rowcount} rows affected.")
+                        
+                        # Затем привязываем новые
                         if phones_to_assign:
-                            logger.info(f"Assigning phones {phones_to_assign} to schema '{current_schema_name}'")
                             cur.execute(
                                 "UPDATE user_internal_phones SET outgoing_schema_id = %s WHERE enterprise_number = %s AND phone_number = ANY(%s::varchar[])",
                                 (schema_id, enterprise_number, list(phones_to_assign))
                             )
+                            logger.info(f"Bound phones {list(phones_to_assign)} to schema {schema_id}. {cur.rowcount} rows affected.")
+
+                # --- ОБЩАЯ ЛОГИКА для SIP-линий (ВХОДЯЩИЕ И ИСХОДЯЩИЕ) ---
+                sip_lines_in_schema = {
+                    str(line.get('line_id')).replace('sip_', '')
+                    for node in schema_update.schema_data.nodes if node.get('type') == 'externalLines'
+                    for line in node.get('data', {}).get('external_lines', []) if str(line.get('line_id')).startswith('sip_')
+                }
+
+                # --- Логика для ВХОДЯЩИХ схем ---
+                if schema_update.schema_type == 'incoming':
+                    logger.info(f"Updating INCOMING schema SIP assignments for '{current_schema_name}'")
+                    cur.execute(
+                        "UPDATE sip_unit SET in_schema = NULL WHERE enterprise_number = %s AND in_schema = %s",
+                        (enterprise_number, current_schema_name)
+                    )
+                    if sip_lines_in_schema:
+                        cur.execute(
+                            "UPDATE sip_unit SET in_schema = %s WHERE enterprise_number = %s AND line_name = ANY(%s::varchar[])",
+                            (current_schema_name, enterprise_number, list(sip_lines_in_schema))
+                        )
+                
+                # --- Логика для ИСХОДЯЩИХ схем ---
+                elif schema_update.schema_type == 'outgoing':
+                    logger.info(f"Updating OUTGOING schema SIP assignments for '{current_schema_name}'")
+                    cur.execute(
+                        "DELETE FROM sip_outgoing_schema_assignments WHERE enterprise_number = %s AND schema_name = %s",
+                        (enterprise_number, current_schema_name)
+                    )
+                    if sip_lines_in_schema:
+                        logger.info(f"Assigning SIP lines {sip_lines_in_schema} to outgoing schema '{current_schema_name}'")
+                        assignment_data = [
+                            (enterprise_number, line_name, current_schema_name)
+                            for line_name in sip_lines_in_schema
+                        ]
+                        cur.executemany(
+                            "INSERT INTO sip_outgoing_schema_assignments (enterprise_number, sip_line_name, schema_name) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+                            assignment_data
+                        )
 
                 # --- Основное обновление схемы ---
-                schema_data_json = json.dumps(schema_update.schema_data.dict())
-                
-                update_query = """
-                    UPDATE dial_schemas
-                    SET schema_name = %s, schema_data = %s, schema_type = %s
-                    WHERE schema_id = %s AND enterprise_id = %s
-                    RETURNING *;
-                """
-                cur.execute(update_query, (
-                    current_schema_name,
-                    schema_data_json,
-                    schema_update.schema_type,
-                    schema_id,
-                    enterprise_number
-                ))
-                
-                updated_record = cur.fetchone()
-                conn.commit()
-
-                if not updated_record:
-                    logger.warning(f"Schema not found for update: id {schema_id}")
-                    raise HTTPException(status_code=404, detail="Schema to update not found.")
-
+                cur.execute(
+                    "UPDATE dial_schemas SET schema_name = %s, schema_data = %s, updated_at = NOW() WHERE schema_id = %s",
+                    (current_schema_name, json.dumps(schema_update.schema_data.dict()), schema_id)
+                )
                 logger.info(f"Successfully updated schema {schema_id}")
 
-                # Преобразуем для ответа
-                response_schema = dict(updated_record)
-                if 'created_at' in response_schema and hasattr(response_schema['created_at'], 'isoformat'):
-                    response_schema['created_at'] = response_schema['created_at'].isoformat()
-                
-                return SchemaModel(**response_schema)
+            conn.commit()
 
-    except psycopg2.Error as e:
-        logger.error(f"DB error updating schema {schema_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Database error while updating schema.")
+        # Возвращаем обновленную модель
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute("SELECT * FROM dial_schemas WHERE schema_id = %s", (schema_id,))
+                updated_schema_record = cur.fetchone()
+
+        if not updated_schema_record:
+            raise HTTPException(status_code=404, detail="Schema not found after update")
+        
+        # --- Исправление: Конвертируем datetime в строку ---
+        response_data = dict(updated_schema_record)
+        if 'created_at' in response_data and hasattr(response_data['created_at'], 'isoformat'):
+            response_data['created_at'] = response_data['created_at'].isoformat()
+        if 'updated_at' in response_data and hasattr(response_data['updated_at'], 'isoformat'):
+            response_data['updated_at'] = response_data['updated_at'].isoformat()
+
+        return SchemaModel(**response_data)
+
+    except Exception as e:
+        logger.error(f"Error updating schema {schema_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/enterprises/{enterprise_number}/schemas/{schema_id}")
 async def delete_schema(enterprise_number: str, schema_id: str):
