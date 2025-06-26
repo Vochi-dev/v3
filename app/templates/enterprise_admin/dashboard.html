@@ -89,6 +89,31 @@
             alert('Раздел аудиофайлов в разработке.');
         });
 
+        // --- Функция для форматирования количества схем ---
+        const getSchemaCountText = (schemas) => {
+            if (!schemas || schemas.length === 0) {
+                return '—';
+            }
+            if (schemas.length === 1) {
+                return schemas[0] ? schemas[0] : '—';
+            }
+            
+            const n = schemas.length;
+            const lastDigit = n % 10;
+            const lastTwoDigits = n % 100;
+
+            if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
+                return `${n} схем`;
+            }
+            if (lastDigit === 1) {
+                return `${n} схема`;
+            }
+            if ([2, 3, 4].includes(lastDigit)) {
+                return `${n} схемы`;
+            }
+            return `${n} схем`;
+        };
+
         // --- Логика GSM Линий ---
         const fetchAndShowGsmLines = async () => {
             gsmModal.show();
@@ -111,6 +136,9 @@
 
                     if (gateway.lines && gateway.lines.length > 0) {
                         gateway.lines.forEach(line => {
+                            const incomingSchemaText = line.incoming_schema_name || '—';
+                            const outgoingSchemasText = getSchemaCountText(line.outgoing_schema_names);
+
                             const lineRow = `
                                 <tr class="line-row" data-line-pk="${line.id}">
                                     <td>
@@ -123,8 +151,8 @@
                                     <td class="line-phone-number">${line.phone_number || ''}</td>
                                     <td class="line-name">${line.line_name || ''}</td>
                                     <td class="line-prefix">${line.prefix || ''}</td>
-                                    <td></td> <!-- Вх.сх -->
-                                    <td></td> <!-- Исх.схемы -->
+                                    <td>${incomingSchemaText}</td>
+                                    <td>${outgoingSchemasText}</td>
                                     <td></td> <!-- Магазин -->
                                     <td>${gateway.gateway_name}</td>
                                     <td class="line-slot">${line.slot || ''}</td>

@@ -7982,3 +7982,203 @@ HINT:  Perhaps you meant to reference the column "ds.schema_id".
 2025-06-26 05:06:29,557 - enterprise_admin_service - INFO - Запрос обработан за 0.2156 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
 2025-06-26 05:06:35,276 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
 2025-06-26 05:06:35,359 - enterprise_admin_service - INFO - Запрос обработан за 0.0827 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:10:39,088 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:10:39,300 - enterprise_admin_service - INFO - Запрос обработан за 0.2127 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:10:39,496 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:10:39,725 - enterprise_admin_service - INFO - Запрос обработан за 0.2284 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:10:42,308 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:11:53,589 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:11:53,828 - enterprise_admin_service - INFO - Запрос обработан за 0.2388 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:11:53,999 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:11:54,178 - enterprise_admin_service - INFO - Запрос обработан за 0.1789 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:11:56,037 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:11:56,148 - enterprise_admin_service - INFO - GSM_LINES: Начинаем выполнение запроса для gsm-lines.
+2025-06-26 05:11:56,149 - enterprise_admin_service - INFO - GSM_LINES: Выполняем SQL-запрос:
+
+        SELECT
+            g.gateway_name,
+            g.id as gateway_id,
+            gl.id,
+            gl.line_id,
+            gl.internal_id,
+            gl.prefix,
+            gl.phone_number,
+            gl.line_name,
+            ds_in.name as incoming_schema_name,
+            gl.shop,
+            gl.slot,
+            gl.redirect,
+            COALESCE(
+                (SELECT array_agg(ds_out.name ORDER BY ds_out.name)
+                 FROM gsm_outgoing_schema_assignments gosa
+                 JOIN dial_schemas ds_out ON ds_out.id = gosa.schema_id
+                 WHERE gosa.gsm_unit_id = gl.id),
+                '{}'::text[]
+            ) as outgoing_schema_names
+        FROM goip g
+        LEFT JOIN gsm_lines gl ON g.id = gl.goip_id
+        LEFT JOIN dial_schemas ds_in ON ds_in.id = gl.in_schema
+        WHERE g.enterprise_number = $1
+        ORDER BY g.gateway_name, gl.id
+        
+2025-06-26 05:11:56,153 - enterprise_admin_service - ERROR - GSM_LINES: Произошла критическая ошибка при получении GSM-линий.
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 452, in get_enterprise_gsm_lines
+    rows = await conn.fetch(query, enterprise_number)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedColumnError: column ds_in.id does not exist
+2025-06-26 05:11:56,158 - enterprise_admin_service - INFO - Запрос обработан за 0.1207 сек. Статус: 500. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:12:37,553 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:12:37,742 - enterprise_admin_service - INFO - Запрос обработан за 0.1898 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:12:37,997 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:12:38,223 - enterprise_admin_service - INFO - Запрос обработан за 0.2250 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:12:39,921 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:12:40,030 - enterprise_admin_service - INFO - GSM_LINES: Начинаем выполнение запроса для gsm-lines.
+2025-06-26 05:12:40,030 - enterprise_admin_service - INFO - GSM_LINES: Выполняем SQL-запрос:
+
+        SELECT
+            g.gateway_name,
+            g.id as gateway_id,
+            gl.id,
+            gl.line_id,
+            gl.internal_id,
+            gl.prefix,
+            gl.phone_number,
+            gl.line_name,
+            ds_in.name as incoming_schema_name,
+            gl.shop,
+            gl.slot,
+            gl.redirect,
+            COALESCE(
+                (SELECT array_agg(ds_out.name ORDER BY ds_out.name)
+                 FROM gsm_outgoing_schema_assignments gosa
+                 JOIN dial_schemas ds_out ON ds_out.id = gosa.schema_id
+                 WHERE gosa.gsm_unit_id = gl.id),
+                '{}'::text[]
+            ) as outgoing_schema_names
+        FROM goip g
+        LEFT JOIN gsm_lines gl ON g.id = gl.goip_id
+        LEFT JOIN dial_schemas ds_in ON ds_in.name = gl.in_schema
+        WHERE g.enterprise_number = $1
+        ORDER BY g.gateway_name, gl.id
+        
+2025-06-26 05:12:40,035 - enterprise_admin_service - ERROR - GSM_LINES: Произошла критическая ошибка при получении GSM-линий.
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 452, in get_enterprise_gsm_lines
+    rows = await conn.fetch(query, enterprise_number)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedColumnError: column ds_in.name does not exist
+2025-06-26 05:12:40,040 - enterprise_admin_service - INFO - Запрос обработан за 0.1187 сек. Статус: 500. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:13:13,036 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:13:13,118 - enterprise_admin_service - INFO - GSM_LINES: Начинаем выполнение запроса для gsm-lines.
+2025-06-26 05:13:13,118 - enterprise_admin_service - INFO - GSM_LINES: Выполняем SQL-запрос:
+
+        SELECT
+            g.gateway_name,
+            g.id as gateway_id,
+            gl.id,
+            gl.line_id,
+            gl.internal_id,
+            gl.prefix,
+            gl.phone_number,
+            gl.line_name,
+            ds_in.name as incoming_schema_name,
+            gl.shop,
+            gl.slot,
+            gl.redirect,
+            COALESCE(
+                (SELECT array_agg(ds_out.name ORDER BY ds_out.name)
+                 FROM gsm_outgoing_schema_assignments gosa
+                 JOIN dial_schemas ds_out ON ds_out.id = gosa.schema_id
+                 WHERE gosa.gsm_unit_id = gl.id),
+                '{}'::text[]
+            ) as outgoing_schema_names
+        FROM goip g
+        LEFT JOIN gsm_lines gl ON g.id = gl.goip_id
+        LEFT JOIN dial_schemas ds_in ON ds_in.name = gl.in_schema
+        WHERE g.enterprise_number = $1
+        ORDER BY g.gateway_name, gl.id
+        
+2025-06-26 05:13:13,120 - enterprise_admin_service - ERROR - GSM_LINES: Произошла критическая ошибка при получении GSM-линий.
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 452, in get_enterprise_gsm_lines
+    rows = await conn.fetch(query, enterprise_number)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedColumnError: column ds_in.name does not exist
+2025-06-26 05:13:13,122 - enterprise_admin_service - INFO - Запрос обработан за 0.0861 сек. Статус: 500. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:25:23,523 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:25:23,704 - enterprise_admin_service - INFO - Запрос обработан за 0.1810 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:25:23,935 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:25:24,102 - enterprise_admin_service - INFO - Запрос обработан за 0.1679 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:25:26,027 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:25:26,125 - enterprise_admin_service - INFO - Запрос обработан за 0.0978 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:29:22,678 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:29:22,890 - enterprise_admin_service - INFO - Запрос обработан за 0.2121 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:29:23,075 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:29:23,285 - enterprise_admin_service - INFO - Запрос обработан за 0.2107 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:29:24,799 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:31:12,122 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:31:12,310 - enterprise_admin_service - INFO - Запрос обработан за 0.1888 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:31:12,467 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:31:12,669 - enterprise_admin_service - INFO - Запрос обработан за 0.2029 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:31:14,863 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:38:48,096 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:38:48,288 - enterprise_admin_service - INFO - Запрос обработан за 0.1921 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:38:48,459 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:38:48,611 - enterprise_admin_service - INFO - Запрос обработан за 0.1522 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:38:49,963 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:38:50,080 - enterprise_admin_service - INFO - Запрос обработан за 0.1170 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:47:35,847 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:47:35,981 - enterprise_admin_service - INFO - Запрос обработан за 0.1342 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:48:39,656 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:48:39,830 - enterprise_admin_service - INFO - Запрос обработан за 0.1740 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:48:40,007 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:48:40,214 - enterprise_admin_service - INFO - Запрос обработан за 0.2069 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:48:42,393 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:48:42,500 - enterprise_admin_service - INFO - Запрос обработан за 0.1073 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:50:12,345 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:50:12,572 - enterprise_admin_service - INFO - Запрос обработан за 0.2276 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:50:12,733 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:50:12,904 - enterprise_admin_service - INFO - Запрос обработан за 0.1717 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:50:14,913 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:50:15,027 - enterprise_admin_service - INFO - Запрос обработан за 0.1142 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:51:38,547 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:51:38,769 - enterprise_admin_service - INFO - Запрос обработан за 0.2225 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-26 05:51:38,903 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:51:39,139 - enterprise_admin_service - INFO - Запрос обработан за 0.2363 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-26 05:51:41,572 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:51:41,674 - enterprise_admin_service - INFO - Запрос обработан за 0.1011 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/gsm-lines/all
+2025-06-26 05:51:46,879 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-26 05:51:47,087 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-26 05:51:47,088 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-26 05:51:47,090 - enterprise_admin_service - INFO - Запрос обработан за 0.2110 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
