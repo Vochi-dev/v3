@@ -627,49 +627,43 @@
         
         const renderUsersTable = () => {
             usersTableBody.innerHTML = '';
-            const { users = [], unassigned_phones = [] } = usersDataCache || {};
-            const combinedList = [
-                ...users.map(u => ({...u, type: 'user'})),
-                ...unassigned_phones.map(p => ({ phone_number: p, type: 'unassigned' }))
-            ].sort((a,b) => (getSortKey(a) - getSortKey(b)));
+            // Data is now pre-grouped by the server.
+            const data = usersDataCache || [];
 
-            if (combinedList.length === 0) {
-                usersTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Пользователи и линии не найдены.</td></tr>';
+            if (data.length === 0) {
+                usersTableBody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Пользователи и линии не найдены.</td></tr>';
                 return;
             }
-            
-            combinedList.forEach(item => {
-                if (item.type === 'user') {
-                    const displayPhones = [...(item.internal_phones || []), ...(item.personal_phone ? [formatPhoneNumber(item.personal_phone)] : [])];
-                    if (displayPhones.length === 0) displayPhones.push('');
-                    const numRows = displayPhones.length;
 
-                    displayPhones.forEach((phone, index) => {
-                        const row = usersTableBody.insertRow();
-                        
-                        row.insertCell(0).textContent = phone;
-                        row.insertCell(1).textContent = (index === 0) ? (item.ip_address || '') : '';
-                        row.insertCell(2).textContent = (index === 0) ? (item.in_schema || '') : '';
-                        row.insertCell(3).textContent = (index === 0) ? (item.out_schema || '') : '';
+            data.forEach(user => {
+                const lineCount = user.lines.length;
+                if (lineCount === 0) return; // Пропускаем, если у "пользователя" нет линий
 
-                        if (index === 0) {
-                            const addCellWithRowspan = (content, isHtml = false) => {
-                                const cell = row.insertCell();
-                                if(isHtml) cell.innerHTML = content; else cell.textContent = content;
-                                cell.rowSpan = numRows;
-                            };
-                            addCellWithRowspan(`<a href="#" data-action="edit-user" data-user-id="${item.id}">${item.full_name || ''}</a>`, true);
-                            addCellWithRowspan(item.email || '');
-                            addCellWithRowspan(item.roles || '');
-                            addCellWithRowspan(item.departments || '');
-                            addCellWithRowspan(item.f_me || '');
-                        }
-                    });
-                } else {
-                    const row = usersTableBody.insertRow();
-                    row.insertCell(0).textContent = item.phone_number;
-                    for (let i = 0; i < 8; i++) row.insertCell();
-                }
+                user.lines.forEach((line, index) => {
+                    const row = document.createElement('tr');
+                    const isFirstRow = index === 0;
+
+                    // Ячейки, специфичные для линии
+                    row.innerHTML += `<td>${line.phone_number || '---'}</td>`;
+                    row.innerHTML += `<td>---</td>`; // IP регистр.
+                    row.innerHTML += `<td>${(line.incoming_schema_names || []).join(', ') || '---'}</td>`;
+                    row.innerHTML += `<td>${line.outgoing_schema_name || '---'}</td>`;
+
+                    // Ячейки, общие для пользователя (создаются только для первой строки)
+                    if (isFirstRow) {
+                        const fullName = user.user_id ? `${user.last_name || ''} ${user.first_name || ''} ${user.patronymic || ''}`.trim() : '---';
+                        const email = user.user_id ? (user.email || '---') : '---';
+                        const editLink = user.user_id ? `<a href="#" data-action="edit-user" data-user-id="${user.user_id}">${fullName}</a>` : fullName;
+
+                        row.innerHTML += `<td rowspan="${lineCount}">${editLink}</td>`;
+                        row.innerHTML += `<td rowspan="${lineCount}">${email}</td>`;
+                        row.innerHTML += `<td rowspan="${lineCount}">---</td>`; // Роли
+                        row.innerHTML += `<td rowspan="${lineCount}">---</td>`; // Отделы
+                        row.innerHTML += `<td rowspan="${lineCount}">---</td>`; // F.Me
+                    }
+                    
+                    usersTableBody.appendChild(row);
+                });
             });
         };
 

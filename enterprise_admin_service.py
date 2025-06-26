@@ -17,6 +17,8 @@ import os
 import uuid
 import asyncio
 from pathlib import Path
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 from app.config import JWT_SECRET_KEY, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT
 
@@ -236,32 +238,88 @@ async def get_enterprise_users(enterprise_number: str, current_enterprise: str =
     if not conn: raise HTTPException(status_code=500, detail="DB connection failed")
 
     try:
-        query = """
-        WITH user_phones AS (
-            SELECT user_id, array_agg(phone_number ORDER BY (CASE WHEN phone_number ~ '^[0-9]+$' THEN phone_number::int END)) as internal_phones
-            FROM user_internal_phones WHERE enterprise_number = $1 GROUP BY user_id
-        )
-        SELECT
-            u.id, u.first_name, u.last_name, u.patronymic, (u.first_name || ' ' || u.last_name) AS full_name,
-            u.email, u.personal_phone, COALESCE(up.internal_phones, ARRAY[]::text[]) as internal_phones,
-            '' AS ip_address, '' AS in_schema, '' AS out_schema, '' AS roles, '' AS departments, '' AS f_me
-        FROM users u
-        LEFT JOIN user_phones up ON u.id = up.user_id
-        WHERE u.enterprise_number = $1 ORDER BY u.last_name, u.first_name
-        """
-        user_rows = await conn.fetch(query, enterprise_number)
-        
-        unassigned_phones_query = """
-        SELECT array_agg(phone_number ORDER BY (CASE WHEN phone_number ~ '^[0-9]+$' THEN phone_number::int END)) as phones
-        FROM user_internal_phones WHERE enterprise_number = $1 AND user_id IS NULL
-        """
-        unassigned_row = await conn.fetchrow(unassigned_phones_query, enterprise_number)
+        sql_query = """
+            WITH user_lines AS (
+                -- Личные номера
+                SELECT
+                    u.id AS user_id, u.first_name, u.last_name, u.patronymic, u.email,
+                    u.personal_phone AS phone_number, 'user' AS line_type,
+                    ARRAY_AGG(ds.schema_name) FILTER (WHERE ds.schema_id IS NOT NULL) AS incoming_schema_names,
+                    NULL AS outgoing_schema_name
+                FROM users u
+                LEFT JOIN user_personal_phone_incoming_assignments upia ON u.id = upia.user_id
+                LEFT JOIN dial_schemas ds ON upia.schema_id = ds.schema_id
+                WHERE u.enterprise_number = $1 AND u.personal_phone IS NOT NULL
+                GROUP BY u.id
 
-        results = {
-            "users": [dict(row) for row in user_rows],
-            "unassigned_phones": unassigned_row['phones'] if unassigned_row and unassigned_row['phones'] else []
-        }
-        return JSONResponse(content=results)
+                UNION ALL
+
+                -- Внутренние номера
+                SELECT
+                    uip.user_id, u.first_name, u.last_name, u.patronymic, u.email,
+                    uip.phone_number, 'internal' AS line_type,
+                    ARRAY_AGG(ds_in.schema_name) FILTER (WHERE ds_in.schema_id IS NOT NULL) AS incoming_schema_names,
+                    MAX(ds_out.schema_name) AS outgoing_schema_name
+                FROM user_internal_phones uip
+                LEFT JOIN users u ON uip.user_id = u.id
+                LEFT JOIN user_internal_phone_incoming_assignments uipa ON uip.id = uipa.internal_phone_id
+                LEFT JOIN dial_schemas ds_in ON uipa.schema_id = ds_in.schema_id
+                LEFT JOIN dial_schemas ds_out ON uip.outgoing_schema_id = ds_out.schema_id
+                WHERE uip.enterprise_number = $1
+                GROUP BY uip.id, u.id
+            )
+            SELECT * FROM user_lines;
+        """
+        
+        rows = await conn.fetch(sql_query, enterprise_number)
+        
+        # Группировка данных на стороне сервера
+        users_data = {}
+        unassigned_lines = []
+
+        for row in rows:
+            line_info = {
+                "phone_number": row["phone_number"],
+                "line_type": row["line_type"],
+                "incoming_schema_names": row["incoming_schema_names"] or [],
+                "outgoing_schema_name": row["outgoing_schema_name"]
+            }
+            if row["user_id"]:
+                user_id = row["user_id"]
+                if user_id not in users_data:
+                    users_data[user_id] = {
+                        "user_id": user_id,
+                        "first_name": row["first_name"],
+                        "last_name": row["last_name"],
+                        "patronymic": row["patronymic"],
+                        "email": row["email"],
+                        "lines": []
+                    }
+                users_data[user_id]["lines"].append(line_info)
+            else:
+                 unassigned_lines.append(line_info)
+        
+        # Сортировка линий внутри каждого пользователя
+        for user in users_data.values():
+            user["lines"].sort(key=lambda x: (x["line_type"] != 'internal', x["phone_number"]))
+
+        # Объединение пользователей и свободных линий в один список
+        final_response = list(users_data.values())
+        if unassigned_lines:
+            final_response.append({
+                "user_id": None,
+                "first_name": None,
+                "last_name": None,
+                "patronymic": None,
+                "email": None,
+                "lines": unassigned_lines
+            })
+
+        return JSONResponse(content=final_response)
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении пользователей и линий: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера при получении данных о пользователях.")
     finally:
         await conn.close()
 
