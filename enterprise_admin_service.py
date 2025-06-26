@@ -832,13 +832,12 @@ async def update_department(
 async def get_sip_providers(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
     if enterprise_number != current_enterprise:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-
     conn = await get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="DB connection failed")
-
     try:
-        providers = await conn.fetch("SELECT id, name FROM sip ORDER BY name")
+        query = "SELECT id, name FROM sip ORDER BY name"
+        providers = await conn.fetch(query)
         return [dict(row) for row in providers]
     finally:
         await conn.close()
@@ -858,14 +857,44 @@ async def get_sip_lines(enterprise_number: str, current_enterprise: str = Depend
             su.id,
             su.line_name,
             su.prefix,
-            s.name as provider_name
-        FROM sip_unit su
-        JOIN sip s ON su.provider_id = s.id
-        WHERE su.enterprise_number = $1
-        ORDER BY su.id
+            p.name as provider_name,
+            su.in_schema as incoming_schema_name,
+            COALESCE(out_s.outgoing_schema_names, ARRAY[]::text[]) as outgoing_schema_names
+        FROM
+            sip_unit su
+        LEFT JOIN
+            sip p ON su.provider_id = p.id
+        LEFT JOIN (
+            SELECT
+                sosa.sip_line_name,
+                array_agg(sosa.schema_name) as outgoing_schema_names
+            FROM
+                sip_outgoing_schema_assignments sosa
+            WHERE
+                sosa.enterprise_number = $1
+            GROUP BY
+                sosa.sip_line_name
+        ) out_s ON su.line_name = out_s.sip_line_name
+        WHERE
+            su.enterprise_number = $1
+        ORDER BY
+            su.id;
         """
-        lines = await conn.fetch(query, enterprise_number)
-        return [dict(row) for row in lines]
+        sip_lines = await conn.fetch(query, enterprise_number)
+        logger.info(f"ПОЛУЧЕНО ИЗ БД: {len(sip_lines)} строк.")
+        logger.info(f"СОДЕРЖИМОЕ: {sip_lines}")
+
+        results = []
+        for record in sip_lines:
+            # Преобразуем каждую запись в словарь.
+            # Поля-массивы Postgres (как `outgoing_schema_names`) asyncpg возвращает как списки Python,
+            # что совместимо с JSON. Проблема могла быть в другом.
+            # Но для надежности оставляем явное преобразование в dict.
+            results.append(dict(record))
+        return results
+    except Exception as e:
+        logger.error(f"Ошибка при обработке данных в get_sip_lines: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
     finally:
         await conn.close()
 

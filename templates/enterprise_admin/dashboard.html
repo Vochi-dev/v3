@@ -1094,6 +1094,65 @@
         };
 
         // --- SIP Line Logic ---
+        const getSchemaCountText = (schemas) => {
+            if (!schemas || schemas.length === 0) {
+                return '—';
+            }
+            if (schemas.length === 1) {
+                // Если в массиве есть пустая строка или null, считаем, что схем нет
+                return schemas[0] ? schemas[0] : '—';
+            }
+            
+            const n = schemas.length;
+            const lastDigit = n % 10;
+            const lastTwoDigits = n % 100;
+
+            if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
+                return `${n} схем`;
+            }
+            if (lastDigit === 1) {
+                return `${n} схема`;
+            }
+            if ([2, 3, 4].includes(lastDigit)) {
+                return `${n} схемы`;
+            }
+            return `${n} схем`;
+        };
+
+        const loadSipLines = async () => {
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/sip-lines`);
+                if (!response.ok) {
+                    throw new Error(`Ошибка загрузки SIP-линий: ${response.statusText}`);
+                }
+                const lines = await response.json();
+                const tbody = document.getElementById('sip-lines-table').querySelector('tbody');
+                tbody.innerHTML = ''; // Очищаем таблицу
+
+                lines.forEach(line => {
+                    const outSchemesText = getSchemaCountText(line.outgoing_schema_names || []);
+                    const inSchemaText = line.incoming_schema_name || '—';
+
+                    const row = `
+                        <tr>
+                            <td>
+                                <a href="#" data-action="edit-sip-line" data-line-id="${line.id}" class="edit-trigger">✏️</a>
+                            </td>
+                            <td>${line.line_name}</td>
+                            <td>${line.provider_name}</td>
+                            <td>${line.shop || '—'}</td>
+                            <td>${inSchemaText}</td>
+                            <td>${outSchemesText}</td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', row);
+                });
+            } catch (error) {
+                console.error("Не удалось загрузить SIP-линии:", error);
+                alert("Произошла ошибка при загрузке SIP-линий.");
+            }
+        };
+
         const loadSipProviders = async () => {
             const select = document.getElementById('sip-provider');
             select.innerHTML = '<option value="">Загрузка...</option>';
@@ -1109,36 +1168,6 @@
                 });
             } catch (error) {
                 select.innerHTML = `<option value="">${error.message}</option>`;
-            }
-        };
-
-        const loadSipLines = async () => {
-            const tableBody = document.getElementById('sip-lines-table').querySelector('tbody');
-            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Загрузка...</td></tr>';
-            try {
-                const response = await fetch(`/enterprise/${enterpriseNumber}/sip-lines`);
-                if (!response.ok) throw new Error('Ошибка загрузки SIP-линий');
-                const lines = await response.json();
-                
-                tableBody.innerHTML = '';
-                if (lines.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">SIP-линии еще не созданы.</td></tr>';
-                    return;
-                }
-
-                lines.forEach(line => {
-                    const row = tableBody.insertRow();
-                    row.innerHTML = `
-                        <td></td>
-                        <td><a href="#" class="edit-trigger" data-action="edit-sip-line" data-line-id="${line.id}">${line.line_name}</a></td>
-                        <td>${line.provider_name}</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    `;
-                });
-            } catch (error) {
-                tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">${error.message}</td></tr>`;
             }
         };
 
