@@ -557,6 +557,13 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
                     for line in node.get('data', {}).get('external_lines', []) if str(line.get('line_id')).startswith('sip_')
                 }
 
+                # --- НОВАЯ ЛОГИКА: GSM-линии ---
+                gsm_lines_in_schema = {
+                    str(line.get('line_id')).replace('gsm_', '')
+                    for node in schema_update.schema_data.nodes if node.get('type') == 'externalLines'
+                    for line in node.get('data', {}).get('external_lines', []) if str(line.get('line_id')).startswith('gsm_')
+                }
+
                 # --- Логика для ВХОДЯЩИХ схем ---
                 if schema_update.schema_type == 'incoming':
                     logger.info(f"Updating INCOMING schema SIP assignments for '{current_schema_name}'")
@@ -572,6 +579,7 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
                 
                 # --- Логика для ИСХОДЯЩИХ схем ---
                 elif schema_update.schema_type == 'outgoing':
+                    # --- Обработка SIP-линий ---
                     logger.info(f"Updating OUTGOING schema SIP assignments for '{current_schema_name}'")
                     cur.execute(
                         "DELETE FROM sip_outgoing_schema_assignments WHERE enterprise_number = %s AND schema_name = %s",
@@ -585,6 +593,25 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
                         ]
                         cur.executemany(
                             "INSERT INTO sip_outgoing_schema_assignments (enterprise_number, sip_line_name, schema_name) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+                            assignment_data
+                        )
+                    
+                    # --- НОВАЯ ЛОГИКА: Обработка GSM-линий для исходящих схем ---
+                    logger.info(f"Updating OUTGOING schema GSM assignments for '{current_schema_name}'")
+                    # 1. Отвязываем схему от всех GSM-линий, где она могла быть раньше
+                    cur.execute(
+                        "DELETE FROM gsm_outgoing_schema_assignments WHERE enterprise_number = %s AND schema_name = %s",
+                        (current_schema_name, enterprise_number)
+                    )
+                    # 2. Привязываем схему ко всем нужным GSM-линиям
+                    if gsm_lines_in_schema:
+                        logger.info(f"Assigning GSM lines {gsm_lines_in_schema} to outgoing schema '{current_schema_name}'")
+                        assignment_data = [
+                            (enterprise_number, line_id, current_schema_name)
+                            for line_id in gsm_lines_in_schema
+                        ]
+                        cur.executemany(
+                            "INSERT INTO gsm_outgoing_schema_assignments (enterprise_number, gsm_line_id, schema_name) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
                             assignment_data
                         )
 
