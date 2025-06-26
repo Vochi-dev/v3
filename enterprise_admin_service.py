@@ -239,89 +239,96 @@ async def get_enterprise_users(enterprise_number: str, current_enterprise: str =
 
     try:
         sql_query = """
-            WITH user_lines AS (
-                -- Личные номера
-                SELECT
-                    u.id AS user_id, u.first_name, u.last_name, u.patronymic, u.email,
-                    u.personal_phone AS phone_number, 'user' AS line_type,
-                    ARRAY_AGG(ds.schema_name) FILTER (WHERE ds.schema_id IS NOT NULL) AS incoming_schema_names,
+            SELECT * FROM (
+                WITH personal_incoming_schemas AS (
+                    SELECT 
+                        user_id, 
+                        array_agg(schema_name) AS incoming_schema_names
+                    FROM user_personal_phone_incoming_assignments
+                    WHERE enterprise_number = $1
+                    GROUP BY user_id
+                ),
+                internal_incoming_schemas AS (
+                    SELECT 
+                        internal_phone_id, 
+                        array_agg(schema_name) AS incoming_schema_names
+                    FROM user_internal_phone_incoming_assignments
+                    WHERE enterprise_number = $1
+                    GROUP BY internal_phone_id
+                )
+                SELECT 
+                    u.id AS user_id,
+                    u.first_name,
+                    u.last_name,
+                    u.patronymic,
+                    u.email,
+                    u.personal_phone AS phone_number,
+                    'user' AS line_type,
+                    COALESCE(pis.incoming_schema_names, ARRAY[]::varchar[]) AS incoming_schema_names,
                     NULL AS outgoing_schema_name
                 FROM users u
-                LEFT JOIN user_personal_phone_incoming_assignments upia ON u.id = upia.user_id
-                LEFT JOIN dial_schemas ds ON upia.schema_id = ds.schema_id
+                LEFT JOIN personal_incoming_schemas pis ON u.id = pis.user_id
                 WHERE u.enterprise_number = $1 AND u.personal_phone IS NOT NULL
-                GROUP BY u.id
 
                 UNION ALL
 
-                -- Внутренние номера
-                SELECT
-                    uip.user_id, u.first_name, u.last_name, u.patronymic, u.email,
-                    uip.phone_number, 'internal' AS line_type,
-                    ARRAY_AGG(ds_in.schema_name) FILTER (WHERE ds_in.schema_id IS NOT NULL) AS incoming_schema_names,
-                    MAX(ds_out.schema_name) AS outgoing_schema_name
+                SELECT 
+                    uip.user_id,
+                    u.first_name,
+                    u.last_name,
+                    u.patronymic,
+                    u.email,
+                    uip.phone_number,
+                    'internal' AS line_type,
+                    COALESCE(iis.incoming_schema_names, ARRAY[]::varchar[]) AS incoming_schema_names,
+                    ds.schema_name AS outgoing_schema_name
                 FROM user_internal_phones uip
                 LEFT JOIN users u ON uip.user_id = u.id
-                LEFT JOIN user_internal_phone_incoming_assignments uipa ON uip.id = uipa.internal_phone_id
-                LEFT JOIN dial_schemas ds_in ON uipa.schema_id = ds_in.schema_id
-                LEFT JOIN dial_schemas ds_out ON uip.outgoing_schema_id = ds_out.schema_id
+                LEFT JOIN dial_schemas ds ON uip.outgoing_schema_id = ds.schema_id
+                LEFT JOIN internal_incoming_schemas iis ON uip.id = iis.internal_phone_id
                 WHERE uip.enterprise_number = $1
-                GROUP BY uip.id, u.id
-            )
-            SELECT * FROM user_lines;
+            ) AS combined_users
+            ORDER BY 
+                last_name, 
+                first_name, 
+                CASE 
+                    WHEN line_type = 'internal' THEN 1
+                    WHEN line_type = 'user' THEN 2
+                    ELSE 3
+                END,
+                phone_number;
         """
         
-        rows = await conn.fetch(sql_query, enterprise_number)
+        users_and_lines = await conn.fetch(sql_query, enterprise_number)
         
-        # Группировка данных на стороне сервера
+        # Группируем линии по пользователям
         users_data = {}
-        unassigned_lines = []
-
-        for row in rows:
-            line_info = {
-                "phone_number": row["phone_number"],
-                "line_type": row["line_type"],
-                "incoming_schema_names": row["incoming_schema_names"] or [],
-                "outgoing_schema_name": row["outgoing_schema_name"]
-            }
-            if row["user_id"]:
-                user_id = row["user_id"]
-                if user_id not in users_data:
-                    users_data[user_id] = {
-                        "user_id": user_id,
-                        "first_name": row["first_name"],
-                        "last_name": row["last_name"],
-                        "patronymic": row["patronymic"],
-                        "email": row["email"],
-                        "lines": []
-                    }
-                users_data[user_id]["lines"].append(line_info)
-            else:
-                 unassigned_lines.append(line_info)
-        
-        # Сортировка линий внутри каждого пользователя
-        for user in users_data.values():
-            user["lines"].sort(key=lambda x: (x["line_type"] != 'internal', x["phone_number"]))
-
-        # Объединение пользователей и свободных линий в один список
-        final_response = list(users_data.values())
-        if unassigned_lines:
-            final_response.append({
-                "user_id": None,
-                "first_name": None,
-                "last_name": None,
-                "patronymic": None,
-                "email": None,
-                "lines": unassigned_lines
+        for record in users_and_lines:
+            user_id = record['user_id']
+            if user_id not in users_data:
+                users_data[user_id] = {
+                    "user_id": user_id,
+                    "full_name": ' '.join(filter(None, [record['last_name'], record['first_name'], record['patronymic']])),
+                    "email": record['email'],
+                    "lines": []
+                }
+            
+            users_data[user_id]['lines'].append({
+                "phone_number": record['phone_number'],
+                "line_type": record['line_type'],
+                "incoming_schema_names": record['incoming_schema_names'] or [],
+                "outgoing_schema_name": record['outgoing_schema_name']
             })
 
-        return JSONResponse(content=final_response)
-
+        logger.info(f"Найдено {len(users_data)} пользователей для предприятия {enterprise_number}")
+        return JSONResponse(content=list(users_data.values()))
+        
     except Exception as e:
-        logger.error(f"Ошибка при получении пользователей и линий: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера при получении данных о пользователях.")
+        logger.error(f"Ошибка при получении пользователей и линий для предприятия {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
-        await conn.close()
+        if conn:
+            await conn.close()
 
 @app.get("/enterprise/{enterprise_number}/internal-phones/all", response_class=JSONResponse)
 async def get_all_internal_phones(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
