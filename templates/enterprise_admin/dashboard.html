@@ -900,8 +900,8 @@
                             <td>${line.phone_number || ''}</td>
                             <td>${line.line_name || ''}</td>
                             <td>${line.prefix || ''}</td>
-                            <td>${line.in_schema || ''}</td>
-                            <td>${line.out_schema || ''}</td>
+                            <td>${line.incoming_schema_name || ''}</td>
+                            <td>${displayOutgoingSchemas(line.outgoing_schema_names)}</td>
                             <td>${line.shop || ''}</td>
                             <td>${gateway.gateway_name || ''}</td>
                             <td>${line.slot || ''}</td>
@@ -1414,6 +1414,36 @@
                 alert(`Ошибка:\\n${error.message}`);
             }
         });
+
+        function formatSchemaCount(count) {
+            if (!count || count === 0) return '';
+            const lastDigit = count % 10;
+            const lastTwoDigits = count % 100;
+
+            if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
+                return `${count} схем`;
+            }
+            if (lastDigit === 1) {
+                return `${count} схема`;
+            }
+            if ([2, 3, 4].includes(lastDigit)) {
+                return `${count} схемы`;
+            }
+            return `${count} схем`;
+        }
+
+        function displayOutgoingSchemas(schemas) {
+            const schemaNames = schemas || [];
+            const count = schemaNames.length;
+
+            if (count === 0) {
+                return '';
+            }
+            if (count === 1) {
+                return schemaNames[0];
+            }
+            return formatSchemaCount(count);
+        }
 
         // --- Initial Load ---
         fetchUsers();
