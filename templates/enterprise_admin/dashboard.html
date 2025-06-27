@@ -930,6 +930,26 @@
          
          createUserForm.onsubmit = async (e) => {
             e.preventDefault();
+
+            // --- Валидация номеров ---
+            const personalPhoneInput = document.getElementById('userPersonalPhone');
+            const personalPhoneNumber = iti.getNumber();
+            
+            if (personalPhoneNumber && !validatePhoneNumber(personalPhoneNumber)) {
+                alert(`Ошибка: Внешний номер телефона "${personalPhoneNumber}" введен некорректно. Пожалуйста, проверьте формат.`);
+                personalPhoneInput.focus();
+                return;
+            }
+
+            const internalPhoneInputs = Array.from(document.querySelectorAll('#internalNumbersList input[name=\"internal_phones\"]'));
+            for (const input of internalPhoneInputs) {
+                if (input.value && !validatePhoneNumber(input.value)) {
+                    alert(`Ошибка: Один из внутренних номеров "${input.value}" введен некорректно. Пожалуйста, проверьте формат.`);
+                    return; // Прерываем сохранение
+                }
+            }
+            // --- Конец валидации ---
+
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
             data.personal_phone = iti.getNumber();
@@ -1775,7 +1795,19 @@
                 button.textContent = 'Удалить';
             }
         });
+
+        const validatePhoneNumber = (number) => {
+            try {
+                if (!number.startsWith('+')) return true; // Проверяем только международные номера
+                const phoneNumber = libphonenumber.parsePhoneNumberFromString(number);
+                return phoneNumber ? phoneNumber.isValid() : false;
+            } catch (error) {
+                console.error(`Ошибка валидации номера ${number}:`, error);
+                return false; // Считаем невалидным при ошибке
+            }
+        };
     });
     </script>
+    <script src="https://unpkg.com/libphonenumber-js@1.11.1/bundle/libphonenumber-js.min.js"></script>
 </body>
 </html> 
