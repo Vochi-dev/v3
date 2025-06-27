@@ -47,6 +47,14 @@
             background-color: #e7f5fe; /* Светло-голубой */
         }
 
+        .user-group-end td {
+            border-bottom: 2px solid #495057; /* Темная, толстая линия */
+        }
+
+        .user-group-end-cell {
+            border-bottom: 2px solid #495057; /* Темная, толстая линия для ячеек с rowspan */
+        }
+
         /* --- Стили для таблицы аудиофайлов --- */
         .audio-files-container { display: flex; flex-direction: column; }
         .audio-files-header, .audio-file-row {
@@ -785,8 +793,16 @@
                     
                     const phoneNumber = line.phone_number || '';
 
+                    // Определяем, является ли пользователь группой с внутренними номерами
+                    const isUserWithInternalLines = user.user_id && hasLines;
+
                     if (phoneNumber.startsWith('+')) {
                         row.classList.add('mobile-number-row');
+                    }
+
+                    // Если это последняя строка в группе пользователя с внутренними линиями, добавляем класс
+                    if (isUserWithInternalLines && index === linesToRender.length - 1) {
+                        row.classList.add('user-group-end');
                     }
 
                     const formattedNumber = formatDisplayNumber(phoneNumber);
@@ -808,14 +824,23 @@
                         const fullName = user.full_name || '';
                         const email = user.email || '';
                         const editLink = user.user_id ? `<a href="#" data-action="edit-user" data-user-id="${user.user_id}">${fullName}</a>` : fullName;
-                         
-                        row.innerHTML += `
+                        
+                        const userCellsHtml = `
                             <td rowspan="${lineCount}">${editLink}</td>
                             <td rowspan="${lineCount}">${email}</td>
                             <td rowspan="${lineCount}"></td>
                             <td rowspan="${lineCount}"></td>
                             <td rowspan="${lineCount}"></td>
                         `;
+                        
+                        row.insertAdjacentHTML('beforeend', userCellsHtml);
+
+                        // Если это группа с внутренними номерами, применяем стиль к ячейкам с rowspan
+                        if (isUserWithInternalLines) {
+                            row.querySelectorAll('td[rowspan]').forEach(cell => {
+                                cell.classList.add('user-group-end-cell');
+                            });
+                        }
                     }
                      
                     usersTableBody.appendChild(row);
