@@ -1285,6 +1285,26 @@ async def delete_internal_phone(enterprise_number: str, phone_number: str, curre
         if result.strip() == "DELETE 0":
              raise HTTPException(status_code=404, detail="Номер не найден для удаления.")
 
+        # Логика создания файла после удаления
+        try:
+            config_dir = Path(f"music/{enterprise_number}")
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_path = config_dir / "sip_addproviders.conf"
+            test_content = f"""
+; Файл сгенерирован автоматически при удалении внутреннего номера {phone_number}
+; Время: {datetime.now()}
+[some_provider]
+type=friend
+host=dynamic
+context=from-internal
+            """
+            with open(config_path, "w") as f:
+                f.write(test_content.strip())
+            logger.info(f"Конфигурационный файл '{config_path}' успешно обновлен после удаления внутреннего номера.")
+        except Exception as e:
+            logger.error(f"Не удалось обновить конфигурационный файл после удаления внутреннего номера: {e}")
+            # Не прерываем процесс из-за ошибки записи файла, но логируем ее
+
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     except HTTPException as http_exc:

@@ -9921,3 +9921,26 @@ asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exis
 2025-06-27 13:52:48,794 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
 2025-06-27 13:52:48,998 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
 2025-06-27 13:52:49,002 - enterprise_admin_service - INFO - Запрос обработан за 0.2081 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 13:55:56,883 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/159/details
+2025-06-27 13:55:57,071 - enterprise_admin_service - INFO - Запрос обработан за 0.1888 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/159/details
+2025-06-27 13:56:02,933 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/159
+2025-06-27 13:56:03,117 - enterprise_admin_service - INFO - Запрос обработан за 0.1841 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/159
+2025-06-27 13:56:05,058 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 13:56:05,266 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 13:56:05,268 - enterprise_admin_service - INFO - Запрос обработан за 0.2103 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 14:03:44,910 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 14:03:45,123 - enterprise_admin_service - INFO - Запрос обработан за 0.2130 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 14:03:45,315 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 14:03:45,529 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 14:03:45,531 - enterprise_admin_service - INFO - Запрос обработан за 0.2162 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 14:03:47,306 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 14:03:47,499 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 14:03:47,502 - enterprise_admin_service - INFO - Запрос обработан за 0.1957 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 14:03:53,732 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/158/details
+2025-06-27 14:03:53,891 - enterprise_admin_service - INFO - Запрос обработан за 0.1584 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/158/details
+2025-06-27 14:03:57,477 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/158
+2025-06-27 14:03:57,684 - enterprise_admin_service - INFO - Конфигурационный файл 'music/0201/sip_addproviders.conf' успешно обновлен после удаления внутреннего номера.
+2025-06-27 14:03:57,685 - enterprise_admin_service - INFO - Запрос обработан за 0.2083 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/158
+2025-06-27 14:04:00,056 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 14:04:00,298 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 14:04:00,301 - enterprise_admin_service - INFO - Запрос обработан за 0.2446 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
