@@ -1171,5 +1171,102 @@ async def create_sip_line(
     finally:
         await conn.close()
 
+@app.get("/enterprise/{enterprise_number}/internal-phones/{phone_number}/details", response_class=JSONResponse)
+async def get_internal_phone_details(enterprise_number: str, phone_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    conn = await get_db_connection()
+    if not conn: raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        query = "SELECT phone_number, password FROM user_internal_phones WHERE enterprise_number = $1 AND phone_number = $2"
+        phone_details = await conn.fetchrow(query, enterprise_number, phone_number)
+
+        if not phone_details:
+            raise HTTPException(status_code=404, detail="Internal phone not found")
+
+        return JSONResponse(content=dict(phone_details))
+    finally:
+        await conn.close()
+
+@app.delete("/enterprise/{enterprise_number}/internal-phones/{phone_number}", response_class=Response)
+async def delete_internal_phone(enterprise_number: str, phone_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        # Получаем запись о телефоне, включая его id и user_id
+        phone_record = await conn.fetchrow("SELECT id, user_id FROM user_internal_phones WHERE enterprise_number = $1 AND phone_number = $2", enterprise_number, phone_number)
+
+        if not phone_record:
+            raise HTTPException(status_code=404, detail="Внутренний номер не найден.")
+
+        phone_id = phone_record['id']
+        assigned_user = phone_record['user_id']
+        
+        # 1. Проверить, привязан ли номер к пользователю
+        if assigned_user is not None:
+            raise HTTPException(status_code=409, detail=f"Невозможно удалить номер {phone_number}, так как он назначен пользователю.")
+
+        # 2. Проверить, используется ли номер во входящих схемах, используя phone_id
+        incoming_schemas = await conn.fetch(
+            "SELECT ds.schema_name FROM dial_schemas ds JOIN user_internal_phone_incoming_assignments uipa ON ds.schema_id = uipa.schema_id WHERE uipa.internal_phone_id = $1 AND ds.enterprise_id = $2",
+            phone_id, enterprise_number)
+        
+        # 3. Проверить, используется ли номер в исходящих схемах
+        outgoing_schemas = await conn.fetch(
+            "SELECT osa.schema_name FROM gsm_outgoing_schema_assignments osa WHERE osa.gsm_line_id = $1 AND osa.enterprise_number = $2",
+            phone_number, enterprise_number)
+
+        conflicts = []
+        if incoming_schemas:
+            conflicts.append(f"используется во входящих схемах: {', '.join([s['schema_name'] for s in incoming_schemas])}")
+        if outgoing_schemas:
+            conflicts.append(f"используется в исходящих схемах: {', '.join([s['schema_name'] for s in outgoing_schemas])}")
+
+        if conflicts:
+            error_message = f"Невозможно удалить номер {phone_number}, так как он " + " и ".join(conflicts) + "."
+            raise HTTPException(status_code=409, detail=error_message)
+
+        # Если проверки пройдены, удаляем номер по его ID
+        delete_query = "DELETE FROM user_internal_phones WHERE id = $1"
+        result = await conn.execute(delete_query, phone_id)
+
+        if result.strip() == "DELETE 0":
+             raise HTTPException(status_code=404, detail="Номер не найден для удаления.")
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    except HTTPException as http_exc:
+        raise http_exc # Re-raise HTTPException to be handled by FastAPI
+    except Exception as e:
+        logger.error(f"Error deleting internal phone {phone_number} for enterprise {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера. Не удалось удалить номер.")
+    finally:
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/dial-schemas", response_class=JSONResponse)
+async def get_dial_schemas(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        query = """
+        SELECT id, name FROM dial_schemas WHERE enterprise_id = $1
+        """
+        schemas = await conn.fetch(query, enterprise_number)
+        return [dict(row) for row in schemas]
+    finally:
+        await conn.close()
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8004) 

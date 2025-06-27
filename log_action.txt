@@ -9162,3 +9162,347 @@ HINT:  Add the expression/function to every SELECT, or move the UNION into a FRO
 2025-06-27 09:51:30,316 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
 2025-06-27 09:51:30,521 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
 2025-06-27 09:51:30,524 - enterprise_admin_service - INFO - Запрос обработан за 0.2079 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 09:54:37,067 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/next-available
+2025-06-27 09:54:37,262 - enterprise_admin_service - INFO - Запрос обработан за 0.1947 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/next-available
+2025-06-27 10:02:05,923 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:02:06,166 - enterprise_admin_service - INFO - Запрос обработан за 0.2428 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:02:06,357 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:02:06,577 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:02:06,580 - enterprise_admin_service - INFO - Запрос обработан за 0.2231 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:02:08,223 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:02:08,426 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:02:08,430 - enterprise_admin_service - INFO - Запрос обработан за 0.2067 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:02:12,353 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:02:12,522 - enterprise_admin_service - INFO - Запрос обработан за 0.1684 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:02:21,845 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:02:22,043 - enterprise_admin_service - INFO - Запрос обработан за 0.1983 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:02:25,200 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:07:42,342 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:07:42,509 - enterprise_admin_service - INFO - Запрос обработан за 0.1665 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:07:42,674 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:07:42,884 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:07:42,886 - enterprise_admin_service - INFO - Запрос обработан за 0.2117 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:07:45,030 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:07:45,223 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:07:45,225 - enterprise_admin_service - INFO - Запрос обработан за 0.1949 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:07:48,389 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:07:48,576 - enterprise_admin_service - INFO - Запрос обработан за 0.1867 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:07:52,951 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:07:53,084 - enterprise_admin_service - ERROR - Критическая ошибка при удалении внутреннего номера 162: relation "internal_phone_incoming_assignments" does not exist
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 1220, in delete_internal_phone
+    inc_schemas = await conn.fetch("SELECT DISTINCT schema_name FROM internal_phone_incoming_assignments WHERE phone_id = $1", phone_id)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedTableError: relation "internal_phone_incoming_assignments" does not exist
+2025-06-27 10:07:53,091 - enterprise_admin_service - INFO - Запрос обработан за 0.1398 сек. Статус: 500. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:08:32,255 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:08:32,465 - enterprise_admin_service - ERROR - Критическая ошибка при удалении внутреннего номера 162: relation "internal_phone_incoming_assignments" does not exist
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 1220, in delete_internal_phone
+    inc_schemas = await conn.fetch("SELECT DISTINCT schema_name FROM internal_phone_incoming_assignments WHERE phone_id = $1", phone_id)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedTableError: relation "internal_phone_incoming_assignments" does not exist
+2025-06-27 10:08:32,473 - enterprise_admin_service - INFO - Запрос обработан за 0.2183 сек. Статус: 500. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:09:53,245 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:09:53,487 - enterprise_admin_service - INFO - Запрос обработан за 0.2418 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:09:53,644 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:09:53,855 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:09:53,856 - enterprise_admin_service - INFO - Запрос обработан за 0.2123 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:09:56,018 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:09:56,184 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:09:56,186 - enterprise_admin_service - INFO - Запрос обработан за 0.1673 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:09:58,230 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:09:58,415 - enterprise_admin_service - INFO - Запрос обработан за 0.1845 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:10:01,270 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:10:01,483 - enterprise_admin_service - ERROR - Критическая ошибка при удалении внутреннего номера 162: relation "user_internal_phone_outgoing_assignments" does not exist
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 1226, in delete_internal_phone
+    out_schemas = await conn.fetch("SELECT DISTINCT schema_name FROM user_internal_phone_outgoing_assignments WHERE internal_phone_id = $1", phone_id)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedTableError: relation "user_internal_phone_outgoing_assignments" does not exist
+2025-06-27 10:10:01,487 - enterprise_admin_service - INFO - Запрос обработан за 0.2163 сек. Статус: 500. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:10:07,209 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:10:07,400 - enterprise_admin_service - INFO - Запрос обработан за 0.1913 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:10:07,560 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:10:07,758 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:10:07,760 - enterprise_admin_service - INFO - Запрос обработан за 0.2000 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:10:09,076 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:10:09,265 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:10:09,267 - enterprise_admin_service - INFO - Запрос обработан за 0.1915 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:10:20,780 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:10:20,956 - enterprise_admin_service - INFO - Запрос обработан за 0.1763 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:10:24,566 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:10:24,741 - enterprise_admin_service - ERROR - Критическая ошибка при удалении внутреннего номера 162: relation "user_internal_phone_outgoing_assignments" does not exist
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 1226, in delete_internal_phone
+    out_schemas = await conn.fetch("SELECT DISTINCT schema_name FROM user_internal_phone_outgoing_assignments WHERE internal_phone_id = $1", phone_id)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedTableError: relation "user_internal_phone_outgoing_assignments" does not exist
+2025-06-27 10:10:24,743 - enterprise_admin_service - INFO - Запрос обработан за 0.1769 сек. Статус: 500. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:13:37,522 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:13:37,714 - enterprise_admin_service - INFO - Запрос обработан за 0.1918 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:13:37,912 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:13:38,132 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:13:38,134 - enterprise_admin_service - INFO - Запрос обработан за 0.2221 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:13:39,596 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:13:39,738 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:13:39,739 - enterprise_admin_service - INFO - Запрос обработан за 0.1432 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:13:42,231 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:13:42,425 - enterprise_admin_service - INFO - Запрос обработан за 0.1936 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:13:45,595 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:13:45,811 - enterprise_admin_service - ERROR - Критическая ошибка при удалении внутреннего номера 162: relation "user_internal_phone_outgoing_assignments" does not exist
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 1226, in delete_internal_phone
+    out_schemas = await conn.fetch("SELECT DISTINCT schema_name FROM user_internal_phone_outgoing_assignments WHERE internal_phone_id = $1", phone_id)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedTableError: relation "user_internal_phone_outgoing_assignments" does not exist
+2025-06-27 10:13:45,817 - enterprise_admin_service - INFO - Запрос обработан за 0.2225 сек. Статус: 500. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:15:28,563 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:15:28,773 - enterprise_admin_service - INFO - Запрос обработан за 0.2104 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:15:29,002 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:15:29,149 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:15:29,152 - enterprise_admin_service - INFO - Запрос обработан за 0.1496 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:15:30,852 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:15:31,038 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:15:31,040 - enterprise_admin_service - INFO - Запрос обработан за 0.1884 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:15:33,213 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:15:33,378 - enterprise_admin_service - INFO - Запрос обработан за 0.1642 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:15:36,852 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:15:37,034 - enterprise_admin_service - ERROR - Error deleting internal phone 162 for enterprise 0201: column ds.id does not exist
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 1209, in delete_internal_phone
+    incoming_schemas = await conn.fetch(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedColumnError: column ds.id does not exist
+2025-06-27 10:15:37,038 - enterprise_admin_service - INFO - Запрос обработан за 0.1861 сек. Статус: 500. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:15:42,102 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:15:42,238 - enterprise_admin_service - INFO - Запрос обработан за 0.1368 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:15:42,414 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:15:42,586 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:15:42,588 - enterprise_admin_service - INFO - Запрос обработан за 0.1741 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:15:50,676 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:15:50,870 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:15:50,872 - enterprise_admin_service - INFO - Запрос обработан за 0.1960 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:15:52,680 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:15:52,850 - enterprise_admin_service - INFO - Запрос обработан за 0.1694 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:16:07,677 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:16:07,862 - enterprise_admin_service - ERROR - Error deleting internal phone 162 for enterprise 0201: column ds.id does not exist
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 1209, in delete_internal_phone
+    incoming_schemas = await conn.fetch(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedColumnError: column ds.id does not exist
+2025-06-27 10:16:07,866 - enterprise_admin_service - INFO - Запрос обработан за 0.1890 сек. Статус: 500. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:20:57,022 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:20:57,246 - enterprise_admin_service - INFO - Запрос обработан за 0.2249 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:20:57,483 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:20:57,707 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:20:57,709 - enterprise_admin_service - INFO - Запрос обработан за 0.2266 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:21:00,066 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:21:00,266 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:21:00,269 - enterprise_admin_service - INFO - Запрос обработан за 0.2029 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:21:02,951 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:21:03,127 - enterprise_admin_service - INFO - Запрос обработан за 0.1764 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:21:06,910 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:21:07,081 - enterprise_admin_service - ERROR - Error deleting internal phone 162 for enterprise 0201: column uipa.phone_number does not exist
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 1209, in delete_internal_phone
+    incoming_schemas = await conn.fetch(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedColumnError: column uipa.phone_number does not exist
+2025-06-27 10:21:07,087 - enterprise_admin_service - INFO - Запрос обработан за 0.1767 сек. Статус: 500. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:23:32,166 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:23:32,404 - enterprise_admin_service - INFO - Запрос обработан за 0.2386 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:23:32,584 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:23:32,737 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:23:32,740 - enterprise_admin_service - INFO - Запрос обработан за 0.1559 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:23:35,246 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:23:35,418 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:23:35,419 - enterprise_admin_service - INFO - Запрос обработан за 0.1728 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:23:38,541 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:23:38,684 - enterprise_admin_service - INFO - Запрос обработан за 0.1432 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:23:42,030 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:23:42,224 - enterprise_admin_service - ERROR - Error deleting internal phone 162 for enterprise 0201: column osa.goip_line_name does not exist
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 1223, in delete_internal_phone
+    outgoing_schemas = await conn.fetch(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exist
+2025-06-27 10:23:42,227 - enterprise_admin_service - INFO - Запрос обработан за 0.1969 сек. Статус: 500. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:23:59,540 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:23:59,677 - enterprise_admin_service - INFO - Запрос обработан за 0.1375 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:23:59,859 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:24:00,016 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:24:00,018 - enterprise_admin_service - INFO - Запрос обработан за 0.1590 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:24:04,322 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:24:04,504 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:24:04,506 - enterprise_admin_service - INFO - Запрос обработан за 0.1837 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:24:08,034 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:24:08,179 - enterprise_admin_service - INFO - Запрос обработан за 0.1449 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:24:11,609 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:24:11,763 - enterprise_admin_service - ERROR - Error deleting internal phone 162 for enterprise 0201: column osa.goip_line_name does not exist
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/enterprise_admin_service.py", line 1223, in delete_internal_phone
+    outgoing_schemas = await conn.fetch(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 691, in fetch
+    return await self._execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1794, in _execute
+    result, _ = await self.__execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1892, in __execute
+    result, stmt = await self._do_execute(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 1925, in _do_execute
+    stmt = await self._get_statement(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exist
+2025-06-27 10:24:11,766 - enterprise_admin_service - INFO - Запрос обработан за 0.1575 сек. Статус: 500. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:26:12,785 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:26:13,033 - enterprise_admin_service - INFO - Запрос обработан за 0.2480 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:26:13,208 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:26:13,435 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:26:13,437 - enterprise_admin_service - INFO - Запрос обработан за 0.2289 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:26:14,745 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:26:14,942 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:26:14,944 - enterprise_admin_service - INFO - Запрос обработан за 0.1988 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:26:17,895 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:26:18,036 - enterprise_admin_service - INFO - Запрос обработан за 0.1411 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/162/details
+2025-06-27 10:26:21,480 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:26:21,626 - enterprise_admin_service - INFO - Запрос обработан за 0.1465 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/162
+2025-06-27 10:26:23,796 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:26:23,940 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:26:23,942 - enterprise_admin_service - INFO - Запрос обработан за 0.1459 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:26:27,592 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/156/details
+2025-06-27 10:26:27,755 - enterprise_admin_service - INFO - Запрос обработан за 0.1623 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/156/details
+2025-06-27 10:26:31,100 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/156
+2025-06-27 10:26:31,299 - enterprise_admin_service - INFO - Запрос обработан за 0.1991 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/156
+2025-06-27 10:26:38,864 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/155/details
+2025-06-27 10:26:39,049 - enterprise_admin_service - INFO - Запрос обработан за 0.1852 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/155/details
+2025-06-27 10:26:42,263 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/155
+2025-06-27 10:26:42,453 - enterprise_admin_service - INFO - Запрос обработан за 0.1900 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/155
+2025-06-27 10:26:54,351 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/151/details
+2025-06-27 10:26:54,492 - enterprise_admin_service - INFO - Запрос обработан за 0.1414 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/151/details
+2025-06-27 10:26:57,271 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/151
+2025-06-27 10:26:57,430 - enterprise_admin_service - INFO - Запрос обработан за 0.1593 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/151
+2025-06-27 10:27:05,939 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/161/details
+2025-06-27 10:27:06,094 - enterprise_admin_service - INFO - Запрос обработан за 0.1562 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/161/details
+2025-06-27 10:27:08,479 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/161
+2025-06-27 10:27:08,632 - enterprise_admin_service - INFO - Запрос обработан за 0.1535 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/161
+2025-06-27 10:27:09,997 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:27:10,209 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:27:10,212 - enterprise_admin_service - INFO - Запрос обработан за 0.2154 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:27:12,722 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/160/details
+2025-06-27 10:27:12,911 - enterprise_admin_service - INFO - Запрос обработан за 0.1893 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/160/details
+2025-06-27 10:27:15,662 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/160
+2025-06-27 10:27:15,802 - enterprise_admin_service - INFO - Запрос обработан за 0.1400 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/160
+2025-06-27 10:27:17,353 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:27:17,519 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:27:17,521 - enterprise_admin_service - INFO - Запрос обработан за 0.1682 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:27:23,861 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/159/details
+2025-06-27 10:27:24,004 - enterprise_admin_service - INFO - Запрос обработан за 0.1424 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/159/details
+2025-06-27 10:27:26,412 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/159
+2025-06-27 10:27:26,607 - enterprise_admin_service - INFO - Запрос обработан за 0.1958 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/159
+2025-06-27 10:27:27,991 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:27:28,200 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:27:28,204 - enterprise_admin_service - INFO - Запрос обработан за 0.2131 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:27:30,520 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/158/details
+2025-06-27 10:27:30,712 - enterprise_admin_service - INFO - Запрос обработан за 0.1920 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/158/details
+2025-06-27 10:27:33,212 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/158
+2025-06-27 10:27:33,404 - enterprise_admin_service - INFO - Запрос обработан за 0.1916 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/158
+2025-06-27 10:27:34,769 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:27:34,984 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:27:34,985 - enterprise_admin_service - INFO - Запрос обработан за 0.2166 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:27:39,870 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/156/details
+2025-06-27 10:27:40,002 - enterprise_admin_service - INFO - Запрос обработан за 0.1321 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/156/details
+2025-06-27 10:27:42,940 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/156
+2025-06-27 10:27:43,097 - enterprise_admin_service - INFO - Запрос обработан за 0.1576 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/156
