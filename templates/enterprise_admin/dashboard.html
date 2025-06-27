@@ -490,6 +490,7 @@
         let usersDataCache = null;
         let allLinesCache = null;
         let iti = null;
+        let returnToSelectLinesModalAfterCreation = false;
 
         // --- DOM Elements ---
         const usersModal = document.getElementById('user-management-modal');
@@ -569,6 +570,7 @@
             } else if (action === 'open-create-user') {
                 openCreateUserModal();
             } else if (action === 'open-create-line') {
+                returnToSelectLinesModalAfterCreation = false;
                 openCreateLineModal();
             } else if (action === 'edit-user') {
                 const userId = target.getAttribute('data-user-id');
@@ -586,6 +588,7 @@
             } else if (action === 'confirm-line-selection') {
                 confirmLineSelection();
             } else if (action === 'go-to-create-line') {
+                returnToSelectLinesModalAfterCreation = true;
                 closeModal(selectLinesModal);
                 openCreateLineModal();
             } else if (action === 'refresh-audio-files') {
@@ -891,8 +894,10 @@
                 // Close current "Create Line" modal
                 closeModal(createLineModal);
 
-                // Re-open "Select Lines" modal, which will now fetch the updated list
-                await openSelectLinesModal();
+                // Conditionally reopen the select lines modal
+                if (returnToSelectLinesModalAfterCreation) {
+                    await openSelectLinesModal();
+                }
                 
                 // Refresh the main user table in the background as well, so it shows the new unassigned line
                 fetchUsers(); 
