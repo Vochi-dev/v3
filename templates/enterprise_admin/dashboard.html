@@ -860,13 +860,29 @@
 
         const deleteUser = async () => {
             if (!currentEditingUser) return;
-            if (!confirm(`Удалить ${currentEditingUser.full_name}? Номера останутся в системе.`)) return;
+
+            const lastName = document.getElementById('userLastName').value;
+            const firstName = document.getElementById('userFirstName').value;
+            const displayName = `${lastName} ${firstName}`.trim() || 'этого пользователя';
+
+            if (!confirm(`Вы уверены, что хотите удалить ${displayName}?`)) return;
+
             try {
                 const response = await fetch(`/enterprise/${enterpriseNumber}/users/${currentEditingUser.id}`, { method: 'DELETE' });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                closeModal(createUserModal);
-                await fetchUsers();
-            } catch(e) { alert(`Не удалось удалить: ${e.message}`); }
+                
+                if (response.ok) { // Status 204 No Content
+                    closeModal(createUserModal);
+                    await fetchUsers();
+                    alert('Пользователь успешно удален.');
+                } else {
+                    const errorData = await response.json().catch(() => null);
+                    const errorMessage = errorData?.detail || `Произошла ошибка (HTTP ${response.status})`;
+                    alert(errorMessage);
+                }
+            } catch(e) { 
+                console.error("Ошибка при удалении пользователя:", e);
+                alert(`Не удалось выполнить операцию: ${e.message}`); 
+            }
         };
 
         // --- Line Modal Logic ---
