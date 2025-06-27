@@ -9506,3 +9506,143 @@ asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exis
 2025-06-27 10:27:40,002 - enterprise_admin_service - INFO - Запрос обработан за 0.1321 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/156/details
 2025-06-27 10:27:42,940 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/156
 2025-06-27 10:27:43,097 - enterprise_admin_service - INFO - Запрос обработан за 0.1576 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0201/internal-phones/156
+2025-06-27 10:28:15,239 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 10:28:15,456 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-27 10:28:15,457 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-27 10:28:15,460 - enterprise_admin_service - INFO - Запрос обработан за 0.2205 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 10:28:18,913 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-27 10:28:19,073 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0201.
+2025-06-27 10:28:19,073 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 2, 'display_name': 'Ожидание проверка', 'file_type': 'hold', 'file_path': 'music/0201/hold/w5fw4fl3.wav', 'original_filename': 'callrecord_1744619143792.mp3', 'created_at': '2025-06-10T17:18:51.262015+00:00'}, {'id': 1, 'display_name': 'Проба', 'file_type': 'start', 'file_path': 'music/0201/start/wrfslsvg.wav', 'original_filename': 'callrecord_1747834691669.mp3', 'created_at': '2025-06-10T10:22:05.668370+00:00'}]
+2025-06-27 10:28:19,074 - enterprise_admin_service - INFO - Запрос обработан за 0.1616 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/audiofiles
+2025-06-27 10:28:19,123 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/1
+2025-06-27 10:28:19,200 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 1 для предприятия: 0201
+2025-06-27 10:28:19,297 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0201/start/wrfslsvg.wav
+2025-06-27 10:28:19,298 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0201/start/wrfslsvg.wav
+2025-06-27 10:28:19,298 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0201/start/wrfslsvg.wav с media_type audio/wav
+2025-06-27 10:28:19,300 - enterprise_admin_service - INFO - Запрос обработан за 0.1778 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/1
+2025-06-27 10:28:31,590 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 10:28:31,813 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-27 10:28:31,813 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-27 10:28:31,817 - enterprise_admin_service - INFO - Запрос обработан за 0.2270 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 10:28:33,485 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 10:28:33,710 - enterprise_admin_service - INFO - Запрос обработан за 0.2253 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 10:28:33,745 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines/2
+2025-06-27 10:28:33,882 - enterprise_admin_service - INFO - Запрос обработан за 0.1368 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines/2
+2025-06-27 10:38:47,420 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:38:47,598 - enterprise_admin_service - INFO - Запрос обработан за 0.1784 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:38:47,801 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:38:47,997 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:38:48,000 - enterprise_admin_service - INFO - Запрос обработан за 0.1984 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:38:49,581 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:38:49,811 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:38:49,813 - enterprise_admin_service - INFO - Запрос обработан за 0.2316 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:38:53,522 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 10:38:53,728 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-27 10:38:53,728 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-27 10:38:53,731 - enterprise_admin_service - INFO - Запрос обработан за 0.2083 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 10:38:55,516 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 10:38:55,662 - enterprise_admin_service - INFO - Запрос обработан за 0.1460 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 10:38:55,697 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 10:38:55,873 - enterprise_admin_service - INFO - Запрос обработан за 0.1761 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 10:39:00,081 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:39:00,241 - enterprise_admin_service - INFO - Запрос обработан за 0.1597 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 10:39:00,419 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:39:00,575 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 10:39:00,576 - enterprise_admin_service - INFO - Запрос обработан за 0.1569 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 10:39:03,474 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 10:39:03,651 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-27 10:39:03,652 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-27 10:39:03,655 - enterprise_admin_service - INFO - Запрос обработан за 0.1815 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 10:39:06,275 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 10:39:06,475 - enterprise_admin_service - INFO - Запрос обработан за 0.2003 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 10:39:06,517 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 10:39:06,698 - enterprise_admin_service - INFO - Запрос обработан за 0.1812 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 10:39:21,581 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 10:39:21,764 - enterprise_admin_service - INFO - Запрос обработан за 0.1832 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 10:39:21,803 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 10:39:21,938 - enterprise_admin_service - INFO - Запрос обработан за 0.1352 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 11:27:12,749 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 11:27:12,961 - enterprise_admin_service - INFO - Запрос обработан за 0.2128 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 11:27:13,150 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:27:13,346 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 11:27:13,349 - enterprise_admin_service - INFO - Запрос обработан за 0.1985 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:27:15,582 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:27:15,775 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 11:27:15,777 - enterprise_admin_service - INFO - Запрос обработан за 0.1949 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:27:18,923 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 11:27:19,107 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-27 11:27:19,107 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-27 11:27:19,108 - enterprise_admin_service - INFO - Запрос обработан за 0.1847 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 11:27:22,291 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:27:22,468 - enterprise_admin_service - INFO - Запрос обработан за 0.1762 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:27:22,503 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 11:27:22,685 - enterprise_admin_service - INFO - Запрос обработан за 0.1816 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 11:27:27,274 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 11:27:27,417 - enterprise_admin_service - INFO - Запрос обработан за 0.1436 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 11:27:27,545 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:27:27,707 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 11:27:27,709 - enterprise_admin_service - INFO - Запрос обработан за 0.1643 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:27:29,699 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 11:27:29,875 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-27 11:27:29,876 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=4 line_name='3880904' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-27 11:27:29,880 - enterprise_admin_service - INFO - Запрос обработан за 0.1810 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 11:27:31,859 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:27:32,073 - enterprise_admin_service - INFO - Запрос обработан за 0.2137 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:27:32,108 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines/3
+2025-06-27 11:27:32,281 - enterprise_admin_service - INFO - Запрос обработан за 0.1727 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines/3
+2025-06-27 11:27:35,563 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:27:35,700 - enterprise_admin_service - INFO - Запрос обработан за 0.1373 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:27:35,735 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines/2
+2025-06-27 11:27:35,916 - enterprise_admin_service - INFO - Запрос обработан за 0.1817 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines/2
+2025-06-27 11:27:42,211 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:27:42,379 - enterprise_admin_service - INFO - Запрос обработан за 0.1685 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:27:42,420 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 11:27:42,624 - enterprise_admin_service - INFO - Запрос обработан за 0.2035 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 11:29:38,325 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 11:29:38,472 - enterprise_admin_service - INFO - Запрос обработан за 0.1470 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0201/sip-lines/4
+2025-06-27 11:29:40,275 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 11:29:40,472 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 2 строк.
+2025-06-27 11:29:40,473 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>]
+2025-06-27 11:29:40,475 - enterprise_admin_service - INFO - Запрос обработан за 0.2001 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 11:29:46,043 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/sip-lines/3
+2025-06-27 11:29:46,184 - enterprise_admin_service - INFO - Запрос обработан за 0.1411 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0201/sip-lines/3
+2025-06-27 11:29:50,193 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/sip-lines/3
+2025-06-27 11:29:50,349 - enterprise_admin_service - INFO - Запрос обработан за 0.1557 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0201/sip-lines/3
+2025-06-27 11:29:55,469 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/sip-lines/2
+2025-06-27 11:29:55,604 - enterprise_admin_service - INFO - Запрос обработан за 0.1348 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0201/sip-lines/2
+2025-06-27 11:29:59,564 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:29:59,743 - enterprise_admin_service - INFO - Запрос обработан за 0.1790 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:30:19,707 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:30:19,890 - enterprise_admin_service - INFO - Запрос обработан за 0.1837 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-providers
+2025-06-27 11:30:33,535 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 11:30:33,697 - enterprise_admin_service - INFO - Запрос обработан за 0.1622 сек. Статус: 201. Адрес: POST https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 11:30:35,670 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 11:30:35,895 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 3 строк.
+2025-06-27 11:30:35,896 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=2 line_name='3880903' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 5' outgoing_schema_names=['Исходящая схема 2']>, <Record id=3 line_name='111222' prefix='' provider_name='Zadarma' incoming_schema_name=None outgoing_schema_names=['Исходящая схема 1', 'Исходящая схема 2']>, <Record id=5 line_name='3880403' prefix='' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-06-27 11:30:35,899 - enterprise_admin_service - INFO - Запрос обработан за 0.2287 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/sip-lines
+2025-06-27 11:39:26,886 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:39:27,085 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 11:39:27,087 - enterprise_admin_service - INFO - Запрос обработан за 0.2014 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:39:30,352 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/next-available
+2025-06-27 11:39:30,499 - enterprise_admin_service - INFO - Запрос обработан за 0.1467 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/next-available
+2025-06-27 11:39:31,933 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0201/internal-phones
+2025-06-27 11:39:32,090 - enterprise_admin_service - INFO - Запрос обработан за 0.1572 сек. Статус: 200. Адрес: POST https://bot.vochi.by/enterprise/0201/internal-phones
+2025-06-27 11:39:32,126 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:39:32,309 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 11:39:32,312 - enterprise_admin_service - INFO - Запрос обработан за 0.1857 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:40:01,005 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
+2025-06-27 11:40:01,190 - enterprise_admin_service - INFO - Запрос обработан за 0.1857 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
+2025-06-27 11:40:03,354 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/next-available
+2025-06-27 11:40:03,521 - enterprise_admin_service - INFO - Запрос обработан за 0.1675 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/next-available
+2025-06-27 11:40:04,593 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0201/internal-phones
+2025-06-27 11:40:04,745 - enterprise_admin_service - INFO - Запрос обработан за 0.1512 сек. Статус: 200. Адрес: POST https://bot.vochi.by/enterprise/0201/internal-phones
+2025-06-27 11:40:04,781 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
+2025-06-27 11:40:04,957 - enterprise_admin_service - INFO - Запрос обработан за 0.1755 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
+2025-06-27 11:40:04,991 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:40:05,150 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-27 11:40:05,152 - enterprise_admin_service - INFO - Запрос обработан за 0.1616 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:40:10,636 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:40:10,762 - enterprise_admin_service - INFO - Запрос обработан за 0.1264 сек. Статус: 201. Адрес: POST https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:40:10,802 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 11:40:11,027 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 11:40:11,030 - enterprise_admin_service - INFO - Запрос обработан за 0.2275 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users

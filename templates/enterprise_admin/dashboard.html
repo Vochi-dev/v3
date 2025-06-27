@@ -241,6 +241,24 @@
         </div>
     </div>
 
+    <!-- Модальное окно для ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ SIP-линии -->
+    <div id="delete-sip-line-modal" class="modal">
+        <div class="modal-content modal-narrow">
+            <div class="modal-header">
+                <h2 id="delete-sip-line-modal-title">Подтверждение удаления</h2>
+                <span data-action="close-modal" class="close-button">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="delete-sip-line-warning-text"></p>
+                <input type="hidden" id="sip-line-to-delete-id">
+            </div>
+            <div class="form-actions" style="padding: 1rem 20px;">
+                <button type="button" class="btn btn-secondary" data-action="close-modal">Отмена</button>
+                <button type="button" id="confirm-delete-sip-line-btn" class="btn btn-danger">Удалить</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Модальное окно для управления пользователями -->
     <div id="user-management-modal" class="modal">
         <div class="modal-content" style="max-width: 90%;">
@@ -560,6 +578,17 @@
             } else if (action === 'edit-sip-line') {
                 const lineId = e.target.dataset.lineId;
                 openSipLineForEdit(lineId);
+            } else if (action === 'delete-sip-line') {
+                const lineId = target.dataset.lineId;
+                const lineName = target.dataset.lineName;
+                const modal = document.getElementById('delete-sip-line-modal');
+                const warningText = document.getElementById('delete-sip-line-warning-text');
+                const lineIdInput = document.getElementById('sip-line-to-delete-id');
+                
+                warningText.textContent = `Вы уверены, что хотите удалить SIP-линию "${lineName}"? Это действие необратимо.`;
+                lineIdInput.value = lineId;
+
+                modal.style.display = 'block';
             } else if (action === 'add-greeting-file' || action === 'add-waiting-file') {
                 const fileType = action === 'add-greeting-file' ? 'start' : 'hold';
                 const uploadForm = document.getElementById('uploadAudioForm');
@@ -1264,7 +1293,8 @@
                     const row = `
                         <tr>
                             <td>
-                                <a href="#" data-action="edit-sip-line" data-line-id="${line.id}" class="edit-trigger">✏️</a>
+                                <a href="#" data-action="edit-sip-line" data-line-id="${line.id}" class="edit-trigger" style="margin-right: 10px;">✏️</a>
+                                <a href="#" data-action="delete-sip-line" data-line-id="${line.id}" data-line-name="${line.line_name}" class="delete-trigger">🗑️</a>
                             </td>
                             <td>${line.line_name}</td>
                             <td>${line.provider_name}</td>
@@ -1656,6 +1686,44 @@
                 alert(`Не удалось выполнить запрос: ${error.message}`);
             }
         };
+
+        document.getElementById('confirm-delete-sip-line-btn').addEventListener('click', async (e) => {
+            const button = e.target;
+            const lineId = document.getElementById('sip-line-to-delete-id').value;
+            
+            button.disabled = true;
+            button.textContent = 'Удаление...';
+
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/sip-lines/${lineId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert('SIP-линия успешно удалена.');
+                    document.getElementById('delete-sip-line-modal').style.display = 'none';
+                    loadSipLines();
+                } else {
+                    const errorData = await response.json();
+                    let errorMessage = 'Не удалось удалить линию.';
+                    if (errorData.detail) {
+                       // Преобразуем список зависимостей в читаемую строку
+                       if (Array.isArray(errorData.detail.dependencies) && errorData.detail.dependencies.length > 0) {
+                           const depString = errorData.detail.dependencies.join(', ');
+                           errorMessage = `Линию нельзя удалить, т.к. она используется в схемах: ${depString}`;
+                       } else if (typeof errorData.detail === 'string') {
+                           errorMessage = errorData.detail;
+                       }
+                    }
+                    alert(`Ошибка: ${errorMessage}`);
+                }
+            } catch (error) {
+                alert(`Критическая ошибка: ${error.message}`);
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Удалить';
+            }
+        });
     });
     </script>
 </body>
