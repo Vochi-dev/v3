@@ -1268,5 +1268,58 @@ async def get_dial_schemas(enterprise_number: str, current_enterprise: str = Dep
     finally:
         await conn.close()
 
+@app.delete("/enterprise/{enterprise_number}/sip-lines/{line_id}", response_class=Response)
+async def delete_sip_line(enterprise_number: str, line_id: int, current_enterprise: str = Depends(get_current_enterprise)):
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        # 1. Получить информацию о SIP-линии, включая ее имя и входящую схему
+        line_info = await conn.fetchrow("SELECT line_name, in_schema FROM sip_unit WHERE id = $1 AND enterprise_number = $2", line_id, enterprise_number)
+
+        if not line_info:
+            raise HTTPException(status_code=404, detail="SIP-линия не найдена.")
+
+        line_name = line_info['line_name']
+        incoming_schema = line_info['in_schema']
+
+        conflicts = []
+
+        # 2. Проверить, привязана ли линия к входящей схеме
+        if incoming_schema:
+            conflicts.append(f"Входящая схема: {incoming_schema}")
+
+        # 3. Проверить, используется ли линия в исходящих схемах
+        outgoing_schemas = await conn.fetch(
+            "SELECT schema_name FROM sip_outgoing_schema_assignments WHERE sip_line_name = $1 AND enterprise_number = $2",
+            line_name, enterprise_number
+        )
+        
+        if outgoing_schemas:
+            for s in outgoing_schemas:
+                conflicts.append(f"Исходящая схема: {s['schema_name']}")
+        
+        # 4. Если есть конфликты, вернуть ошибку
+        if conflicts:
+            details = f"Невозможно удалить SIP-линию '{line_name}', так как она используется в следующих схемах: " + ", ".join(conflicts)
+            raise HTTPException(status_code=409, detail=details)
+
+        # 5. Если конфликтов нет, удалить линию
+        await conn.execute("DELETE FROM sip_unit WHERE id = $1 AND enterprise_number = $2", line_id, enterprise_number)
+        
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete SIP line: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера.")
+    finally:
+        await conn.close()
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8004) 
