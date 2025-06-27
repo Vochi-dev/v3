@@ -148,6 +148,85 @@ async def get_file_path_from_db(file_id: int, enterprise_number: str) -> Optiona
     finally:
         await conn.close()
 
+async def _generate_sip_addproviders_conf(conn, enterprise_number: str) -> str:
+    """
+    Генерирует содержимое файла sip_addproviders.conf на основе данных из БД.
+    Порядок: gsm-линии, внутренние номера, sip-линии.
+    """
+    content_parts = []
+    
+    # 1. GSM-линии (сортировка по line_id)
+    try:
+        gsm_lines = await conn.fetch(
+            "SELECT line_id FROM gsm_lines WHERE enterprise_number = $1 ORDER BY line_id",
+            enterprise_number
+        )
+        for line in gsm_lines:
+            context = f"""
+[{line['line_id']}]
+host=dynamic
+type=peer
+secret=4bfX5XuefNp3aksfhj232
+callgroup=1
+pickupgroup=1
+disallow=all
+allow=ulaw
+context=from-out-office
+directmedia=no
+nat=force_rport,comedia
+qualify=8000
+insecure=invite
+defaultuser=s
+""".strip()
+            content_parts.append(context)
+    except Exception as e:
+        logger.error(f"Ошибка при получении GSM-линий для конфига: {e}", exc_info=True)
+
+
+    # 2. Внутренние линии (сортировка по номеру)
+    try:
+        internal_lines = await conn.fetch(
+            "SELECT phone_number, password FROM user_internal_phones WHERE enterprise_number = $1 ORDER BY phone_number::integer",
+            enterprise_number
+        )
+        for line in internal_lines:
+            context = f"""
+[{line['phone_number']}]
+host=dynamic
+type=friend
+secret={line['password']}
+callgroup=1
+pickupgroup=1
+disallow=all
+allow=ulaw
+context=inoffice
+directmedia=no
+nat=force_rport,comedia
+qualify=8000
+insecure=invite
+callerid={line['phone_number']}
+defaultuser={line['phone_number']}
+""".strip()
+            content_parts.append(context)
+    except Exception as e:
+        logger.error(f"Ошибка при получении внутренних линий для конфига: {e}", exc_info=True)
+
+
+    # 3. SIP-линии (сортировка по id)
+    try:
+        sip_lines = await conn.fetch(
+            "SELECT line_name, info FROM sip_unit WHERE enterprise_number = $1 ORDER BY id",
+            enterprise_number
+        )
+        for line in sip_lines:
+            # Тело контекста берется напрямую из поля 'info'
+            context = f"[{line['line_name']}]\n{line['info']}".strip()
+            content_parts.append(context)
+    except Exception as e:
+        logger.error(f"Ошибка при получении SIP-линий для конфига: {e}", exc_info=True)
+
+    return "\n\n".join(content_parts)
+
 # ——————————————————————————————————————————————————————————————————————————
 # Authentication
 # ——————————————————————————————————————————————————————————————————————————
@@ -558,21 +637,21 @@ async def create_internal_line(enterprise_number: str, data: CreateLineRequest, 
         new_line_id = await conn.fetchval(query, enterprise_number, data.phone_number, data.password)
 
         # Логика создания файла
-        config_dir = Path("music") / enterprise_number
-        config_dir.mkdir(parents=True, exist_ok=True)
-        config_file_path = config_dir / "sip_addproviders.conf"
+        try:
+            config_dir = Path("music") / enterprise_number
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_file_path = config_dir / "sip_addproviders.conf"
+            
+            # Генерируем полное содержимое файла
+            full_config_content = await _generate_sip_addproviders_conf(conn, enterprise_number)
+            
+            with open(config_file_path, "w") as f:
+                f.write(full_config_content)
+            logger.info(f"Конфигурационный файл '{config_file_path}' успешно создан/обновлен для внутреннего номера.")
 
-        test_content = f"""
-; Файл сгенерирован автоматически при создании/обновлении внутреннего номера {data.phone_number}
-; Время: {datetime.now()}
-[some_provider]
-type=friend
-host=dynamic
-context=from-internal
-        """
-        with open(config_file_path, "w") as f:
-            f.write(test_content.strip())
-        logger.info(f"Конфигурационный файл '{config_file_path}' успешно создан/обновлен для внутреннего номера.")
+        except Exception as e:
+            logger.error(f"Не удалось создать/обновить конфигурационный файл: {e}", exc_info=True)
+
 
         return {"id": new_line_id, "phone_number": data.phone_number, "password": data.password}
     except asyncpg.exceptions.UniqueViolationError:
@@ -1141,12 +1220,18 @@ async def update_sip_line(
             config_dir = Path(f"music/{enterprise_number}")
             config_dir.mkdir(parents=True, exist_ok=True)
             config_path = config_dir / "sip_addproviders.conf"
+            
+            # Генерируем полное содержимое файла
+            full_config_content = await _generate_sip_addproviders_conf(conn, enterprise_number)
+            
             with open(config_path, "w") as f:
-                f.write("test")
+                f.write(full_config_content)
+            logging.info(f"Конфигурационный файл '{config_path}' успешно создан/обновлен для SIP-линии.")
+
         except Exception as e:
             logging.error(f"Не удалось создать файл sip_addproviders.conf для предприятия {enterprise_number}: {e}")
             # Пока просто логируем
-
+        
         return dict(updated_line)
 
     except asyncpg.exceptions.UniqueViolationError:
@@ -1200,8 +1285,14 @@ async def create_sip_line(
             config_dir = Path(f"music/{enterprise_number}")
             config_dir.mkdir(parents=True, exist_ok=True)
             config_path = config_dir / "sip_addproviders.conf"
+            
+            # Генерируем полное содержимое файла
+            full_config_content = await _generate_sip_addproviders_conf(conn, enterprise_number)
+            
             with open(config_path, "w") as f:
-                f.write("test")
+                f.write(full_config_content)
+            logging.info(f"Конфигурационный файл '{config_path}' успешно создан/обновлен для SIP-линии.")
+
         except Exception as e:
             logging.error(f"Не удалось создать файл sip_addproviders.conf для предприятия {enterprise_number}: {e}")
             # Пока просто логируем
@@ -1290,16 +1381,12 @@ async def delete_internal_phone(enterprise_number: str, phone_number: str, curre
             config_dir = Path(f"music/{enterprise_number}")
             config_dir.mkdir(parents=True, exist_ok=True)
             config_path = config_dir / "sip_addproviders.conf"
-            test_content = f"""
-; Файл сгенерирован автоматически при удалении внутреннего номера {phone_number}
-; Время: {datetime.now()}
-[some_provider]
-type=friend
-host=dynamic
-context=from-internal
-            """
+            
+            # Генерируем полное содержимое файла
+            full_config_content = await _generate_sip_addproviders_conf(conn, enterprise_number)
+
             with open(config_path, "w") as f:
-                f.write(test_content.strip())
+                f.write(full_config_content)
             logger.info(f"Конфигурационный файл '{config_path}' успешно обновлен после удаления внутреннего номера.")
         except Exception as e:
             logger.error(f"Не удалось обновить конфигурационный файл после удаления внутреннего номера: {e}")
@@ -1327,17 +1414,28 @@ async def regenerate_config(
     if enterprise_number != current_enterprise:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
     try:
         config_dir = Path(f"music/{enterprise_number}")
         config_dir.mkdir(parents=True, exist_ok=True)
         config_path = config_dir / "sip_addproviders.conf"
+        
+        # Генерируем полное содержимое файла
+        full_config_content = await _generate_sip_addproviders_conf(conn, enterprise_number)
+
         with open(config_path, "w") as f:
-            f.write("test")
+            f.write(full_config_content)
+            
         logging.info(f"Файл sip_addproviders.conf для предприятия {enterprise_number} был успешно пересоздан по запросу.")
         return {"status": "success", "detail": "Config file regenerated."}
     except Exception as e:
         logging.error(f"Не удалось пересоздать файл sip_addproviders.conf для предприятия {enterprise_number}: {e}")
         raise HTTPException(status_code=500, detail="Не удалось обновить конфигурационный файл.")
+    finally:
+        await conn.close()
 
 @app.get("/enterprise/{enterprise_number}/dial-schemas", response_class=JSONResponse)
 async def get_dial_schemas(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
