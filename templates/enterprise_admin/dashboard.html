@@ -43,6 +43,10 @@
         .edit-trigger:hover { text-decoration: underline; }
         .table-secondary { background: #f8f9fa; font-weight: bold; }
 
+        .mobile-number-row td {
+            background-color: #e7f5fe; /* Светло-голубой */
+        }
+
         /* --- Стили для таблицы аудиофайлов --- */
         .audio-files-container { display: flex; flex-direction: column; }
         .audio-files-header, .audio-file-row {
@@ -780,6 +784,11 @@
                     const row = document.createElement('tr');
                     
                     const phoneNumber = line.phone_number || '';
+
+                    if (phoneNumber.startsWith('+')) {
+                        row.classList.add('mobile-number-row');
+                    }
+
                     const formattedNumber = formatDisplayNumber(phoneNumber);
                     const isInternal = phoneNumber && !phoneNumber.startsWith('+');
                     const numberCellHtml = isInternal
