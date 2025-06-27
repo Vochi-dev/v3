@@ -350,6 +350,8 @@
 
     <!-- Контейнер для модалки редактирования линии -->
     <div id="editLineModalContainer"></div>
+    <!-- Контейнер для модалки редактирования ВНУТРЕННЕЙ линии -->
+    <div id="editInternalLineModalContainer"></div>
 
     <!-- Audiofiles Modal -->
     <div id="audiofilesModal" class="modal">
@@ -508,6 +510,7 @@
         const internalNumbersList = document.getElementById('internalNumbersList');
         const deleteUserBtn = document.getElementById('deleteUserBtn');
         const editLineModalContainer = document.getElementById('editLineModalContainer');
+        const editInternalLineModalContainer = document.getElementById('editInternalLineModalContainer');
         const sipLinesModal = document.getElementById('sip-lines-modal');
         const sipLineFormModal = document.getElementById('sip-line-form-modal');
         const departmentsModal = document.getElementById('departments-modal');
@@ -576,6 +579,11 @@
                 const userId = target.getAttribute('data-user-id');
                 if (userId) {
                     openUserModalForEdit(userId);
+                }
+            } else if (action === 'edit-internal-line') {
+                const phoneNumber = target.getAttribute('data-phone-number');
+                if (phoneNumber) {
+                    openEditInternalLineModal(phoneNumber);
                 }
             } else if (action === 'delete-user') {
                 deleteUser();
@@ -670,10 +678,17 @@
  
                 linesToRender.forEach((line, index) => {
                     const row = document.createElement('tr');
-                     
+                    
+                    const phoneNumber = line.phone_number || '';
+                    const formattedNumber = formatDisplayNumber(phoneNumber);
+                    const isInternal = phoneNumber && !phoneNumber.startsWith('+');
+                    const numberCellHtml = isInternal
+                        ? `<a href="#" data-action="edit-internal-line" data-phone-number="${phoneNumber}">${formattedNumber}</a>`
+                        : formattedNumber;
+
                     // Колонки линии
                     row.innerHTML = `
-                        <td>${formatDisplayNumber(line.phone_number || '')}</td>
+                        <td>${numberCellHtml}</td>
                         <td></td>
                         <td>${formatSchemaCount(line.incoming_schema_names)}</td>
                         <td>${line.outgoing_schema_name || ''}</td>
@@ -1560,6 +1575,87 @@
 
         // --- Initial Load ---
         fetchUsers();
+
+        // --- Internal Line Edit Modal ---
+        const openEditInternalLineModal = async (phoneNumber) => {
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/internal-phones/${phoneNumber}/details`);
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || `HTTP ${response.status}`);
+                }
+                const details = await response.json();
+
+                const modalHTML = `
+                    <div id="editInternalLineModal" class="modal" style="display: block;">
+                        <div class="modal-content modal-narrow">
+                            <div class="modal-header">
+                                <h2>Линия ${details.phone_number}</h2>
+                                <span data-action="close-modal" class="close-button">&times;</span>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>Номер</label>
+                                    <input type="text" value="${details.phone_number}" readonly style="background-color: #e9ecef;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Пароль</label>
+                                    <div class="password-wrapper">
+                                        <input type="text" id="internalLinePassword" value="${details.password}" readonly style="background-color: #e9ecef;">
+                                        <button type="button" class="copy-btn" onclick="copyToClipboard('internalLinePassword')">❐</button>
+                                    </div>
+                                </div>
+                                <div class="form-actions" style="margin-top: 2rem;">
+                                    <button type="button" data-action="delete-internal-line" data-phone-number="${details.phone_number}" class="btn btn-danger">Удалить</button>
+                                    <button type="button" data-action="close-modal" class="btn btn-secondary">Закрыть</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                editInternalLineModalContainer.innerHTML = modalHTML;
+
+                // Add event listeners for the new modal
+                const modal = document.getElementById('editInternalLineModal');
+                modal.querySelector('[data-action="close-modal"]').addEventListener('click', () => closeModal(modal));
+                modal.querySelector('[data-action="delete-internal-line"]').addEventListener('click', deleteInternalLine);
+                 window.addEventListener('click', (event) => {
+                    if (event.target == modal) {
+                       closeModal(modal);
+                    }
+                });
+
+            } catch (error) {
+                alert(`Ошибка загрузки данных линии: ${error.message}`);
+            }
+        };
+        
+        const deleteInternalLine = async (event) => {
+            const phoneNumber = event.target.dataset.phoneNumber;
+            if (!confirm(`Вы уверены, что хотите удалить внутренний номер ${phoneNumber}?`)) return;
+
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/internal-phones/${phoneNumber}`, { method: 'DELETE' });
+
+                if (response.ok) {
+                    alert(`Номер ${phoneNumber} успешно удален.`);
+                    closeModal(document.getElementById('editInternalLineModal'));
+                    fetchUsers();
+                } else {
+                    let errorMessage;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.detail;
+                    } catch (jsonError) {
+                        errorMessage = await response.text();
+                    }
+                    alert(errorMessage || `Произошла ошибка: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error("Критическая ошибка при удалении:", error);
+                alert(`Не удалось выполнить запрос: ${error.message}`);
+            }
+        };
     });
     </script>
 </body>
