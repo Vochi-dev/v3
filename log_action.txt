@@ -9721,3 +9721,32 @@ asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exis
 2025-06-27 12:07:48,993 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
 2025-06-27 12:07:49,183 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
 2025-06-27 12:07:49,186 - enterprise_admin_service - INFO - Запрос обработан за 0.1929 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:09:45,337 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 12:09:45,472 - enterprise_admin_service - INFO - Запрос обработан за 0.1355 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 12:09:45,523 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:09:45,722 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 12:09:45,724 - enterprise_admin_service - INFO - Запрос обработан за 0.2008 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:10:00,830 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:10:01,025 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 12:10:01,030 - enterprise_admin_service - INFO - Запрос обработан за 0.2004 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:10:03,007 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users/22/details_for_edit
+2025-06-27 12:10:03,174 - enterprise_admin_service - INFO - Запрос обработан за 0.1665 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users/22/details_for_edit
+2025-06-27 12:10:07,257 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/users/22
+2025-06-27 12:10:07,424 - enterprise_admin_service - INFO - Запрос обработан за 0.1663 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0201/users/22
+2025-06-27 12:19:34,730 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 12:19:34,977 - enterprise_admin_service - INFO - Запрос обработан за 0.2472 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 12:19:35,156 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:19:35,335 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 12:19:35,338 - enterprise_admin_service - INFO - Запрос обработан за 0.1825 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:19:37,460 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:19:37,679 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 12:19:37,683 - enterprise_admin_service - INFO - Запрос обработан за 0.2222 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:19:49,818 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users/22/details_for_edit
+2025-06-27 12:19:49,971 - enterprise_admin_service - INFO - Запрос обработан за 0.1532 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users/22/details_for_edit
+2025-06-27 12:19:52,244 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
+2025-06-27 12:19:52,421 - enterprise_admin_service - INFO - Запрос обработан за 0.1778 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
+2025-06-27 12:19:57,389 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0201/users/22
+2025-06-27 12:19:57,595 - enterprise_admin_service - INFO - Запрос обработан за 0.2065 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0201/users/22
+2025-06-27 12:19:57,631 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:19:57,843 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 12:19:57,845 - enterprise_admin_service - INFO - Запрос обработан за 0.2149 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users

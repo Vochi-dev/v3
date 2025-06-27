@@ -671,6 +671,7 @@
         const customSort = (data) => {
             const usersWithInternal = [];
             const unassignedInternal = [];
+            const usersWithoutInternal = []; // <-- Новая категория
             const others = [];
 
             data.forEach(item => {
@@ -679,17 +680,25 @@
                     .filter(l => l.phone_number && !String(l.phone_number).startsWith('+'))
                     .map(l => ({ ...l, phone_number_int: parseInt(l.phone_number, 10) }));
 
-                if (isUser && internalLines.length > 0) {
-                    usersWithInternal.push({
-                        data: item,
-                        minPhone: Math.min(...internalLines.map(l => l.phone_number_int))
-                    });
+                if (isUser) { // Если это запись пользователя
+                    if (internalLines.length > 0) {
+                        // Пользователь с внутренними номерами
+                        usersWithInternal.push({
+                            data: item,
+                            minPhone: Math.min(...internalLines.map(l => l.phone_number_int))
+                        });
+                    } else {
+                        // Пользователь БЕЗ внутренних номеров
+                        usersWithoutInternal.push({ data: item });
+                    }
                 } else if (!isUser && internalLines.length > 0) {
+                    // Непривязанная внутренняя линия
                     unassignedInternal.push({
                         data: item,
                         minPhone: Math.min(...internalLines.map(l => l.phone_number_int))
                     });
                 } else {
+                    // Все остальное (например, непривязанные внешние линии)
                     others.push({ data: item });
                 }
             });
@@ -715,10 +724,16 @@
 
             unassignedInternal.sort((a, b) => a.minPhone - b.minPhone);
 
+            // Сортируем пользователей без номеров по их ID
+            usersWithoutInternal.sort((a, b) => a.data.user_id - b.data.user_id);
+
+            // На этом шаге намеренно не меняем порядок возврата, чтобы следовать протоколу.
+            // usersWithoutInternal пока не используются.
             return [
                 ...sortedUsers.map(item => item.data),
-                ...others.map(item => item.data),
-                ...unassignedInternal.map(item => item.data)
+                ...unassignedInternal.map(item => item.data),
+                ...usersWithoutInternal.map(item => item.data),
+                ...others.map(item => item.data)
             ];
         };
 
