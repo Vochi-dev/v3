@@ -55,6 +55,10 @@
             border-bottom: 2px solid #495057; /* Темная, толстая линия для ячеек с rowspan */
         }
 
+        .no-schema-row {
+            background-color: #f0f0f0; /* Светло-серый фон */
+        }
+
         /* --- Стили для таблицы аудиофайлов --- */
         .audio-files-container { display: flex; flex-direction: column; }
         .audio-files-header, .audio-file-row {
@@ -798,6 +802,13 @@
 
                     if (phoneNumber.startsWith('+')) {
                         row.classList.add('mobile-number-row');
+                    }
+
+                    // Подсветка номеров без схем
+                    const hasIncoming = line.incoming_schema_names && line.incoming_schema_names.filter(s => s).length > 0;
+                    const hasOutgoing = !!line.outgoing_schema_name;
+                    if (phoneNumber && !hasIncoming && !hasOutgoing) {
+                        row.classList.add('no-schema-row');
                     }
 
                     // Если это последняя строка в группе пользователя с внутренними линиями, добавляем класс

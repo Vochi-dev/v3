@@ -9774,3 +9774,11 @@ asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exis
 2025-06-27 12:34:30,513 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
 2025-06-27 12:34:30,723 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
 2025-06-27 12:34:30,725 - enterprise_admin_service - INFO - Запрос обработан за 0.2118 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:53:08,818 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 12:53:09,032 - enterprise_admin_service - INFO - Запрос обработан за 0.2138 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-27 12:53:09,238 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:53:09,434 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 12:53:09,436 - enterprise_admin_service - INFO - Запрос обработан за 0.1978 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:53:19,804 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-27 12:53:20,030 - enterprise_admin_service - INFO - Найдено 4 пользователей для предприятия 0201
+2025-06-27 12:53:20,033 - enterprise_admin_service - INFO - Запрос обработан за 0.2287 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
