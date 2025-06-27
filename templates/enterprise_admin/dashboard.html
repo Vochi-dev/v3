@@ -1755,21 +1755,24 @@
                                 <span data-action="close-modal" class="close-button">&times;</span>
                             </div>
                             <div class="modal-body">
-                                <div class="form-group">
-                                    <label>Номер</label>
-                                    <input type="text" value="${details.phone_number}" readonly style="background-color: #e9ecef;">
-                                </div>
-                                <div class="form-group">
-                                    <label>Пароль</label>
-                                    <div class="password-wrapper">
-                                        <input type="text" id="internalLinePassword" value="${details.password}" readonly style="background-color: #e9ecef;">
-                                        <button type="button" class="copy-btn" onclick="copyToClipboard('internalLinePassword')">❐</button>
+                                <form id="edit-internal-phone-form">
+                                    <div class="form-group">
+                                        <label>Номер</label>
+                                        <input type="text" value="${details.phone_number}" readonly style="background-color: #e9ecef;">
                                     </div>
-                                </div>
-                                <div class="form-actions" style="margin-top: 2rem;">
-                                    <button type="button" data-action="delete-internal-line" data-phone-number="${details.phone_number}" class="btn btn-danger">Удалить</button>
-                                    <button type="button" data-action="close-modal" class="btn btn-secondary">Закрыть</button>
-                                </div>
+                                    <div class="form-group">
+                                        <label>Пароль</label>
+                                        <div class="password-wrapper">
+                                            <input type="text" id="internalLinePassword" value="${details.password}" readonly style="background-color: #e9ecef;">
+                                            <button type="button" class="copy-btn" onclick="copyToClipboard('internalLinePassword')">❐</button>
+                                        </div>
+                                    </div>
+                                    <div class="form-actions" style="margin-top: 2rem;">
+                                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                                        <button type="button" data-action="delete-internal-line" data-phone-number="${details.phone_number}" class="btn btn-danger">Удалить</button>
+                                        <button type="button" data-action="close-modal" class="btn btn-secondary">Закрыть</button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -1785,6 +1788,38 @@
                        closeModal(modal);
                     }
                 });
+
+                // --- Добавляем логику сохранения ---
+                const editForm = modal.querySelector('#edit-internal-phone-form');
+                if (editForm) {
+                    editForm.addEventListener('submit', async (submitEvent) => {
+                        submitEvent.preventDefault();
+                        const submitButton = editForm.querySelector('button[type="submit"]');
+                        submitButton.disabled = true;
+                        submitButton.textContent = 'Сохранение...';
+
+                        try {
+                            const regenResponse = await fetch(`/enterprise/${enterpriseNumber}/regenerate-config`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                            });
+
+                            if (regenResponse.ok) {
+                                alert('Конфигурация успешно обновлена.');
+                                closeModal(modal);
+                            } else {
+                                const errorData = await regenResponse.json();
+                                throw new Error(errorData.detail || 'Не удалось обновить конфигурацию.');
+                            }
+                        } catch (error) {
+                            console.error('Ошибка:', error);
+                            alert(`Ошибка: ${error.message}`);
+                        } finally {
+                            submitButton.disabled = false;
+                            submitButton.textContent = 'Сохранить';
+                        }
+                    });
+                }
 
             } catch (error) {
                 alert(`Ошибка загрузки данных линии: ${error.message}`);

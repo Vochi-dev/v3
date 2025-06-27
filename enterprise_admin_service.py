@@ -550,13 +550,36 @@ async def create_internal_line(enterprise_number: str, data: CreateLineRequest, 
         raise HTTPException(status_code=400, detail=f"Номер должен быть в диапазоне от 100 до 899 и не входить в {RESERVED_INTERNAL_NUMBERS}")
 
     conn = await get_db_connection()
-    if not conn: raise HTTPException(status_code=500, detail="DB connection failed")
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+
     try:
-        await conn.execute("INSERT INTO user_internal_phones (user_id, phone_number, password, enterprise_number) VALUES (NULL, $1, $2, $3)",
-                           data.phone_number, data.password, enterprise_number)
-        return JSONResponse(content={"status": "success"})
+        query = "INSERT INTO user_internal_phones (enterprise_number, phone_number, password) VALUES ($1, $2, $3) RETURNING id"
+        new_line_id = await conn.fetchval(query, enterprise_number, data.phone_number, data.password)
+
+        # Логика создания файла
+        config_dir = Path("music") / enterprise_number
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_file_path = config_dir / "sip_addproviders.conf"
+
+        test_content = f"""
+; Файл сгенерирован автоматически при создании/обновлении внутреннего номера {data.phone_number}
+; Время: {datetime.now()}
+[some_provider]
+type=friend
+host=dynamic
+context=from-internal
+        """
+        with open(config_file_path, "w") as f:
+            f.write(test_content.strip())
+        logger.info(f"Конфигурационный файл '{config_file_path}' успешно создан/обновлен для внутреннего номера.")
+
+        return {"id": new_line_id, "phone_number": data.phone_number, "password": data.password}
     except asyncpg.exceptions.UniqueViolationError:
-        raise HTTPException(status_code=400, detail="Этот внутренний номер уже занят.")
+        raise HTTPException(status_code=400, detail=f"Внутренний номер '{data.phone_number}' уже существует.")
+    except Exception as e:
+        logger.error(f"Ошибка при создании внутреннего номера: {e}")
+        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
     finally:
         await conn.close()
 
@@ -1271,6 +1294,30 @@ async def delete_internal_phone(enterprise_number: str, phone_number: str, curre
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера. Не удалось удалить номер.")
     finally:
         await conn.close()
+
+@app.post("/enterprise/{enterprise_number}/regenerate-config", status_code=status.HTTP_200_OK)
+async def regenerate_config(
+    enterprise_number: str,
+    current_enterprise: str = Depends(get_current_enterprise)
+):
+    """
+    Этот эндпоинт принудительно перезаписывает конфигурационный файл.
+    Он не вносит никаких изменений в базу данных.
+    """
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    try:
+        config_dir = Path(f"music/{enterprise_number}")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_path = config_dir / "sip_addproviders.conf"
+        with open(config_path, "w") as f:
+            f.write("test")
+        logging.info(f"Файл sip_addproviders.conf для предприятия {enterprise_number} был успешно пересоздан по запросу.")
+        return {"status": "success", "detail": "Config file regenerated."}
+    except Exception as e:
+        logging.error(f"Не удалось пересоздать файл sip_addproviders.conf для предприятия {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось обновить конфигурационный файл.")
 
 @app.get("/enterprise/{enterprise_number}/dial-schemas", response_class=JSONResponse)
 async def get_dial_schemas(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
