@@ -670,7 +670,7 @@
                      
                     // Колонки линии
                     row.innerHTML = `
-                        <td>${line.phone_number || ''}</td>
+                        <td>${formatDisplayNumber(line.phone_number || '')}</td>
                         <td></td>
                         <td>${formatSchemaCount(line.incoming_schema_names)}</td>
                         <td>${line.outgoing_schema_name || ''}</td>
@@ -699,6 +699,52 @@
         const getSortKey = (item) => {
             const num = parseInt(item.type === 'user' ? (item.internal_phones || [])[0] : item.phone_number, 10);
             return isNaN(num) ? Infinity : num;
+        };
+        
+        const formatDisplayNumber = (number) => {
+            const numStr = String(number || '');
+            if (!numStr.startsWith('+') || numStr.length < 11) {
+                return numStr; // Не форматируем короткие или не международные номера
+            }
+
+            // Универсальное правило: +КодСтраны КодОператора Остальное...
+            // Определяем код страны (1-3 цифры) и код оператора (2-3 цифры)
+            let countryCode, operatorCode, rest;
+
+            if (numStr.startsWith('+375') && numStr.length === 13) {
+                countryCode = numStr.slice(0, 4); // +375
+                operatorCode = numStr.slice(4, 6); // 29
+                rest = numStr.slice(6);
+            } else if (numStr.startsWith('+7') && numStr.length === 12) {
+                countryCode = numStr.slice(0, 2); // +7
+                operatorCode = numStr.slice(2, 5); // 495
+                rest = numStr.slice(5);
+            } else {
+                // Общая эвристика для других стран
+                const len = numStr.length;
+                if (len >= 13) {
+                    countryCode = numStr.slice(0, 4); // Предполагаем длинный код страны
+                    operatorCode = numStr.slice(4, 7);
+                    rest = numStr.slice(7);
+                } else {
+                    countryCode = numStr.slice(0, 2); // Предполагаем короткий код страны
+                    operatorCode = numStr.slice(2, 5);
+                    rest = numStr.slice(5);
+                }
+            }
+
+            // Форматируем оставшуюся часть номера в группы через дефис
+            const restFormatted = [];
+            for (let i = 0; i < rest.length; i += 2) {
+                 if (i === 0 && rest.length % 2 !== 0) {
+                     restFormatted.push(rest.slice(i, i + 3));
+                     i++;
+                 } else {
+                    restFormatted.push(rest.slice(i, i + 2));
+                 }
+            }
+            
+            return `${countryCode} (${operatorCode}) ${restFormatted.join('-')}`;
         };
         
         const formatPhoneNumber = (e164) => {
