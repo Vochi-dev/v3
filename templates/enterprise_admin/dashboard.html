@@ -668,6 +668,60 @@
             }
         };
         
+        const customSort = (data) => {
+            const usersWithInternal = [];
+            const unassignedInternal = [];
+            const others = [];
+
+            data.forEach(item => {
+                const isUser = !!item.user_id;
+                const internalLines = (item.lines || [])
+                    .filter(l => l.phone_number && !String(l.phone_number).startsWith('+'))
+                    .map(l => ({ ...l, phone_number_int: parseInt(l.phone_number, 10) }));
+
+                if (isUser && internalLines.length > 0) {
+                    usersWithInternal.push({
+                        data: item,
+                        minPhone: Math.min(...internalLines.map(l => l.phone_number_int))
+                    });
+                } else if (!isUser && internalLines.length > 0) {
+                    unassignedInternal.push({
+                        data: item,
+                        minPhone: Math.min(...internalLines.map(l => l.phone_number_int))
+                    });
+                } else {
+                    others.push({ data: item });
+                }
+            });
+
+            const sortedUsers = [];
+            if (usersWithInternal.length > 0) {
+                usersWithInternal.sort((a, b) => a.minPhone - b.minPhone);
+                let lastUser = usersWithInternal.shift();
+                sortedUsers.push(lastUser);
+
+                while (usersWithInternal.length > 0) {
+                    const lastPhone = lastUser.minPhone;
+                    usersWithInternal.sort((a, b) => {
+                        const diffA = Math.abs(a.minPhone - lastPhone);
+                        const diffB = Math.abs(b.minPhone - lastPhone);
+                        if (diffA !== diffB) return diffA - diffB;
+                        return a.minPhone - b.minPhone;
+                    });
+                    lastUser = usersWithInternal.shift();
+                    sortedUsers.push(lastUser);
+                }
+            }
+
+            unassignedInternal.sort((a, b) => a.minPhone - b.minPhone);
+
+            return [
+                ...sortedUsers.map(item => item.data),
+                ...others.map(item => item.data),
+                ...unassignedInternal.map(item => item.data)
+            ];
+        };
+
         const renderUsersTable = () => {
             usersTableBody.innerHTML = '';
             const data = usersDataCache || [];
@@ -676,6 +730,8 @@
                 usersTableBody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Пользователи и линии не найдены.</td></tr>';
                 return;
             }
+            
+            const sortedData = customSort(data);
  
             function formatSchemaCount(schemas) {
                 if (!schemas || schemas.length === 0) return '';
@@ -700,7 +756,7 @@
                 return `${count} схем`;
              }
  
-            data.forEach(user => {
+            sortedData.forEach(user => {
                 const hasLines = user.lines && user.lines.length > 0;
                 const lineCount = hasLines ? user.lines.length : 1;
                 const linesToRender = hasLines ? user.lines : [{}];
@@ -741,11 +797,6 @@
                     usersTableBody.appendChild(row);
                 });
             });
-        };
-
-        const getSortKey = (item) => {
-            const num = parseInt(item.type === 'user' ? (item.internal_phones || [])[0] : item.phone_number, 10);
-            return isNaN(num) ? Infinity : num;
         };
         
         const formatDisplayNumber = (number) => {
