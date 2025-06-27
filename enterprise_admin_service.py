@@ -1113,6 +1113,17 @@ async def update_sip_line(
             if not updated_line:
                 raise HTTPException(status_code=404, detail="SIP line not found for update")
 
+        # После успешного обновления в базе, создаем/обновляем файл
+        try:
+            config_dir = Path(f"music/{enterprise_number}")
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_path = config_dir / "sip_addproviders.conf"
+            with open(config_path, "w") as f:
+                f.write("test")
+        except Exception as e:
+            logging.error(f"Не удалось создать файл sip_addproviders.conf для предприятия {enterprise_number}: {e}")
+            # Пока просто логируем
+
         return dict(updated_line)
 
     except asyncpg.exceptions.UniqueViolationError:
@@ -1160,6 +1171,17 @@ async def create_sip_line(
             info_text,
             data.provider_id
         )
+
+        # После успешного создания в базе, создаем/обновляем файл
+        try:
+            config_dir = Path(f"music/{enterprise_number}")
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_path = config_dir / "sip_addproviders.conf"
+            with open(config_path, "w") as f:
+                f.write("test")
+        except Exception as e:
+            logging.error(f"Не удалось создать файл sip_addproviders.conf для предприятия {enterprise_number}: {e}")
+            # Пока просто логируем
         
         return dict(new_line_record)
 
