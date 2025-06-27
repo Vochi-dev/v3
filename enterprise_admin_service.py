@@ -417,18 +417,44 @@ async def create_user(enterprise_number: str, user_data: UserCreate):
 @app.delete("/enterprise/{enterprise_number}/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(enterprise_number: str, user_id: int, current_enterprise: str = Depends(get_current_enterprise)):
     if enterprise_number != current_enterprise:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Доступ запрещен")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     conn = await get_db_connection()
-    if not conn: raise HTTPException(status_code=500, detail="Не удалось подключиться к базе данных")
-    
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
     try:
-        async with conn.transaction():
-            await conn.execute("UPDATE user_internal_phones SET user_id = NULL WHERE user_id = $1 AND enterprise_number = $2", user_id, enterprise_number)
-            result = await conn.execute("DELETE FROM users WHERE id = $1 AND enterprise_number = $2", user_id, enterprise_number)
-            if result == 'DELETE 0':
-                raise HTTPException(status_code=404, detail="Пользователь не найден")
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        # Проверяем, существует ли пользователь и есть ли у него внешний номер
+        user = await conn.fetchrow("SELECT id, personal_phone FROM users WHERE id = $1 AND enterprise_number = $2", user_id, enterprise_number)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+
+        # Если внешний номер есть, проверяем его использование в схемах
+        if user['personal_phone']:
+            assigned_schemas = await conn.fetch(
+                """
+                SELECT schema_name FROM user_personal_phone_incoming_assignments
+                WHERE user_id = $1 AND enterprise_number = $2
+                """,
+                user_id, enterprise_number
+            )
+            if assigned_schemas:
+                schema_names = [record['schema_name'] for record in assigned_schemas]
+                detail_message = f"Невозможно удалить пользователя. Его внешний номер используется во входящих схемах: {', '.join(schema_names)}."
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail_message)
+
+        # Отвязываем внутренние номера от этого пользователя
+        await conn.execute("UPDATE user_internal_phones SET user_id = NULL WHERE user_id = $1", user_id)
+
+        # Удаляем пользователя
+        await conn.execute("DELETE FROM users WHERE id = $1", user_id)
+
+    except HTTPException:
+        # Повторно вызываем HTTPException, чтобы FastAPI обработал его
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при удалении пользователя {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         await conn.close()
 
