@@ -683,7 +683,7 @@ async def get_enterprise_gsm_lines(enterprise_number: str):
             COALESCE(
                 (SELECT array_agg(gosa.schema_name ORDER BY gosa.schema_name)
                  FROM gsm_outgoing_schema_assignments gosa
-                 WHERE gosa.gsm_line_id = gl.line_id),
+                 WHERE gosa.gsm_line_id = gl.line_id AND gosa.enterprise_number = $1),
                 '{}'::text[]
             ) as outgoing_schema_names
         FROM gsm_lines gl
