@@ -3,6 +3,7 @@ import json
 import uuid
 import psycopg2
 import logging
+import requests
 from logging.handlers import RotatingFileHandler
 from contextlib import contextmanager
 from fastapi import FastAPI, Request, HTTPException, Body
@@ -699,6 +700,31 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
                 # --- КОНЕЦ ДОПОЛНИТЕЛЬНОГО БЛОКА ---
 
             conn.commit()
+
+            # После успешного обновления, вызываем plan.py для генерации конфига
+            with get_db_connection() as conn_for_plan:
+                with conn_for_plan.cursor() as cur_for_plan:
+                    # 1. Получаем ID предприятия по его номеру
+                    cur_for_plan.execute("SELECT id FROM enterprises WHERE number = %s", (enterprise_number,))
+                    enterprise_id_record = cur_for_plan.fetchone()
+                    
+                    if enterprise_id_record:
+                        enterprise_id_to_send = enterprise_id_record[0]
+                        # 2. Вызываем генерацию конфига с правильным ID
+                        try:
+                            response = requests.post(
+                                'http://127.0.0.1:8006/generate_config',
+                                json={'enterprise_id': enterprise_id_to_send}
+                            )
+                            if response.status_code == 200:
+                                logger.info(f"Успешно вызван сервис генерации конфига для предприятия number={enterprise_number}, id={enterprise_id_to_send}.")
+                            else:
+                                logger.error(f"Ошибка вызова сервиса генерации конфига для {enterprise_number}: {response.text}")
+                        except requests.exceptions.RequestException as e:
+                            logger.error(f"Не удалось подключиться к сервису генерации конфига: {e}")
+                    else:
+                        logger.error(f"Не удалось найти ID для предприятия с номером {enterprise_number}. Генерация конфига не вызвана.")
+
 
         # Возвращаем обновленную модель
         with get_db_connection() as conn:

@@ -110,46 +110,44 @@ def generate_dial_in_context(schema_id, node, nodes, edges, music_files_info, di
     managers_flat = data.get('managers', [])
     logging.info(f"Node data: {data}")
 
-    # Группируем номера по userId
-    managers_by_user = defaultdict(lambda: {'internal': [], 'external': []})
-    for m in managers_flat:
-        user_id = m.get('userId')
-        phone = m.get('phone', '').lstrip('+')
-        if not user_id or not phone:
-            continue
-        if phone.isdigit() and len(phone) <= 4:
-            managers_by_user[user_id]['internal'].append(phone)
-        else:
-            managers_by_user[user_id]['external'].append(phone)
-
     all_dial_parts = []
     all_log_numbers = []
 
-    for user_id, numbers in managers_by_user.items():
-        # Сначала добавляем все внутренние номера
-        all_log_numbers.extend(numbers['internal'])
-        for num in numbers['internal']:
-            all_dial_parts.append(f"SIP/{num}")
+    for m in managers_flat:
+        user_id = m.get('userId')
+        phone = m.get('phone', '').strip()
 
-        # Теперь обрабатываем внешние номера
-        if numbers['external']:
-            # Ищем контекст для исходящих через ВСЕ внутренние номера этого юзера
-            outgoing_context = None
-            all_internal_for_user = user_phones_map.get(user_id, [])
-            sorted_internal = sorted(all_internal_for_user)
-            
-            for internal_num in sorted_internal:
-                if internal_num in dialexecute_contexts_map:
-                    outgoing_context = dialexecute_contexts_map[internal_num]
-                    logging.info(f"Found outgoing context '{outgoing_context}' for user {user_id} via internal number {internal_num}")
-                    break
-            
-            if outgoing_context:
-                all_log_numbers.extend(numbers['external'])
-                for ext_num in numbers['external']:
-                    all_dial_parts.append(f"Local/{ext_num}@{outgoing_context}")
-            else:
-                logging.warning(f"No outgoing context found for any internal numbers of user {user_id}. External numbers {numbers['external']} will be ignored.")
+        if not phone:
+            continue
+
+        # Внутренний номер (короткий, из цифр) - обрабатывается всегда, независимо от наличия user_id
+        if phone.isdigit() and len(phone) <= 4:
+            all_dial_parts.append(f"SIP/{phone}")
+            all_log_numbers.append(phone)
+            continue
+
+        # Внешний номер (все остальное) - требует userId для поиска маршрута
+        if not user_id:
+            logging.warning(f"External number '{phone}' in node {node['id']} has no userId and will be ignored.")
+            continue
+
+        # Ищем исходящий контекст для этого пользователя
+        outgoing_context = None
+        all_internal_for_user = user_phones_map.get(user_id, [])
+        sorted_internal = sorted(all_internal_for_user)
+        
+        for internal_num in sorted_internal:
+            if internal_num in dialexecute_contexts_map:
+                outgoing_context = dialexecute_contexts_map[internal_num]
+                logging.info(f"Found outgoing context '{outgoing_context}' for user {user_id} via internal number {internal_num}")
+                break
+        
+        if outgoing_context:
+            phone_to_dial = phone.lstrip('+')
+            all_log_numbers.append(phone_to_dial)
+            all_dial_parts.append(f"Local/{phone_to_dial}@{outgoing_context}")
+        else:
+            logging.warning(f"No outgoing context found for any internal numbers of user {user_id}. External number {phone} will be ignored.")
 
     if not all_dial_parts:
         logging.warning(f"No numbers to dial for node {node['id']}. Skipping context generation.")
