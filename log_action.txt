@@ -10324,3 +10324,40 @@ asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exis
 2025-06-30 12:07:59,049 - enterprise_admin_service - INFO - Запрос обработан за 0.1707 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments/2
 2025-06-30 12:07:59,092 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
 2025-06-30 12:07:59,248 - enterprise_admin_service - INFO - Запрос обработан за 0.1567 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
+2025-06-30 12:29:10,009 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-30 12:29:10,226 - enterprise_admin_service - INFO - Запрос обработан за 0.2162 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-30 12:29:10,428 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-30 12:29:10,647 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-30 12:29:10,650 - enterprise_admin_service - INFO - Запрос обработан за 0.2224 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-30 12:29:12,346 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:29:12,486 - enterprise_admin_service - INFO - Запрос обработан за 0.1401 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:29:14,634 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:29:14,822 - enterprise_admin_service - INFO - Запрос обработан за 0.1881 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:29:14,864 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
+2025-06-30 12:29:15,061 - enterprise_admin_service - INFO - Запрос обработан за 0.1963 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
+2025-06-30 12:29:20,419 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:29:20,420 - enterprise_admin_service - INFO - Получен запрос на удаление отдела 2 для предприятия 0201
+2025-06-30 12:29:20,529 - enterprise_admin_service - INFO - Удалены участники отдела 2
+2025-06-30 12:29:20,531 - enterprise_admin_service - INFO - Удален отдел 2
+2025-06-30 12:29:20,760 - enterprise_admin_service - INFO - Успешно вызван сервис plan.py для перегенерации конфига для предприятия 0201.
+2025-06-30 12:29:20,762 - enterprise_admin_service - INFO - Запрос обработан за 0.3435 сек. Статус: 200. Адрес: DELETE https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:29:20,801 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:29:20,953 - enterprise_admin_service - INFO - Запрос обработан за 0.1520 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:29:43,392 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments/next-available-number
+2025-06-30 12:29:43,552 - enterprise_admin_service - INFO - Запрос обработан за 0.1595 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments/next-available-number
+2025-06-30 12:29:49,717 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:29:49,887 - enterprise_admin_service - INFO - Запрос обработан за 0.1692 сек. Статус: 201. Адрес: POST https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:29:49,928 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:29:50,096 - enterprise_admin_service - INFO - Запрос обработан за 0.1680 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:29:52,791 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments/3
+2025-06-30 12:29:52,995 - enterprise_admin_service - INFO - Запрос обработан за 0.2039 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments/3
+2025-06-30 12:30:08,488 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0201/departments/3
+2025-06-30 12:30:08,900 - enterprise_admin_service - INFO - Успешно вызван сервис plan.py для перегенерации конфига для предприятия 0201.
+2025-06-30 12:30:08,901 - enterprise_admin_service - INFO - Запрос обработан за 0.4132 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0201/departments/3
+2025-06-30 12:30:08,941 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:30:09,126 - enterprise_admin_service - INFO - Запрос обработан за 0.1845 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:30:40,754 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-30 12:30:40,933 - enterprise_admin_service - INFO - Запрос обработан за 0.1791 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-30 12:30:40,990 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-30 12:30:41,201 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-30 12:30:41,204 - enterprise_admin_service - INFO - Запрос обработан за 0.2135 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users

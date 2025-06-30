@@ -506,9 +506,12 @@
                              <!-- Участники отдела -->
                          </ul>
                     </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Сохранить</button>
-                        <button type="button" data-action="close-modal" class="btn btn-secondary">Закрыть</button>
+                    <div class="form-actions" style="display: flex; justify-content: space-between; align-items: center;">
+                        <button type="button" id="deleteDepartmentBtn" class="btn btn-danger" style="display: none;">Удалить</button>
+                        <div>
+                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                            <button type="button" data-action="close-modal" class="btn btn-secondary">Закрыть</button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -1564,10 +1567,13 @@
             document.getElementById('department-members-list').innerHTML = '';
             
             const title = document.getElementById('department-modal-title');
+            const deleteBtn = document.getElementById('deleteDepartmentBtn');
             
             if (departmentId) {
                 // Logic for editing
                 title.textContent = 'Редактирование отдела';
+                deleteBtn.style.display = 'block';
+                deleteBtn.dataset.id = departmentId;
                 try {
                     const response = await fetch(`/enterprise/${enterpriseNumber}/departments/${departmentId}`);
                     if (!response.ok) throw new Error('Не удалось загрузить данные отдела');
@@ -1601,6 +1607,7 @@
             } else {
                 // Logic for creating
                 title.textContent = 'Создание отдела';
+                deleteBtn.style.display = 'none';
                 try {
                     const res = await fetch(`/enterprise/${enterpriseNumber}/departments/next-available-number`);
                     if (res.ok) {
@@ -1901,6 +1908,32 @@
                 return false; // Считаем невалидным при ошибке
             }
         };
+
+        document.getElementById('deleteDepartmentBtn').addEventListener('click', async (e) => {
+            const departmentId = e.target.dataset.id;
+            if (!departmentId) return;
+
+            const departmentName = document.getElementById('department-name').value || `отдел с ID ${departmentId}`;
+            if (!confirm(`Вы уверены, что хотите удалить отдел "${departmentName}"? Это действие необратимо.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/enterprise/${enterpriseNumber}/departments/${departmentId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    departmentFormModal.style.display = 'none';
+                    loadDepartments();
+                } else {
+                    const errorData = await response.json();
+                    alert(`Ошибка удаления: ${errorData.detail || 'Неизвестная ошибка'}`);
+                }
+            } catch (error) {
+                alert(`Критическая ошибка: ${error.message}`);
+            }
+        });
     });
     </script>
     <script src="https://unpkg.com/libphonenumber-js@1.11.1/bundle/libphonenumber-js.min.js"></script>

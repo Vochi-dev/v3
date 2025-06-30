@@ -1086,8 +1086,7 @@ async def update_department(
                 logger.info(f"Успешно вызван сервис plan.py для перегенерации конфига для предприятия {enterprise_number}.")
         except httpx.RequestError as e:
             logger.error(f"Не удалось вызвать сервис plan.py для перегенерации конфига: {e}")
-            # Не бросаем HTTPException, чтобы не откатывать уже сохраненные данные.
-            # Пользователь получит успешный ответ, но в логах будет ошибка.
+            # Не бросаем ошибку, так как удаление уже прошло успешно
 
         return JSONResponse(content=dict(updated_dept))
     except asyncpg.exceptions.UniqueViolationError:
@@ -1097,6 +1096,52 @@ async def update_department(
     except Exception as e:
         logger.error(f"Failed to update department: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера при обновлении отдела.")
+    finally:
+        await conn.close()
+
+@app.delete("/enterprise/{enterprise_number}/departments/{department_id}")
+async def delete_department(request: Request, enterprise_number: str, department_id: int):
+    logger.info(f"Получен запрос на удаление отдела {department_id} для предприятия {enterprise_number}")
+    conn = await get_db_connection()
+    try:
+        async with conn.transaction():
+            # Сначала удаляем всех участников отдела из department_members
+            await conn.execute(
+                'DELETE FROM department_members WHERE department_id = $1',
+                department_id
+            )
+            logger.info(f"Удалены участники отдела {department_id}")
+
+            # Затем удаляем сам отдел
+            result = await conn.execute(
+                'DELETE FROM departments WHERE id = $1 RETURNING id',
+                department_id
+            )
+            if not result or result.strip() == 'DELETE 0':
+                raise HTTPException(status_code=404, detail="Отдел не найден")
+            
+            logger.info(f"Удален отдел {department_id}")
+
+        # После успешной транзакции вызываем перегенерацию конфига
+        try:
+            async with httpx.AsyncClient() as client:
+                plan_service_url = f"http://localhost:8006/generate_config"
+                response = await client.post(plan_service_url, json={"enterprise_id": enterprise_number}, timeout=10.0)
+                response.raise_for_status()
+                logger.info(f"Успешно вызван сервис plan.py для перегенерации конфига для предприятия {enterprise_number}.")
+        except httpx.RequestError as e:
+            logger.error(f"Не удалось вызвать сервис plan.py для перегенерации конфига: {e}")
+            # Не бросаем ошибку, так как удаление уже прошло успешно
+
+        return JSONResponse(content={"message": "Отдел успешно удален"}, status_code=200)
+
+    except HTTPException as e:
+        # Логируем и перевыбрасываем, чтобы FastAPI обработал
+        logger.error(f"Ошибка при удалении отдела: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Непредвиденная ошибка при удалении отдела {department_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
     finally:
         await conn.close()
 
