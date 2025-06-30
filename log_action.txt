@@ -10299,3 +10299,28 @@ asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exis
 2025-06-28 07:34:17,961 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0100/users
 2025-06-28 07:34:18,118 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0100
 2025-06-28 07:34:18,122 - enterprise_admin_service - INFO - Запрос обработан за 0.1606 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0100/users
+2025-06-30 12:06:13,731 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:06:13,918 - enterprise_admin_service - INFO - Запрос обработан за 0.1874 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:06:18,429 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:06:18,840 - enterprise_admin_service - INFO - Успешно вызван сервис plan.py для перегенерации конфига для предприятия 0201.
+2025-06-30 12:06:18,842 - enterprise_admin_service - INFO - Запрос обработан за 0.4129 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:06:18,881 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:06:19,046 - enterprise_admin_service - INFO - Запрос обработан за 0.1657 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:06:36,330 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:06:36,512 - enterprise_admin_service - INFO - Запрос обработан за 0.1817 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:07:00,861 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:07:01,302 - enterprise_admin_service - INFO - Успешно вызван сервис plan.py для перегенерации конфига для предприятия 0201.
+2025-06-30 12:07:01,304 - enterprise_admin_service - INFO - Запрос обработан за 0.4429 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:07:01,347 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:07:01,516 - enterprise_admin_service - INFO - Запрос обработан за 0.1686 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:07:23,495 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-30 12:07:23,720 - enterprise_admin_service - INFO - Запрос обработан за 0.2250 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/dashboard
+2025-06-30 12:07:23,769 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-30 12:07:23,954 - enterprise_admin_service - INFO - Найдено 3 пользователей для предприятия 0201
+2025-06-30 12:07:23,955 - enterprise_admin_service - INFO - Запрос обработан за 0.1858 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/users
+2025-06-30 12:07:56,930 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:07:57,052 - enterprise_admin_service - INFO - Запрос обработан за 0.1217 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments
+2025-06-30 12:07:58,878 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:07:59,049 - enterprise_admin_service - INFO - Запрос обработан за 0.1707 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/departments/2
+2025-06-30 12:07:59,092 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
+2025-06-30 12:07:59,248 - enterprise_admin_service - INFO - Запрос обработан за 0.1567 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0201/internal-phones/all
