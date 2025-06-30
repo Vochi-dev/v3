@@ -648,7 +648,18 @@
                 closeModal(selectLinesModal);
                 openCreateLineModal();
             } else if (action === 'refresh-audio-files') {
-                loadAudioFiles();
+                try {
+                    const response = await fetch(`/enterprise/${enterpriseNumber}/regenerate-musiconhold-conf`, {
+                        method: 'POST',
+                    });
+                    const responseData = await response.json();
+                    if (!response.ok) {
+                        throw new Error(responseData.detail || 'Не удалось выполнить перегенерацию.');
+                    }
+                    alert('Файл musiconhold.conf успешно обновлен.');
+                } catch (error) {
+                    alert(`Ошибка: ${error.message}`);
+                }
             } else if (action === 'open-schema-modal') {
                 const schemaIframe = document.getElementById('schema-iframe');
                 const dialplanServiceUrl = `http://${window.location.hostname}:8005/?enterprise=${enterpriseNumber}`;

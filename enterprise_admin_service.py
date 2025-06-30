@@ -229,6 +229,59 @@ defaultuser={line['phone_number']}
 
     return "\n\n".join(content_parts)
 
+async def _generate_musiconhold_conf(conn, enterprise_number: str) -> str:
+    """
+    Генерирует содержимое файла musiconhold.conf на основе данных из БД.
+    """
+    base_content = """
+;
+; Music on Hold -- Sample Configuration
+;
+[general]
+;cachertclasses=yes
+[default]
+mode=files
+directory=moh
+""".strip()
+
+    hold_files = await conn.fetch(
+        "SELECT internal_filename FROM music_files WHERE enterprise_number = $1 AND file_type = 'hold'",
+        enterprise_number
+    )
+
+    dynamic_parts = []
+    for file in hold_files:
+        if file['internal_filename'] and file['internal_filename'].endswith('.wav'):
+            context_name = file['internal_filename'][:-4] # Убираем .wav
+            part = f"""
+[{context_name}]
+mode=files
+directory={context_name}
+sort=random
+""".strip()
+            dynamic_parts.append(part)
+
+    full_content = base_content + "\n\n" + "\n\n".join(dynamic_parts)
+    return full_content
+
+async def _generate_and_write_sip_config(conn, enterprise_number: str):
+    """
+    Генерирует и записывает конфигурационный файл sip_addproviders.conf на основе данных из БД.
+    """
+    try:
+        config_dir = Path(f"music/{enterprise_number}")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_path = config_dir / "sip_addproviders.conf"
+        
+        # Генерируем полное содержимое файла
+        full_config_content = await _generate_sip_addproviders_conf(conn, enterprise_number)
+        
+        with open(config_path, "w") as f:
+            f.write(full_config_content)
+        logger.info(f"Конфигурационный файл '{config_path}' успешно создан/обновлен для предприятия {enterprise_number}.")
+    except Exception as e:
+        logger.error(f"Не удалось создать/обновить конфигурационный файл: {e}", exc_info=True)
+
 # ——————————————————————————————————————————————————————————————————————————
 # Authentication
 # ——————————————————————————————————————————————————————————————————————————
@@ -906,6 +959,21 @@ async def upload_audio_file(
             final_file_path
         )
         
+        # --- НАЧАЛО ИЗМЕНЕНИЙ ---
+        # Если загружен файл для удержания, перегенерируем musiconhold.conf
+        if file_type == 'hold':
+            try:
+                moh_config_content = await _generate_musiconhold_conf(conn, enterprise_number)
+                moh_config_path = Path("music") / enterprise_number / "musiconhold.conf"
+                moh_config_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(moh_config_path, "w") as f:
+                    f.write(moh_config_content)
+                logger.info(f"Файл {moh_config_path} успешно перегенирирован.")
+            except Exception as e:
+                logger.error(f"Не удалось перегенирировать musiconhold.conf: {e}", exc_info=True)
+                # Не бросаем ошибку, так как основной файл уже загружен
+        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
+        
         response_data = {
             "id": new_file_record["id"],
             "display_name": new_file_record["display_name"],
@@ -919,6 +987,35 @@ async def upload_audio_file(
         if os.path.exists(final_file_path):
             os.remove(final_file_path)
         raise HTTPException(status_code=500, detail="Не удалось сохранить информацию о файле в базу данных.")
+
+@app.post("/enterprise/{enterprise_number}/regenerate-musiconhold-conf", status_code=status.HTTP_200_OK)
+async def regenerate_musiconhold_conf(
+    enterprise_number: str,
+    current_enterprise: str = Depends(get_current_enterprise)
+):
+    """
+    Принудительно пересоздает файл musiconhold.conf для предприятия.
+    """
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        moh_config_content = await _generate_musiconhold_conf(conn, enterprise_number)
+        moh_config_path = Path("music") / enterprise_number / "musiconhold.conf"
+        moh_config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(moh_config_path, "w") as f:
+            f.write(moh_config_content)
+        logger.info(f"Файл {moh_config_path} успешно перегенирирован по ручному запросу.")
+        return JSONResponse(content={"status": "success", "detail": "Music on hold config regenerated."})
+    except Exception as e:
+        logger.error(f"Не удалось перегенирировать musiconhold.conf по ручному запросу: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Ошибка при перегенерации файла конфигурации.")
+    finally:
+        await conn.close()
 
 # ——————————————————————————————————————————————————————————————————————————
 # Departments Management
