@@ -19,6 +19,8 @@ import asyncio
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+import shutil
+import httpx
 
 from app.config import JWT_SECRET_KEY, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT
 
@@ -1074,6 +1076,18 @@ async def update_department(
                     records=records_to_insert,
                     columns=['department_id', 'internal_phone_id']
                 )
+
+        # После успешной транзакции вызываем перегенерацию конфига
+        try:
+            async with httpx.AsyncClient() as client:
+                plan_service_url = f"http://localhost:8006/generate_config"
+                response = await client.post(plan_service_url, json={"enterprise_id": enterprise_number}, timeout=10.0)
+                response.raise_for_status()
+                logger.info(f"Успешно вызван сервис plan.py для перегенерации конфига для предприятия {enterprise_number}.")
+        except httpx.RequestError as e:
+            logger.error(f"Не удалось вызвать сервис plan.py для перегенерации конфига: {e}")
+            # Не бросаем HTTPException, чтобы не откатывать уже сохраненные данные.
+            # Пользователь получит успешный ответ, но в логах будет ошибка.
 
         return JSONResponse(content=dict(updated_dept))
     except asyncpg.exceptions.UniqueViolationError:
