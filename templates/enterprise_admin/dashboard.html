@@ -1371,21 +1371,30 @@
                     row.className = 'audio-file-row';
                     row.innerHTML = `
                         <div class="audio-file-details">
-                            <span>${file.display_name}</span>
+                            <div><strong>${file.display_name}</strong></div>
                             <div class="audio-player-container">
-                                <audio controls controlsList="nodownload" src="${audioSrc}"></audio>
-                                <div class="audio-actions">
-                                    <div class="dropdown">
-                                        <button class="menu-btn">&vellip;</button>
-                                        <div class="dropdown-content">
-                                            <a href="${audioSrc}" download="${downloadName}">Скачать</a>
-                                        </div>
-                                    </div>
+                                <audio controls src="/audiofile/${file.id}" preload="none"></audio>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="file-type-badge ${file.file_type === 'hold' ? 'file-type-hold' : 'file-type-start'}">
+                                ${file.file_type === 'hold' ? 'Ожидание' : 'Приветствие'}
+                            </span>
+                        </div>
+                        <div class="used-in-schemas">
+                            ${file.used_in_schemas && file.used_in_schemas.length > 0
+                                ? file.used_in_schemas.map(schema => `<span class="used-in-badge">${schema}</span>`).join('')
+                                : '<span class="used-in-badge">-</span>'
+                            }
+                        </div>
+                        <div class="audio-actions">
+                            <div class="dropdown">
+                                <button class="menu-btn">&vellip;</button>
+                                <div class="dropdown-content">
+                                    <a href="${audioSrc}" download="${downloadName}">Скачать</a>
                                 </div>
                             </div>
                         </div>
-                        <div><span class="file-type-badge ${fileTypeClass}">${fileTypeDisplay}</span></div>
-                        <div><span class="used-in-badge"></span></div>
                     `;
                     listContainer.appendChild(row);
                 });
