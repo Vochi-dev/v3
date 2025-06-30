@@ -834,10 +834,56 @@ async def get_audio_files(enterprise_number: str, current_enterprise: str = Depe
 
     try:
         query = """
-        SELECT id, display_name, file_type, file_path, original_filename, created_at
-        FROM music_files
-        WHERE enterprise_number = $1
-        ORDER BY created_at DESC
+        WITH schema_file_usage AS (
+            -- Извлекаем файлы приветствий
+            SELECT
+                ds.schema_name,
+                (node.value -> 'data' -> 'greetingFile' ->> 'id')::int AS file_id
+            FROM
+                dial_schemas ds,
+                json_array_elements(ds.schema_data -> 'nodes') AS node
+            WHERE
+                ds.enterprise_id = $1
+                AND node.value ->> 'type' = 'greeting'
+                AND node.value -> 'data' -> 'greetingFile' ->> 'id' IS NOT NULL
+
+            UNION ALL
+
+            -- Извлекаем файлы музыки на удержании
+            SELECT
+                ds.schema_name,
+                (node.value -> 'data' -> 'holdMusic' ->> 'id')::int AS file_id
+            FROM
+                dial_schemas ds,
+                json_array_elements(ds.schema_data -> 'nodes') AS node
+            WHERE
+                ds.enterprise_id = $1
+                AND node.value ->> 'type' = 'dial'
+                AND node.value -> 'data' -> 'holdMusic' ->> 'type' = 'custom'
+                AND node.value -> 'data' -> 'holdMusic' ->> 'id' IS NOT NULL
+        ),
+        aggregated_schemas AS (
+            SELECT
+                file_id,
+                array_agg(DISTINCT schema_name) as used_in_schemas
+            FROM schema_file_usage
+            GROUP BY file_id
+        )
+        SELECT
+            mf.id,
+            mf.display_name,
+            mf.file_type,
+            mf.file_path,
+            mf.original_filename,
+            mf.created_at,
+            COALESCE(ags.used_in_schemas, '{}'::text[]) as used_in_schemas
+        FROM
+            music_files mf
+        LEFT JOIN aggregated_schemas ags ON mf.id = ags.file_id
+        WHERE
+            mf.enterprise_number = $1
+        ORDER BY
+            mf.created_at DESC;
         """
         files = await conn.fetch(query, enterprise_number)
         
@@ -851,7 +897,8 @@ async def get_audio_files(enterprise_number: str, current_enterprise: str = Depe
                 "file_type": file["file_type"],
                 "file_path": file["file_path"],
                 "original_filename": file["original_filename"],
-                "created_at": file["created_at"].isoformat()
+                "created_at": file["created_at"].isoformat(),
+                "used_in_schemas": list(file["used_in_schemas"])
             }
             for file in files
         ]
