@@ -64,10 +64,10 @@
         .audio-files-container { display: flex; flex-direction: column; }
         .audio-files-header, .audio-file-row {
             display: grid;
-            grid-template-columns: 3fr 1fr 2fr;
-            gap: 10px;
+            grid-template-columns: 3fr 2fr;
+            gap: 5px;
             align-items: center;
-            padding: 10px;
+            padding: 5px;
         }
         .audio-files-header {
             font-weight: 500;
@@ -78,20 +78,20 @@
         .audio-file-row {
             border: 1px solid #dee2e6;
             border-radius: 4px;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
         .audio-file-details {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 4px;
         }
         .audio-player-container {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
         .audio-player-container audio {
-            height: 40px;
+            height: 32px;
             max-width: 250px;
         }
         .file-type-badge {
@@ -403,7 +403,6 @@
                 <div class="audio-files-container">
                     <div class="audio-files-header">
                         <div>Наименование</div>
-                        <div>Тип</div>
                         <div>Используется в схемах</div>
                     </div>
                     <div id="audioFilesList">
@@ -1396,28 +1395,17 @@
                             <div><strong>${file.display_name}</strong></div>
                             <div class="audio-player-container">
                                 <audio controls src="/audiofile/${file.id}" preload="none"></audio>
+                                <span class="file-type-badge ${file.file_type === 'hold' ? 'file-type-hold' : 'file-type-start'}">
+                                    ${file.file_type === 'hold' ? 'Ожидание' : 'Приветствие'}
+                                </span>
                             </div>
-                        </div>
-                        <div>
-                            <span class="file-type-badge ${file.file_type === 'hold' ? 'file-type-hold' : 'file-type-start'}">
-                                ${file.file_type === 'hold' ? 'Ожидание' : 'Приветствие'}
-                            </span>
                         </div>
                         <div class="used-in-schemas">
                             ${file.used_in_schemas && file.used_in_schemas.length > 0
                                 ? file.used_in_schemas.map(schema => `<span class="used-in-badge">${schema}</span>`).join('')
                                 : `<button class="btn btn-danger btn-sm" data-action="delete-audio-file" data-file-id="${file.id}" data-file-name="${file.display_name}">Удалить</button>`
                             }
-                        </div>
-                        <div class="audio-actions">
-                            <div class="dropdown">
-                                <button class="menu-btn">&vellip;</button>
-                                <div class="dropdown-content">
-                                    <a href="${audioSrc}" download="${downloadName}">Скачать</a>
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                        </div>`;
                     listContainer.appendChild(row);
                 });
 
