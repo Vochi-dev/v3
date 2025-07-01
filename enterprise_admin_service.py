@@ -1064,6 +1064,74 @@ async def regenerate_musiconhold_conf(
     finally:
         await conn.close()
 
+@app.delete("/enterprise/{enterprise_number}/audiofiles/{file_id}", status_code=status.HTTP_200_OK)
+async def delete_audio_file(
+    enterprise_number: str,
+    file_id: int,
+    current_enterprise: str = Depends(get_current_enterprise)
+):
+    """
+    Удаляет аудиофайл, если он не используется ни в одной схеме.
+    """
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        # 1. Проверяем, существует ли файл
+        file_check = await conn.fetchrow(
+            "SELECT id, file_path, display_name FROM music_files WHERE id = $1 AND enterprise_number = $2",
+            file_id, enterprise_number
+        )
+        if not file_check:
+            raise HTTPException(status_code=404, detail="Аудиофайл не найден")
+
+        # 2. Проверяем, используется ли файл в схемах
+        usage_check = await conn.fetchval("""
+            SELECT COUNT(*) FROM dial_schemas 
+            WHERE enterprise_id = $1 
+            AND (
+                schema_data::text LIKE '%"type": "custom"%' 
+                AND schema_data::text LIKE $2
+            )
+        """, enterprise_number, f'%"id": {file_id}%')
+
+        if usage_check > 0:
+            raise HTTPException(status_code=400, detail="Нельзя удалить файл, который используется в схемах")
+
+        # 3. Удаляем физический файл
+        file_path = file_check['file_path']
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"Физический файл удален: {file_path}")
+
+        # 4. Удаляем запись из базы данных
+        await conn.execute(
+            "DELETE FROM music_files WHERE id = $1 AND enterprise_number = $2",
+            file_id, enterprise_number
+        )
+
+        # 5. Перегенерируем musiconhold.conf
+        moh_config_content = await _generate_musiconhold_conf(conn, enterprise_number)
+        moh_config_path = Path("music") / enterprise_number / "musiconhold.conf"
+        moh_config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(moh_config_path, "w") as f:
+            f.write(moh_config_content)
+
+        logger.info(f"Аудиофайл {file_check['display_name']} (ID: {file_id}) успешно удален")
+        return JSONResponse(content={"message": f"Аудиофайл '{file_check['display_name']}' успешно удален"})
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при удалении аудиофайла: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера при удалении файла")
+    finally:
+        await conn.close()
+
 # ——————————————————————————————————————————————————————————————————————————
 # Departments Management
 # ——————————————————————————————————————————————————————————————————————————

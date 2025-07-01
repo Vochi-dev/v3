@@ -26,6 +26,7 @@
         .btn-primary { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
         .btn-secondary { background-color: #6c757d; padding: 10px 20px; }
         .btn-danger { background-color: #dc3545; padding: 10px 20px; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 4px; margin-bottom: 0; }
         .password-wrapper { position: relative; display: flex; }
         .password-wrapper input { flex-grow: 1; padding-right: 40px; }
         .password-wrapper .copy-btn { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); cursor: pointer; border: none; background: transparent; font-size: 1.2rem; padding: 5px; }
@@ -657,6 +658,27 @@
                         throw new Error(responseData.detail || 'Не удалось выполнить перегенерацию.');
                     }
                     alert('Файл musiconhold.conf успешно обновлен.');
+                } catch (error) {
+                    alert(`Ошибка: ${error.message}`);
+                }
+            } else if (action === 'delete-audio-file') {
+                const fileId = target.dataset.fileId;
+                const fileName = target.dataset.fileName;
+
+                if (!confirm(`Вы уверены, что хотите удалить аудиофайл "${fileName}"? Это действие необратимо.`)) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/enterprise/${enterpriseNumber}/audiofiles/${fileId}`, {
+                        method: 'DELETE',
+                    });
+                    const responseData = await response.json();
+                    if (!response.ok) {
+                        throw new Error(responseData.detail || 'Не удалось удалить файл.');
+                    }
+                    alert('Аудиофайл успешно удален.');
+                    loadAudioFiles(); // Перезагружаем список файлов
                 } catch (error) {
                     alert(`Ошибка: ${error.message}`);
                 }
@@ -1384,7 +1406,7 @@
                         <div class="used-in-schemas">
                             ${file.used_in_schemas && file.used_in_schemas.length > 0
                                 ? file.used_in_schemas.map(schema => `<span class="used-in-badge">${schema}</span>`).join('')
-                                : '<span class="used-in-badge">-</span>'
+                                : `<button class="btn btn-danger btn-sm" data-action="delete-audio-file" data-file-id="${file.id}" data-file-name="${file.display_name}">Удалить</button>`
                             }
                         </div>
                         <div class="audio-actions">
