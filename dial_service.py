@@ -718,6 +718,21 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
                             )
                             if response.status_code == 200:
                                 logger.info(f"Успешно вызван сервис генерации конфига для предприятия number={enterprise_number}, id={enterprise_id_to_send}.")
+                                
+                                # Проверяем результат развертывания
+                                try:
+                                    result = response.json()
+                                    deployment_info = result.get("deployment", {})
+                                    deployment_success = deployment_info.get("success", False)
+                                    deployment_message = deployment_info.get("message", "")
+                                    
+                                    if not deployment_success:
+                                        logger.warning(f"Схема обновлена локально, но не развернута на АТС для предприятия {enterprise_number}: {deployment_message}")
+                                        # Здесь можно добавить уведомление пользователю через WebSocket или другой механизм
+                                    else:
+                                        logger.info(f"Схема успешно развернута на АТС для предприятия {enterprise_number}")
+                                except Exception as json_error:
+                                    logger.error(f"Ошибка при разборе ответа от сервиса генерации конфига: {json_error}")
                             else:
                                 logger.error(f"Ошибка вызова сервиса генерации конфига для {enterprise_number}: {response.text}")
                         except requests.exceptions.RequestException as e:

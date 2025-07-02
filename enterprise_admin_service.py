@@ -1679,34 +1679,51 @@ async def regenerate_config(
     current_enterprise: str = Depends(get_current_enterprise)
 ):
     """
-    Этот эндпоинт принудительно перезаписывает конфигурационный файл.
-    Он не вносит никаких изменений в базу данных.
+    Этот эндпоинт вызывает план-сервис для полной регенерации extensions.conf
+    и развертывания его на удаленный Asterisk хост.
     """
     if enterprise_number != current_enterprise:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
-    conn = await get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail="DB connection failed")
-
     try:
-        config_dir = Path(f"music/{enterprise_number}")
-        config_dir.mkdir(parents=True, exist_ok=True)
-        config_path = config_dir / "sip_addproviders.conf"
-        
-        # Генерируем полное содержимое файла
-        full_config_content = await _generate_sip_addproviders_conf(conn, enterprise_number)
-
-        with open(config_path, "w") as f:
-            f.write(full_config_content)
+        # Вызываем план-сервис для генерации и развертывания конфига
+        async with httpx.AsyncClient() as client:
+            plan_service_url = f"http://localhost:8006/generate_config"
+            response = await client.post(
+                plan_service_url, 
+                json={"enterprise_id": enterprise_number}, 
+                timeout=30.0  # Увеличиваем timeout для SSH операций
+            )
+            response.raise_for_status()
+            result = response.json()
             
-        logging.info(f"Файл sip_addproviders.conf для предприятия {enterprise_number} был успешно пересоздан по запросу.")
-        return {"status": "success", "detail": "Config file regenerated."}
+            # Обрабатываем ответ от план-сервиса
+            deployment_info = result.get("deployment", {})
+            deployment_success = deployment_info.get("success", False)
+            deployment_message = deployment_info.get("message", "Информация о развертывании недоступна")
+            
+            if deployment_success:
+                logger.info(f"Успешная регенерация и развертывание конфига для предприятия {enterprise_number}")
+                return {
+                    "status": "success", 
+                    "detail": "Схемы звонков обновлены"
+                }
+            else:
+                logger.warning(f"Конфиг сгенерирован, но развертывание не удалось для предприятия {enterprise_number}: {deployment_message}")
+                return {
+                    "status": "warning", 
+                    "detail": "Нет связи с АТС, повторите попытку позже"
+                }
+                
+    except httpx.TimeoutException:
+        logger.error(f"Timeout при вызове план-сервиса для предприятия {enterprise_number}")
+        raise HTTPException(status_code=408, detail="Нет связи с АТС, повторите попытку позже")
+    except httpx.RequestError as e:
+        logger.error(f"Ошибка при вызове план-сервиса для предприятия {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail="Нет связи с АТС, повторите попытку позже")
     except Exception as e:
-        logging.error(f"Не удалось пересоздать файл sip_addproviders.conf для предприятия {enterprise_number}: {e}")
-        raise HTTPException(status_code=500, detail="Не удалось обновить конфигурационный файл.")
-    finally:
-        await conn.close()
+        logger.error(f"Непредвиденная ошибка при регенерации конфига для предприятия {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Нет связи с АТС, повторите попытку позже")
 
 @app.get("/enterprise/{enterprise_number}/dial-schemas", response_class=JSONResponse)
 async def get_dial_schemas(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
