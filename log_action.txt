@@ -11135,3 +11135,105 @@ asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exis
 2025-07-02 06:53:10,090 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
 2025-07-02 06:53:10,273 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
 2025-07-02 06:53:10,276 - enterprise_admin_service - INFO - Запрос обработан за 0.1858 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 06:54:22,600 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/departments
+2025-07-02 06:54:22,764 - enterprise_admin_service - INFO - Запрос обработан за 0.1642 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/departments
+2025-07-02 06:54:24,643 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/departments/next-available-number
+2025-07-02 06:54:24,830 - enterprise_admin_service - INFO - Запрос обработан за 0.1874 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/departments/next-available-number
+2025-07-02 06:54:30,713 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0367/departments
+2025-07-02 06:54:30,870 - enterprise_admin_service - INFO - Запрос обработан за 0.1575 сек. Статус: 201. Адрес: POST https://bot.vochi.by/enterprise/0367/departments
+2025-07-02 06:54:30,911 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/departments
+2025-07-02 06:54:31,081 - enterprise_admin_service - INFO - Запрос обработан за 0.1699 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/departments
+2025-07-02 06:54:33,934 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/departments/4
+2025-07-02 06:54:34,113 - enterprise_admin_service - INFO - Запрос обработан за 0.1786 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/departments/4
+2025-07-02 06:54:34,153 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/internal-phones/all
+2025-07-02 06:54:34,302 - enterprise_admin_service - INFO - Запрос обработан за 0.1488 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/internal-phones/all
+2025-07-02 06:54:43,489 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0367/departments/4
+2025-07-02 06:54:43,870 - enterprise_admin_service - INFO - Успешно вызван сервис plan.py для перегенерации конфига для предприятия 0367.
+2025-07-02 06:54:43,872 - enterprise_admin_service - INFO - Запрос обработан за 0.3825 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0367/departments/4
+2025-07-02 06:54:43,917 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/departments
+2025-07-02 06:54:44,085 - enterprise_admin_service - INFO - Запрос обработан за 0.1684 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/departments
+2025-07-02 06:55:00,086 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/departments/4
+2025-07-02 06:55:00,268 - enterprise_admin_service - INFO - Запрос обработан за 0.1826 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/departments/4
+2025-07-02 06:55:04,293 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0367/departments/4
+2025-07-02 06:55:04,660 - enterprise_admin_service - INFO - Успешно вызван сервис plan.py для перегенерации конфига для предприятия 0367.
+2025-07-02 06:55:04,665 - enterprise_admin_service - INFO - Запрос обработан за 0.3722 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0367/departments/4
+2025-07-02 06:55:04,704 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/departments
+2025-07-02 06:55:04,875 - enterprise_admin_service - INFO - Запрос обработан за 0.1705 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/departments
+2025-07-02 07:14:07,294 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:14:07,559 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 07:14:07,561 - enterprise_admin_service - INFO - Запрос обработан за 0.2677 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:14:08,978 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/internal-phones/next-available
+2025-07-02 07:14:09,121 - enterprise_admin_service - INFO - Запрос обработан за 0.1438 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/internal-phones/next-available
+2025-07-02 07:14:10,513 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0367/internal-phones
+2025-07-02 07:14:10,701 - enterprise_admin_service - INFO - Конфигурационный файл 'music/0367/sip_addproviders.conf' успешно создан/обновлен для внутреннего номера.
+2025-07-02 07:14:10,705 - enterprise_admin_service - INFO - Запрос обработан за 0.1923 сек. Статус: 200. Адрес: POST https://bot.vochi.by/enterprise/0367/internal-phones
+2025-07-02 07:14:10,743 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:14:10,958 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 07:14:10,961 - enterprise_admin_service - INFO - Запрос обработан за 0.2174 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:21:07,544 - enterprise_admin_service - INFO - Получен запрос: POST http://localhost:8004/enterprise/0367/internal-phones
+2025-07-02 07:21:07,548 - enterprise_admin_service - INFO - Запрос обработан за 0.0036 сек. Статус: 307. Адрес: POST http://localhost:8004/enterprise/0367/internal-phones
+2025-07-02 07:21:55,031 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/internal-phones/153/details
+2025-07-02 07:21:55,228 - enterprise_admin_service - INFO - Запрос обработан за 0.1964 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/internal-phones/153/details
+2025-07-02 07:21:58,712 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0367/internal-phones/153
+2025-07-02 07:21:58,946 - enterprise_admin_service - INFO - Запрос обработан за 0.2343 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0367/internal-phones/153
+2025-07-02 07:22:00,466 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:22:00,689 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 07:22:00,692 - enterprise_admin_service - INFO - Запрос обработан за 0.2257 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:22:02,182 - enterprise_admin_service - INFO - Успешная генерация и развертывание SIP конфига для предприятия 0367
+2025-07-02 07:22:27,552 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 07:22:27,729 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 0 строк.
+2025-07-02 07:22:27,729 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: []
+2025-07-02 07:22:27,731 - enterprise_admin_service - INFO - Запрос обработан за 0.1791 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 07:22:28,885 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/sip-providers
+2025-07-02 07:22:29,050 - enterprise_admin_service - INFO - Запрос обработан за 0.1645 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/sip-providers
+2025-07-02 07:23:08,328 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 07:23:08,534 - enterprise_admin_service - INFO - Запрос обработан за 0.2071 сек. Статус: 201. Адрес: POST https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 07:23:10,897 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 07:23:11,113 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 1 строк.
+2025-07-02 07:23:11,113 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=6 line_name='3880923' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-07-02 07:23:11,117 - enterprise_admin_service - INFO - Запрос обработан за 0.2201 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 07:23:11,941 - enterprise_admin_service - INFO - Успешная генерация и развертывание SIP конфига для предприятия 0367
+2025-07-02 07:23:24,015 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 07:23:24,229 - enterprise_admin_service - INFO - Запрос обработан за 0.2139 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 07:23:24,316 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:23:24,518 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 07:23:24,520 - enterprise_admin_service - INFO - Запрос обработан за 0.2044 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:23:32,655 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 07:23:32,863 - enterprise_admin_service - INFO - Запрос обработан за 0.2078 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 07:23:33,194 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:23:33,404 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 07:23:33,405 - enterprise_admin_service - INFO - Запрос обработан за 0.2113 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:24:20,650 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 07:24:20,820 - enterprise_admin_service - INFO - Запрос обработан за 0.1698 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 07:24:21,008 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:24:21,197 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 07:24:21,199 - enterprise_admin_service - INFO - Запрос обработан за 0.1918 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:24:23,213 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 07:24:23,396 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 1 строк.
+2025-07-02 07:24:23,397 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=6 line_name='3880923' prefix='80{9}' provider_name='Anitex' incoming_schema_name=None outgoing_schema_names=[]>]
+2025-07-02 07:24:23,399 - enterprise_admin_service - INFO - Запрос обработан за 0.1865 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 07:24:26,248 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 07:24:26,428 - enterprise_admin_service - INFO - Запрос обработан за 0.1797 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 07:24:26,516 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:24:26,725 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 07:24:26,726 - enterprise_admin_service - INFO - Запрос обработан за 0.2105 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 07:30:06,605 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-02 07:30:06,839 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0367.
+2025-07-02 07:30:06,839 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 9, 'display_name': 'Надежда', 'file_type': 'start', 'file_path': 'music/0367/start/hhfsnyeg.wav', 'original_filename': 'e79fe7ec-6a73-4714-b3d2-78f34d6bd0de.wav', 'created_at': '2025-07-02T06:43:10.421124+00:00', 'used_in_schemas': []}, {'id': 8, 'display_name': 'Sopranos', 'file_type': 'hold', 'file_path': 'music/0367/hold/g3cqsvjr.wav', 'original_filename': 'be206365-095b-491e-b6c7-3cad47778413.wav', 'created_at': '2025-07-02T06:42:33.168594+00:00', 'used_in_schemas': []}]
+2025-07-02 07:30:06,842 - enterprise_admin_service - INFO - Запрос обработан за 0.2377 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-02 07:30:06,885 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/9
+2025-07-02 07:30:06,981 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 9 для предприятия: 0367
+2025-07-02 07:30:07,043 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0367/start/hhfsnyeg.wav
+2025-07-02 07:30:07,043 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0367/start/hhfsnyeg.wav
+2025-07-02 07:30:07,044 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0367/start/hhfsnyeg.wav с media_type audio/wav
+2025-07-02 07:30:07,046 - enterprise_admin_service - INFO - Запрос обработан за 0.1608 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/9
+2025-07-02 07:30:20,301 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-02 07:30:20,494 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0367.
+2025-07-02 07:30:20,495 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 9, 'display_name': 'Надежда', 'file_type': 'start', 'file_path': 'music/0367/start/hhfsnyeg.wav', 'original_filename': 'e79fe7ec-6a73-4714-b3d2-78f34d6bd0de.wav', 'created_at': '2025-07-02T06:43:10.421124+00:00', 'used_in_schemas': []}, {'id': 8, 'display_name': 'Sopranos', 'file_type': 'hold', 'file_path': 'music/0367/hold/g3cqsvjr.wav', 'original_filename': 'be206365-095b-491e-b6c7-3cad47778413.wav', 'created_at': '2025-07-02T06:42:33.168594+00:00', 'used_in_schemas': []}]
+2025-07-02 07:30:20,497 - enterprise_admin_service - INFO - Запрос обработан за 0.1958 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-02 07:30:20,538 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/8
+2025-07-02 07:30:20,630 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 8 для предприятия: 0367
+2025-07-02 07:30:20,740 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0367/hold/g3cqsvjr.wav
+2025-07-02 07:30:20,740 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0367/hold/g3cqsvjr.wav
+2025-07-02 07:30:20,740 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0367/hold/g3cqsvjr.wav с media_type audio/wav
+2025-07-02 07:30:20,741 - enterprise_admin_service - INFO - Запрос обработан за 0.2033 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/8

@@ -178,6 +178,166 @@ async def deploy_config_to_asterisk(host_ip: str, local_config_path: str, enterp
         logging.error(f"Unexpected error deploying to {host_ip}: {str(e)}")
         return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
 
+async def deploy_sip_config_to_asterisk(host_ip: str, local_config_path: str, enterprise_id: str) -> dict:
+    """Деплой sip_addproviders.conf на удаленный Asterisk хост"""
+    
+    # SSH параметры (константы)
+    SSH_PORT = 5059
+    SSH_USER = "root" 
+    SSH_PASSWORD = "5atx9Ate@pbx"
+    REMOTE_PATH = "/etc/asterisk/sip_addproviders.conf"
+    
+    logging.info(f"Starting SIP config deployment to Asterisk host {host_ip} for enterprise {enterprise_id}")
+    
+    try:
+        # 1. Копируем файл на хост
+        scp_cmd = [
+            "sshpass", "-p", SSH_PASSWORD,
+            "scp", "-P", str(SSH_PORT), "-o", "StrictHostKeyChecking=no",
+            local_config_path, f"{SSH_USER}@{host_ip}:{REMOTE_PATH}"
+        ]
+        
+        logging.info(f"Copying SIP config file to {host_ip}...")
+        scp_result = await asyncio.wait_for(
+            asyncio.create_subprocess_exec(
+                *scp_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            ),
+            timeout=30.0
+        )
+        
+        scp_stdout, scp_stderr = await scp_result.communicate()
+        
+        if scp_result.returncode != 0:
+            error_msg = scp_stderr.decode().strip() if scp_stderr else "Unknown SCP error"
+            logging.error(f"SCP failed for {host_ip}: {error_msg}")
+            return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+        
+        logging.info(f"SIP config file successfully copied to {host_ip}")
+        
+        # 2. Перезагружаем SIP и диалплан
+        reload_cmd = [
+            "sshpass", "-p", SSH_PASSWORD,
+            "ssh", "-p", str(SSH_PORT), "-o", "StrictHostKeyChecking=no",
+            f"{SSH_USER}@{host_ip}",
+            'asterisk -rx "sip reload" && asterisk -rx "dialplan reload"'
+        ]
+        
+        logging.info(f"Reloading SIP and dialplan on {host_ip}...")
+        reload_result = await asyncio.wait_for(
+            asyncio.create_subprocess_exec(
+                *reload_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            ),
+            timeout=30.0
+        )
+        
+        reload_stdout, reload_stderr = await reload_result.communicate()
+        
+        if reload_result.returncode != 0:
+            error_msg = reload_stderr.decode().strip() if reload_stderr else "Unknown reload error"
+            logging.error(f"Asterisk SIP reload failed for {host_ip}: {error_msg}")
+            return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+        
+        logging.info(f"Asterisk SIP successfully reloaded on {host_ip}")
+        logging.info(f"SIP reload output: {reload_stdout.decode().strip()}")
+        
+        return {"success": True, "message": "Конфигурация SIP обновлена"}
+        
+    except asyncio.TimeoutError:
+        logging.error(f"Timeout while deploying SIP config to {host_ip}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+    except Exception as e:
+        logging.error(f"Unexpected error deploying SIP config to {host_ip}: {str(e)}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+
+async def generate_sip_addproviders_conf(enterprise_id: str) -> str:
+    """Генерирует содержимое файла sip_addproviders.conf на основе данных из БД"""
+    
+    conn = None
+    try:
+        conn = await asyncpg.connect(DB_CONFIG)
+        content_parts = []
+        
+        # 1. GSM-линии (сортировка по line_id)
+        try:
+            gsm_lines = await conn.fetch(
+                "SELECT line_id FROM gsm_lines WHERE enterprise_number = $1 ORDER BY line_id",
+                enterprise_id
+            )
+            for line in gsm_lines:
+                context = f"""
+[{line['line_id']}]
+host=dynamic
+type=peer
+secret=4bfX5XuefNp3aksfhj232
+callgroup=1
+pickupgroup=1
+disallow=all
+allow=ulaw
+context=from-out-office
+directmedia=no
+nat=force_rport,comedia
+qualify=8000
+insecure=invite
+defaultuser=s
+""".strip()
+                content_parts.append(context)
+        except Exception as e:
+            logging.error(f"Ошибка при получении GSM-линий для конфига: {e}", exc_info=True)
+
+        # 2. Внутренние линии (сортировка по номеру)
+        try:
+            internal_lines = await conn.fetch(
+                "SELECT phone_number, password FROM user_internal_phones WHERE enterprise_number = $1 ORDER BY phone_number::integer",
+                enterprise_id
+            )
+            for line in internal_lines:
+                context = f"""
+[{line['phone_number']}]
+host=dynamic
+type=friend
+secret={line['password']}
+callgroup=1
+pickupgroup=1
+disallow=all
+allow=ulaw
+context=inoffice
+directmedia=no
+nat=force_rport,comedia
+qualify=8000
+insecure=invite
+callerid={line['phone_number']}
+defaultuser={line['phone_number']}
+""".strip()
+                content_parts.append(context)
+        except Exception as e:
+            logging.error(f"Ошибка при получении внутренних линий для конфига: {e}", exc_info=True)
+
+        # 3. SIP-линии (сортировка по id)
+        try:
+            sip_lines = await conn.fetch(
+                "SELECT line_name, info FROM sip_unit WHERE enterprise_number = $1 ORDER BY id",
+                enterprise_id
+            )
+            for line in sip_lines:
+                # Тело контекста берется напрямую из поля 'info'
+                context = f"[{line['line_name']}]\n{line['info']}".strip()
+                content_parts.append(context)
+        except Exception as e:
+            logging.error(f"Ошибка при получении SIP-линий для конфига: {e}", exc_info=True)
+
+        return "\n\n".join(content_parts)
+        
+    except Exception as e:
+        logging.error(f"Ошибка при генерации sip_addproviders.conf для предприятия {enterprise_id}: {e}", exc_info=True)
+        return ""
+    finally:
+        if conn and not conn.is_closed():
+            await conn.close()
+
 def generate_dial_in_context(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map, user_phones_map):
     """Генерирует диалплан для узла 'Звонок на список номеров' с учетом внешних номеров."""
     logging.info(f"Generating dial_in context for node {node['id']} in schema {schema_id}")
@@ -842,6 +1002,59 @@ async def generate_config(request: GenerateConfigRequest):
     finally:
         if conn and not conn.is_closed():
             await conn.close()
+
+@app.post("/generate_sip_config")
+async def generate_sip_config(request: GenerateConfigRequest):
+    """Генерирует и разворачивает sip_addproviders.conf"""
+    enterprise_id = request.enterprise_id
+    logging.info(f"--- Starting SIP config generation for enterprise: {enterprise_id} ---")
+    
+    try:
+        # Генерируем содержимое SIP конфига
+        sip_config_content = await generate_sip_addproviders_conf(enterprise_id)
+        
+        if not sip_config_content.strip():
+            logging.warning(f"Generated empty SIP config for enterprise {enterprise_id}")
+            return {
+                "message": "SIP config generated (empty)", 
+                "deployment": {"success": False, "message": "Конфигурация пуста"}
+            }
+        
+        # Записываем локальный файл
+        config_dir = Path(f"music/{enterprise_id}")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_path = config_dir / "sip_addproviders.conf"
+        
+        with open(config_path, "w") as f:
+            f.write(sip_config_content)
+        
+        logging.info(f"SIP config file written to {config_path} ({len(sip_config_content)} bytes)")
+        
+        # Подключаемся к БД для получения IP хоста
+        conn = await asyncpg.connect(DB_CONFIG)
+        try:
+            enterprise_ip = await conn.fetchval("SELECT ip FROM enterprises WHERE number = $1 AND is_enabled = true", enterprise_id)
+            if enterprise_ip and enterprise_ip.strip():
+                logging.info(f"Found enterprise IP: {enterprise_ip} for enterprise {enterprise_id}")
+                # Запускаем развертывание
+                deployment_result = await deploy_sip_config_to_asterisk(enterprise_ip, str(config_path), enterprise_id)
+            else:
+                logging.warning(f"No IP found or enterprise disabled for enterprise {enterprise_id}")
+                deployment_result = {"success": False, "message": "IP адрес АТС не настроен"}
+        finally:
+            await conn.close()
+        
+        logging.info(f"--- Finished SIP config generation for enterprise: {enterprise_id} ---")
+        return {
+            "message": "SIP config generated", 
+            "path": str(config_path), 
+            "config": sip_config_content,
+            "deployment": deployment_result
+        }
+        
+    except Exception as e:
+        logging.error(f"Error generating SIP config: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
