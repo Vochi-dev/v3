@@ -15,7 +15,7 @@
       /* margin-top: 1rem; убираем, так как content-wrapper дает отступ */
     }
     .enterprise-card {
-      background-color: #f2dede; /* rgb(242, 222, 222) */
+      background-color: #d4edda; /* Светло-зеленый по умолчанию */
       border-radius: 5px;
       width: 150px;
       height: 81px;
@@ -25,8 +25,20 @@
       box-sizing: border-box; /* Чтобы padding и border не влияли на заданные width/height */
       display: flex; /* Используем flex для позиционирования внутреннего блока с текстом */
       flex-direction: column; /* Чтобы элементы внутри шли друг под другом (на будущее) */
+      transition: background-color 0.5s ease; /* Плавный переход цветов */
       /* justify-content: flex-start; по умолчанию */
       /* text-align: left; -- будет у дочернего элемента */
+    }
+
+    /* Статусы мониторинга */
+    .enterprise-card.status-online {
+      background-color: #d4edda !important; /* Светло-зеленый - онлайн */
+    }
+    .enterprise-card.status-offline {
+      background-color: #f2dede !important; /* Красный - офлайн */
+    }
+    .enterprise-card.status-unknown {
+      background-color: #e2e3e5 !important; /* Серый - неизвестно */
     }
     .enterprise-card .name-container {
         /* color: #2196f3;  rgb(33, 150, 243) - это синий, не подходит для красной карточки */
@@ -208,6 +220,189 @@
                 modal.style.display = 'none';
             }
         });
+
+        // ============================================
+        // СИСТЕМА МОНИТОРИНГА ХОСТОВ
+        // ============================================
+        
+        let hostStatuses = {}; // Хранилище статусов хостов
+        let failureCounters = {}; // Счетчики неудачных попыток
+        let monitoringInterval = null; // Интервал для мониторинга
+        
+        // Инициализация состояний хостов
+        function initializeHostStates() {
+            const cards = document.querySelectorAll('.enterprise-card[data-number]');
+            cards.forEach(card => {
+                const enterpriseNumber = card.dataset.number;
+                if (!hostStatuses[enterpriseNumber]) {
+                    hostStatuses[enterpriseNumber] = 'online'; // По умолчанию онлайн
+                    failureCounters[enterpriseNumber] = 0;
+                }
+                // Устанавливаем начальный статус
+                card.classList.add('status-online');
+            });
+        }
+        
+                 // Обновление визуального состояния карточки
+         function updateCardStatus(enterpriseNumber, status, responseTime = null, sipPeers = null, errorMessage = null) {
+             const card = document.querySelector(`.enterprise-card[data-number="${enterpriseNumber}"]`);
+             if (!card) return;
+             
+             // Убираем все классы статуса
+             card.classList.remove('status-online', 'status-offline', 'status-unknown');
+             
+             // Добавляем нужный класс
+             card.classList.add(`status-${status}`);
+             
+             // Обновляем title для подсказки
+             let title = `Предприятие ${enterpriseNumber}`;
+             if (status === 'online') {
+                 if (responseTime !== null && sipPeers !== null) {
+                     // Полностью онлайн
+                     title += `\nСтатус: Онлайн\nВремя отклика: ${responseTime}мс\nSIP peers: ${sipPeers}`;
+                 } else if (failureCounters[enterpriseNumber] > 0) {
+                     // Онлайн, но есть неудачные попытки
+                     title += `\nСтатус: Онлайн (проблемы)\nНеудачных попыток: ${failureCounters[enterpriseNumber]}/3`;
+                     if (errorMessage) {
+                         title += `\nПоследняя ошибка: ${errorMessage}`;
+                     }
+                 } else {
+                     // Просто онлайн
+                     title += `\nСтатус: Онлайн`;
+                 }
+             } else if (status === 'offline') {
+                 title += `\nСтатус: Офлайн\nНеудачных попыток: ${failureCounters[enterpriseNumber]}`;
+                 if (errorMessage) {
+                     title += `\nОшибка: ${errorMessage}`;
+                 }
+             }
+             card.title = title;
+             
+             console.log(`[Мониторинг] ${enterpriseNumber}: ${status}, неудач: ${failureCounters[enterpriseNumber]}`);
+         }
+        
+        // Проверка всех хостов
+        async function checkAllHosts() {
+            try {
+                console.log('[Мониторинг] Начинаю проверку хостов...');
+                const response = await fetch('/admin/check-hosts');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('[Мониторинг] Получен ответ:', data);
+                
+                                 if (data.success && data.hosts) {
+                     data.hosts.forEach(host => {
+                         const enterpriseNumber = host.enterprise_number;
+                         
+                         if (host.status === 'online') {
+                             // Хост онлайн - сбрасываем счетчик неудач и сразу зеленым
+                             failureCounters[enterpriseNumber] = 0;
+                             hostStatuses[enterpriseNumber] = 'online';
+                             updateCardStatus(enterpriseNumber, 'online', host.response_time_ms, host.sip_peers);
+                         } else {
+                             // Хост офлайн - увеличиваем счетчик
+                             failureCounters[enterpriseNumber]++;
+                             
+                             if (failureCounters[enterpriseNumber] >= 3) {
+                                 // После 3-х неудач помечаем как офлайн (красным)
+                                 hostStatuses[enterpriseNumber] = 'offline';
+                                 updateCardStatus(enterpriseNumber, 'offline', null, null, host.error_message);
+                             } else {
+                                 // До 3-х неудач остается зеленым
+                                 hostStatuses[enterpriseNumber] = 'online';
+                                 updateCardStatus(enterpriseNumber, 'online', null, null, `Попытка ${failureCounters[enterpriseNumber]}/3: ${host.error_message}`);
+                             }
+                         }
+                     });
+                    
+                    // Сохраняем состояния в localStorage
+                    localStorage.setItem('hostStatuses', JSON.stringify(hostStatuses));
+                    localStorage.setItem('failureCounters', JSON.stringify(failureCounters));
+                }
+                
+            } catch (error) {
+                console.error('[Мониторинг] Ошибка при проверке хостов:', error);
+            }
+        }
+        
+        // Загрузка сохраненных состояний
+        function loadSavedStates() {
+            try {
+                const savedStatuses = localStorage.getItem('hostStatuses');
+                const savedCounters = localStorage.getItem('failureCounters');
+                
+                if (savedStatuses) {
+                    hostStatuses = JSON.parse(savedStatuses);
+                }
+                if (savedCounters) {
+                    failureCounters = JSON.parse(savedCounters);
+                }
+                
+                                 // Применяем сохраненные состояния к карточкам (только online/offline)
+                 Object.keys(hostStatuses).forEach(enterpriseNumber => {
+                     let status = hostStatuses[enterpriseNumber];
+                     // Преобразуем старые unknown состояния в online
+                     if (status === 'unknown') {
+                         status = 'online';
+                         hostStatuses[enterpriseNumber] = 'online';
+                     }
+                     updateCardStatus(enterpriseNumber, status);
+                 });
+                
+                console.log('[Мониторинг] Загружены сохраненные состояния:', hostStatuses);
+            } catch (error) {
+                console.error('[Мониторинг] Ошибка загрузки сохраненных состояний:', error);
+            }
+        }
+        
+        // Запуск мониторинга
+        function startMonitoring() {
+            console.log('[Мониторинг] Запуск системы мониторинга...');
+            
+            // Инициализация
+            initializeHostStates();
+            loadSavedStates();
+            
+            // Первая проверка сразу
+            checkAllHosts();
+            
+            // Проверка каждые 60 секунд
+            monitoringInterval = setInterval(checkAllHosts, 60000);
+            
+            console.log('[Мониторинг] Система мониторинга запущена');
+        }
+        
+        // Остановка мониторинга
+        function stopMonitoring() {
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+                monitoringInterval = null;
+                console.log('[Мониторинг] Система мониторинга остановлена');
+            }
+        }
+        
+        // API для управления мониторингом (для отладки)
+        window.hostMonitoring = {
+            start: startMonitoring,
+            stop: stopMonitoring,
+            check: checkAllHosts,
+            getStatuses: () => hostStatuses,
+            getCounters: () => failureCounters,
+            clearStates: () => {
+                localStorage.removeItem('hostStatuses');
+                localStorage.removeItem('failureCounters');
+                hostStatuses = {};
+                failureCounters = {};
+                console.log('[Мониторинг] Состояния очищены');
+            }
+        };
+        
+        // Автоматический запуск мониторинга при загрузке страницы
+        startMonitoring();
     });
   </script>
 

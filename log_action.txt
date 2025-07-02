@@ -11288,3 +11288,53 @@ asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exis
 2025-07-02 08:15:09,987 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
 2025-07-02 08:15:10,175 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
 2025-07-02 08:15:10,177 - enterprise_admin_service - INFO - Запрос обработан за 0.1907 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 10:06:56,570 - admin - INFO - Checked 5 hosts in 3140ms. Online: 0
+2025-07-02 10:07:49,879 - admin - INFO - Checked 5 hosts in 2773ms. Online: 0
+2025-07-02 10:07:56,536 - admin - INFO - Checked 5 hosts in 3113ms. Online: 0
+2025-07-02 10:07:56,541 - admin - INFO - Checked 5 hosts in 708ms. Online: 0
+2025-07-02 10:08:25,018 - admin - INFO - Checked 5 hosts in 2310ms. Online: 4
+2025-07-02 10:08:34,486 - admin - INFO - Checked 5 hosts in 3128ms. Online: 4
+2025-07-02 10:08:56,568 - admin - INFO - Checked 5 hosts in 3137ms. Online: 4
+2025-07-02 10:09:55,214 - admin - INFO - Checked 5 hosts in 1783ms. Online: 5
+2025-07-02 10:10:58,473 - admin - INFO - Checked 5 hosts in 5048ms. Online: 4
+2025-07-02 10:11:54,962 - admin - INFO - Checked 5 hosts in 1528ms. Online: 4
+2025-07-02 10:12:56,056 - admin - INFO - Checked 5 hosts in 2626ms. Online: 4
+2025-07-02 10:13:54,927 - admin - INFO - Checked 5 hosts in 1491ms. Online: 4
+2025-07-02 10:14:55,866 - admin - INFO - Checked 5 hosts in 2441ms. Online: 4
+2025-07-02 10:15:54,989 - admin - INFO - Checked 5 hosts in 1548ms. Online: 4
+2025-07-02 10:16:12,663 - admin - INFO - Checked 5 hosts in 3133ms. Online: 4
+2025-07-02 10:16:56,570 - admin - INFO - Checked 5 hosts in 3140ms. Online: 4
+2025-07-02 10:17:56,566 - admin - INFO - Checked 5 hosts in 3138ms. Online: 4
+2025-07-02 10:18:56,567 - admin - INFO - Checked 5 hosts in 3137ms. Online: 4
+2025-07-02 10:19:54,969 - admin - INFO - Checked 5 hosts in 1534ms. Online: 5
+2025-07-02 10:19:56,574 - admin - INFO - Checked 5 hosts in 1527ms. Online: 5
+2025-07-02 10:19:58,036 - admin - INFO - Checked 5 hosts in 1495ms. Online: 5
+2025-07-02 10:20:58,077 - admin - INFO - Checked 5 hosts in 1524ms. Online: 5
+2025-07-02 10:21:58,126 - admin - INFO - Checked 5 hosts in 1579ms. Online: 5
+2025-07-02 10:23:01,591 - admin - INFO - Checked 5 hosts in 5048ms. Online: 4
+2025-07-02 10:23:58,080 - admin - INFO - Checked 5 hosts in 1529ms. Online: 4
+2025-07-02 10:24:58,360 - admin - INFO - Checked 5 hosts in 1816ms. Online: 4
+2025-07-02 10:25:58,123 - admin - INFO - Checked 5 hosts in 1506ms. Online: 4
+2025-07-02 10:26:58,286 - admin - INFO - Checked 5 hosts in 1745ms. Online: 5
+2025-07-02 10:27:52,034 - admin - INFO - Checked 5 hosts in 5043ms. Online: 4
+2025-07-02 10:27:53,232 - admin - INFO - Checked 5 hosts in 5043ms. Online: 4
+2025-07-02 10:27:54,455 - admin - INFO - Checked 5 hosts in 5044ms. Online: 4
+2025-07-02 10:27:55,979 - admin - INFO - Checked 5 hosts in 5049ms. Online: 4
+2025-07-02 10:28:52,535 - admin - INFO - Checked 5 hosts in 1600ms. Online: 4
+2025-07-02 10:29:53,975 - admin - INFO - Checked 5 hosts in 3037ms. Online: 4
+2025-07-02 10:30:18,324 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-02 10:30:18,325 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-02 10:30:18,423 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTQ1MjUxOH0.5bmBrUPHtJnFgHnZkYMZJlRqTT3nIT21GPkZfjIxrRI
+2025-07-02 10:30:18,425 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-07-02 10:30:18,426 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0367', 'is_admin': True, 'exp': 1751452518}
+2025-07-02 10:30:18,426 - enterprise_admin_service - INFO - Номер предприятия из токена: 0367
+2025-07-02 10:30:18,521 - enterprise_admin_service - INFO - Создание сессии для предприятия 0367...
+2025-07-02 10:30:18,528 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-02 10:30:18,530 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0367.
+2025-07-02 10:30:18,531 - enterprise_admin_service - INFO - Запрос обработан за 0.1087 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTQ1MjUxOH0.5bmBrUPHtJnFgHnZkYMZJlRqTT3nIT21GPkZfjIxrRI
+2025-07-02 10:30:18,567 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 10:30:18,791 - enterprise_admin_service - INFO - Запрос обработан за 0.2248 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 10:30:18,886 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 10:30:19,098 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 10:30:19,099 - enterprise_admin_service - INFO - Запрос обработан за 0.2139 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 10:30:52,483 - admin - INFO - Checked 5 hosts in 1561ms. Online: 5
