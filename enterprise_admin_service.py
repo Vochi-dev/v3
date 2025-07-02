@@ -229,6 +229,47 @@ defaultuser={line['phone_number']}
 
     return "\n\n".join(content_parts)
 
+async def _regenerate_sip_config_via_plan_service(enterprise_number: str) -> dict:
+    """Вызывает план-сервис для генерации и развертывания sip_addproviders.conf"""
+    try:
+        async with httpx.AsyncClient() as client:
+            plan_service_url = f"http://localhost:8006/generate_sip_config"
+            response = await client.post(
+                plan_service_url, 
+                json={"enterprise_id": enterprise_number}, 
+                timeout=30.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Обрабатываем ответ от план-сервиса
+            deployment_info = result.get("deployment", {})
+            deployment_success = deployment_info.get("success", False)
+            deployment_message = deployment_info.get("message", "Информация о развертывании недоступна")
+            
+            if deployment_success:
+                logger.info(f"Успешная генерация и развертывание SIP конфига для предприятия {enterprise_number}")
+                return {
+                    "status": "success", 
+                    "detail": "Конфигурация SIP обновлена"
+                }
+            else:
+                logger.warning(f"SIP конфиг сгенерирован, но развертывание не удалось для предприятия {enterprise_number}: {deployment_message}")
+                return {
+                    "status": "warning", 
+                    "detail": "Нет связи с АТС, повторите попытку позже"
+                }
+                
+    except httpx.TimeoutException:
+        logger.error(f"Timeout при вызове план-сервиса для SIP конфига предприятия {enterprise_number}")
+        return {"status": "error", "detail": "Нет связи с АТС, повторите попытку позже"}
+    except httpx.RequestError as e:
+        logger.error(f"Ошибка при вызове план-сервиса для SIP конфига предприятия {enterprise_number}: {e}")
+        return {"status": "error", "detail": "Нет связи с АТС, повторите попытку позже"}
+    except Exception as e:
+        logger.error(f"Непредвиденная ошибка при генерации SIP конфига для предприятия {enterprise_number}: {e}", exc_info=True)
+        return {"status": "error", "detail": "Нет связи с АТС, повторите попытку позже"}
+
 async def _generate_musiconhold_conf(conn, enterprise_number: str) -> str:
     """
     Генерирует содержимое файла musiconhold.conf на основе данных из БД.
@@ -691,21 +732,8 @@ async def create_internal_line(enterprise_number: str, data: CreateLineRequest, 
         query = "INSERT INTO user_internal_phones (enterprise_number, phone_number, password) VALUES ($1, $2, $3) RETURNING id"
         new_line_id = await conn.fetchval(query, enterprise_number, data.phone_number, data.password)
 
-        # Логика создания файла
-        try:
-            config_dir = Path("music") / enterprise_number
-            config_dir.mkdir(parents=True, exist_ok=True)
-            config_file_path = config_dir / "sip_addproviders.conf"
-            
-            # Генерируем полное содержимое файла
-            full_config_content = await _generate_sip_addproviders_conf(conn, enterprise_number)
-            
-            with open(config_file_path, "w") as f:
-                f.write(full_config_content)
-            logger.info(f"Конфигурационный файл '{config_file_path}' успешно создан/обновлен для внутреннего номера.")
-
-        except Exception as e:
-            logger.error(f"Не удалось создать/обновить конфигурационный файл: {e}", exc_info=True)
+        # Регенерация SIP конфига через план-сервис (асинхронно)
+        asyncio.create_task(_regenerate_sip_config_via_plan_service(enterprise_number))
 
 
         return {"id": new_line_id, "phone_number": data.phone_number, "password": data.password}
@@ -1486,22 +1514,8 @@ async def update_sip_line(
             if not updated_line:
                 raise HTTPException(status_code=404, detail="SIP line not found for update")
 
-        # После успешного обновления в базе, создаем/обновляем файл
-        try:
-            config_dir = Path(f"music/{enterprise_number}")
-            config_dir.mkdir(parents=True, exist_ok=True)
-            config_path = config_dir / "sip_addproviders.conf"
-            
-            # Генерируем полное содержимое файла
-            full_config_content = await _generate_sip_addproviders_conf(conn, enterprise_number)
-            
-            with open(config_path, "w") as f:
-                f.write(full_config_content)
-            logging.info(f"Конфигурационный файл '{config_path}' успешно создан/обновлен для SIP-линии.")
-
-        except Exception as e:
-            logging.error(f"Не удалось создать файл sip_addproviders.conf для предприятия {enterprise_number}: {e}")
-            # Пока просто логируем
+        # Регенерация SIP конфига через план-сервис (асинхронно)
+        asyncio.create_task(_regenerate_sip_config_via_plan_service(enterprise_number))
         
         return dict(updated_line)
 
@@ -1551,22 +1565,8 @@ async def create_sip_line(
             data.provider_id
         )
 
-        # После успешного создания в базе, создаем/обновляем файл
-        try:
-            config_dir = Path(f"music/{enterprise_number}")
-            config_dir.mkdir(parents=True, exist_ok=True)
-            config_path = config_dir / "sip_addproviders.conf"
-            
-            # Генерируем полное содержимое файла
-            full_config_content = await _generate_sip_addproviders_conf(conn, enterprise_number)
-            
-            with open(config_path, "w") as f:
-                f.write(full_config_content)
-            logging.info(f"Конфигурационный файл '{config_path}' успешно создан/обновлен для SIP-линии.")
-
-        except Exception as e:
-            logging.error(f"Не удалось создать файл sip_addproviders.conf для предприятия {enterprise_number}: {e}")
-            # Пока просто логируем
+        # Регенерация SIP конфига через план-сервис (асинхронно)
+        asyncio.create_task(_regenerate_sip_config_via_plan_service(enterprise_number))
         
         return dict(new_line_record)
 
@@ -1647,21 +1647,8 @@ async def delete_internal_phone(enterprise_number: str, phone_number: str, curre
         if result.strip() == "DELETE 0":
              raise HTTPException(status_code=404, detail="Номер не найден для удаления.")
 
-        # Логика создания файла после удаления
-        try:
-            config_dir = Path(f"music/{enterprise_number}")
-            config_dir.mkdir(parents=True, exist_ok=True)
-            config_path = config_dir / "sip_addproviders.conf"
-            
-            # Генерируем полное содержимое файла
-            full_config_content = await _generate_sip_addproviders_conf(conn, enterprise_number)
-
-            with open(config_path, "w") as f:
-                f.write(full_config_content)
-            logger.info(f"Конфигурационный файл '{config_path}' успешно обновлен после удаления внутреннего номера.")
-        except Exception as e:
-            logger.error(f"Не удалось обновить конфигурационный файл после удаления внутреннего номера: {e}")
-            # Не прерываем процесс из-за ошибки записи файла, но логируем ее
+        # Регенерация SIP конфига через план-сервис (асинхронно)
+        asyncio.create_task(_regenerate_sip_config_via_plan_service(enterprise_number))
 
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -1785,6 +1772,9 @@ async def delete_sip_line(enterprise_number: str, line_id: int, current_enterpri
 
         # 5. Если конфликтов нет, удалить линию
         await conn.execute("DELETE FROM sip_unit WHERE id = $1 AND enterprise_number = $2", line_id, enterprise_number)
+        
+        # Регенерация SIP конфига через план-сервис (асинхронно)
+        asyncio.create_task(_regenerate_sip_config_via_plan_service(enterprise_number))
         
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
