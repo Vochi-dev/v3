@@ -649,8 +649,77 @@ async def generate_auth_token(enterprise_number: str, request: Request):
 # Мониторинг хостов Asterisk
 # ——————————————————————————————————————————————————————————————————————————
 
+def parse_sip_peers(output: str) -> dict:
+    """
+    Парсинг вывода команды 'sip show peers' для анализа типов линий
+    
+    Возвращает словарь с подсчетом по типам:
+    - gsm_total: общее количество GSM линий (000xxxx)
+    - gsm_online: количество онлайн GSM линий
+    - sip_total: общее количество SIP линий (не 000xxxx, не 3-значные, не 301/302)
+    - sip_online: количество онлайн SIP линий  
+    - internal_total: количество внутренних линий (3-значные, кроме 301/302)
+    - internal_online: количество онлайн внутренних линий
+    """
+    lines = output.strip().split('\n')
+    
+    gsm_total = 0
+    gsm_online = 0
+    sip_total = 0
+    sip_online = 0
+    internal_total = 0
+    internal_online = 0
+    
+    for line in lines:
+        # Пропускаем заголовки и служебные строки
+        if 'Name/username' in line or 'sip peers' in line or not line.strip():
+            continue
+            
+        # Парсим строку peer'а
+        parts = line.split()
+        if len(parts) < 6:
+            continue
+            
+        name_part = parts[0]  # Например: "0001363/s" или "150/150"
+        
+        # Извлекаем имя peer'а (до slash)
+        peer_name = name_part.split('/')[0]
+        
+        # Определяем статус (ищем "OK" в строке)
+        is_online = " OK " in line
+        
+        # Классифицируем по типам
+        if peer_name.startswith('000') and len(peer_name) == 7:
+            # GSM линии (000xxxx)
+            gsm_total += 1
+            if is_online:
+                gsm_online += 1
+                
+        elif len(peer_name) == 3 and peer_name.isdigit():
+            # Внутренние линии (3-значные), кроме 301/302
+            if peer_name not in ['301', '302']:
+                internal_total += 1
+                if is_online:
+                    internal_online += 1
+                    
+        elif peer_name not in ['301', '302']:
+            # SIP линии (все остальные, кроме 301/302)
+            sip_total += 1
+            if is_online:
+                sip_online += 1
+    
+    return {
+        'gsm_total': gsm_total,
+        'gsm_online': gsm_online,
+        'sip_total': sip_total,
+        'sip_online': sip_online,
+        'internal_total': internal_total,
+        'internal_online': internal_online
+    }
+
+
 async def check_single_host(ip: str, enterprise_number: str) -> dict:
-    """Проверка одного хоста Asterisk через SSH"""
+    """Проверка одного хоста Asterisk через SSH с детальным анализом линий"""
     start_time = time.time()
     
     try:
@@ -679,18 +748,22 @@ async def check_single_host(ip: str, enterprise_number: str) -> dict:
             response_time = int((time.time() - start_time) * 1000)  # в миллисекундах
             
             if process.returncode == 0:
-                # Успешное выполнение - считаем количество SIP peers
+                # Успешное выполнение - анализируем SIP peers
                 output = stdout.decode('utf-8', errors='ignore')
-                # Подсчитываем строки с SIP peers (исключаем заголовки)
-                lines = output.strip().split('\n')
-                sip_peers = max(0, len([line for line in lines if '/' in line and 'sip' in line.lower()]) - 1)
+                
+                # Детальный парсинг по типам линий
+                line_stats = parse_sip_peers(output)
+                
+                # Общее количество SIP peers для обратной совместимости
+                total_peers = line_stats['gsm_total'] + line_stats['sip_total'] + line_stats['internal_total']
                 
                 return {
                     'enterprise_number': enterprise_number,
                     'ip': ip,
                     'status': 'online',
                     'response_time_ms': response_time,
-                    'sip_peers': sip_peers,
+                    'sip_peers': total_peers,  # Для обратной совместимости
+                    'line_stats': line_stats,  # Детальная статистика
                     'error_message': None
                 }
             else:
@@ -702,6 +775,7 @@ async def check_single_host(ip: str, enterprise_number: str) -> dict:
                     'status': 'offline',
                     'response_time_ms': response_time,
                     'sip_peers': None,
+                    'line_stats': None,
                     'error_message': error_output.strip() or 'Command failed'
                 }
                 
@@ -712,6 +786,7 @@ async def check_single_host(ip: str, enterprise_number: str) -> dict:
                 'status': 'offline',
                 'response_time_ms': int((time.time() - start_time) * 1000),
                 'sip_peers': None,
+                'line_stats': None,
                 'error_message': 'Connection timeout'
             }
             
@@ -723,6 +798,7 @@ async def check_single_host(ip: str, enterprise_number: str) -> dict:
             'status': 'offline',
             'response_time_ms': response_time,
             'sip_peers': None,
+            'line_stats': None,
             'error_message': str(e)
         }
 
