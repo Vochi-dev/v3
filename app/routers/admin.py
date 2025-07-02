@@ -7,6 +7,8 @@ import subprocess
 import csv
 import io
 import base64
+import asyncio
+import time
 from datetime import datetime, timedelta
 
 import aiosqlite
@@ -641,3 +643,151 @@ async def generate_auth_token(enterprise_number: str, request: Request):
     except Exception as e:
         logger.error(f"Ошибка при генерации токена для предприятия {enterprise_number}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Ошибка генерации токена")
+
+
+# ——————————————————————————————————————————————————————————————————————————
+# Мониторинг хостов Asterisk
+# ——————————————————————————————————————————————————————————————————————————
+
+async def check_single_host(ip: str, enterprise_number: str) -> dict:
+    """Проверка одного хоста Asterisk через SSH"""
+    start_time = time.time()
+    
+    try:
+        # SSH команда для проверки с sshpass
+        cmd = [
+            'sshpass', '-p', '5atx9Ate@pbx',
+            'ssh', 
+            '-o', 'ConnectTimeout=5',
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'UserKnownHostsFile=/dev/null',
+            '-o', 'LogLevel=ERROR',
+            '-p', '5059',
+            f'root@{ip}',
+            'timeout 10 asterisk -rx "sip show peers"'
+        ]
+        
+        # Выполняем команду с таймаутом
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        try:
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10.0)
+            response_time = int((time.time() - start_time) * 1000)  # в миллисекундах
+            
+            if process.returncode == 0:
+                # Успешное выполнение - считаем количество SIP peers
+                output = stdout.decode('utf-8', errors='ignore')
+                # Подсчитываем строки с SIP peers (исключаем заголовки)
+                lines = output.strip().split('\n')
+                sip_peers = max(0, len([line for line in lines if '/' in line and 'sip' in line.lower()]) - 1)
+                
+                return {
+                    'enterprise_number': enterprise_number,
+                    'ip': ip,
+                    'status': 'online',
+                    'response_time_ms': response_time,
+                    'sip_peers': sip_peers,
+                    'error_message': None
+                }
+            else:
+                # Ошибка выполнения
+                error_output = stderr.decode('utf-8', errors='ignore')
+                return {
+                    'enterprise_number': enterprise_number,
+                    'ip': ip,
+                    'status': 'offline',
+                    'response_time_ms': response_time,
+                    'sip_peers': None,
+                    'error_message': error_output.strip() or 'Command failed'
+                }
+                
+        except asyncio.TimeoutError:
+            return {
+                'enterprise_number': enterprise_number,
+                'ip': ip,
+                'status': 'offline',
+                'response_time_ms': int((time.time() - start_time) * 1000),
+                'sip_peers': None,
+                'error_message': 'Connection timeout'
+            }
+            
+    except Exception as e:
+        response_time = int((time.time() - start_time) * 1000)
+        return {
+            'enterprise_number': enterprise_number,
+            'ip': ip,
+            'status': 'offline',
+            'response_time_ms': response_time,
+            'sip_peers': None,
+            'error_message': str(e)
+        }
+
+
+@router.get("/check-hosts", response_class=JSONResponse)
+async def check_hosts(request: Request):
+    """Проверка всех активных хостов предприятий"""
+    require_login(request)
+    
+    try:
+        start_time = time.time()
+        
+        # Получаем активные предприятия с IP адресами
+        all_enterprises = await get_all_enterprises_postgresql()
+        active_enterprises = [
+            ent for ent in all_enterprises 
+            if ent.get('active') is True 
+            and ent.get('is_enabled') is True 
+            and ent.get('ip') is not None 
+            and ent.get('ip').strip() != ''
+        ]
+        
+        if not active_enterprises:
+            return JSONResponse({
+                'success': True,
+                'total_hosts': 0,
+                'online_hosts': 0,
+                'hosts': [],
+                'checked_at': datetime.now().isoformat(),
+                'total_time_ms': 0
+            })
+        
+        # Проверяем все хосты параллельно
+        tasks = []
+        for enterprise in active_enterprises:
+            task = check_single_host(enterprise['ip'], enterprise['number'])
+            tasks.append(task)
+        
+        # Ждем завершения всех проверок
+        results = await asyncio.gather(*tasks)
+        
+        # Подсчитываем статистику
+        online_count = sum(1 for result in results if result['status'] == 'online')
+        total_time = int((time.time() - start_time) * 1000)
+        
+        # Логируем результат
+        logger.info(f"Checked {len(results)} hosts in {total_time}ms. Online: {online_count}")
+        
+        return JSONResponse({
+            'success': True,
+            'total_hosts': len(results),
+            'online_hosts': online_count,
+            'hosts': results,
+            'checked_at': datetime.now().isoformat(),
+            'total_time_ms': total_time
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking hosts: {e}", exc_info=True)
+        return JSONResponse({
+            'success': False,
+            'error': str(e),
+            'total_hosts': 0,
+            'online_hosts': 0,
+            'hosts': [],
+            'checked_at': datetime.now().isoformat(),
+            'total_time_ms': 0
+        }, status_code=500)
