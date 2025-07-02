@@ -1301,11 +1301,12 @@
                             </thead>
                             <tbody>`;
                     gateway.lines.forEach(line => {
+                        const formattedPhoneNumber = formatDisplayNumber(line.phone_number || '');
                         html += `<tr data-line-id="${line.id}" data-line-gsm-id="${line.line_id}">
                             <td class="edit-trigger" data-line-id="${line.id}">${line.line_id || ''}</td>
                             <td><span class="ip-offline">Проверка...</span></td>
                             <td>${line.internal_id || ''}</td>
-                            <td>${line.phone_number || ''}</td>
+                            <td>${formattedPhoneNumber}</td>
                             <td>${line.line_name || ''}</td>
                             <td>${line.prefix || ''}</td>
                             <td>${line.incoming_schema_name || ''}</td>
@@ -1362,7 +1363,7 @@
                     document.getElementById('editLineName').value = line.line_name || '';
                     document.getElementById('editLinePhone').value = line.phone_number || '';
                     document.getElementById('editLinePrefix').textContent = line.prefix || '';
-                    document.getElementById('editLineNumber').textContent = line.phone_number || '';
+                    document.getElementById('editLineNumber').textContent = formatDisplayNumber(line.phone_number || '');
                 } catch (e) {
                     document.getElementById('editLineError').textContent = e.message;
                     document.getElementById('editLineError').style.display = 'block';
@@ -1398,7 +1399,7 @@
                         const row = document.querySelector(`tr[data-line-id="${lineId}"]`);
                         if (row) {
                             row.querySelector('td:nth-child(5)').textContent = result.line_name || '';
-                            row.querySelector('td:nth-child(4)').textContent = result.phone_number || '';
+                            row.querySelector('td:nth-child(4)').textContent = formatDisplayNumber(result.phone_number || '');
                             row.querySelector('td:nth-child(6)').textContent = result.prefix || '';
                         }
                         closeEditLineModal();
