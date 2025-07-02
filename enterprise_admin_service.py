@@ -270,6 +270,71 @@ async def _regenerate_sip_config_via_plan_service(enterprise_number: str) -> dic
         logger.error(f"Непредвиденная ошибка при генерации SIP конфига для предприятия {enterprise_number}: {e}", exc_info=True)
         return {"status": "error", "detail": "Нет связи с АТС, повторите попытку позже"}
 
+async def _deploy_single_audio_file_to_asterisk(enterprise_number: str, file_path: str, file_type: str, internal_filename: str) -> dict:
+    """Деплой одного аудиофайла на удаленный хост"""
+    try:
+        async with httpx.AsyncClient() as client:
+            if file_type in ["start", "hold"]:
+                # Развертываем файл через план-сервис
+                plan_service_url = f"http://localhost:8006/deploy_audio_files"
+                response = await client.post(
+                    plan_service_url, 
+                    json={"enterprise_id": enterprise_number}, 
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                result = response.json()
+                
+                deployment_info = result.get("deployment", {})
+                deployment_success = deployment_info.get("success", False)
+                deployment_message = deployment_info.get("message", "Неизвестная ошибка")
+                
+                logging.info(f"Audio file deployment result for {enterprise_number}: {deployment_message}")
+                return {"success": deployment_success, "message": deployment_message}
+            
+            else:
+                return {"success": True, "message": "Тип файла не требует развертывания"}
+        
+    except httpx.HTTPStatusError as e:
+        logging.error(f"HTTP error during audio file deployment to plan service: {e}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+    except httpx.TimeoutException:
+        logging.error(f"Timeout during audio file deployment to plan service")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+    except Exception as e:
+        logging.error(f"Unexpected error during audio file deployment: {str(e)}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+
+async def _deploy_all_audio_files_to_asterisk(enterprise_number: str) -> dict:
+    """Деплой всех аудиофайлов предприятия на удаленный хост (кнопка Обновить)"""
+    try:
+        async with httpx.AsyncClient() as client:
+            plan_service_url = f"http://localhost:8006/deploy_audio_files"
+            response = await client.post(
+                plan_service_url, 
+                json={"enterprise_id": enterprise_number}, 
+                timeout=60.0  # Больший timeout для полного развертывания
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            deployment_info = result.get("deployment", {})
+            deployment_success = deployment_info.get("success", False)
+            deployment_message = deployment_info.get("message", "Неизвестная ошибка")
+            
+            logging.info(f"Full audio deployment result for {enterprise_number}: {deployment_message}")
+            return {"success": deployment_success, "message": deployment_message}
+        
+    except httpx.HTTPStatusError as e:
+        logging.error(f"HTTP error during full audio deployment to plan service: {e}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+    except httpx.TimeoutException:
+        logging.error(f"Timeout during full audio deployment to plan service")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+    except Exception as e:
+        logging.error(f"Unexpected error during full audio deployment: {str(e)}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+
 async def _generate_musiconhold_conf(conn, enterprise_number: str) -> str:
     """
     Генерирует содержимое файла musiconhold.conf на основе данных из БД.
@@ -1034,20 +1099,11 @@ async def upload_audio_file(
             final_file_path
         )
         
-        # --- НАЧАЛО ИЗМЕНЕНИЙ ---
-        # Если загружен файл для удержания, перегенерируем musiconhold.conf
-        if file_type == 'hold':
-            try:
-                moh_config_content = await _generate_musiconhold_conf(conn, enterprise_number)
-                moh_config_path = Path("music") / enterprise_number / "musiconhold.conf"
-                moh_config_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(moh_config_path, "w") as f:
-                    f.write(moh_config_content)
-                logger.info(f"Файл {moh_config_path} успешно перегенирирован.")
-            except Exception as e:
-                logger.error(f"Не удалось перегенирировать musiconhold.conf: {e}", exc_info=True)
-                # Не бросаем ошибку, так как основной файл уже загружен
-        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
+        # --- НОВАЯ АРХИТЕКТУРА: ДЕПЛОЙ НА УДАЛЕННЫЙ ХОСТ ---
+        # Асинхронно развертываем файл на удаленный хост через план-сервис
+        asyncio.create_task(_deploy_single_audio_file_to_asterisk(
+            enterprise_number, final_file_path, file_type, internal_filename
+        ))
         
         response_data = {
             "id": new_file_record["id"],
@@ -1079,16 +1135,25 @@ async def regenerate_musiconhold_conf(
         raise HTTPException(status_code=500, detail="DB connection failed")
 
     try:
-        moh_config_content = await _generate_musiconhold_conf(conn, enterprise_number)
-        moh_config_path = Path("music") / enterprise_number / "musiconhold.conf"
-        moh_config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(moh_config_path, "w") as f:
-            f.write(moh_config_content)
-        logger.info(f"Файл {moh_config_path} успешно перегенирирован по ручному запросу.")
-        return JSONResponse(content={"status": "success", "detail": "Music on hold config regenerated."})
+        # Вызываем план-сервис для полного развертывания аудиофайлов
+        deployment_result = await _deploy_all_audio_files_to_asterisk(enterprise_number)
+        
+        if deployment_result["success"]:
+            logger.info(f"Успешное развертывание всех аудиофайлов для предприятия {enterprise_number}")
+            return JSONResponse(content={
+                "status": "success", 
+                "detail": deployment_result["message"]
+            })
+        else:
+            logger.warning(f"Развертывание аудиофайлов завершено с ошибками для предприятия {enterprise_number}: {deployment_result['message']}")
+            return JSONResponse(content={
+                "status": "warning", 
+                "detail": deployment_result["message"]
+            })
+            
     except Exception as e:
-        logger.error(f"Не удалось перегенирировать musiconhold.conf по ручному запросу: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Ошибка при перегенерации файла конфигурации.")
+        logger.error(f"Ошибка при развертывании аудиофайлов для предприятия {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Ошибка при развертывании аудиофайлов.")
     finally:
         await conn.close()
 
@@ -1142,12 +1207,8 @@ async def delete_audio_file(
             file_id, enterprise_number
         )
 
-        # 5. Перегенерируем musiconhold.conf
-        moh_config_content = await _generate_musiconhold_conf(conn, enterprise_number)
-        moh_config_path = Path("music") / enterprise_number / "musiconhold.conf"
-        moh_config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(moh_config_path, "w") as f:
-            f.write(moh_config_content)
+        # 5. Развертываем обновленные аудиофайлы на удаленный хост
+        asyncio.create_task(_deploy_all_audio_files_to_asterisk(enterprise_number))
 
         logger.info(f"Аудиофайл {file_check['display_name']} (ID: {file_id}) успешно удален")
         return JSONResponse(content={"message": f"Аудиофайл '{file_check['display_name']}' успешно удален"})

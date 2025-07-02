@@ -253,6 +253,302 @@ async def deploy_sip_config_to_asterisk(host_ip: str, local_config_path: str, en
         logging.error(f"Unexpected error deploying SIP config to {host_ip}: {str(e)}")
         return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
 
+async def deploy_greeting_files_to_asterisk(host_ip: str, local_files: list, enterprise_id: str) -> dict:
+    """Деплой файлов приветствий на удаленный Asterisk хост"""
+    
+    # SSH параметры (константы)
+    SSH_PORT = 5059
+    SSH_USER = "root" 
+    SSH_PASSWORD = "5atx9Ate@pbx"
+    REMOTE_PATH = "/var/lib/asterisk/sounds/custom/"
+    
+    logging.info(f"Starting greeting files deployment to Asterisk host {host_ip} for enterprise {enterprise_id}")
+    
+    try:
+        # 1. Создаем папку на удаленном хосте
+        mkdir_cmd = [
+            "sshpass", "-p", SSH_PASSWORD,
+            "ssh", "-p", str(SSH_PORT), "-o", "StrictHostKeyChecking=no",
+            f"{SSH_USER}@{host_ip}",
+            f'mkdir -p {REMOTE_PATH}'
+        ]
+        
+        logging.info(f"Creating directory {REMOTE_PATH} on {host_ip}...")
+        mkdir_result = await asyncio.wait_for(
+            asyncio.create_subprocess_exec(
+                *mkdir_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            ),
+            timeout=30.0
+        )
+        
+        mkdir_stdout, mkdir_stderr = await mkdir_result.communicate()
+        
+        if mkdir_result.returncode != 0:
+            error_msg = mkdir_stderr.decode().strip() if mkdir_stderr else "Unknown mkdir error"
+            logging.error(f"Failed to create directory on {host_ip}: {error_msg}")
+        
+        # 2. Копируем файлы на хост
+        success_count = 0
+        for local_file_path in local_files:
+            if not Path(local_file_path).exists():
+                logging.warning(f"File {local_file_path} does not exist, skipping")
+                continue
+                
+            filename = Path(local_file_path).name
+            
+            scp_cmd = [
+                "sshpass", "-p", SSH_PASSWORD,
+                "scp", "-P", str(SSH_PORT), "-o", "StrictHostKeyChecking=no",
+                local_file_path, f"{SSH_USER}@{host_ip}:{REMOTE_PATH}{filename}"
+            ]
+            
+            logging.info(f"Copying greeting file {filename} to {host_ip}...")
+            scp_result = await asyncio.wait_for(
+                asyncio.create_subprocess_exec(
+                    *scp_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                ),
+                timeout=30.0
+            )
+            
+            scp_stdout, scp_stderr = await scp_result.communicate()
+            
+            if scp_result.returncode == 0:
+                success_count += 1
+                logging.info(f"Successfully copied greeting file {filename} to {host_ip}")
+            else:
+                error_msg = scp_stderr.decode().strip() if scp_stderr else "Unknown SCP error"
+                logging.error(f"Failed to copy greeting file {filename} to {host_ip}: {error_msg}")
+        
+        if success_count == len(local_files):
+            return {"success": True, "message": "Файлы приветствий успешно сохранены"}
+        elif success_count > 0:
+            return {"success": True, "message": f"Скопировано {success_count} из {len(local_files)} файлов приветствий"}
+        else:
+            return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+        
+    except asyncio.TimeoutError:
+        logging.error(f"Timeout while deploying greeting files to {host_ip}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+    except Exception as e:
+        logging.error(f"Unexpected error deploying greeting files to {host_ip}: {str(e)}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+
+async def deploy_music_files_to_asterisk(host_ip: str, local_files: list, enterprise_id: str) -> dict:
+    """Деплой файлов музыки ожидания на удаленный Asterisk хост"""
+    
+    # SSH параметры (константы)
+    SSH_PORT = 5059
+    SSH_USER = "root" 
+    SSH_PASSWORD = "5atx9Ate@pbx"
+    BASE_REMOTE_PATH = "/var/lib/asterisk/"
+    
+    logging.info(f"Starting music files deployment to Asterisk host {host_ip} for enterprise {enterprise_id}")
+    
+    try:
+        success_count = 0
+        
+        for file_info in local_files:
+            local_file_path = file_info['local_path']
+            internal_filename = file_info['internal_filename']
+            
+            if not Path(local_file_path).exists():
+                logging.warning(f"File {local_file_path} does not exist, skipping")
+                continue
+            
+            # Определяем папку на удаленном хосте (без .wav)
+            folder_name = internal_filename.replace('.wav', '')
+            remote_folder = f"{BASE_REMOTE_PATH}{folder_name}/"
+            
+            # 1. Создаем папку на удаленном хосте
+            mkdir_cmd = [
+                "sshpass", "-p", SSH_PASSWORD,
+                "ssh", "-p", str(SSH_PORT), "-o", "StrictHostKeyChecking=no",
+                f"{SSH_USER}@{host_ip}",
+                f'mkdir -p {remote_folder}'
+            ]
+            
+            logging.info(f"Creating directory {remote_folder} on {host_ip}...")
+            mkdir_result = await asyncio.wait_for(
+                asyncio.create_subprocess_exec(
+                    *mkdir_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                ),
+                timeout=30.0
+            )
+            
+            mkdir_stdout, mkdir_stderr = await mkdir_result.communicate()
+            
+            if mkdir_result.returncode != 0:
+                error_msg = mkdir_stderr.decode().strip() if mkdir_stderr else "Unknown mkdir error"
+                logging.error(f"Failed to create directory {remote_folder} on {host_ip}: {error_msg}")
+                continue
+            
+            # 2. Копируем файл в папку
+            scp_cmd = [
+                "sshpass", "-p", SSH_PASSWORD,
+                "scp", "-P", str(SSH_PORT), "-o", "StrictHostKeyChecking=no",
+                local_file_path, f"{SSH_USER}@{host_ip}:{remote_folder}{internal_filename}"
+            ]
+            
+            logging.info(f"Copying music file {internal_filename} to {remote_folder}...")
+            scp_result = await asyncio.wait_for(
+                asyncio.create_subprocess_exec(
+                    *scp_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                ),
+                timeout=30.0
+            )
+            
+            scp_stdout, scp_stderr = await scp_result.communicate()
+            
+            if scp_result.returncode == 0:
+                success_count += 1
+                logging.info(f"Successfully copied music file {internal_filename} to {host_ip}")
+            else:
+                error_msg = scp_stderr.decode().strip() if scp_stderr else "Unknown SCP error"
+                logging.error(f"Failed to copy music file {internal_filename} to {host_ip}: {error_msg}")
+        
+        if success_count == len(local_files):
+            return {"success": True, "message": "Файлы музыки ожидания успешно сохранены"}
+        elif success_count > 0:
+            return {"success": True, "message": f"Скопировано {success_count} из {len(local_files)} файлов музыки"}
+        else:
+            return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+        
+    except asyncio.TimeoutError:
+        logging.error(f"Timeout while deploying music files to {host_ip}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+    except Exception as e:
+        logging.error(f"Unexpected error deploying music files to {host_ip}: {str(e)}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+
+async def deploy_musiconhold_conf_to_asterisk(host_ip: str, local_config_path: str, enterprise_id: str) -> dict:
+    """Деплой musiconhold.conf на удаленный Asterisk хост"""
+    
+    # SSH параметры (константы)
+    SSH_PORT = 5059
+    SSH_USER = "root" 
+    SSH_PASSWORD = "5atx9Ate@pbx"
+    REMOTE_PATH = "/etc/asterisk/musiconhold.conf"
+    
+    logging.info(f"Starting musiconhold.conf deployment to Asterisk host {host_ip} for enterprise {enterprise_id}")
+    
+    try:
+        # 1. Копируем файл на хост
+        scp_cmd = [
+            "sshpass", "-p", SSH_PASSWORD,
+            "scp", "-P", str(SSH_PORT), "-o", "StrictHostKeyChecking=no",
+            local_config_path, f"{SSH_USER}@{host_ip}:{REMOTE_PATH}"
+        ]
+        
+        logging.info(f"Copying musiconhold.conf to {host_ip}...")
+        scp_result = await asyncio.wait_for(
+            asyncio.create_subprocess_exec(
+                *scp_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            ),
+            timeout=30.0
+        )
+        
+        scp_stdout, scp_stderr = await scp_result.communicate()
+        
+        if scp_result.returncode != 0:
+            error_msg = scp_stderr.decode().strip() if scp_stderr else "Unknown SCP error"
+            logging.error(f"SCP failed for musiconhold.conf to {host_ip}: {error_msg}")
+            return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+        
+        logging.info(f"musiconhold.conf successfully copied to {host_ip}")
+        
+        # 2. Перезагружаем музыку на удержании
+        reload_cmd = [
+            "sshpass", "-p", SSH_PASSWORD,
+            "ssh", "-p", str(SSH_PORT), "-o", "StrictHostKeyChecking=no",
+            f"{SSH_USER}@{host_ip}",
+            'asterisk -rx "moh reload"'
+        ]
+        
+        logging.info(f"Reloading music on hold on {host_ip}...")
+        reload_result = await asyncio.wait_for(
+            asyncio.create_subprocess_exec(
+                *reload_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            ),
+            timeout=30.0
+        )
+        
+        reload_stdout, reload_stderr = await reload_result.communicate()
+        
+        if reload_result.returncode != 0:
+            error_msg = reload_stderr.decode().strip() if reload_stderr else "Unknown reload error"
+            logging.error(f"MOH reload failed for {host_ip}: {error_msg}")
+            return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+        
+        logging.info(f"Music on hold successfully reloaded on {host_ip}")
+        logging.info(f"MOH reload output: {reload_stdout.decode().strip()}")
+        
+        return {"success": True, "message": "Музыка ожидания успешно обновлена"}
+        
+    except asyncio.TimeoutError:
+        logging.error(f"Timeout while deploying musiconhold.conf to {host_ip}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+    except Exception as e:
+        logging.error(f"Unexpected error deploying musiconhold.conf to {host_ip}: {str(e)}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+
+async def _generate_musiconhold_conf(conn, enterprise_number: str) -> str:
+    """
+    Генерирует содержимое файла musiconhold.conf на основе данных из БД.
+    """
+    base_content = """
+;
+; Music on Hold -- Sample Configuration
+;
+[general]
+;cachertclasses=yes
+[default]
+mode=files
+directory=moh
+""".strip()
+
+    # Подключаемся к БД если нет подключения
+    if conn is None:
+        conn = await asyncpg.connect(DB_CONFIG)
+        close_conn = True
+    else:
+        close_conn = False
+    
+    try:
+        hold_files = await conn.fetch(
+            "SELECT internal_filename FROM music_files WHERE enterprise_number = $1 AND file_type = 'hold'",
+            enterprise_number
+        )
+
+        dynamic_parts = []
+        for file in hold_files:
+            if file['internal_filename'] and file['internal_filename'].endswith('.wav'):
+                context_name = file['internal_filename'][:-4] # Убираем .wav
+                part = f"""
+[{context_name}]
+mode=files
+directory={context_name}
+sort=random
+""".strip()
+                dynamic_parts.append(part)
+
+        full_content = base_content + "\n\n" + "\n\n".join(dynamic_parts)
+        return full_content
+    finally:
+        if close_conn and conn:
+            await conn.close()
+
 async def generate_sip_addproviders_conf(enterprise_id: str) -> str:
     """Генерирует содержимое файла sip_addproviders.conf на основе данных из БД"""
     
@@ -1055,6 +1351,131 @@ async def generate_sip_config(request: GenerateConfigRequest):
     except Exception as e:
         logging.error(f"Error generating SIP config: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/deploy_audio_files")
+async def deploy_audio_files(request: GenerateConfigRequest):
+    """Развертывает ВСЕ аудиофайлы предприятия на удаленный хост (кнопка Обновить)"""
+    enterprise_id = request.enterprise_id
+    logging.info(f"--- Starting full audio files deployment for enterprise: {enterprise_id} ---")
+    
+    try:
+        # Получаем IP хоста из БД
+        conn = await asyncpg.connect(DB_CONFIG)
+        try:
+            # Проверяем что предприятие включено
+            enterprise_row = await conn.fetchrow("SELECT ip, is_enabled FROM enterprises WHERE number = $1", enterprise_id)
+            if not enterprise_row:
+                logging.error(f"Enterprise {enterprise_id} not found")
+                return {"error": "Enterprise not found"}
+            
+            if not enterprise_row['is_enabled']:
+                logging.warning(f"Enterprise {enterprise_id} is disabled, skipping deployment")
+                return {
+                    "message": "Audio files processed (enterprise disabled)", 
+                    "deployment": {"success": False, "message": "Предприятие отключено"}
+                }
+                
+            host_ip = enterprise_row['ip']
+            if not host_ip:
+                logging.error(f"No IP found for enterprise {enterprise_id}")
+                return {"error": "No IP address configured for enterprise"}
+            
+            # Получаем все аудиофайлы из БД
+            greetings_rows = await conn.fetch(
+                "SELECT internal_filename FROM music_files WHERE enterprise_number = $1 AND file_type = 'start'", 
+                enterprise_id
+            )
+            
+            music_rows = await conn.fetch(
+                "SELECT internal_filename FROM music_files WHERE enterprise_number = $1 AND file_type = 'hold'", 
+                enterprise_id
+            )
+        finally:
+            await conn.close()
+        
+        # Подготавливаем списки файлов
+        greeting_files = []
+        for row in greetings_rows:
+            file_path = f"music/{enterprise_id}/start/{row['internal_filename']}"
+            if Path(file_path).exists():
+                greeting_files.append(file_path)
+            else:
+                logging.warning(f"Greeting file not found: {file_path}")
+        
+        music_files = []
+        for row in music_rows:
+            file_path = f"music/{enterprise_id}/hold/{row['internal_filename']}"
+            if Path(file_path).exists():
+                music_files.append({
+                    'local_path': file_path,
+                    'internal_filename': row['internal_filename']
+                })
+            else:
+                logging.warning(f"Music file not found: {file_path}")
+        
+        # Результаты развертывания
+        greeting_result = {"success": True, "message": "Нет файлов приветствий"}
+        music_result = {"success": True, "message": "Нет файлов музыки"}
+        musiconhold_result = {"success": True, "message": "Конфиг музыки не требуется"}
+        
+        # 1. Развертываем файлы приветствий
+        if greeting_files:
+            greeting_result = await deploy_greeting_files_to_asterisk(host_ip, greeting_files, enterprise_id)
+        
+        # 2. Развертываем файлы музыки
+        if music_files:
+            music_result = await deploy_music_files_to_asterisk(host_ip, music_files, enterprise_id)
+            
+            # 3. Генерируем и развертываем musiconhold.conf
+            if music_result['success']:
+                musiconhold_content = await _generate_musiconhold_conf(None, enterprise_id)
+                
+                if musiconhold_content.strip():
+                    # Записываем локальный файл
+                    config_dir = Path("music") / enterprise_id
+                    config_dir.mkdir(parents=True, exist_ok=True)
+                    musiconhold_path = config_dir / "musiconhold.conf"
+                    
+                    with open(musiconhold_path, "w") as f:
+                        f.write(musiconhold_content)
+                    
+                    logging.info(f"musiconhold.conf written ({len(musiconhold_content)} bytes) to {musiconhold_path}")
+                    
+                    # Развертываем на хост
+                    musiconhold_result = await deploy_musiconhold_conf_to_asterisk(host_ip, str(musiconhold_path), enterprise_id)
+        
+        # Формируем итоговый результат
+        all_success = greeting_result['success'] and music_result['success'] and musiconhold_result['success']
+        
+        if all_success:
+            combined_message = "Все аудиофайлы успешно обновлены"
+        else:
+            failed_parts = []
+            if not greeting_result['success']:
+                failed_parts.append("приветствия")
+            if not music_result['success']:
+                failed_parts.append("музыка")
+            if not musiconhold_result['success']:
+                failed_parts.append("конфигурация")
+            
+            combined_message = f"Ошибки при обновлении: {', '.join(failed_parts)}"
+        
+        return {
+            "message": "Audio files deployment completed", 
+            "deployment": {
+                "success": all_success, 
+                "message": combined_message,
+                "details": {
+                    "greetings": greeting_result,
+                    "music": music_result,
+                    "musiconhold": musiconhold_result
+                }
+            }
+        }
+        
+    except Exception as e:
+        logging.error(f"Error deploying audio files for enterprise {enterprise_id}: {str(e)}")
+        return {"error": f"Failed to deploy audio files: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
