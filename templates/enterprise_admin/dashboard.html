@@ -120,6 +120,27 @@
         .audio-actions .dropdown-content a:hover { background-color: #f1f1f1; }
         .audio-actions .dropdown:hover .dropdown-content { display: block; }
 
+        /* Стили для мониторинга GSM линий */
+        .gsm-table th:nth-child(2),
+        .gsm-table td:nth-child(2) {
+            width: 140px;
+            min-width: 140px;
+            max-width: 140px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .ip-online {
+            color: #28a745;
+            font-weight: 500;
+        }
+        
+        .ip-offline {
+            color: #6c757d;
+            font-style: italic;
+        }
+
         /* Стили для модального окна схем */
         .schema-modal-content {
             background-color: #fefefe;
@@ -1171,6 +1192,36 @@
             closeModal(selectLinesModal);
         };
 
+        // --- Функция для проверки статуса GSM линий ---
+        const fetchGsmLinesStatus = async () => {
+            try {
+                console.log('Запрашиваем статус GSM линий...');
+                const response = await fetch(`/enterprise/${enterpriseNumber}/gsm-lines/status`);
+                if (!response.ok) {
+                    throw new Error(`Ошибка получения статуса: ${response.status}`);
+                }
+                const statusData = await response.json();
+                console.log('Получен статус GSM линий:', statusData);
+                
+                // Обновляем IP адреса в таблице
+                Object.values(statusData).forEach(lineStatus => {
+                    const row = document.querySelector(`tr[data-line-gsm-id="${lineStatus.line_id}"]`);
+                    if (row) {
+                        const ipCell = row.cells[1]; // Столбец IP (индекс 1)
+                        if (lineStatus.ip_address) {
+                            ipCell.innerHTML = `<span class="ip-online">${lineStatus.ip_address}</span>`;
+                        } else {
+                            ipCell.innerHTML = `<span class="ip-offline">—</span>`;
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Ошибка при получении статуса GSM линий:', error);
+                // Не показываем ошибку пользователю, так как это дополнительная функция
+            }
+        };
+
         // --- GSM Lines Logic ---
         document.getElementById('btn-gsm-lines').addEventListener('click', async () => {
             const modal = document.getElementById('gsmLinesModal');
@@ -1216,9 +1267,9 @@
                             </thead>
                             <tbody>`;
                     gateway.lines.forEach(line => {
-                        html += `<tr data-line-id="${line.id}">
+                        html += `<tr data-line-id="${line.id}" data-line-gsm-id="${line.line_id}">
                             <td class="edit-trigger" data-line-id="${line.id}">${line.line_id || ''}</td>
-                            <td></td>
+                            <td><span class="ip-offline">Проверка...</span></td>
                             <td>${line.internal_id || ''}</td>
                             <td>${line.phone_number || ''}</td>
                             <td>${line.line_name || ''}</td>
@@ -1234,6 +1285,11 @@
                     html += `</tbody></table></div>`;
                 });
                 container.innerHTML = html;
+                
+                // После загрузки данных запрашиваем статус линий
+                console.log('Данные загружены, запрашиваем статус...');
+                await fetchGsmLinesStatus();
+                
             } catch (e) {
                 container.innerHTML = `<div style="text-align:center;padding:2em;color:red;">Ошибка: ${e.message}</div>`;
             }

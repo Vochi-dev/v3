@@ -16,6 +16,7 @@ import time
 import os
 import uuid
 import asyncio
+import re
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -865,6 +866,92 @@ async def get_enterprise_gsm_lines(enterprise_number: str):
                 }
                 gateways[gateway_name]['lines'].append(line)
         return JSONResponse(content=list(gateways.values()))
+    finally:
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/gsm-lines/status", response_class=JSONResponse)
+async def get_enterprise_gsm_lines_status(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    """Проверка статуса GSM линий на удаленном хосте Asterisk"""
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+    
+    try:
+        # Получаем IP адрес предприятия
+        enterprise_query = "SELECT ip FROM enterprises WHERE number = $1"
+        enterprise_row = await conn.fetchrow(enterprise_query, enterprise_number)
+        
+        if not enterprise_row or not enterprise_row['ip']:
+            raise HTTPException(status_code=404, detail="IP адрес предприятия не найден")
+        
+        host_ip = enterprise_row['ip']
+        
+        # Получаем все GSM линии предприятия
+        lines_query = """
+        SELECT line_id, internal_id
+        FROM gsm_lines 
+        WHERE enterprise_number = $1
+        ORDER BY line_id
+        """
+        lines = await conn.fetch(lines_query, enterprise_number)
+        
+        if not lines:
+            return JSONResponse(content={})
+        
+        # Выполняем SSH команду на удаленном хосте
+        ssh_command = f"sshpass -p '5atx9Ate@pbx' ssh -p 5059 -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@{host_ip} 'asterisk -rx \"sip show peers\"'"
+        
+        process = await asyncio.create_subprocess_shell(
+            ssh_command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10)
+        
+        if process.returncode != 0:
+            logger.error(f"SSH команда завершилась с ошибкой для {host_ip}: {stderr.decode()}")
+            raise HTTPException(status_code=500, detail=f"Ошибка подключения к хосту {host_ip}")
+        
+        sip_output = stdout.decode('utf-8')
+        
+        # Парсим вывод sip show peers для поиска GSM линий
+        line_status = {}
+        
+        for line in lines:
+            line_id = str(line['line_id']).zfill(7)  # Приводим к формату 0001363
+            internal_id = line['internal_id']
+            
+            # Ищем линию в выводе sip show peers
+            ip_address = None
+            for sip_line in sip_output.split('\n'):
+                if line_id in sip_line:
+                    # Реальный формат: "0001363/s                 213.184.245.128                          D  Yes        Yes            5404     OK (9 ms)"
+                    # Используем regex для извлечения IP адреса
+                    # Ищем паттерн: line_id/s + пробелы + IP адрес + пробелы + остальное
+                    pattern = rf'{line_id}/s\s+(\d{{1,3}}\.\d{{1,3}}\.\d{{1,3}}\.\d{{1,3}})'
+                    match = re.search(pattern, sip_line)
+                    if match and 'OK' in sip_line:
+                        ip_address = match.group(1)
+                        break
+            
+            line_status[line['line_id']] = {
+                'line_id': line['line_id'],
+                'internal_id': internal_id,
+                'ip_address': ip_address,
+                'status': 'online' if ip_address else 'offline'
+            }
+        
+        return JSONResponse(content=line_status)
+        
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=408, detail=f"Таймаут при подключении к хосту {host_ip}")
+    except Exception as e:
+        logger.error(f"Ошибка при проверке статуса GSM линий для {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
     finally:
         await conn.close()
 
