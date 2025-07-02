@@ -48,7 +48,7 @@
     }
     .enterprise-card .name {
       font-size: 16px;
-      color: #a94442; /* Красноватый цвет для текста, как на образце карточек (bootstrap danger text color) */
+      color: #2196f3; /* Синий цвет для названий предприятий */
       margin: 0; /* Убираем стандартные отступы у <p> */
       padding: 0; /* Убедимся, что нет лишних отступов */
       line-height: 1.2; /* Для лучшего контроля высоты строки, если имя длинное */
@@ -60,7 +60,7 @@
       color: #666;
       margin-left: 15px;
       margin-top: 2px;
-      font-family: monospace; /* Моноширинный шрифт для выравнивания цифр */
+      font-family: sans-serif; /* Тот же шрифт что и у названий */
       line-height: 1.1;
     }
     /* Старые стили кнопки, если они еще где-то используются */
@@ -236,6 +236,7 @@
         
         let hostStatuses = {}; // Хранилище статусов хостов
         let failureCounters = {}; // Счетчики неудачных попыток
+        let hostLineStats = {}; // Хранилище последней статистики линий для каждого хоста
         let monitoringInterval = null; // Интервал для мониторинга
         
         // Инициализация состояний хостов
@@ -272,10 +273,18 @@
                      const sipStats = `${lineStats.sip_online}/${lineStats.sip_total}`;
                      const internalStats = `${lineStats.internal_online}/${lineStats.internal_total}`;
                      statsElement.textContent = `${gsmStats} ${sipStats} ${internalStats}`;
-                 } else {
-                     // Офлайн или нет данных
-                     statsElement.textContent = '—/— —/— —/—';
+                 } else if (status === 'offline') {
+                     // При офлайн (после 3+ неудач) показываем нули с последними известными общими количествами
+                     // Используем сохраненные данные или значения по умолчанию
+                     const savedStats = hostLineStats[enterpriseNumber];
+                     if (savedStats) {
+                         statsElement.textContent = `0/${savedStats.gsm_total} 0/${savedStats.sip_total} 0/${savedStats.internal_total}`;
+                     } else {
+                         // Если нет сохраненных данных, показываем типичные значения
+                         statsElement.textContent = '0/8 0/1 0/3';
+                     }
                  }
+                 // При 1-2 неудачах (status='online' но нет lineStats) - НЕ ТРОГАЕМ статистику вообще
              }
              
              // Обновляем title для подсказки
@@ -332,6 +341,10 @@
                              // Хост онлайн - сбрасываем счетчик неудач и сразу зеленым
                              failureCounters[enterpriseNumber] = 0;
                              hostStatuses[enterpriseNumber] = 'online';
+                             // Сохраняем статистику линий для использования при офлайн
+                             if (host.line_stats) {
+                                 hostLineStats[enterpriseNumber] = host.line_stats;
+                             }
                              updateCardStatus(enterpriseNumber, 'online', host.response_time_ms, host.sip_peers, host.line_stats);
                          } else {
                              // Хост офлайн - увеличиваем счетчик
@@ -352,6 +365,7 @@
                     // Сохраняем состояния в localStorage
                     localStorage.setItem('hostStatuses', JSON.stringify(hostStatuses));
                     localStorage.setItem('failureCounters', JSON.stringify(failureCounters));
+                    localStorage.setItem('hostLineStats', JSON.stringify(hostLineStats));
                 }
                 
             } catch (error) {
@@ -364,12 +378,16 @@
             try {
                 const savedStatuses = localStorage.getItem('hostStatuses');
                 const savedCounters = localStorage.getItem('failureCounters');
+                const savedLineStats = localStorage.getItem('hostLineStats');
                 
                 if (savedStatuses) {
                     hostStatuses = JSON.parse(savedStatuses);
                 }
                 if (savedCounters) {
                     failureCounters = JSON.parse(savedCounters);
+                }
+                if (savedLineStats) {
+                    hostLineStats = JSON.parse(savedLineStats);
                 }
                 
                                  // Применяем сохраненные состояния к карточкам (только online/offline)
@@ -425,8 +443,10 @@
             clearStates: () => {
                 localStorage.removeItem('hostStatuses');
                 localStorage.removeItem('failureCounters');
+                localStorage.removeItem('hostLineStats');
                 hostStatuses = {};
                 failureCounters = {};
+                hostLineStats = {};
                 console.log('[Мониторинг] Состояния очищены');
             }
         };

@@ -11386,3 +11386,141 @@ asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exis
 2025-07-02 11:05:06,056 - admin - INFO - Checked 5 hosts in 1594ms. Online: 5
 2025-07-02 11:06:07,608 - admin - INFO - Checked 5 hosts in 3141ms. Online: 4
 2025-07-02 11:07:05,942 - admin - INFO - Checked 5 hosts in 1490ms. Online: 4
+2025-07-02 11:08:06,744 - admin - INFO - Checked 5 hosts in 2287ms. Online: 4
+2025-07-02 11:09:06,112 - admin - INFO - Checked 5 hosts in 1628ms. Online: 5
+2025-07-02 11:10:06,801 - admin - INFO - Checked 5 hosts in 2350ms. Online: 5
+2025-07-02 11:11:05,971 - admin - INFO - Checked 5 hosts in 1506ms. Online: 5
+2025-07-02 11:12:37,218 - admin - INFO - Checked 5 hosts in 1518ms. Online: 5
+2025-07-02 11:12:41,172 - admin - INFO - Checked 5 hosts in 1525ms. Online: 5
+2025-07-02 11:13:41,250 - admin - INFO - Checked 5 hosts in 1525ms. Online: 5
+2025-07-02 11:14:41,262 - admin - INFO - Checked 5 hosts in 1538ms. Online: 5
+2025-07-02 11:15:41,234 - admin - INFO - Checked 5 hosts in 1510ms. Online: 5
+2025-07-02 11:16:41,286 - admin - INFO - Checked 5 hosts in 1578ms. Online: 5
+2025-07-02 11:17:41,238 - admin - INFO - Checked 5 hosts in 1519ms. Online: 5
+2025-07-02 11:18:41,455 - admin - INFO - Checked 5 hosts in 1722ms. Online: 5
+2025-07-02 11:19:41,224 - admin - INFO - Checked 5 hosts in 1502ms. Online: 5
+2025-07-02 11:20:41,260 - admin - INFO - Checked 5 hosts in 1545ms. Online: 5
+2025-07-02 11:21:41,783 - admin - INFO - Checked 5 hosts in 2058ms. Online: 5
+2025-07-02 11:22:41,229 - admin - INFO - Checked 5 hosts in 1518ms. Online: 5
+2025-07-02 11:23:41,239 - admin - INFO - Checked 5 hosts in 1515ms. Online: 5
+2025-07-02 11:24:41,310 - admin - INFO - Checked 5 hosts in 1598ms. Online: 5
+2025-07-02 11:25:41,286 - admin - INFO - Checked 5 hosts in 1564ms. Online: 5
+2025-07-02 11:26:41,230 - admin - INFO - Checked 5 hosts in 1507ms. Online: 5
+2025-07-02 11:27:41,227 - admin - INFO - Checked 5 hosts in 1496ms. Online: 5
+2025-07-02 11:28:41,490 - admin - INFO - Checked 5 hosts in 1777ms. Online: 5
+2025-07-02 11:29:41,255 - admin - INFO - Checked 5 hosts in 1537ms. Online: 5
+2025-07-02 11:30:41,214 - admin - INFO - Checked 5 hosts in 1498ms. Online: 5
+2025-07-02 11:31:41,258 - admin - INFO - Checked 5 hosts in 1542ms. Online: 5
+2025-07-02 11:32:41,257 - admin - INFO - Checked 5 hosts in 1537ms. Online: 5
+2025-07-02 11:33:09,348 - admin - INFO - Checked 5 hosts in 1501ms. Online: 5
+2025-07-02 11:34:09,404 - admin - INFO - Checked 5 hosts in 1489ms. Online: 5
+2025-07-02 11:35:09,451 - admin - INFO - Checked 5 hosts in 1517ms. Online: 5
+2025-07-02 11:36:09,423 - admin - INFO - Checked 5 hosts in 1516ms. Online: 5
+2025-07-02 11:37:09,423 - admin - INFO - Checked 5 hosts in 1507ms. Online: 5
+2025-07-02 11:38:09,446 - admin - INFO - Checked 5 hosts in 1517ms. Online: 5
+2025-07-02 11:39:09,464 - admin - INFO - Checked 5 hosts in 1541ms. Online: 5
+2025-07-02 11:39:17,714 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 11:39:17,926 - enterprise_admin_service - INFO - Запрос обработан за 0.2116 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 11:39:17,987 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 11:39:18,163 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 11:39:18,165 - enterprise_admin_service - INFO - Запрос обработан за 0.1788 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 11:39:25,176 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-02 11:39:25,292 - enterprise_admin_service - INFO - Запрос обработан за 0.1154 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-02 11:39:27,524 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 11:39:27,712 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 11:39:27,714 - enterprise_admin_service - INFO - Запрос обработан за 0.1904 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 11:39:29,821 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 11:39:29,989 - enterprise_admin_service - INFO - Запрос обработан за 0.1678 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 11:39:30,145 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 11:39:30,313 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 11:39:30,314 - enterprise_admin_service - INFO - Запрос обработан за 0.1697 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 11:39:31,891 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 11:39:32,099 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 11:39:32,101 - enterprise_admin_service - INFO - Запрос обработан за 0.2099 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 11:40:10,302 - admin - INFO - Checked 5 hosts in 1501ms. Online: 5
+2025-07-02 11:41:11,290 - admin - INFO - Checked 5 hosts in 1508ms. Online: 5
+2025-07-02 11:42:12,377 - admin - INFO - Checked 5 hosts in 1592ms. Online: 5
+2025-07-02 11:43:13,314 - admin - INFO - Checked 5 hosts in 1520ms. Online: 5
+2025-07-02 11:44:14,273 - admin - INFO - Checked 5 hosts in 1489ms. Online: 5
+2025-07-02 11:45:15,346 - admin - INFO - Checked 5 hosts in 1558ms. Online: 5
+2025-07-02 11:46:16,373 - admin - INFO - Checked 5 hosts in 1554ms. Online: 5
+2025-07-02 11:47:17,317 - admin - INFO - Checked 5 hosts in 1528ms. Online: 5
+2025-07-02 11:48:18,339 - admin - INFO - Checked 5 hosts in 1535ms. Online: 5
+2025-07-02 11:49:19,283 - admin - INFO - Checked 5 hosts in 1496ms. Online: 5
+2025-07-02 11:50:23,827 - admin - INFO - Checked 5 hosts in 5041ms. Online: 3
+2025-07-02 11:51:21,341 - admin - INFO - Checked 5 hosts in 1544ms. Online: 5
+2025-07-02 11:52:22,315 - admin - INFO - Checked 5 hosts in 1529ms. Online: 5
+2025-07-02 11:53:28,099 - admin - INFO - Checked 5 hosts in 6296ms. Online: 5
+2025-07-02 11:54:24,335 - admin - INFO - Checked 5 hosts in 1515ms. Online: 5
+2025-07-02 11:55:25,324 - admin - INFO - Checked 5 hosts in 1519ms. Online: 5
+2025-07-02 11:56:26,351 - admin - INFO - Checked 5 hosts in 1548ms. Online: 5
+2025-07-02 11:57:27,322 - admin - INFO - Checked 5 hosts in 1531ms. Online: 5
+2025-07-02 11:58:28,454 - admin - INFO - Checked 5 hosts in 1666ms. Online: 5
+2025-07-02 11:59:29,310 - admin - INFO - Checked 5 hosts in 1510ms. Online: 5
+2025-07-02 12:00:29,293 - admin - INFO - Checked 5 hosts in 1507ms. Online: 5
+2025-07-02 12:01:29,318 - admin - INFO - Checked 5 hosts in 1520ms. Online: 5
+2025-07-02 12:02:29,331 - admin - INFO - Checked 5 hosts in 1533ms. Online: 5
+2025-07-02 12:03:29,426 - admin - INFO - Checked 5 hosts in 1635ms. Online: 5
+2025-07-02 12:04:29,312 - admin - INFO - Checked 5 hosts in 1499ms. Online: 5
+2025-07-02 12:05:29,307 - admin - INFO - Checked 5 hosts in 1496ms. Online: 5
+2025-07-02 12:06:29,318 - admin - INFO - Checked 5 hosts in 1531ms. Online: 5
+2025-07-02 12:07:29,408 - admin - INFO - Checked 5 hosts in 1607ms. Online: 5
+2025-07-02 12:08:29,516 - admin - INFO - Checked 5 hosts in 1733ms. Online: 5
+2025-07-02 12:09:29,311 - admin - INFO - Checked 5 hosts in 1519ms. Online: 5
+2025-07-02 12:10:29,324 - admin - INFO - Checked 5 hosts in 1530ms. Online: 5
+2025-07-02 12:11:29,286 - admin - INFO - Checked 5 hosts in 1496ms. Online: 5
+2025-07-02 12:12:29,295 - admin - INFO - Checked 5 hosts in 1509ms. Online: 5
+2025-07-02 12:13:29,302 - admin - INFO - Checked 5 hosts in 1501ms. Online: 5
+2025-07-02 12:14:29,344 - admin - INFO - Checked 5 hosts in 1541ms. Online: 5
+2025-07-02 12:15:29,329 - admin - INFO - Checked 5 hosts in 1527ms. Online: 5
+2025-07-02 12:16:29,328 - admin - INFO - Checked 5 hosts in 1528ms. Online: 5
+2025-07-02 12:17:29,345 - admin - INFO - Checked 5 hosts in 1533ms. Online: 5
+2025-07-02 12:18:29,318 - admin - INFO - Checked 5 hosts in 1518ms. Online: 5
+2025-07-02 12:19:29,297 - admin - INFO - Checked 5 hosts in 1510ms. Online: 5
+2025-07-02 12:20:29,360 - admin - INFO - Checked 5 hosts in 1568ms. Online: 5
+2025-07-02 12:21:29,314 - admin - INFO - Checked 5 hosts in 1515ms. Online: 5
+2025-07-02 12:22:29,356 - admin - INFO - Checked 5 hosts in 1552ms. Online: 5
+2025-07-02 12:23:29,341 - admin - INFO - Checked 5 hosts in 1525ms. Online: 5
+2025-07-02 12:24:29,322 - admin - INFO - Checked 5 hosts in 1517ms. Online: 5
+2025-07-02 12:25:29,334 - admin - INFO - Checked 5 hosts in 1526ms. Online: 5
+2025-07-02 12:26:29,474 - admin - INFO - Checked 5 hosts in 1666ms. Online: 5
+2025-07-02 12:27:29,324 - admin - INFO - Checked 5 hosts in 1534ms. Online: 5
+2025-07-02 12:28:29,297 - admin - INFO - Checked 5 hosts in 1498ms. Online: 5
+2025-07-02 12:29:29,310 - admin - INFO - Checked 5 hosts in 1510ms. Online: 5
+2025-07-02 12:30:29,358 - admin - INFO - Checked 5 hosts in 1564ms. Online: 5
+2025-07-02 12:31:29,294 - admin - INFO - Checked 5 hosts in 1492ms. Online: 5
+2025-07-02 12:32:29,312 - admin - INFO - Checked 5 hosts in 1509ms. Online: 5
+2025-07-02 12:33:29,333 - admin - INFO - Checked 5 hosts in 1531ms. Online: 5
+2025-07-02 12:34:29,351 - admin - INFO - Checked 5 hosts in 1551ms. Online: 5
+2025-07-02 12:35:29,318 - admin - INFO - Checked 5 hosts in 1511ms. Online: 5
+2025-07-02 12:36:29,430 - admin - INFO - Checked 5 hosts in 1603ms. Online: 5
+2025-07-02 12:37:29,313 - admin - INFO - Checked 5 hosts in 1509ms. Online: 5
+2025-07-02 12:38:29,320 - admin - INFO - Checked 5 hosts in 1510ms. Online: 5
+2025-07-02 12:39:29,353 - admin - INFO - Checked 5 hosts in 1539ms. Online: 5
+2025-07-02 12:40:29,315 - admin - INFO - Checked 5 hosts in 1509ms. Online: 5
+2025-07-02 12:41:29,323 - admin - INFO - Checked 5 hosts in 1502ms. Online: 5
+2025-07-02 12:42:29,290 - admin - INFO - Checked 5 hosts in 1491ms. Online: 5
+2025-07-02 12:43:29,311 - admin - INFO - Checked 5 hosts in 1493ms. Online: 5
+2025-07-02 12:44:29,313 - admin - INFO - Checked 5 hosts in 1489ms. Online: 5
+2025-07-02 12:45:29,344 - admin - INFO - Checked 5 hosts in 1535ms. Online: 5
+2025-07-02 12:46:29,294 - admin - INFO - Checked 5 hosts in 1498ms. Online: 5
+2025-07-02 12:47:29,302 - admin - INFO - Checked 5 hosts in 1496ms. Online: 5
+2025-07-02 12:48:30,444 - admin - INFO - Checked 5 hosts in 2641ms. Online: 5
+2025-07-02 12:49:29,360 - admin - INFO - Checked 5 hosts in 1542ms. Online: 5
+2025-07-02 12:50:29,338 - admin - INFO - Checked 5 hosts in 1523ms. Online: 5
+2025-07-02 12:51:29,289 - admin - INFO - Checked 5 hosts in 1489ms. Online: 5
+2025-07-02 12:52:29,315 - admin - INFO - Checked 5 hosts in 1503ms. Online: 5
+2025-07-02 12:53:29,330 - admin - INFO - Checked 5 hosts in 1517ms. Online: 5
+2025-07-02 12:54:29,332 - admin - INFO - Checked 5 hosts in 1517ms. Online: 5
+2025-07-02 12:55:24,926 - admin - INFO - Checked 5 hosts in 5028ms. Online: 4
+2025-07-02 12:56:10,553 - admin - INFO - Checked 5 hosts in 2611ms. Online: 4
+2025-07-02 12:57:09,437 - admin - INFO - Checked 5 hosts in 1495ms. Online: 4
+2025-07-02 12:58:10,393 - admin - INFO - Checked 5 hosts in 2429ms. Online: 4
+2025-07-02 12:59:09,474 - admin - INFO - Checked 5 hosts in 1540ms. Online: 4
+2025-07-02 13:00:12,984 - admin - INFO - Checked 5 hosts in 5046ms. Online: 3
+2025-07-02 13:01:09,488 - admin - INFO - Checked 5 hosts in 1534ms. Online: 4
+2025-07-02 13:02:11,062 - admin - INFO - Checked 5 hosts in 3133ms. Online: 4
+2025-07-02 13:03:11,098 - admin - INFO - Checked 5 hosts in 3153ms. Online: 4
+2025-07-02 13:04:09,449 - admin - INFO - Checked 5 hosts in 1507ms. Online: 4
+2025-07-02 13:05:10,424 - admin - INFO - Checked 5 hosts in 2476ms. Online: 4
+2025-07-02 13:06:09,716 - admin - INFO - Checked 5 hosts in 1769ms. Online: 5
