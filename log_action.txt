@@ -11616,3 +11616,36 @@ asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exis
 2025-07-02 13:29:42,928 - enterprise_admin_service - INFO - Запрос обработан за 0.1856 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
 2025-07-02 14:10:53,681 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/internal-phones/150/details
 2025-07-02 14:10:53,874 - enterprise_admin_service - INFO - Запрос обработан за 0.1934 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/internal-phones/150/details
+2025-07-02 14:14:34,191 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0367/regenerate-config
+2025-07-02 14:14:34,524 - enterprise_admin_service - INFO - Успешная регенерация и развертывание конфига для предприятия 0367
+2025-07-02 14:14:34,525 - enterprise_admin_service - INFO - Запрос обработан за 0.3339 сек. Статус: 200. Адрес: POST https://bot.vochi.by/enterprise/0367/regenerate-config
+2025-07-02 14:15:19,560 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/internal-phones/150/details
+2025-07-02 14:15:19,771 - enterprise_admin_service - INFO - Запрос обработан за 0.2113 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/internal-phones/150/details
+2025-07-02 14:24:58,954 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:24:58,957 - enterprise_admin_service - INFO - Запрос обработан за 0.0028 сек. Статус: 307. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:31:35,734 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:31:35,739 - enterprise_admin_service - INFO - Запрос обработан за 0.0053 сек. Статус: 307. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:33:47,101 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 14:33:47,320 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 14:33:47,323 - enterprise_admin_service - INFO - Запрос обработан за 0.2224 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 14:34:22,891 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:34:22,892 - enterprise_admin_service - INFO - Запрос обработан за 0.0010 сек. Статус: 307. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:34:41,565 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:34:41,566 - enterprise_admin_service - INFO - Запрос обработан за 0.0015 сек. Статус: 307. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:38:14,097 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:38:14,100 - enterprise_admin_service - INFO - Запрос обработан за 0.0026 сек. Статус: 307. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:39:45,863 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/admin/check-internal-phones-ip/0367
+2025-07-02 14:39:45,866 - enterprise_admin_service - INFO - Запрос обработан за 0.0036 сек. Статус: 404. Адрес: GET http://localhost:8004/admin/check-internal-phones-ip/0367
+2025-07-02 14:39:58,201 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/admin/check-internal-phones-ip/0367
+2025-07-02 14:39:58,202 - enterprise_admin_service - INFO - Запрос обработан за 0.0012 сек. Статус: 404. Адрес: GET http://localhost:8004/admin/check-internal-phones-ip/0367
+2025-07-02 14:40:36,648 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:40:36,922 - enterprise_admin_service - INFO - Запрос обработан за 0.2744 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 14:40:37,132 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 14:40:37,325 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 14:40:37,336 - enterprise_admin_service - INFO - Запрос обработан за 0.2038 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 14:40:38,582 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-02 14:40:41,142 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 14:40:41,326 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 14:40:41,328 - enterprise_admin_service - INFO - Запрос обработан за 0.1864 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 14:40:42,455 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-02 15:19:12,612 - admin - INFO - Checked 5 hosts in 1536ms. Online: 5

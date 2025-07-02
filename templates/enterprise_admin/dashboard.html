@@ -549,6 +549,7 @@
         let currentEditingUser = null;
         let usersDataCache = null;
         let allLinesCache = null;
+        let internalPhonesIpCache = null; // Кэш для IP адресов внутренних линий
         let iti = null;
         let returnToSelectLinesModalAfterCreation = false;
 
@@ -731,9 +732,26 @@
         const fetchUsers = async () => {
             usersTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center">Загрузка...</td></tr>`;
             try {
-                const response = await fetch(`/enterprise/${enterpriseNumber}/users`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                usersDataCache = await response.json();
+                // Загружаем пользователей и IP адреса внутренних линий параллельно
+                const [usersResponse, ipResponse] = await Promise.all([
+                    fetch(`/enterprise/${enterpriseNumber}/users`),
+                    fetch(`/admin/check-internal-phones-ip/${enterpriseNumber}`)
+                ]);
+                
+                if (!usersResponse.ok) throw new Error(`HTTP ${usersResponse.status}`);
+                usersDataCache = await usersResponse.json();
+                
+                // Загружаем IP адреса (не критично, если не получится)
+                if (ipResponse.ok) {
+                    const ipData = await ipResponse.json();
+                    if (ipData.success) {
+                        internalPhonesIpCache = ipData.internal_phones;
+                    }
+                } else {
+                    console.warn('Failed to load internal phones IP data:', ipResponse.status);
+                    internalPhonesIpCache = null;
+                }
+                
                 renderUsersTable();
             } catch (error) {
                 usersTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center">Ошибка загрузки: ${error.message}</td></tr>`;
@@ -878,10 +896,26 @@
                         ? `<a href="#" data-action="edit-internal-line" data-phone-number="${phoneNumber}">${formattedNumber}</a>`
                         : formattedNumber;
 
+                    // Получаем IP адрес для внутренней линии
+                    let ipRegisterCell = '';
+                    if (isInternal && internalPhonesIpCache && internalPhonesIpCache[phoneNumber]) {
+                        const phoneData = internalPhonesIpCache[phoneNumber];
+                        const ipAddress = phoneData.ip_address || '';
+                        const status = phoneData.status;
+                        
+                        if (ipAddress) {
+                            // Раскрашиваем IP в зависимости от статуса
+                            const ipColor = status === 'online' ? '#28a745' : '#dc3545';
+                            ipRegisterCell = `<span style="color: ${ipColor}; font-weight: 500;">${ipAddress}</span>`;
+                        } else {
+                            ipRegisterCell = '<span style="color: #6c757d;">—</span>';
+                        }
+                    }
+
                     // Колонки линии
                     row.innerHTML = `
                         <td>${numberCellHtml}</td>
-                        <td></td>
+                        <td>${ipRegisterCell}</td>
                         <td>${formatSchemaCount(line.incoming_schema_names)}</td>
                         <td>${line.outgoing_schema_name || ''}</td>
                     `;
