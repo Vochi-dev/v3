@@ -55,6 +55,14 @@
       /* font-weight: 500; -- убрал, так как в примере его нет для этого элемента */
       /* cursor: pointer; -- если не кликабельно, то не нужно */
     }
+    .enterprise-card .line-stats {
+      font-size: 12px;
+      color: #666;
+      margin-left: 15px;
+      margin-top: 2px;
+      font-family: monospace; /* Моноширинный шрифт для выравнивания цифр */
+      line-height: 1.1;
+    }
     /* Старые стили кнопки, если они еще где-то используются */
     .button {
       display: inline-block;
@@ -136,6 +144,7 @@
           <div class="enterprise-card" data-name="{{ enterprise.name }}" data-number="{{ enterprise.number }}" data-ip="{{ enterprise.ip }}" data-name2="{{ enterprise.name2 }}" style="cursor: pointer;">
             <div class="name-container">
                 <p class="name">{{ enterprise.name }}</p>
+                <div class="line-stats" id="stats-{{ enterprise.number }}">—/— —/— —/—</div>
             </div>
             <!-- Другая информация будет здесь -->
           </div>
@@ -244,7 +253,7 @@
         }
         
                  // Обновление визуального состояния карточки
-         function updateCardStatus(enterpriseNumber, status, responseTime = null, sipPeers = null, errorMessage = null) {
+         function updateCardStatus(enterpriseNumber, status, responseTime = null, sipPeers = null, lineStats = null, errorMessage = null) {
              const card = document.querySelector(`.enterprise-card[data-number="${enterpriseNumber}"]`);
              if (!card) return;
              
@@ -254,12 +263,33 @@
              // Добавляем нужный класс
              card.classList.add(`status-${status}`);
              
+             // Обновляем статистику линий
+             const statsElement = document.getElementById(`stats-${enterpriseNumber}`);
+             if (statsElement) {
+                 if (lineStats) {
+                     // Отображаем детальную статистику: GSM/SIP/Внутренние
+                     const gsmStats = `${lineStats.gsm_online}/${lineStats.gsm_total}`;
+                     const sipStats = `${lineStats.sip_online}/${lineStats.sip_total}`;
+                     const internalStats = `${lineStats.internal_online}/${lineStats.internal_total}`;
+                     statsElement.textContent = `${gsmStats} ${sipStats} ${internalStats}`;
+                 } else {
+                     // Офлайн или нет данных
+                     statsElement.textContent = '—/— —/— —/—';
+                 }
+             }
+             
              // Обновляем title для подсказки
              let title = `Предприятие ${enterpriseNumber}`;
              if (status === 'online') {
-                 if (responseTime !== null && sipPeers !== null) {
-                     // Полностью онлайн
-                     title += `\nСтатус: Онлайн\nВремя отклика: ${responseTime}мс\nSIP peers: ${sipPeers}`;
+                 if (responseTime !== null && lineStats) {
+                     // Полностью онлайн с детальной статистикой
+                     title += `\nСтатус: Онлайн\nВремя отклика: ${responseTime}мс`;
+                     title += `\nGSM линии: ${lineStats.gsm_online}/${lineStats.gsm_total}`;
+                     title += `\nSIP линии: ${lineStats.sip_online}/${lineStats.sip_total}`;
+                     title += `\nВнутренние: ${lineStats.internal_online}/${lineStats.internal_total}`;
+                     if (sipPeers !== null) {
+                         title += `\nВсего peers: ${sipPeers}`;
+                     }
                  } else if (failureCounters[enterpriseNumber] > 0) {
                      // Онлайн, но есть неудачные попытки
                      title += `\nСтатус: Онлайн (проблемы)\nНеудачных попыток: ${failureCounters[enterpriseNumber]}/3`;
@@ -302,7 +332,7 @@
                              // Хост онлайн - сбрасываем счетчик неудач и сразу зеленым
                              failureCounters[enterpriseNumber] = 0;
                              hostStatuses[enterpriseNumber] = 'online';
-                             updateCardStatus(enterpriseNumber, 'online', host.response_time_ms, host.sip_peers);
+                             updateCardStatus(enterpriseNumber, 'online', host.response_time_ms, host.sip_peers, host.line_stats);
                          } else {
                              // Хост офлайн - увеличиваем счетчик
                              failureCounters[enterpriseNumber]++;
@@ -310,11 +340,11 @@
                              if (failureCounters[enterpriseNumber] >= 3) {
                                  // После 3-х неудач помечаем как офлайн (красным)
                                  hostStatuses[enterpriseNumber] = 'offline';
-                                 updateCardStatus(enterpriseNumber, 'offline', null, null, host.error_message);
+                                 updateCardStatus(enterpriseNumber, 'offline', null, null, null, host.error_message);
                              } else {
                                  // До 3-х неудач остается зеленым
                                  hostStatuses[enterpriseNumber] = 'online';
-                                 updateCardStatus(enterpriseNumber, 'online', null, null, `Попытка ${failureCounters[enterpriseNumber]}/3: ${host.error_message}`);
+                                 updateCardStatus(enterpriseNumber, 'online', null, null, null, `Попытка ${failureCounters[enterpriseNumber]}/3: ${host.error_message}`);
                              }
                          }
                      });
