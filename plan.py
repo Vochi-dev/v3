@@ -8,6 +8,8 @@ import hashlib
 import logging
 import re
 from collections import defaultdict
+import asyncio
+import subprocess
 
 app = FastAPI()
 
@@ -100,6 +102,81 @@ def generate_context_name(schema_id, node_id, suffix=None):
 
 def generate_department_context_name(enterprise_id, department_number):
      return hashlib.md5(f"dep-{enterprise_id}-{department_number}".encode()).hexdigest()[:8]
+
+async def deploy_config_to_asterisk(host_ip: str, local_config_path: str, enterprise_id: str) -> dict:
+    """Деплой extensions.conf на удаленный Asterisk хост"""
+    
+    # SSH параметры (константы)
+    SSH_PORT = 5059
+    SSH_USER = "root" 
+    SSH_PASSWORD = "5atx9Ate@pbx"
+    REMOTE_PATH = "/etc/asterisk/extensions.conf"
+    
+    logging.info(f"Starting deployment to Asterisk host {host_ip} for enterprise {enterprise_id}")
+    
+    try:
+        # 1. Копируем файл на хост
+        scp_cmd = [
+            "sshpass", "-p", SSH_PASSWORD,
+            "scp", "-P", str(SSH_PORT), "-o", "StrictHostKeyChecking=no",
+            local_config_path, f"{SSH_USER}@{host_ip}:{REMOTE_PATH}"
+        ]
+        
+        logging.info(f"Copying config file to {host_ip}...")
+        scp_result = await asyncio.wait_for(
+            asyncio.create_subprocess_exec(
+                *scp_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            ),
+            timeout=10.0
+        )
+        
+        scp_stdout, scp_stderr = await scp_result.communicate()
+        
+        if scp_result.returncode != 0:
+            error_msg = scp_stderr.decode().strip() if scp_stderr else "Unknown SCP error"
+            logging.error(f"SCP failed for {host_ip}: {error_msg}")
+            return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+        
+        logging.info(f"Config file successfully copied to {host_ip}")
+        
+        # 2. Перезагружаем диалплан и SIP
+        reload_cmd = [
+            "sshpass", "-p", SSH_PASSWORD,
+            "ssh", "-p", str(SSH_PORT), "-o", "StrictHostKeyChecking=no",
+            f"{SSH_USER}@{host_ip}",
+            'asterisk -rx "dialplan reload" && asterisk -rx "sip reload"'
+        ]
+        
+        logging.info(f"Reloading Asterisk on {host_ip}...")
+        reload_result = await asyncio.wait_for(
+            asyncio.create_subprocess_exec(
+                *reload_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            ),
+            timeout=10.0
+        )
+        
+        reload_stdout, reload_stderr = await reload_result.communicate()
+        
+        if reload_result.returncode != 0:
+            error_msg = reload_stderr.decode().strip() if reload_stderr else "Unknown reload error"
+            logging.error(f"Asterisk reload failed for {host_ip}: {error_msg}")
+            return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+        
+        logging.info(f"Asterisk successfully reloaded on {host_ip}")
+        logging.info(f"Reload output: {reload_stdout.decode().strip()}")
+        
+        return {"success": True, "message": "Схемы звонков обновлены"}
+        
+    except asyncio.TimeoutError:
+        logging.error(f"Timeout while deploying config to {host_ip}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
+    except Exception as e:
+        logging.error(f"Unexpected error deploying to {host_ip}: {str(e)}")
+        return {"success": False, "message": "Нет связи с АТС, повторите попытку позже"}
 
 def generate_dial_in_context(schema_id, node, nodes, edges, music_files_info, dialexecute_contexts_map, user_phones_map):
     """Генерирует диалплан для узла 'Звонок на список номеров' с учетом внешних номеров."""
@@ -737,8 +814,27 @@ async def generate_config(request: GenerateConfigRequest):
         with open(config_path, "w") as f:
             f.write(final_config)
 
+        # --- Асинхронное развертывание на Asterisk хост ---
+        deployment_result = {"success": False, "message": "Развертывание не выполнялось"}
+        
+        # Получаем IP хоста предприятия
+        enterprise_ip = await conn.fetchval("SELECT ip FROM enterprises WHERE number = $1 AND is_enabled = true", enterprise_id)
+        if enterprise_ip and enterprise_ip.strip():
+            logging.info(f"Found enterprise IP: {enterprise_ip} for enterprise {enterprise_id}")
+            # Запускаем развертывание асинхронно в фоне
+            asyncio.create_task(deploy_config_to_asterisk(enterprise_ip, str(config_path), enterprise_id))
+            deployment_result = {"success": True, "message": "Схемы звонков обновлены"}
+        else:
+            logging.warning(f"No IP found or enterprise disabled for enterprise {enterprise_id}")
+            deployment_result = {"success": False, "message": "IP адрес АТС не настроен"}
+
         logging.info(f"--- Finished config generation for enterprise: {enterprise_id} ---")
-        return {"message": "Config generated", "path": str(config_path), "config": final_config}
+        return {
+            "message": "Config generated", 
+            "path": str(config_path), 
+            "config": final_config,
+            "deployment": deployment_result
+        }
 
     except Exception as e:
         logging.error(f"Error generating config: {e}", exc_info=True)
