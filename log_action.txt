@@ -11237,3 +11237,54 @@ asyncpg.exceptions.UndefinedColumnError: column osa.goip_line_name does not exis
 2025-07-02 07:30:20,740 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0367/hold/g3cqsvjr.wav
 2025-07-02 07:30:20,740 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0367/hold/g3cqsvjr.wav с media_type audio/wav
 2025-07-02 07:30:20,741 - enterprise_admin_service - INFO - Запрос обработан за 0.2033 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/8
+2025-07-02 07:46:36,138 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-02 07:46:36,325 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0367.
+2025-07-02 07:46:36,326 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 9, 'display_name': 'Надежда', 'file_type': 'start', 'file_path': 'music/0367/start/hhfsnyeg.wav', 'original_filename': 'e79fe7ec-6a73-4714-b3d2-78f34d6bd0de.wav', 'created_at': '2025-07-02T06:43:10.421124+00:00', 'used_in_schemas': ['Входящая схема 1']}, {'id': 8, 'display_name': 'Sopranos', 'file_type': 'hold', 'file_path': 'music/0367/hold/g3cqsvjr.wav', 'original_filename': 'be206365-095b-491e-b6c7-3cad47778413.wav', 'created_at': '2025-07-02T06:42:33.168594+00:00', 'used_in_schemas': ['Входящая схема 1']}]
+2025-07-02 07:46:36,328 - enterprise_admin_service - INFO - Запрос обработан за 0.1903 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-02 08:10:21,182 - enterprise_admin_service - INFO - Получен запрос: POST http://localhost:8004/enterprise/0367/regenerate-musiconhold-conf
+2025-07-02 08:10:21,259 - enterprise_admin_service - INFO - Запрос обработан за 0.0776 сек. Статус: 307. Адрес: POST http://localhost:8004/enterprise/0367/regenerate-musiconhold-conf
+2025-07-02 08:10:33,007 - enterprise_admin_service - INFO - Получен запрос: POST http://localhost:8004/enterprise/0367/regenerate-musiconhold-conf
+2025-07-02 08:10:42,891 - enterprise_admin_service - INFO - Успешное развертывание всех аудиофайлов для предприятия 0367
+2025-07-02 08:10:42,894 - enterprise_admin_service - INFO - Запрос обработан за 9.8871 сек. Статус: 200. Адрес: POST http://localhost:8004/enterprise/0367/regenerate-musiconhold-conf
+2025-07-02 08:11:53,087 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 08:11:53,336 - enterprise_admin_service - INFO - Запрос обработан за 0.2497 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 08:11:53,526 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 08:11:53,724 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 08:11:53,726 - enterprise_admin_service - INFO - Запрос обработан за 0.1999 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 08:11:55,654 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-02 08:11:55,829 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0367.
+2025-07-02 08:11:55,831 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 9, 'display_name': 'Надежда', 'file_type': 'start', 'file_path': 'music/0367/start/hhfsnyeg.wav', 'original_filename': 'e79fe7ec-6a73-4714-b3d2-78f34d6bd0de.wav', 'created_at': '2025-07-02T06:43:10.421124+00:00', 'used_in_schemas': ['Входящая схема 1']}, {'id': 8, 'display_name': 'Sopranos', 'file_type': 'hold', 'file_path': 'music/0367/hold/g3cqsvjr.wav', 'original_filename': 'be206365-095b-491e-b6c7-3cad47778413.wav', 'created_at': '2025-07-02T06:42:33.168594+00:00', 'used_in_schemas': ['Входящая схема 1']}]
+2025-07-02 08:11:55,832 - enterprise_admin_service - INFO - Запрос обработан за 0.1776 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-02 08:11:57,692 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0367/regenerate-musiconhold-conf
+2025-07-02 08:12:07,455 - enterprise_admin_service - INFO - Успешное развертывание всех аудиофайлов для предприятия 0367
+2025-07-02 08:12:07,457 - enterprise_admin_service - INFO - Запрос обработан за 9.7646 сек. Статус: 200. Адрес: POST https://bot.vochi.by/enterprise/0367/regenerate-musiconhold-conf
+2025-07-02 08:14:21,390 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 08:14:21,558 - enterprise_admin_service - INFO - Запрос обработан за 0.1677 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 08:14:21,637 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 08:14:21,867 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 08:14:21,869 - enterprise_admin_service - INFO - Запрос обработан за 0.2322 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 08:14:31,053 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-02 08:14:31,240 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0367.
+2025-07-02 08:14:31,241 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 9, 'display_name': 'Надежда', 'file_type': 'start', 'file_path': 'music/0367/start/hhfsnyeg.wav', 'original_filename': 'e79fe7ec-6a73-4714-b3d2-78f34d6bd0de.wav', 'created_at': '2025-07-02T06:43:10.421124+00:00', 'used_in_schemas': ['Входящая схема 1']}, {'id': 8, 'display_name': 'Sopranos', 'file_type': 'hold', 'file_path': 'music/0367/hold/g3cqsvjr.wav', 'original_filename': 'be206365-095b-491e-b6c7-3cad47778413.wav', 'created_at': '2025-07-02T06:42:33.168594+00:00', 'used_in_schemas': ['Входящая схема 1']}]
+2025-07-02 08:14:31,244 - enterprise_admin_service - INFO - Запрос обработан за 0.1903 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-02 08:14:31,282 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/audiofile/9
+2025-07-02 08:14:31,378 - enterprise_admin_service - INFO - AUDIO_STREAM: Попытка отдать файл id: 9 для предприятия: 0367
+2025-07-02 08:14:31,491 - enterprise_admin_service - INFO - AUDIO_STREAM: Найден относительный путь в БД: music/0367/start/hhfsnyeg.wav
+2025-07-02 08:14:31,492 - enterprise_admin_service - INFO - AUDIO_STREAM: Сконструирован абсолютный путь: /root/asterisk-webhook/music/0367/start/hhfsnyeg.wav
+2025-07-02 08:14:31,492 - enterprise_admin_service - INFO - AUDIO_STREAM: Отдаю файл /root/asterisk-webhook/music/0367/start/hhfsnyeg.wav с media_type audio/wav
+2025-07-02 08:14:31,495 - enterprise_admin_service - INFO - Запрос обработан за 0.2127 сек. Статус: 206. Адрес: GET https://bot.vochi.by/audiofile/9
+2025-07-02 08:14:58,107 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-02 08:14:58,188 - enterprise_admin_service - INFO - Запрос обработан за 0.0817 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-02 08:15:03,326 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 08:15:03,545 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 1 строк.
+2025-07-02 08:15:03,545 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=6 line_name='3880923' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 1' outgoing_schema_names=[]>]
+2025-07-02 08:15:03,548 - enterprise_admin_service - INFO - Запрос обработан за 0.2220 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 08:15:06,880 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 08:15:07,047 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 1 строк.
+2025-07-02 08:15:07,047 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=6 line_name='3880923' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 1' outgoing_schema_names=[]>]
+2025-07-02 08:15:07,050 - enterprise_admin_service - INFO - Запрос обработан за 0.1703 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-02 08:15:09,748 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 08:15:09,909 - enterprise_admin_service - INFO - Запрос обработан за 0.1614 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-02 08:15:09,987 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-02 08:15:10,175 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-02 08:15:10,177 - enterprise_admin_service - INFO - Запрос обработан за 0.1907 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
