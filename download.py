@@ -130,7 +130,7 @@ def get_remote_hangup_events(enterprise_id: str, db_file: str) -> List[Dict]:
     if not config:
         raise ValueError(f"Конфигурация для предприятия {enterprise_id} не найдена")
     
-    cmd = f'sshpass -p "{config["ssh_password"]}" ssh -p {config["ssh_port"]} -o StrictHostKeyChecking=no root@{config["host"]} \'sqlite3 {db_file} "SELECT DateTime, Uniqueid, request FROM APIlogs WHERE event = \\"hangup\\" ORDER BY DateTime;"\''
+    cmd = f'sshpass -p "{config["ssh_password"]}" ssh -p {config["ssh_port"]} -o StrictHostKeyChecking=no root@{config["ip"]} \'sqlite3 {db_file} "SELECT DateTime, Uniqueid, request FROM APIlogs WHERE event = \\"hangup\\" ORDER BY DateTime;"\''
     
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
@@ -169,11 +169,11 @@ def get_remote_failed_hangup_events(enterprise_id: str, db_file: str) -> List[Di
     if not config:
         raise ValueError(f"Конфигурация для предприятия {enterprise_id} не найдена")
     
-    # Ищем в таблице AlternativeAPIlogs события hangup со статусом НЕ ok
-    cmd = f'sshpass -p "{config["ssh_password"]}" ssh -p {config["ssh_port"]} -o StrictHostKeyChecking=no root@{config["host"]} \'sqlite3 {db_file} "SELECT DateTime, Uniqueid, request, status, response FROM AlternativeAPIlogs WHERE event = \\"hangup\\" AND (status IS NULL OR status != \\"ok\\") ORDER BY DateTime;"\''
+    # Ищем в таблице AlternativeAPIlogs события hangup со статусом НЕ успешным (не <Response [200]>)
+    cmd = f'sshpass -p "{config["ssh_password"]}" ssh -p {config["ssh_port"]} -o StrictHostKeyChecking=no root@{config["ip"]} \'sqlite3 {db_file} "SELECT DateTime, Uniqueid, request, status, response FROM AlternativeAPIlogs WHERE event = \\"hangup\\" AND (status IS NULL OR status NOT LIKE \\"<Response [200]>%\\") ORDER BY DateTime;"\''
     
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
             logger.error(f"Ошибка выполнения команды: {result.stderr}")
             return []
@@ -216,7 +216,7 @@ def get_remote_db_files(enterprise_id: str, date_from: str = None, date_to: str 
     if not config:
         return []
     
-    cmd = f'sshpass -p "{config["ssh_password"]}" ssh -p {config["ssh_port"]} -o StrictHostKeyChecking=no root@{config["host"]} \'ls -1 /var/log/asterisk/Listen_AMI_*.db\''
+    cmd = f'sshpass -p "{config["ssh_password"]}" ssh -p {config["ssh_port"]} -o StrictHostKeyChecking=no root@{config["ip"]} \'ls -1 /var/log/asterisk/Listen_AMI_*.db\''
     
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
@@ -289,7 +289,7 @@ def parse_call_data(event: Dict, enterprise_id: str) -> Dict:
         'call_type': call_type,
         'call_status': call_status,
         'data_source': 'downloaded',
-        'asterisk_host': config['host'],
+        'asterisk_host': config['ip'],
         'raw_data': json.dumps(data),
         'extensions': extensions
     }
@@ -366,7 +366,8 @@ def insert_participants_to_db(cursor, call_id: int, extensions: List[str], call_
 
 def update_sync_stats(cursor, enterprise_id: str, total_downloaded: int, new_events: int, failed_events: int):
     """Обновить статистику синхронизации"""
-    config = ENTERPRISE_CONFIGS[enterprise_id]
+    active_enterprises = get_active_enterprises()
+    config = active_enterprises[enterprise_id]
     
     upsert_sql = """
     INSERT INTO download_sync (
@@ -414,19 +415,25 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
             new_events = 0
             failed_events = 0
             
+            logger.info(f"Найдено {total_downloaded} неуспешных событий hangup для {ent_id}")
+            
             if events:
-                logger.info(f"Найдено {total_downloaded} неуспешных событий hangup")
                 
                 with get_db_connection() as conn:
                     with conn.cursor() as cursor:
                         for event in events:
                             try:
+                                unique_id = event['unique_id']
+                                logger.info(f"Обрабатываю событие {unique_id}")
+                                
                                 # Проверяем, нет ли уже такого события
                                 cursor.execute(
                                     "SELECT id FROM calls WHERE unique_id = %s",
-                                    (event['unique_id'],)
+                                    (unique_id,)
                                 )
-                                if cursor.fetchone():
+                                existing = cursor.fetchone()
+                                if existing:
+                                    logger.info(f"Событие {unique_id} уже есть в БД")
                                     continue  # Уже есть в БД
                                 
                                 # Парсим и вставляем
@@ -437,11 +444,14 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                 if call_id:
                                     insert_participants_to_db(cursor, call_id, call_data['extensions'], call_data)
                                     new_events += 1
+                                    logger.info(f"Добавлено новое live событие {unique_id}")
+                                else:
+                                    logger.warning(f"Не удалось вставить событие {unique_id}")
                                 
                                 conn.commit()
                                 
                             except Exception as e:
-                                logger.error(f"Ошибка обработки события {event['unique_id']}: {e}")
+                                logger.error(f"Ошибка обработки события {event.get('unique_id', 'unknown')}: {e}")
                                 failed_events += 1
                         
                         # Обновляем статистику
@@ -769,6 +779,48 @@ async def get_live_sync_status():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка получения статуса: {str(e)}")
+
+@app.get("/sync/live/today")
+async def get_live_events_today():
+    """Получить количество live событий за текущий день по предприятиям"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Получаем live события за сегодня по предприятиям
+        cursor.execute("""
+            SELECT enterprise_id, COUNT(*) as count
+            FROM calls 
+            WHERE data_source = 'live' 
+              AND DATE(start_time) = CURRENT_DATE
+            GROUP BY enterprise_id
+            ORDER BY enterprise_id
+        """)
+        
+        today_stats = {}
+        total_today = 0
+        
+        for row in cursor.fetchall():
+            enterprise_id = row[0]
+            count = row[1]
+            today_stats[enterprise_id] = count
+            total_today += count
+        
+        # Получаем список всех активных предприятий для полноты картины
+        active_enterprises = get_active_enterprises()
+        for enterprise_id in active_enterprises.keys():
+            if enterprise_id not in today_stats:
+                today_stats[enterprise_id] = 0
+        
+        conn.close()
+        return {
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "total_live_events_today": total_today,
+            "by_enterprise": today_stats
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка получения статистики: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

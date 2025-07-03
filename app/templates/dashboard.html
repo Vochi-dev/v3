@@ -63,6 +63,15 @@
       font-family: sans-serif; /* Тот же шрифт что и у названий */
       line-height: 1.1;
     }
+    .enterprise-card .live-events {
+      font-size: 11px;
+      color: #007bff;
+      margin-left: 15px;
+      margin-top: 1px;
+      font-family: sans-serif;
+      font-weight: 500;
+      line-height: 1.1;
+    }
     /* Старые стили кнопки, если они еще где-то используются */
     .button {
       display: inline-block;
@@ -145,6 +154,7 @@
             <div class="name-container">
                 <p class="name">{{ enterprise.name }}</p>
                 <div class="line-stats" id="stats-{{ enterprise.number }}">—/— —/— —/—</div>
+                <div class="live-events" id="live-{{ enterprise.number }}">Live: —</div>
             </div>
             <!-- Другая информация будет здесь -->
           </div>
@@ -417,6 +427,80 @@
             }
         }
         
+        // ============================================
+        // СИСТЕМА МОНИТОРИНГА LIVE СОБЫТИЙ
+        // ============================================
+        
+        let liveEventsInterval = null; // Интервал для проверки live событий
+        
+        // Функция обновления live статистики
+        function updateLiveEventsDisplay(data) {
+            console.log('[Live Events] Обновление статистики:', data);
+            
+            // Обновляем счетчики для каждого предприятия
+            Object.keys(data.by_enterprise).forEach(enterpriseNumber => {
+                const liveElement = document.getElementById(`live-${enterpriseNumber}`);
+                if (liveElement) {
+                    const count = data.by_enterprise[enterpriseNumber];
+                    liveElement.textContent = `Live: ${count}`;
+                    
+                    // Добавляем информацию в title карточки
+                    const card = document.querySelector(`.enterprise-card[data-number="${enterpriseNumber}"]`);
+                    if (card && count > 0) {
+                        let currentTitle = card.title || `Предприятие ${enterpriseNumber}`;
+                        // Убираем старую информацию о live событиях, если есть
+                        currentTitle = currentTitle.replace(/\nLive события за сегодня: \d+/g, '');
+                        currentTitle += `\nLive события за сегодня: ${count}`;
+                        card.title = currentTitle;
+                    }
+                }
+            });
+        }
+        
+        // Загрузка live статистики
+        async function loadLiveEventsStats() {
+            try {
+                console.log('[Live Events] Загрузка статистики...');
+                const response = await fetch('/admin/live-events-today');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                updateLiveEventsDisplay(data);
+                
+            } catch (error) {
+                console.error('[Live Events] Ошибка загрузки статистики:', error);
+                // При ошибке показываем недоступность сервиса
+                document.querySelectorAll('[id^="live-"]').forEach(element => {
+                    element.textContent = 'Live: ?';
+                });
+            }
+        }
+        
+        // Запуск мониторинга live событий
+        function startLiveEventsMonitoring() {
+            console.log('[Live Events] Запуск мониторинга live событий...');
+            
+            // Первая загрузка сразу
+            loadLiveEventsStats();
+            
+            // Обновление каждые 2 минуты
+            liveEventsInterval = setInterval(loadLiveEventsStats, 120000);
+            
+            console.log('[Live Events] Мониторинг live событий запущен');
+        }
+        
+        // Остановка мониторинга live событий
+        function stopLiveEventsMonitoring() {
+            if (liveEventsInterval) {
+                clearInterval(liveEventsInterval);
+                liveEventsInterval = null;
+                console.log('[Live Events] Мониторинг live событий остановлен');
+            }
+        }
+        
         // Запуск мониторинга
         function startMonitoring() {
             console.log('[Мониторинг] Запуск системы мониторинга...');
@@ -458,11 +542,17 @@
                 failureCounters = {};
                 hostLineStats = {};
                 console.log('[Мониторинг] Состояния очищены');
+            },
+            liveEvents: {
+                start: startLiveEventsMonitoring,
+                stop: stopLiveEventsMonitoring,
+                check: loadLiveEventsStats
             }
         };
         
         // Автоматический запуск мониторинга при загрузке страницы
         startMonitoring();
+        startLiveEventsMonitoring();
     });
   </script>
 

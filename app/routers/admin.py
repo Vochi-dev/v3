@@ -992,6 +992,36 @@ async def check_hosts(request: Request):
         }, status_code=500)
 
 
+@router.get("/live-events-today", response_class=JSONResponse)
+async def get_live_events_today(request: Request):
+    """Получить количество live событий за текущий день по предприятиям"""
+    require_login(request)
+    
+    try:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.get('http://localhost:8007/sync/live/today') as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return JSONResponse(data)
+                else:
+                    logger.error(f"Ошибка получения статистики из download service: {response.status}")
+                    return JSONResponse({
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "total_live_events_today": 0,
+                        "by_enterprise": {},
+                        "error": "Сервис синхронизации недоступен"
+                    }, status_code=500)
+                    
+    except Exception as e:
+        logger.error(f"Ошибка получения статистики live событий: {e}", exc_info=True)
+        return JSONResponse({
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "total_live_events_today": 0,
+            "by_enterprise": {},
+            "error": str(e)
+        }, status_code=500)
+
 @router.get("/check-internal-phones-ip/{enterprise_number}", response_class=JSONResponse)
 async def check_internal_phones_ip(enterprise_number: str, request: Request):
     """Получение IP адресов регистрации внутренних линий для конкретного предприятия"""
