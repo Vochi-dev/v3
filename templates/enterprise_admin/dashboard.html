@@ -1347,14 +1347,131 @@
                     '<div id="editLineError" class="error-message" style="display:none;color:#721c24;background:#f8d7da;border:1px solid #f5c6cb;padding:0.75rem 1.25rem;margin-bottom:1rem;border-radius:0.25rem;"></div>'+
                     '<form id="editLineForm">'+
                     '<input type="hidden" id="editLineIdInput" name="id" value="'+lineId+'">'+
-                    '<div class="form-group"><label for="editLineName">Наименование (line_name):</label><input type="text" id="editLineName" name="line_name" class="form-group"></div>'+
-                    '<div class="form-group"><label for="editLinePhone">Номер (phone_number):</label><input type="tel" id="editLinePhone" name="phone_number" class="form-group"></div>'+
+                    '<div class="form-group"><label for="editLineName">Наименование линии:</label><input type="text" id="editLineName" name="line_name" class="form-group" disabled></div>'+
+                    '<div class="form-group"><label for="editLinePhone">Номер телефона:</label><input type="tel" id="editLinePhone" name="phone_number" class="form-group"></div>'+
                     '</form>'+
                     '<div class="form-group" style="margin-top:1rem;"><label>Префикс (prefix):</label> <span id="editLinePrefix" style="font-weight:500;"></span></div>'+
                     '<div class="button-bar" style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1.5rem;">'+
                     '<button type="submit" class="button btn btn-primary" form="editLineForm">Сохранить</button>'+
                     '<button type="button" class="button button-secondary btn btn-secondary" id="cancelEditLineModal">Отмена</button>'+
                     '</div></div></div></div>';
+                // Инициализируем intlTelInput для поля номера GSM-линии
+                let gsmIti = null;
+                let mobilesData = null; // Кэш данных операторов
+                
+                // Загружаем данные операторов
+                const loadMobilesData = async () => {
+                    if (mobilesData) return mobilesData;
+                    try {
+                        // Используем эндпоинт основного сервиса
+                        const response = await fetch('/admin/mobile/operators');
+                        if (response.ok) {
+                            mobilesData = await response.json();
+                        } else {
+                            console.error('Ошибка загрузки операторов:', response.status);
+                        }
+                    } catch (e) {
+                        console.warn('Не удалось загрузить данные операторов:', e);
+                    }
+                    return mobilesData;
+                };
+                
+                // Определение оператора по номеру телефона
+                const determineOperator = (phoneNumber) => {
+                    console.log('determineOperator called with:', phoneNumber);
+                    console.log('mobilesData:', mobilesData);
+                    
+                    if (!mobilesData || !phoneNumber) {
+                        console.log('No mobilesData or phoneNumber');
+                        return '';
+                    }
+                    
+                    // Убираем + и пробелы из номера
+                    const cleanNumber = phoneNumber.replace(/[\s\+\-\(\)]/g, '');
+                    console.log('cleanNumber:', cleanNumber);
+                    
+                    // Проверяем минимальную длину (6 символов)
+                    if (cleanNumber.length < 6) {
+                        console.log('Number too short, need at least 6 digits');
+                        return '';
+                    }
+                    
+                    // Сортируем операторов по длине шаблона (от более специфичных к менее специфичным)
+                    const sortedMobiles = [...mobilesData].sort((a, b) => {
+                        const aLength = a.shablon ? a.shablon.replace(/[\^\(\)\|]/g, '').length : 0;
+                        const bLength = b.shablon ? b.shablon.replace(/[\^\(\)\|]/g, '').length : 0;
+                        return bLength - aLength; // Сортировка по убыванию длины
+                    });
+                    
+                    console.log('Sorted operators by specificity:', sortedMobiles.map(m => `${m.name}: ${m.shablon}`));
+                    
+                    for (const mobile of sortedMobiles) {
+                        if (mobile.shablon) {
+                            try {
+                                const regex = new RegExp(mobile.shablon);
+                                console.log(`Testing ${mobile.name} (${mobile.shablon}) against ${cleanNumber}:`, regex.test(cleanNumber));
+                                if (regex.test(cleanNumber)) {
+                                    console.log('Found operator:', mobile.name);
+                                    return mobile.name;
+                                }
+                            } catch (e) {
+                                console.warn('Ошибка в регулярном выражении:', mobile.shablon, e);
+                            }
+                        }
+                    }
+                    console.log('No operator found');
+                    return '';
+                };
+                
+                const initGsmIti = () => {
+                    const phoneInput = document.getElementById('editLinePhone');
+                    if (phoneInput && !gsmIti) {
+                        gsmIti = window.intlTelInput(phoneInput, {
+                            utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/js/utils.js",
+                            nationalMode: false,
+                            separateDialCode: true,
+                            initialCountry: "auto",
+                            geoIpLookup: callback => {
+                                fetch("https://ipapi.co/json")
+                                    .then(res => res.json())
+                                    .then(data => callback(data.country_code))
+                                    .catch(() => callback("by"));
+                            }
+                        });
+                        
+                        // Обработчик изменения номера для автоматического определения оператора
+                        phoneInput.addEventListener('input', () => {
+                            setTimeout(() => {
+                                const currentNumber = gsmIti.getNumber();
+                                const operator = determineOperator(currentNumber);
+                                const lineNameField = document.getElementById('editLineName');
+                                const cleanNumber = currentNumber.replace(/[\s\+\-\(\)]/g, '');
+                                
+                                if (lineNameField) {
+                                    if (operator) {
+                                        // Всегда обновляем название оператора при изменении номера с пробелом в конце
+                                        lineNameField.value = operator + ' ';
+                                        lineNameField.disabled = false; // Активируем поле для редактирования
+                                        console.log('Updated line name to:', operator + ' ');
+                                    } else if (cleanNumber.length < 6) {
+                                        // Очищаем поле и деактивируем, если номер слишком короткий
+                                        lineNameField.value = '';
+                                        lineNameField.disabled = true;
+                                        console.log('Cleared line name - number too short');
+                                    } else if (cleanNumber.length >= 6) {
+                                        // Если номер достаточно длинный, но оператор не определен, активируем поле
+                                        lineNameField.disabled = false;
+                                        console.log('Enabled line name field - number long enough');
+                                    }
+                                }
+                            }, 100);
+                        });
+                    }
+                };
+                
+                // Загружаем данные операторов
+                await loadMobilesData();
+                
                 // Подгружаем данные линии
                 try {
                     const resp = await fetch(`/enterprise/${enterpriseNumber}/gsm-lines/${lineId}`);
@@ -1364,6 +1481,19 @@
                     document.getElementById('editLinePhone').value = line.phone_number || '';
                     document.getElementById('editLinePrefix').textContent = line.prefix || '';
                     document.getElementById('editLineNumber').textContent = formatDisplayNumber(line.phone_number || '');
+                    
+                    // Инициализируем intlTelInput после заполнения данных
+                    initGsmIti();
+                    if (gsmIti && line.phone_number) {
+                        gsmIti.setNumber(line.phone_number.startsWith('+') ? line.phone_number : '+' + line.phone_number);
+                        // Активируем поле названия, если номер уже есть
+                        const lineNameField = document.getElementById('editLineName');
+                        if (lineNameField && line.phone_number) {
+                            lineNameField.disabled = false;
+                        }
+                    } else if (gsmIti) {
+                        gsmIti.setNumber('+');
+                    }
                 } catch (e) {
                     document.getElementById('editLineError').textContent = e.message;
                     document.getElementById('editLineError').style.display = 'block';
@@ -1372,6 +1502,11 @@
                 document.getElementById('closeEditLineModal').onclick = closeEditLineModal;
                 document.getElementById('cancelEditLineModal').onclick = closeEditLineModal;
                 function closeEditLineModal() {
+                    // Очищаем intlTelInput если он был инициализирован
+                    if (gsmIti) {
+                        gsmIti.destroy();
+                        gsmIti = null;
+                    }
                     container.innerHTML = '';
                 }
                 // --- Сохранение изменений ---
@@ -1379,9 +1514,18 @@
                     e.preventDefault();
                     const errorDiv = document.getElementById('editLineError');
                     errorDiv.style.display = 'none';
+                    
+                    // --- Валидация номера телефона ---
+                    const phoneNumber = gsmIti ? gsmIti.getNumber() : document.getElementById('editLinePhone').value;
+                    if (phoneNumber && !validatePhoneNumber(phoneNumber)) {
+                        alert(`Ошибка: Номер телефона "${phoneNumber}" введен некорректно. Пожалуйста, проверьте формат.`);
+                        document.getElementById('editLinePhone').focus();
+                        return;
+                    }
+                    
                     const data = {
                         line_name: document.getElementById('editLineName').value,
-                        phone_number: document.getElementById('editLinePhone').value,
+                        phone_number: phoneNumber,
                         prefix: document.getElementById('editLinePrefix').textContent
                     };
                     try {

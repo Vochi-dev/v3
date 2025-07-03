@@ -458,6 +458,29 @@ async def get_current_enterprise(request: Request) -> str:
         await conn.close()
 
 # ——————————————————————————————————————————————————————————————————————————
+# API для операторов
+# ——————————————————————————————————————————————————————————————————————————
+
+@app.get("/api/mobiles", response_class=JSONResponse)
+async def get_mobiles():
+    """
+    API для получения списка мобильных операторов с их шаблонами.
+    """
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Ошибка подключения к базе данных")
+    
+    try:
+        rows = await conn.fetch("SELECT id, name, shablon FROM mobile ORDER BY id")
+        mobiles = [dict(row) for row in rows]
+        return mobiles
+    except Exception as e:
+        logger.error(f"Ошибка при получении данных операторов: {e}")
+        raise HTTPException(status_code=500, detail="Ошибка при получении данных операторов")
+    finally:
+        await conn.close()
+
+# ——————————————————————————————————————————————————————————————————————————
 # Enterprise Admin Dashboard & API
 # ——————————————————————————————————————————————————————————————————————————
 
