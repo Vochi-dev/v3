@@ -1,0 +1,311 @@
+# ДОКУМЕНТАЦИЯ ПО СТРУКТУРЕ ТАБЛИЦ СИСТЕМЫ ЛОГИРОВАНИЯ ASTERISK
+# Дата создания: 2025-01-03
+# Цель: Полная реорганизация системы хранения событий Asterisk с учетом миграции из MongoDB
+
+## АРХИТЕКТУРНАЯ КОНЦЕПЦИЯ
+
+### Принципы проектирования:
+1. **Разделение ответственности**: критичные данные отдельно от временных
+2. **Нормализация**: участники звонков в отдельной таблице для аналитики
+3. **Трекинг источника**: различение событий пришедших "вживую" vs скачанных принудительно
+4. **Совместимость с миграцией**: поля для сопоставления с MongoDB данными
+5. **Производительность**: индексы на часто используемые поля
+
+---
+
+## ТАБЛИЦА 1: calls (основная таблица звонков)
+
+```sql
+CREATE TABLE calls (
+    -- === ИДЕНТИФИКАЦИЯ ===
+    id SERIAL PRIMARY KEY,                          -- Внутренний ID PostgreSQL
+    unique_id TEXT UNIQUE NOT NULL,                 -- UniqueId от Asterisk (1749034247.6528)
+    mongo_id TEXT,                                  -- _id из MongoDB (для миграции)
+    
+    -- === ВРЕМЕННЫЕ МЕТКИ ===
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- Когда запись создана у нас
+    start_time TIMESTAMP,                           -- Фактическое время начала звонка
+    end_time TIMESTAMP,                             -- Фактическое время окончания звонка
+    duration INTEGER,                               -- Длительность в секундах
+    
+    -- === ОСНОВНАЯ ИНФОРМАЦИЯ О ЗВОНКЕ ===
+    enterprise_id TEXT NOT NULL,                    -- ID предприятия (0367, 0368, etc.)
+    token TEXT NOT NULL,                            -- Токен предприятия для аутентификации
+    
+    -- === УЧАСТНИКИ ===
+    phone_number TEXT,                              -- Внешний номер (кто звонил или кому звонили)
+    trunk TEXT,                                     -- Транк (SIP/DAHDI/etc.)
+    main_extension TEXT,                            -- Основной внутренний номер (кто ответил)
+    extensions_count INTEGER DEFAULT 1,            -- Количество участников (для быстрых запросов)
+    
+    -- === СТАТУСЫ И ТИПЫ ===
+    call_type TEXT NOT NULL,                        -- 'incoming', 'outgoing', 'internal'
+    call_status TEXT,                               -- 'answered', 'no_answer', 'busy', 'failed'
+    
+    -- === ИСТОЧНИК ДАННЫХ (КРИТИЧНО!) ===
+    data_source TEXT NOT NULL DEFAULT 'live',      -- 'live' | 'downloaded' | 'migrated'
+    received_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Когда получили событие
+    asterisk_host TEXT,                             -- IP астериска (10.88.10.xxx)
+    
+    -- === ПОЛНЫЕ ДАННЫЕ ===
+    raw_data JSONB,                                 -- Полный JSON от Asterisk (бэкап)
+    extra_data JSONB,                               -- Дополнительные поля (PhoneInfo, ExtensionInfo)
+    
+    -- === ИНДЕКСЫ ===
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Индексы для производительности
+CREATE INDEX idx_calls_enterprise_timestamp ON calls(enterprise_id, timestamp DESC);
+CREATE INDEX idx_calls_unique_id ON calls(unique_id);
+CREATE INDEX idx_calls_phone_number ON calls(phone_number);
+CREATE INDEX idx_calls_data_source ON calls(data_source);
+CREATE INDEX idx_calls_start_time ON calls(start_time DESC);
+```
+
+### Назначение полей:
+
+**Идентификация:**
+- `id` - внутренний суррогатный ключ для связей
+- `unique_id` - уникальный идентификатор от Asterisk
+- `mongo_id` - для миграции из старой системы
+
+**Источник данных (НОВОЕ!):**
+- `data_source` - различает как получено событие:
+  - `'live'` - пришло в реальном времени от Asterisk
+  - `'downloaded'` - скачано принудительно из SQLite астериска
+  - `'migrated'` - перенесено из старой MongoDB системы
+- `received_timestamp` - когда мы получили событие (не время звонка!)
+- `asterisk_host` - с какого именно астериска пришло
+
+**Временные метки:**
+- `start_time` / `end_time` - фактическое время звонка
+- `timestamp` / `received_timestamp` - время обработки у нас
+
+---
+
+## ТАБЛИЦА 2: call_participants (участники звонков)
+
+```sql
+CREATE TABLE call_participants (
+    -- === СВЯЗИ ===
+    id SERIAL PRIMARY KEY,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    
+    -- === УЧАСТНИК ===
+    extension TEXT NOT NULL,                        -- Номер внутреннего (150, 162, etc.)
+    
+    -- === СТАТУС УЧАСТИЯ ===
+    participant_status TEXT NOT NULL,               -- 'answered', 'no_answer', 'busy', 'dialing'
+    ring_order INTEGER,                             -- Порядок в группе (для "звонок на список")
+    ring_duration INTEGER,                          -- Сколько секунд звонил до ответа/отказа
+    
+    -- === ВРЕМЕННЫЕ МЕТКИ ===
+    dial_start TIMESTAMP,                           -- Когда начал звонить этому участнику
+    answer_time TIMESTAMP,                          -- Когда ответил (если ответил)
+    hangup_time TIMESTAMP,                          -- Когда завершил участие
+    
+    -- === ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ ===
+    extension_info JSONB,                           -- Информация о внутреннем номере
+    disconnect_reason TEXT,                         -- Причина завершения ('answered_elsewhere', 'timeout', etc.)
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Индексы
+CREATE INDEX idx_participants_call_id ON call_participants(call_id);
+CREATE INDEX idx_participants_extension ON call_participants(extension);
+CREATE INDEX idx_participants_status ON call_participants(participant_status);
+```
+
+### Назначение полей:
+
+**Связи:**
+- `call_id` - связь с основным звонком
+
+**Статус участия:**
+- `participant_status` - что произошло с этим участником
+- `ring_order` - для сценария "звонок на список" (1,2,3...)
+- `ring_duration` - метрика качества работы
+
+---
+
+## ТАБЛИЦА 3: call_events (промежуточные события)
+
+```sql
+CREATE TABLE call_events (
+    -- === ИДЕНТИФИКАЦИЯ ===
+    id SERIAL PRIMARY KEY,
+    call_id INTEGER REFERENCES calls(id) ON DELETE CASCADE,
+    unique_id TEXT NOT NULL,                        -- Тот же unique_id что в calls
+    
+    -- === ТИП СОБЫТИЯ ===
+    event_type TEXT NOT NULL,                       -- 'start', 'dial', 'bridge', 'hangup'
+    event_sequence INTEGER,                         -- Порядковый номер события в звонке
+    
+    -- === ВРЕМЕННЫЕ МЕТКИ ===
+    event_timestamp TIMESTAMP NOT NULL,             -- Время события от Asterisk
+    received_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Время получения у нас
+    
+    -- === ИСТОЧНИК ===
+    data_source TEXT NOT NULL DEFAULT 'live',      -- 'live' | 'downloaded'
+    
+    -- === ОБРАБОТКА ===
+    processed BOOLEAN DEFAULT FALSE,                -- Обработано ли событие
+    needs_telegram BOOLEAN DEFAULT TRUE,            -- Нужно ли слать в Telegram
+    needs_integration BOOLEAN DEFAULT TRUE,         -- Нужно ли слать в интеграции
+    telegram_sent BOOLEAN DEFAULT FALSE,            -- Отправлено ли в Telegram
+    integration_sent BOOLEAN DEFAULT FALSE,         -- Отправлено ли в интеграции
+    
+    -- === ПОЛНЫЕ ДАННЫЕ ===
+    raw_data JSONB NOT NULL,                        -- Полный JSON события
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Индексы
+CREATE INDEX idx_events_unique_id ON call_events(unique_id);
+CREATE INDEX idx_events_type ON call_events(event_type);
+CREATE INDEX idx_events_processed ON call_events(processed) WHERE processed = FALSE;
+CREATE INDEX idx_events_telegram ON call_events(telegram_sent) WHERE telegram_sent = FALSE;
+```
+
+### Назначение полей:
+
+**Управление обработкой:**
+- `processed` - обработано ли событие полностью
+- `needs_telegram` / `telegram_sent` - для контроля отправки в Telegram
+- `needs_integration` / `integration_sent` - для контроля отправки в интеграции
+
+**Логика обработки:**
+- События `start`, `dial`, `bridge` нужны только в реальном времени
+- Если `data_source = 'downloaded'` и `event_type != 'hangup'` → `needs_telegram = FALSE`
+- Старые события не шлем в Telegram, но может быть шлем в интеграции
+
+---
+
+## ТАБЛИЦА 4: download_sync (синхронизация скачивания)
+
+```sql
+CREATE TABLE download_sync (
+    -- === ИДЕНТИФИКАЦИЯ ===
+    id SERIAL PRIMARY KEY,
+    enterprise_id TEXT NOT NULL,
+    asterisk_host TEXT NOT NULL,
+    
+    -- === СТАТУС СИНХРОНИЗАЦИИ ===
+    last_check_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_successful_sync TIMESTAMP,
+    last_failed_sync TIMESTAMP,
+    
+    -- === СТАТИСТИКА ===
+    total_downloaded_events INTEGER DEFAULT 0,
+    failed_events_count INTEGER DEFAULT 0,
+    last_error_message TEXT,
+    
+    -- === КОНТРОЛЬ ===
+    sync_enabled BOOLEAN DEFAULT TRUE,
+    check_interval_minutes INTEGER DEFAULT 60,     -- Как часто проверять
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Индексы
+CREATE UNIQUE INDEX idx_sync_enterprise_host ON download_sync(enterprise_id, asterisk_host);
+```
+
+---
+
+## СТРАТЕГИЯ МИГРАЦИИ ИЗ MONGODB
+
+### Этап 1: Подготовка
+1. Создать таблицы по схеме выше
+2. Создать скрипт миграции с маппингом полей:
+
+```python
+# Маппинг MongoDB → PostgreSQL
+mongodb_to_postgres = {
+    '_id': 'mongo_id',
+    'UniqueId': 'unique_id', 
+    'CallType': 'call_type',
+    'Phone': 'phone_number',
+    'Token': 'token',
+    'Extensions[0]': 'main_extension',  # Первый из массива
+    'StartTime': 'start_time',
+    'EndTime': 'end_time',
+    'CallStatus': 'call_status',
+    # ... остальные поля
+}
+```
+
+### Этап 2: Миграция
+1. Извлечь данные из MongoDB пачками
+2. Нормализовать: создать записи в `calls` и `call_participants`
+3. Установить `data_source = 'migrated'`
+4. Проверить целостность данных
+
+### Этап 3: Валидация
+1. Сравнить количество записей
+2. Проверить ключевые метрики (общее количество звонков, длительности)
+3. Тестовые запросы на новой структуре
+
+---
+
+## ПРЕИМУЩЕСТВА НОВОЙ СТРУКТУРЫ
+
+### 1. **Контроль источника данных**
+```sql
+-- Сколько событий пришло вживую vs скачано принудительно?
+SELECT data_source, COUNT(*) FROM calls GROUP BY data_source;
+
+-- Какие предприятия часто теряют связь?
+SELECT enterprise_id, COUNT(*) as downloaded_events 
+FROM calls WHERE data_source = 'downloaded' 
+GROUP BY enterprise_id ORDER BY downloaded_events DESC;
+```
+
+### 2. **Аналитика участников**
+```sql
+-- Кто чаще всего отвечает на звонки?
+SELECT extension, COUNT(*) as answered_calls 
+FROM call_participants 
+WHERE participant_status = 'answered' 
+GROUP BY extension ORDER BY answered_calls DESC;
+
+-- Средняя скорость ответа по сотрудникам
+SELECT extension, AVG(ring_duration) as avg_ring_time
+FROM call_participants 
+WHERE participant_status = 'answered'
+GROUP BY extension;
+```
+
+### 3. **Контроль обработки**
+```sql
+-- Есть ли необработанные события?
+SELECT COUNT(*) FROM call_events WHERE processed = FALSE;
+
+-- Что не ушло в Telegram?
+SELECT event_type, COUNT(*) FROM call_events 
+WHERE needs_telegram = TRUE AND telegram_sent = FALSE 
+GROUP BY event_type;
+```
+
+---
+
+## РЕКОМЕНДАЦИИ ПО ИСПОЛЬЗОВАНИЮ
+
+### Для разработчиков:
+1. **Всегда указывайте data_source** при создании записей
+2. **Используйте транзакции** для связанных операций (calls + participants)
+3. **Не забывайте обновлять флаги обработки** в call_events
+
+### Для администраторов:
+1. **Мониторьте download_sync** - если много failed_events_count
+2. **Настройте партиционирование** по датам при росте объемов
+3. **Регулярно чистите старые call_events** (оставляйте только hangup)
+
+### Для аналитики:
+1. **Основные запросы делайте по calls** (быстрее)
+2. **Детальный анализ участников** - через call_participants
+3. **Проблемы с доставкой** - через call_events 
