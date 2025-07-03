@@ -47,6 +47,26 @@ DB_CONFIG = 'postgresql://postgres:r%2FYskqh%2FZbZuvjb2b3ahfg%3D%3D@127.0.0.1:54
 class GenerateConfigRequest(BaseModel):
     enterprise_id: str
 
+async def check_deployment_allowed(enterprise_id: str) -> bool:
+    """Проверяет разрешена ли загрузка файлов для предприятия.
+    Возвращает False если parameter_option_1 = true (ограничение включено)"""
+    try:
+        conn = await asyncpg.connect(DB_CONFIG)
+        try:
+            result = await conn.fetchrow(
+                "SELECT parameter_option_1 FROM enterprises WHERE number = $1", 
+                enterprise_id
+            )
+            if result and result['parameter_option_1']:
+                logging.warning(f"File deployment blocked for enterprise {enterprise_id} - parameter_option_1 is true")
+                return False  # Ограничение включено - загрузка запрещена
+            return True  # Загрузка разрешена
+        finally:
+            await conn.close()
+    except Exception as e:
+        logging.error(f"Error checking deployment permission for enterprise {enterprise_id}: {e}")
+        return True  # При ошибке разрешаем загрузку (по умолчанию)
+
 # --- Helper Functions ---
 def get_node_by_id(nodes, node_id):
     """Находит узел в списке по его ID."""
@@ -105,6 +125,10 @@ def generate_department_context_name(enterprise_id, department_number):
 
 async def deploy_config_to_asterisk(host_ip: str, local_config_path: str, enterprise_id: str) -> dict:
     """Деплой extensions.conf на удаленный Asterisk хост"""
+    
+    # Проверяем разрешена ли загрузка файлов для данного предприятия
+    if not await check_deployment_allowed(enterprise_id):
+        return {"success": False, "message": "Загрузка файлов временно ограничена для данного предприятия"}
     
     # SSH параметры (константы)
     SSH_PORT = 5059
@@ -181,6 +205,10 @@ async def deploy_config_to_asterisk(host_ip: str, local_config_path: str, enterp
 async def deploy_sip_config_to_asterisk(host_ip: str, local_config_path: str, enterprise_id: str) -> dict:
     """Деплой sip_addproviders.conf на удаленный Asterisk хост"""
     
+    # Проверяем разрешена ли загрузка файлов для данного предприятия
+    if not await check_deployment_allowed(enterprise_id):
+        return {"success": False, "message": "Загрузка файлов временно ограничена для данного предприятия"}
+    
     # SSH параметры (константы)
     SSH_PORT = 5059
     SSH_USER = "root" 
@@ -255,6 +283,10 @@ async def deploy_sip_config_to_asterisk(host_ip: str, local_config_path: str, en
 
 async def deploy_greeting_files_to_asterisk(host_ip: str, local_files: list, enterprise_id: str) -> dict:
     """Деплой файлов приветствий на удаленный Asterisk хост"""
+    
+    # Проверяем разрешена ли загрузка файлов для данного предприятия
+    if not await check_deployment_allowed(enterprise_id):
+        return {"success": False, "message": "Загрузка файлов временно ограничена для данного предприятия"}
     
     # SSH параметры (константы)
     SSH_PORT = 5059
@@ -339,6 +371,10 @@ async def deploy_greeting_files_to_asterisk(host_ip: str, local_files: list, ent
 
 async def deploy_music_files_to_asterisk(host_ip: str, local_files: list, enterprise_id: str) -> dict:
     """Деплой файлов музыки ожидания на удаленный Asterisk хост"""
+    
+    # Проверяем разрешена ли загрузка файлов для данного предприятия
+    if not await check_deployment_allowed(enterprise_id):
+        return {"success": False, "message": "Загрузка файлов временно ограничена для данного предприятия"}
     
     # SSH параметры (константы)
     SSH_PORT = 5059
@@ -430,6 +466,10 @@ async def deploy_music_files_to_asterisk(host_ip: str, local_files: list, enterp
 
 async def deploy_musiconhold_conf_to_asterisk(host_ip: str, local_config_path: str, enterprise_id: str) -> dict:
     """Деплой musiconhold.conf на удаленный Asterisk хост"""
+    
+    # Проверяем разрешена ли загрузка файлов для данного предприятия
+    if not await check_deployment_allowed(enterprise_id):
+        return {"success": False, "message": "Загрузка файлов временно ограничена для данного предприятия"}
     
     # SSH параметры (константы)
     SSH_PORT = 5059
@@ -1276,9 +1316,8 @@ async def generate_config(request: GenerateConfigRequest):
         enterprise_ip = await conn.fetchval("SELECT ip FROM enterprises WHERE number = $1 AND is_enabled = true", enterprise_id)
         if enterprise_ip and enterprise_ip.strip():
             logging.info(f"Found enterprise IP: {enterprise_ip} for enterprise {enterprise_id}")
-            # Запускаем развертывание асинхронно в фоне
-            asyncio.create_task(deploy_config_to_asterisk(enterprise_ip, str(config_path), enterprise_id))
-            deployment_result = {"success": True, "message": "Схемы звонков обновлены"}
+            # Выполняем развертывание и ожидаем результат
+            deployment_result = await deploy_config_to_asterisk(enterprise_ip, str(config_path), enterprise_id)
         else:
             logging.warning(f"No IP found or enterprise disabled for enterprise {enterprise_id}")
             deployment_result = {"success": False, "message": "IP адрес АТС не настроен"}
