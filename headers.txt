@@ -1,0 +1,6 @@
+HTTP/1.1 307 Temporary Redirect
+date: Thu, 03 Jul 2025 07:01:27 GMT
+server: uvicorn
+content-length: 0
+location: /?error=invalid_token
+
