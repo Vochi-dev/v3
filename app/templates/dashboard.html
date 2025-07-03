@@ -26,6 +26,7 @@
       display: flex; /* Используем flex для позиционирования внутреннего блока с текстом */
       flex-direction: column; /* Чтобы элементы внутри шли друг под другом (на будущее) */
       transition: background-color 0.5s ease; /* Плавный переход цветов */
+      position: relative; /* Для позиционирования live счетчика */
       /* justify-content: flex-start; по умолчанию */
       /* text-align: left; -- будет у дочернего элемента */
     }
@@ -64,13 +65,15 @@
       line-height: 1.1;
     }
     .enterprise-card .live-events {
-      font-size: 11px;
-      color: #007bff;
-      margin-left: 15px;
-      margin-top: 1px;
+      font-size: 16px;
+      color: #dc3545; /* Красный цвет */
       font-family: sans-serif;
-      font-weight: 500;
+      font-weight: normal;
       line-height: 1.1;
+      position: absolute;
+      bottom: 4px;
+      right: 8px;
+      display: none; /* По умолчанию скрыт */
     }
     /* Старые стили кнопки, если они еще где-то используются */
     .button {
@@ -154,7 +157,7 @@
             <div class="name-container">
                 <p class="name">{{ enterprise.name }}</p>
                 <div class="line-stats" id="stats-{{ enterprise.number }}">—/— —/— —/—</div>
-                <div class="live-events" id="live-{{ enterprise.number }}">Live: —</div>
+                <div class="live-events" id="live-{{ enterprise.number }}"></div>
             </div>
             <!-- Другая информация будет здесь -->
           </div>
@@ -442,7 +445,15 @@
                 const liveElement = document.getElementById(`live-${enterpriseNumber}`);
                 if (liveElement) {
                     const count = data.by_enterprise[enterpriseNumber];
-                    liveElement.textContent = `Live: ${count}`;
+                    
+                    if (count > 0) {
+                        // Показываем счетчик только если событий больше 0
+                        liveElement.textContent = count;
+                        liveElement.style.display = 'block';
+                    } else {
+                        // Скрываем счетчик если событий 0
+                        liveElement.style.display = 'none';
+                    }
                     
                     // Добавляем информацию в title карточки
                     const card = document.querySelector(`.enterprise-card[data-number="${enterpriseNumber}"]`);
@@ -472,9 +483,9 @@
                 
             } catch (error) {
                 console.error('[Live Events] Ошибка загрузки статистики:', error);
-                // При ошибке показываем недоступность сервиса
+                // При ошибке скрываем все счетчики
                 document.querySelectorAll('[id^="live-"]').forEach(element => {
-                    element.textContent = 'Live: ?';
+                    element.style.display = 'none';
                 });
             }
         }
