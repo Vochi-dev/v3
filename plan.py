@@ -701,9 +701,8 @@ def generate_dial_in_context(schema_id, node, nodes, edges, music_files_info, di
         music_name = music_data.get('name')
         if music_name and music_name in music_files_info:
             internal_filename = music_files_info[music_name]['internal_filename'].replace('.wav', '')
-            music_context_name = generate_context_name(schema_id, node['id'], "moh")
-            dial_options = f"m({music_context_name})" + dial_options
-            # TODO: Add music context generation if needed. For now, using Asterisk's default moh directory logic.
+            dial_options = f"m({internal_filename})" + dial_options
+            # Используем internal_filename напрямую, а не создаем новый контекст
 
     lines = [
         f"[{context_name}]",
