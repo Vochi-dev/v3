@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Конфигурация предприятия {{ enterprise_number }}</title>
+    <style>
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            margin: 20px;
+            background-color: white;
+            color: black;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .config-output {
+            white-space: pre-wrap;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="config-output">{% for file_path, file_data in files_content.items() %}---------------------------{{ file_path.split('/')[-1] }}{% if file_data.date %} {{ file_data.date }}{% endif %}-------------------------
+{% if file_data.status == 'not_found' %}Файл не найден на удаленном хосте{% elif file_data.status == 'timeout' %}Превышено время ожидания при получении файла{% elif file_data.status == 'error' %}{{ file_data.content }}{% elif file_data.content %}{{ file_data.content }}{% else %}Файл пуст{% endif %}
+
+
+{% endfor %}</div>
+</body>
+</html> 

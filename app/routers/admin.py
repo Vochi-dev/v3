@@ -645,6 +645,129 @@ async def generate_auth_token(enterprise_number: str, request: Request):
         raise HTTPException(status_code=500, detail="Ошибка генерации токена")
 
 
+@router.get("/config/{enterprise_number}", response_class=HTMLResponse)
+async def get_enterprise_config(enterprise_number: str, request: Request):
+    """Получение конфигурационных файлов с удаленного хоста предприятия"""
+    require_login(request)
+    
+    try:
+        # Получаем IP адрес предприятия из базы данных
+        all_enterprises = await get_all_enterprises_postgresql()
+        enterprise = None
+        for ent in all_enterprises:
+            if ent.get('number') == enterprise_number:
+                enterprise = ent
+                break
+        
+        if not enterprise:
+            raise HTTPException(status_code=404, detail="Предприятие не найдено")
+        
+        ip = enterprise.get('ip')
+        if not ip:
+            raise HTTPException(status_code=400, detail="IP адрес предприятия не указан")
+        
+        # Список файлов для загрузки
+        config_files = [
+            '/etc/asterisk/extensions.conf',
+            '/etc/asterisk/sip_addproviders.conf', 
+            '/etc/asterisk/sip.conf',
+            '/etc/network/interfaces',
+            '/etc/rc.firewall'
+        ]
+        
+        files_content = {}
+        
+        # Получаем содержимое каждого файла
+        for file_path in config_files:
+            try:
+                # SSH команда для получения содержимого файла и его даты изменения
+                cmd = [
+                    'sshpass', '-p', '5atx9Ate@pbx',
+                    'ssh', 
+                    '-o', 'ConnectTimeout=10',
+                    '-o', 'StrictHostKeyChecking=no',
+                    '-o', 'UserKnownHostsFile=/dev/null',
+                    '-o', 'LogLevel=ERROR',
+                    '-p', '5059',
+                    f'root@{ip}',
+                    f'if [ -f "{file_path}" ]; then echo "FILE_DATE:$(stat -c %y "{file_path}")"; cat "{file_path}"; else echo "FILE_NOT_FOUND"; fi'
+                ]
+                
+                process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=15.0)
+                
+                if process.returncode == 0:
+                    output = stdout.decode('utf-8', errors='ignore')
+                    if output.startswith('FILE_DATE:'):
+                        lines = output.split('\n', 1)
+                        date_line = lines[0]
+                        file_content = lines[1] if len(lines) > 1 else ""
+                        
+                        # Извлекаем дату файла
+                        file_date = date_line.replace('FILE_DATE:', '').strip()
+                        
+                        files_content[file_path] = {
+                            'content': file_content,
+                            'date': file_date,
+                            'status': 'success'
+                        }
+                    elif 'FILE_NOT_FOUND' in output:
+                        files_content[file_path] = {
+                            'content': '',
+                            'date': '',
+                            'status': 'not_found'
+                        }
+                    else:
+                        files_content[file_path] = {
+                            'content': output,
+                            'date': 'Unknown',
+                            'status': 'success'
+                        }
+                else:
+                    error_msg = stderr.decode('utf-8', errors='ignore')
+                    files_content[file_path] = {
+                        'content': f'Ошибка получения файла: {error_msg}',
+                        'date': '',
+                        'status': 'error'
+                    }
+                    
+            except asyncio.TimeoutError:
+                files_content[file_path] = {
+                    'content': 'Таймаут при получении файла',
+                    'date': '',
+                    'status': 'timeout'
+                }
+            except Exception as e:
+                files_content[file_path] = {
+                    'content': f'Ошибка: {str(e)}',
+                    'date': '',
+                    'status': 'error'
+                }
+        
+        # Возвращаем HTML страницу с конфигурациями
+        return templates.TemplateResponse(
+            "enterprise_config.html",
+            {
+                "request": request,
+                "enterprise_number": enterprise_number,
+                "enterprise_name": enterprise.get('name', 'Unknown'),
+                "enterprise_ip": ip,
+                "files_content": files_content
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при получении конфигурации предприятия {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Ошибка получения конфигурации: {str(e)}")
+
+
 # ——————————————————————————————————————————————————————————————————————————
 # Мониторинг хостов Asterisk
 # ——————————————————————————————————————————————————————————————————————————

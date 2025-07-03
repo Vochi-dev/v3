@@ -159,7 +159,10 @@
   <div id="enterpriseModal" class="modal">
     <div class="modal-content">
       <span class="close-button">&times;</span>
-      <h2 id="modalTitle"></h2>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <h2 id="modalTitle" style="margin: 0;"></h2>
+        <span id="configButton" style="padding: 3px 8px; font-size: 12px; background: #007bff; color: white; border-radius: 3px; cursor: pointer;">Config</span>
+      </div>
       <p>Номер: <span id="modalNumber"></span></p>
       <p>IP: <span id="modalIp"></span></p>
       <p>Второе имя: <span id="modalName2"></span></p>
@@ -175,6 +178,7 @@
         const modalIp = document.getElementById('modalIp');
         const modalName2 = document.getElementById('modalName2');
         const adminLoginButton = document.getElementById('adminLoginButton');
+        const configButton = document.getElementById('configButton');
         const closeButton = document.querySelector('.close-button');
 
         // Открываем модальное окно при клике на карточку
@@ -189,6 +193,12 @@
                 modalNumber.textContent = number;
                 modalIp.textContent = ip;
                 modalName2.textContent = name2 || '—'; // Если name2 пустое, ставим прочерк
+
+                // Логика для кнопки "Config"
+                configButton.onclick = function() {
+                    // Открываем конфигурацию в новой вкладке того же браузера
+                    window.open(`/admin/config/${number}`, '_blank');
+                };
 
                 // Логика для кнопки "Войти в админку"
                 adminLoginButton.onclick = function() {
