@@ -2,6 +2,7 @@ import logging
 import asyncio
 from logging.handlers import RotatingFileHandler
 import os
+import json
 
 from fastapi import FastAPI, Request, Body, HTTPException, status, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -21,13 +22,12 @@ from app.services.database import (
 from app.services.enterprise import send_message_to_bot
 from app.services.bot_status import check_bot_status
 from app.services.db import get_all_bot_tokens
-from app.services.postgres import init_pool, close_pool
+from app.services.postgres import init_pool, close_pool, get_pool
 
 from telegram import Bot
 from telegram.error import TelegramError
 
-import aiosqlite
-from app.config import DB_PATH
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Импортируем ваши готовые Asterisk-обработчики из папки app/services/calls
@@ -193,31 +193,44 @@ async def root(request: Request):
     return RedirectResponse(url="/admin/enterprises")
 
 @app.post("/start")
-async def asterisk_start(body: dict = Body(...)):
+async def asterisk_start(body: dict = Body(...), request: Request = None):
     """
     При POST /start вызываем process_start из app/services/calls/start.py
     """
+    client_ip = request.client.host if request and request.client else "Unknown"
+    logger.info(f"START REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
+    
     return JSONResponse(await _dispatch_to_all(process_start, body))
 
 @app.post("/dial")
-async def asterisk_dial(body: dict = Body(...)):
+async def asterisk_dial(body: dict = Body(...), request: Request = None):
     """
     При POST /dial вызываем process_dial из app/services/calls/dial.py
     """
+    client_ip = request.client.host if request and request.client else "Unknown"
+    logger.info(f"DIAL REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
+    
     return JSONResponse(await _dispatch_to_all(process_dial, body))
 
 @app.post("/bridge")
-async def asterisk_bridge(body: dict = Body(...)):
+async def asterisk_bridge(body: dict = Body(...), request: Request = None):
     """
     При POST /bridge вызываем process_bridge из app/services/calls/bridge.py
     """
+    client_ip = request.client.host if request and request.client else "Unknown"
+    logger.info(f"BRIDGE REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
+    
     return JSONResponse(await _dispatch_to_all(process_bridge, body))
 
 @app.post("/hangup")
-async def asterisk_hangup(body: dict = Body(...)):
+async def asterisk_hangup(body: dict = Body(...), request: Request = None):
     """
     При POST /hangup вызываем process_hangup из app/services/calls/hangup.py
     """
+    # Добавляем детальное логирование для диагностики
+    client_ip = request.client.host if request and request.client else "Unknown"
+    logger.info(f"HANGUP REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
+    
     return JSONResponse(await _dispatch_to_all(process_hangup, body))
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -270,24 +283,28 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
     Возвращает bot_token и список целевых chat_id по asterisk_token.
     Гарантирует, что SUPERUSER_TG_ID там есть всегда.
     """
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        cur = await db.execute(
-            "SELECT bot_token FROM enterprises WHERE name2 = ?",
-            (asterisk_token,)
+    pool = await get_pool()
+    if not pool:
+        raise HTTPException(status_code=500, detail="Database pool not available")
+    
+    async with pool.acquire() as conn:
+        # Ищем предприятие по name2 = asterisk_token
+        ent_row = await conn.fetchrow(
+            "SELECT bot_token FROM enterprises WHERE name2 = $1", 
+            asterisk_token
         )
-        ent = await cur.fetchone()
-        if not ent:
+        if not ent_row:
             raise HTTPException(status_code=404, detail="Unknown enterprise token")
-        bot_token = ent["bot_token"]
-
-        cur = await db.execute(
-            "SELECT tg_id FROM telegram_users WHERE bot_token = ? AND verified = 1",
-            (bot_token,)
+        
+        bot_token = ent_row["bot_token"]
+        
+        # Получаем список подписанных пользователей для этого бота
+        user_rows = await conn.fetch(
+            "SELECT tg_id FROM telegram_users WHERE bot_token = $1",
+            bot_token
         )
-        rows = await cur.fetchall()
-
-    tg_ids = [int(r["tg_id"]) for r in rows]
+    
+    tg_ids = [int(row["tg_id"]) for row in user_rows]
     if SUPERUSER_TG_ID not in tg_ids:
         tg_ids.append(SUPERUSER_TG_ID)
     return bot_token, tg_ids
@@ -298,15 +315,60 @@ async def _dispatch_to_all(handler, body: dict):
     вызывает её для каждого chat_id, возвращает результат в формате {"delivered": [...]}
     """
     token = body.get("Token")
-    bot_token, tg_ids = await _get_bot_and_recipients(token)
+    unique_id = body.get("UniqueId", "")
+    
+    # Детальное логирование для диагностики
+    logger.info(f"_dispatch_to_all: Token='{token}', UniqueId='{unique_id}', body keys: {list(body.keys())}")
+    
+    # Определяем тип события из URL
+    event_type = "unknown"
+    import inspect
+    frame = inspect.currentframe()
+    try:
+        caller_name = frame.f_back.f_code.co_name
+        if "hangup" in caller_name:
+            event_type = "hangup"
+        elif "bridge" in caller_name:
+            event_type = "bridge"
+        elif "dial" in caller_name:
+            event_type = "dial"
+        elif "start" in caller_name:
+            event_type = "start"
+        logger.info(f"Detected event_type: {event_type}")
+    finally:
+        del frame
+    
+    # Сохраняем событие в PostgreSQL
+    from app.services.events import save_asterisk_event, mark_telegram_sent
+    await save_asterisk_event(event_type, unique_id, token, body)
+    
+    try:
+        bot_token, tg_ids = await _get_bot_and_recipients(token)
+        logger.info(f"Found bot_token: {bot_token}, tg_ids: {tg_ids}")
+    except Exception as e:
+        logger.error(f"Failed to get bot and recipients for token '{token}': {e}")
+        return {"delivered": [{"status": "error", "error": f"Failed to get bot: {e}"}]}
+    
     bot = Bot(token=bot_token)
     results = []
+    
+    telegram_success = False
 
     for chat_id in tg_ids:
         try:
             await handler(bot, chat_id, body)
             results.append({"chat_id": chat_id, "status": "ok"})
+            telegram_success = True
+            logger.info(f"Successfully sent to chat_id: {chat_id}")
         except Exception as e:
             logger.error(f"Asterisk dispatch to {chat_id} failed: {e}")
             results.append({"chat_id": chat_id, "status": "error", "error": str(e)})
+    
+    # Обновляем флаг telegram_sent если хотя бы одно сообщение отправлено успешно
+    if telegram_success and unique_id:
+        await mark_telegram_sent(unique_id, event_type)
+        logger.info(f"Marked telegram_sent for {event_type} event {unique_id}")
+    elif telegram_success and not unique_id:
+        logger.warning(f"Telegram sent successfully but UniqueId is empty for {event_type}")
+    
     return {"delivered": results}

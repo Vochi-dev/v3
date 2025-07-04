@@ -71,21 +71,11 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
     safe_text = m.replace("<", "&lt;").replace(">", "&gt;")
     logging.debug(f"[process_hangup] => chat={chat_id}, text={safe_text!r}")
 
-    # Выбираем reply_to
-    reply_id = get_relevant_hangup_message_id(caller, callee, is_int)
-    if not reply_id:
-        # fallback на pair-map, если нужно
-        pass
-
+    # Временно отключаем reply_to из-за миграции SQLite->PostgreSQL
+    # reply_id = get_relevant_hangup_message_id(caller, callee, is_int)
+    
     try:
-        if reply_id:
-            sent = await bot.send_message(
-                chat_id, safe_text,
-                reply_to_message_id=reply_id,
-                parse_mode="HTML"
-            )
-        else:
-            sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+        sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
     except BadRequest as e:
         logging.error(f"[process_hangup] send_message failed: {e}. text={safe_text!r}")
         return {"status": "error", "error": str(e)}

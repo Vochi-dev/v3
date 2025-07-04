@@ -66,7 +66,7 @@ def create_onboarding_router() -> Router:
             return
 
         # 4) Генерируем и сохраняем токен (еще не регистрируем пользователя)
-        token = create_and_store_token(email, user_id, bot_token)
+        token = await create_and_store_token(email, user_id, bot_token)
 
         # 5) Отправляем письмо
         try:

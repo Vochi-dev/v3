@@ -1,72 +1,65 @@
-import sqlite3
-import aiosqlite
-from app.config import DB_PATH
+from app.services.postgres import get_pool
 
 
 def init_database_tables():
     """
-    Create the required tables in the SQLite database.
+    Функция больше не нужна - используем существующие PostgreSQL таблицы
     """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    # Создаем таблицу email_users
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS email_users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
-            right_all BOOLEAN DEFAULT 0,
-            right_1 BOOLEAN DEFAULT 0,
-            right_2 BOOLEAN DEFAULT 0
-        );
-    """)
-    conn.commit()
-    conn.close()
+    pass
 
 
 async def get_connection():
     """
-    Функция для получения асинхронного подключения к базе данных SQLite.
+    Функция для получения асинхронного подключения к базе данных PostgreSQL.
     """
-    return await aiosqlite.connect(DB_PATH)
+    pool = await get_pool()
+    if pool:
+        return await pool.acquire()
+    return None
 
 
 async def get_enterprise_number_by_bot_token(bot_token: str) -> str:
     """
     Получение номера предприятия по bot_token.
     """
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT number FROM enterprises WHERE bot_token = ?", (bot_token,)
-        ) as cur:
-            row = await cur.fetchone()
-
+    pool = await get_pool()
+    if not pool:
+        return None
+        
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT number FROM enterprises WHERE bot_token = $1", bot_token
+        )
     return row["number"] if row else None
 
 
-def get_enterprise_name_by_number(enterprise_number: str) -> str | None:
+async def get_enterprise_name_by_number(enterprise_number: str) -> str | None:
     """
     Получение названия предприятия по номеру.
     """
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT name FROM enterprises WHERE number = ?", (enterprise_number,)
-    )
-    row = cur.fetchone()
-    conn.close()
-
-    return row[0] if row else None
+    pool = await get_pool()
+    if not pool:
+        return None
+        
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT name FROM enterprises WHERE number = $1", enterprise_number
+        )
+    return row["name"] if row else None
 
 async def get_all_bot_tokens() -> dict:
     """
     Возвращает словарь {enterprise_number: bot_token} для всех предприятий с непустыми токенами.
     """
     result = {}
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT number, bot_token FROM enterprises WHERE bot_token IS NOT NULL AND bot_token != ''") as cursor:
-            async for row in cursor:
-                result[row[0]] = row[1]
+    pool = await get_pool()
+    if not pool:
+        return result
+        
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT number, bot_token FROM enterprises WHERE bot_token IS NOT NULL AND bot_token != ''"
+        )
+        for row in rows:
+            result[row["number"]] = row["bot_token"]
     return result

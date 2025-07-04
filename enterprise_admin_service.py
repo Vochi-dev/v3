@@ -764,7 +764,7 @@ async def get_user_details_for_edit(enterprise_number: str, user_id: int, curren
         raise HTTPException(status_code=500, detail="Failed to fetch user details")
     finally:
         if conn:
-            await conn.close()
+        await conn.close()
 
 @app.put("/enterprise/{enterprise_number}/users/{user_id}", status_code=status.HTTP_200_OK)
 async def update_user(enterprise_number: str, user_id: int, user_data: UserUpdate, current_enterprise: str = Depends(get_current_enterprise)):
@@ -1687,7 +1687,7 @@ async def update_sip_line(
 
         # Регенерация SIP конфига через план-сервис (асинхронно)
         asyncio.create_task(_regenerate_sip_config_via_plan_service(enterprise_number))
-        
+
         return dict(updated_line)
 
     except asyncpg.exceptions.UniqueViolationError:

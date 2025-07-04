@@ -6,12 +6,12 @@ from collections import defaultdict
 import re
 
 import phonenumbers
-import aiosqlite
 
 from telegram import Bot
 from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
+from app.services.postgres import get_pool
 from app.config import DB_PATH
 
 # ───────── ГЛОБАЛЬНОЕ СОСТОЯНИЕ ─────────
@@ -545,27 +545,25 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
         которые привязаны к этому bot_token и прошли верификацию.
     Если токен неизвестен, кидаем HTTPException(404).
     """
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        cur = await db.execute(
-            "SELECT bot_token FROM enterprises WHERE name2 = ?",
-            (asterisk_token,)
+    pool = await get_pool()
+    if not pool:
+        raise Exception("Database pool not available")
+        
+    async with pool.acquire() as conn:
+        # Получаем bot_token по asterisk_token (name2)
+        row = await conn.fetchrow(
+            "SELECT bot_token FROM enterprises WHERE name2 = $1",
+            asterisk_token
         )
-        ent = await cur.fetchone()
-        if not ent:
-            raise Exception("Unknown enterprise token")  # или HTTPException(404)
-        bot_token = ent["bot_token"]
+        if not row:
+            raise Exception("Unknown enterprise token")
+        bot_token = row["bot_token"]
 
-        cur = await db.execute(
-            """
-            SELECT tg_id
-              FROM telegram_users
-             WHERE bot_token = ?
-               AND verified = 1
-            """,
-            (bot_token,)
+        # Получаем всех verified пользователей для этого бота
+        rows = await conn.fetch(
+            "SELECT tg_id FROM telegram_users WHERE bot_token = $1",
+            bot_token
         )
-        rows = await cur.fetchall()
 
     tg_ids = [int(r["tg_id"]) for r in rows]
     return bot_token, tg_ids
