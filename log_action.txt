@@ -14995,3 +14995,117 @@ aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost
 2025-07-04 11:56:26,615 - admin - INFO - Found 3 internal phones for enterprise 0367
 2025-07-04 11:56:27,504 - admin - INFO - Found 3 internal phones for enterprise 0367
 2025-07-04 11:56:47,227 - admin - INFO - Checked 10 hosts in 1575ms. Online: 10
+2025-07-04 11:57:47,210 - admin - INFO - Checked 10 hosts in 1515ms. Online: 10
+2025-07-04 11:58:47,335 - admin - INFO - Checked 10 hosts in 1620ms. Online: 10
+2025-07-04 11:59:47,276 - admin - INFO - Checked 10 hosts in 1575ms. Online: 10
+2025-07-04 12:00:47,209 - admin - INFO - Checked 10 hosts in 1516ms. Online: 10
+2025-07-04 12:01:48,485 - admin - INFO - Checked 10 hosts in 1806ms. Online: 10
+2025-07-04 12:02:47,256 - admin - INFO - Checked 10 hosts in 1565ms. Online: 10
+2025-07-04 12:03:47,284 - admin - INFO - Checked 10 hosts in 1580ms. Online: 10
+2025-07-04 12:04:47,263 - admin - INFO - Checked 10 hosts in 1565ms. Online: 10
+2025-07-04 12:05:47,376 - admin - INFO - Checked 10 hosts in 1669ms. Online: 10
+2025-07-04 12:06:45,732 - admin - ERROR - Ошибка получения статистики live событий: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 980, in _wrap_create_connection
+    return await self._loop.create_connection(*args, **kwargs)  # type: ignore[return-value]  # noqa
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1076, in create_connection
+    raise exceptions[0]
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1060, in create_connection
+    sock = await self._connect_sock(
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 969, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 501, in sock_connect
+    return await fut
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 541, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8007)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/app/routers/admin.py", line 1040, in get_live_events_today
+    async with session.get('http://localhost:8007/sync/live/today') as response:
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/client.py", line 1167, in __aenter__
+    self._resp = await self._coro
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/client.py", line 562, in _request
+    conn = await self._connector.connect(
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 540, in connect
+    proto = await self._create_connection(req, traces, timeout)
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 901, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 1209, in _create_direct_connection
+    raise last_exc
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 1178, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 988, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+2025-07-04 12:06:47,407 - admin - INFO - Checked 10 hosts in 1683ms. Online: 10
+2025-07-04 12:06:53,514 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/admin/check-hosts
+2025-07-04 12:06:53,517 - enterprise_admin_service - INFO - Запрос обработан за 0.0024 сек. Статус: 404. Адрес: GET http://localhost:8004/admin/check-hosts
+2025-07-04 12:06:59,518 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/admin/login
+2025-07-04 12:06:59,519 - enterprise_admin_service - INFO - Запрос обработан за 0.0014 сек. Статус: 404. Адрес: GET http://localhost:8004/admin/login
+2025-07-04 12:07:47,337 - admin - INFO - Checked 10 hosts in 1618ms. Online: 10
+2025-07-04 12:08:21,035 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/admin/dashboard
+2025-07-04 12:08:21,038 - enterprise_admin_service - INFO - Запрос обработан за 0.0027 сек. Статус: 404. Адрес: GET http://localhost:8004/admin/dashboard
+2025-07-04 12:08:26,885 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/admin/login
+2025-07-04 12:08:26,886 - enterprise_admin_service - INFO - Запрос обработан за 0.0008 сек. Статус: 404. Адрес: GET http://localhost:8004/admin/login
+2025-07-04 12:08:47,394 - admin - INFO - Checked 10 hosts in 1686ms. Online: 10
+2025-07-04 12:09:05,437 - admin - INFO - Checked 10 hosts in 1632ms. Online: 10
+2025-07-04 12:10:08,216 - admin - INFO - Checked 10 hosts in 4371ms. Online: 10
+2025-07-04 12:11:10,146 - admin - INFO - Checked 10 hosts in 6298ms. Online: 10
+2025-07-04 12:13:05,500 - admin - INFO - Checked 10 hosts in 1652ms. Online: 10
+2025-07-04 12:13:17,135 - admin - INFO - Checked 10 hosts in 1691ms. Online: 10
+2025-07-04 12:13:25,650 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-04 12:13:25,652 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-04 12:13:25,751 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMTUwNX0.8a-sy0B89Vp2Vi-t2_BuqHK1DqIHl8o2-mqhXnFlBFA
+2025-07-04 12:13:25,753 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-07-04 12:13:25,754 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0367', 'is_admin': True, 'exp': 1751631505}
+2025-07-04 12:13:25,755 - enterprise_admin_service - INFO - Номер предприятия из токена: 0367
+2025-07-04 12:13:25,820 - enterprise_admin_service - INFO - Создание сессии для предприятия 0367...
+2025-07-04 12:13:25,824 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-04 12:13:25,825 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0367.
+2025-07-04 12:13:25,826 - enterprise_admin_service - INFO - Запрос обработан за 0.0752 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMTUwNX0.8a-sy0B89Vp2Vi-t2_BuqHK1DqIHl8o2-mqhXnFlBFA
+2025-07-04 12:13:25,859 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 12:13:26,075 - enterprise_admin_service - INFO - Запрос обработан за 0.2162 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 12:13:26,181 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 12:13:26,363 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-04 12:13:26,365 - enterprise_admin_service - INFO - Запрос обработан за 0.1836 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 12:13:27,645 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-04 12:13:30,066 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-04 12:13:30,244 - enterprise_admin_service - INFO - ПОЛУЧЕНО ИЗ БД: 1 строк.
+2025-07-04 12:13:30,244 - enterprise_admin_service - INFO - СОДЕРЖИМОЕ: [<Record id=6 line_name='3880923' prefix='80{9}' provider_name='Anitex' incoming_schema_name='Входящая схема 1' outgoing_schema_names=['Исходящая схема 1']>]
+2025-07-04 12:13:30,246 - enterprise_admin_service - INFO - Запрос обработан за 0.1795 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/sip-lines
+2025-07-04 12:13:32,460 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-04 12:13:32,589 - enterprise_admin_service - INFO - Запрос обработан за 0.1290 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-04 12:13:32,629 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-04 12:13:34,271 - enterprise_admin_service - INFO - Запрос обработан за 1.6416 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-04 12:14:08,541 - admin - INFO - Checked 10 hosts in 1634ms. Online: 10
+2025-07-04 12:15:12,119 - admin - INFO - Checked 10 hosts in 5156ms. Online: 9
+2025-07-04 12:16:08,606 - admin - INFO - Checked 10 hosts in 1660ms. Online: 9
+2025-07-04 12:17:09,079 - admin - INFO - Checked 10 hosts in 2133ms. Online: 9
+2025-07-04 12:18:08,596 - admin - INFO - Checked 10 hosts in 1645ms. Online: 9
+2025-07-04 12:19:08,889 - admin - INFO - Checked 10 hosts in 1922ms. Online: 9
+2025-07-04 12:20:08,649 - admin - INFO - Checked 10 hosts in 1677ms. Online: 9
+2025-07-04 12:22:08,631 - admin - INFO - Checked 10 hosts in 1672ms. Online: 9
+2025-07-04 12:22:32,539 - admin - INFO - Checked 10 hosts in 3193ms. Online: 9
+2025-07-04 12:22:41,930 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-04 12:22:41,932 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-04 12:22:42,026 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMjA2MX0.2VyPZ0liVK5NtDRLFRN3UrZKN-VtPANUjWhgvanaiVo
+2025-07-04 12:22:42,029 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-07-04 12:22:42,030 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0367', 'is_admin': True, 'exp': 1751632061}
+2025-07-04 12:22:42,030 - enterprise_admin_service - INFO - Номер предприятия из токена: 0367
+2025-07-04 12:22:42,110 - enterprise_admin_service - INFO - Создание сессии для предприятия 0367...
+2025-07-04 12:22:42,114 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-04 12:22:42,117 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0367.
+2025-07-04 12:22:42,117 - enterprise_admin_service - INFO - Запрос обработан за 0.0915 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMjA2MX0.2VyPZ0liVK5NtDRLFRN3UrZKN-VtPANUjWhgvanaiVo
+2025-07-04 12:22:42,155 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 12:22:42,398 - enterprise_admin_service - INFO - Запрос обработан за 0.2434 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 12:22:42,491 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 12:22:42,631 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-04 12:22:42,632 - enterprise_admin_service - INFO - Запрос обработан за 0.1410 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 12:23:31,175 - admin - INFO - Checked 10 hosts in 1758ms. Online: 10
+2025-07-04 12:24:32,250 - admin - INFO - Checked 10 hosts in 2836ms. Online: 9
+2025-07-04 12:25:32,600 - admin - INFO - Checked 10 hosts in 3186ms. Online: 9
+2025-07-04 12:26:32,600 - admin - INFO - Checked 10 hosts in 3180ms. Online: 9
+2025-07-04 12:27:31,142 - admin - INFO - Checked 10 hosts in 1707ms. Online: 10

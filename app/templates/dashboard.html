@@ -75,6 +75,17 @@
       right: 8px;
       display: none; /* По умолчанию скрыт */
     }
+    .enterprise-card .disk-usage {
+      font-size: 16px;
+      color: #28a745; /* Зеленый цвет для процентов диска */
+      font-family: sans-serif;
+      font-weight: normal;
+      line-height: 1.1;
+      position: absolute;
+      bottom: 4px;
+      left: 8px;
+      display: none; /* По умолчанию скрыт */
+    }
     /* Старые стили кнопки, если они еще где-то используются */
     .button {
       display: inline-block;
@@ -158,6 +169,7 @@
                 <p class="name">{{ enterprise.name }}</p>
                 <div class="line-stats" id="stats-{{ enterprise.number }}">—/— —/— —/—</div>
                 <div class="live-events" id="live-{{ enterprise.number }}"></div>
+                <div class="disk-usage" id="disk-{{ enterprise.number }}"></div>
             </div>
             <!-- Другая информация будет здесь -->
           </div>
@@ -262,6 +274,41 @@
         let hostLineStats = {}; // Хранилище последней статистики линий для каждого хоста
         let monitoringInterval = null; // Интервал для мониторинга
         
+        // ============================================
+        // ФУНКЦИЯ СОРТИРОВКИ КАРТОЧЕК ПРЕДПРИЯТИЙ
+        // ============================================
+        
+        function sortEnterpriseCards() {
+            const grid = document.querySelector('.enterprise-grid');
+            if (!grid) return;
+            
+            const cards = Array.from(grid.querySelectorAll('.enterprise-card'));
+            
+            // Сортируем карточки: сначала offline (красные), потом online (зеленые)
+            // Внутри каждой группы сортируем по номеру предприятия
+            cards.sort((a, b) => {
+                const aNumber = parseInt(a.getAttribute('data-number')) || 0;
+                const bNumber = parseInt(b.getAttribute('data-number')) || 0;
+                const aStatus = a.classList.contains('status-offline') ? 'offline' : 'online';
+                const bStatus = b.classList.contains('status-offline') ? 'offline' : 'online';
+                
+                // Первый критерий: статус (offline первыми)
+                if (aStatus !== bStatus) {
+                    return aStatus === 'offline' ? -1 : 1;
+                }
+                
+                // Второй критерий: номер предприятия (по возрастанию)
+                return aNumber - bNumber;
+            });
+            
+            // Перемещаем карточки в правильном порядке
+            cards.forEach(card => {
+                grid.appendChild(card);
+            });
+            
+            console.log('[Сортировка] Карточки предприятий пересортированы');
+        }
+        
         // Инициализация состояний хостов
         function initializeHostStates() {
             const cards = document.querySelectorAll('.enterprise-card[data-number]');
@@ -277,7 +324,7 @@
         }
         
                  // Обновление визуального состояния карточки
-         function updateCardStatus(enterpriseNumber, status, responseTime = null, sipPeers = null, lineStats = null, errorMessage = null) {
+         function updateCardStatus(enterpriseNumber, status, responseTime = null, sipPeers = null, lineStats = null, errorMessage = null, diskUsage = null) {
              const card = document.querySelector(`.enterprise-card[data-number="${enterpriseNumber}"]`);
              if (!card) return;
              
@@ -310,6 +357,26 @@
                  // При 1-2 неудачах (status='online' но нет lineStats) - НЕ ТРОГАЕМ статистику вообще
              }
              
+             // Обновляем информацию о диске
+             const diskElement = document.getElementById(`disk-${enterpriseNumber}`);
+             if (diskElement) {
+                 if (diskUsage !== null && status === 'online') {
+                     // Показываем процент занятого места (используем значение как есть)
+                     diskElement.textContent = `${diskUsage}%`;
+                     diskElement.style.display = 'block';
+                     
+                     // Меняем цвет в зависимости от занятого места
+                     if (diskUsage >= 90) {
+                         diskElement.style.color = '#dc3545'; // Красный - критически много занято (≥90%)
+                     } else {
+                         diskElement.style.color = '#28a745'; // Зеленый - нормально (<90%)
+                     }
+                 } else {
+                     // Скрываем информацию о диске если хост офлайн или нет данных
+                     diskElement.style.display = 'none';
+                 }
+             }
+             
              // Обновляем title для подсказки
              let title = `Предприятие ${enterpriseNumber}`;
              if (status === 'online') {
@@ -321,6 +388,9 @@
                      title += `\nВнутренние: ${lineStats.internal_online}/${lineStats.internal_total}`;
                      if (sipPeers !== null) {
                          title += `\nВсего peers: ${sipPeers}`;
+                     }
+                     if (diskUsage !== null) {
+                         title += `\nИспользовано диска: ${diskUsage}%`;
                      }
                  } else if (failureCounters[enterpriseNumber] > 0) {
                      // Онлайн, но есть неудачные попытки
@@ -340,7 +410,7 @@
              }
              card.title = title;
              
-             console.log(`[Мониторинг] ${enterpriseNumber}: ${status}, неудач: ${failureCounters[enterpriseNumber]}`);
+             console.log(`[Мониторинг] ${enterpriseNumber}: ${status}, неудач: ${failureCounters[enterpriseNumber]}, диск: ${diskUsage !== null ? diskUsage + '% занято' : 'н/д'}`);
          }
         
         // Проверка всех хостов
@@ -368,7 +438,7 @@
                              if (host.line_stats) {
                                  hostLineStats[enterpriseNumber] = host.line_stats;
                              }
-                             updateCardStatus(enterpriseNumber, 'online', host.response_time_ms, host.sip_peers, host.line_stats);
+                             updateCardStatus(enterpriseNumber, 'online', host.response_time_ms, host.sip_peers, host.line_stats, null, host.disk_usage_percent);
                          } else {
                              // Хост офлайн - увеличиваем счетчик
                              failureCounters[enterpriseNumber]++;
@@ -376,11 +446,11 @@
                              if (failureCounters[enterpriseNumber] >= 3) {
                                  // После 3-х неудач помечаем как офлайн (красным)
                                  hostStatuses[enterpriseNumber] = 'offline';
-                                 updateCardStatus(enterpriseNumber, 'offline', null, null, null, host.error_message);
+                                 updateCardStatus(enterpriseNumber, 'offline', null, null, null, host.error_message, null);
                              } else {
                                  // До 3-х неудач остается зеленым
                                  hostStatuses[enterpriseNumber] = 'online';
-                                 updateCardStatus(enterpriseNumber, 'online', null, null, null, `Попытка ${failureCounters[enterpriseNumber]}/3: ${host.error_message}`);
+                                 updateCardStatus(enterpriseNumber, 'online', null, null, null, `Попытка ${failureCounters[enterpriseNumber]}/3: ${host.error_message}`, null);
                              }
                          }
                      });
@@ -389,6 +459,9 @@
                     localStorage.setItem('hostStatuses', JSON.stringify(hostStatuses));
                     localStorage.setItem('failureCounters', JSON.stringify(failureCounters));
                     localStorage.setItem('hostLineStats', JSON.stringify(hostLineStats));
+                    
+                    // Сортируем карточки после обновления всех статусов
+                    sortEnterpriseCards();
                 }
                 
             } catch (error) {
@@ -423,6 +496,9 @@
                      }
                      updateCardStatus(enterpriseNumber, status);
                  });
+                
+                // Сортируем карточки после применения сохраненных состояний
+                sortEnterpriseCards();
                 
                 console.log('[Мониторинг] Загружены сохраненные состояния:', hostStatuses);
             } catch (error) {
