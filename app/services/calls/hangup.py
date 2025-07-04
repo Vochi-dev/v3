@@ -1,9 +1,13 @@
 import logging
 from telegram import Bot
 from telegram.error import BadRequest
+import json
+import hashlib
+from datetime import datetime
 
 from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
+from app.services.postgres import get_pool
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
@@ -13,6 +17,83 @@ from .utils import (
     bridge_store,
     active_bridges,
 )
+
+async def create_call_record(unique_id: str, token: str, data: dict):
+    """
+    Создает запись в таблице calls для hangup события
+    """
+    pool = await get_pool()
+    if not pool:
+        logging.error("PostgreSQL pool not available for creating call record")
+        return None
+    
+    try:
+        async with pool.acquire() as connection:
+            # Получаем enterprise_id по токену
+            enterprise_query = """
+                SELECT number FROM enterprises 
+                WHERE name2 = $1 OR secret = $1
+                LIMIT 1
+            """
+            enterprise_result = await connection.fetchrow(enterprise_query, token)
+            enterprise_id = enterprise_result['number'] if enterprise_result else token[:4]
+            
+            # Создаем хеш токена
+            hashed_token = hashlib.md5(token.encode()).hexdigest()
+            
+            # Извлекаем данные из события
+            phone_number = data.get('Phone', data.get('CallerIDNum', ''))
+            start_time_str = data.get('StartTime', '')
+            end_time_str = data.get('EndTime', '')
+            call_status = str(data.get('CallStatus', '0'))
+            call_type = str(data.get('CallType', '0'))
+            
+            # Рассчитываем duration
+            duration = 0
+            if start_time_str and end_time_str:
+                try:
+                    start_time = datetime.fromisoformat(start_time_str)
+                    end_time = datetime.fromisoformat(end_time_str)
+                    duration = int((end_time - start_time).total_seconds())
+                except:
+                    pass
+            
+            # Создаем запись в calls
+            insert_query = """
+                INSERT INTO calls (
+                    unique_id, token, enterprise_id, phone_number, 
+                    call_status, call_type, duration, data_source, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (unique_id) DO NOTHING
+                RETURNING id
+            """
+            
+            result = await connection.fetchrow(
+                insert_query,
+                unique_id, hashed_token, enterprise_id, phone_number,
+                call_status, call_type, duration, 'live', datetime.now()
+            )
+            
+            if result:
+                call_id = result['id']
+                logging.info(f"Created call record id={call_id} for {unique_id}")
+                
+                # Помечаем событие как обработанное
+                update_query = """
+                    UPDATE call_events 
+                    SET processed = true 
+                    WHERE unique_id = $1 AND event_type = 'hangup'
+                """
+                await connection.execute(update_query, unique_id)
+                
+                return call_id
+            else:
+                logging.debug(f"Call record for {unique_id} already exists, skipping")
+                return None
+                
+    except Exception as e:
+        logging.error(f"Error creating call record for {unique_id}: {e}")
+        return None
 
 async def process_hangup(bot: Bot, chat_id: int, data: dict):
     """
@@ -32,6 +113,11 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
     connected = data.get("ConnectedLineNum", "") or ""
     is_int    = bool(exts and exts[0].isdigit() and len(exts[0]) <= 4)
     callee    = exts[0] if exts else connected
+    token     = data.get("Token", "")
+
+    # Создаем запись в таблице calls
+    if uid and token:
+        await create_call_record(uid, token, data)
 
     # Чистим память
     bridge_store.pop(uid, None)

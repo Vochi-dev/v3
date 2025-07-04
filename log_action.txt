@@ -14744,3 +14744,254 @@ aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost
 2025-07-04 10:45:10,143 - admin - INFO - Checked 10 hosts in 1666ms. Online: 10
 2025-07-04 10:46:10,083 - admin - INFO - Checked 10 hosts in 1616ms. Online: 10
 2025-07-04 10:47:10,083 - admin - INFO - Checked 10 hosts in 1613ms. Online: 10
+2025-07-04 10:48:10,022 - admin - INFO - Checked 10 hosts in 1547ms. Online: 10
+2025-07-04 10:49:10,796 - admin - INFO - Checked 10 hosts in 2333ms. Online: 10
+2025-07-04 10:50:10,031 - admin - INFO - Checked 10 hosts in 1552ms. Online: 10
+2025-07-04 10:51:10,035 - admin - INFO - Checked 10 hosts in 1568ms. Online: 10
+2025-07-04 10:52:10,004 - admin - INFO - Checked 10 hosts in 1541ms. Online: 10
+2025-07-04 10:53:10,139 - admin - INFO - Checked 10 hosts in 1660ms. Online: 10
+2025-07-04 10:54:10,009 - admin - INFO - Checked 10 hosts in 1521ms. Online: 10
+2025-07-04 10:55:10,043 - admin - INFO - Checked 10 hosts in 1571ms. Online: 10
+2025-07-04 10:56:10,071 - admin - INFO - Checked 10 hosts in 1601ms. Online: 10
+2025-07-04 10:57:09,989 - admin - INFO - Checked 10 hosts in 1508ms. Online: 10
+2025-07-04 10:58:10,023 - admin - INFO - Checked 10 hosts in 1524ms. Online: 10
+2025-07-04 10:59:10,218 - admin - INFO - Checked 10 hosts in 1726ms. Online: 10
+2025-07-04 11:00:10,061 - admin - INFO - Checked 10 hosts in 1559ms. Online: 10
+2025-07-04 11:01:10,178 - admin - INFO - Checked 10 hosts in 1706ms. Online: 10
+2025-07-04 11:02:10,005 - admin - INFO - Checked 10 hosts in 1534ms. Online: 10
+2025-07-04 11:03:10,012 - admin - INFO - Checked 10 hosts in 1543ms. Online: 10
+2025-07-04 11:04:10,081 - admin - INFO - Checked 10 hosts in 1590ms. Online: 10
+2025-07-04 11:05:10,004 - admin - INFO - Checked 10 hosts in 1512ms. Online: 10
+2025-07-04 11:06:08,477 - admin - ERROR - Ошибка получения статистики live событий: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 980, in _wrap_create_connection
+    return await self._loop.create_connection(*args, **kwargs)  # type: ignore[return-value]  # noqa
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1076, in create_connection
+    raise exceptions[0]
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1060, in create_connection
+    sock = await self._connect_sock(
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 969, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 501, in sock_connect
+    return await fut
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 541, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8007)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/app/routers/admin.py", line 1003, in get_live_events_today
+    async with session.get('http://localhost:8007/sync/live/today') as response:
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/client.py", line 1167, in __aenter__
+    self._resp = await self._coro
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/client.py", line 562, in _request
+    conn = await self._connector.connect(
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 540, in connect
+    proto = await self._create_connection(req, traces, timeout)
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 901, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 1209, in _create_direct_connection
+    raise last_exc
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 1178, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 988, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+2025-07-04 11:06:09,996 - admin - INFO - Checked 10 hosts in 1522ms. Online: 10
+2025-07-04 11:07:10,317 - admin - INFO - Checked 10 hosts in 1833ms. Online: 10
+2025-07-04 11:08:10,020 - admin - INFO - Checked 10 hosts in 1532ms. Online: 10
+2025-07-04 11:09:10,000 - admin - INFO - Checked 10 hosts in 1523ms. Online: 10
+2025-07-04 11:10:10,011 - admin - INFO - Checked 10 hosts in 1522ms. Online: 10
+2025-07-04 11:11:10,300 - admin - INFO - Checked 10 hosts in 1818ms. Online: 10
+2025-07-04 11:12:10,128 - admin - INFO - Checked 10 hosts in 1642ms. Online: 10
+2025-07-04 11:13:10,017 - admin - INFO - Checked 10 hosts in 1543ms. Online: 10
+2025-07-04 11:14:10,043 - admin - INFO - Checked 10 hosts in 1557ms. Online: 10
+2025-07-04 11:15:10,077 - admin - INFO - Checked 10 hosts in 1596ms. Online: 10
+2025-07-04 11:16:11,648 - admin - INFO - Checked 10 hosts in 1521ms. Online: 10
+2025-07-04 11:17:10,021 - admin - INFO - Checked 10 hosts in 1548ms. Online: 10
+2025-07-04 11:17:49,307 - admin - INFO - Checked 10 hosts in 1693ms. Online: 10
+2025-07-04 11:18:49,326 - admin - INFO - Checked 10 hosts in 1649ms. Online: 10
+2025-07-04 11:19:49,217 - admin - INFO - Checked 10 hosts in 1546ms. Online: 10
+2025-07-04 11:20:49,223 - admin - INFO - Checked 10 hosts in 1560ms. Online: 10
+2025-07-04 11:21:49,329 - admin - INFO - Checked 10 hosts in 1661ms. Online: 10
+2025-07-04 11:22:49,198 - admin - INFO - Checked 10 hosts in 1536ms. Online: 10
+2025-07-04 11:23:49,232 - admin - INFO - Checked 10 hosts in 1558ms. Online: 10
+2025-07-04 11:24:49,216 - admin - INFO - Checked 10 hosts in 1550ms. Online: 10
+2025-07-04 11:25:47,705 - admin - ERROR - Ошибка получения статистики live событий: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 980, in _wrap_create_connection
+    return await self._loop.create_connection(*args, **kwargs)  # type: ignore[return-value]  # noqa
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1076, in create_connection
+    raise exceptions[0]
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1060, in create_connection
+    sock = await self._connect_sock(
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 969, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 501, in sock_connect
+    return await fut
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 541, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8007)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/app/routers/admin.py", line 1003, in get_live_events_today
+    async with session.get('http://localhost:8007/sync/live/today') as response:
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/client.py", line 1167, in __aenter__
+    self._resp = await self._coro
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/client.py", line 562, in _request
+    conn = await self._connector.connect(
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 540, in connect
+    proto = await self._create_connection(req, traces, timeout)
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 901, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 1209, in _create_direct_connection
+    raise last_exc
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 1178, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 988, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+2025-07-04 11:25:49,158 - admin - INFO - Checked 10 hosts in 1497ms. Online: 10
+2025-07-04 11:26:49,300 - admin - INFO - Checked 10 hosts in 1606ms. Online: 10
+2025-07-04 11:28:49,178 - admin - INFO - Checked 10 hosts in 1508ms. Online: 10
+2025-07-04 11:29:49,206 - admin - INFO - Checked 10 hosts in 1543ms. Online: 10
+2025-07-04 11:30:49,186 - admin - INFO - Checked 10 hosts in 1518ms. Online: 10
+2025-07-04 11:31:49,234 - admin - INFO - Checked 10 hosts in 1579ms. Online: 10
+2025-07-04 11:32:49,187 - admin - INFO - Checked 10 hosts in 1522ms. Online: 10
+2025-07-04 11:33:49,360 - admin - INFO - Checked 10 hosts in 1695ms. Online: 10
+2025-07-04 11:34:49,211 - admin - INFO - Checked 10 hosts in 1537ms. Online: 10
+2025-07-04 11:35:49,180 - admin - INFO - Checked 10 hosts in 1511ms. Online: 10
+2025-07-04 11:36:49,207 - admin - INFO - Checked 10 hosts in 1532ms. Online: 10
+2025-07-04 11:37:49,198 - admin - INFO - Checked 10 hosts in 1516ms. Online: 10
+2025-07-04 11:38:49,226 - admin - INFO - Checked 10 hosts in 1563ms. Online: 10
+2025-07-04 11:38:54,979 - admin - INFO - Checked 10 hosts in 1520ms. Online: 10
+2025-07-04 11:39:55,070 - admin - INFO - Checked 10 hosts in 1559ms. Online: 10
+2025-07-04 11:40:22,341 - admin - INFO - Checked 10 hosts in 1939ms. Online: 10
+2025-07-04 11:40:57,994 - admin - INFO - Checked 10 hosts in 1550ms. Online: 10
+2025-07-04 11:41:02,095 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-04 11:41:02,096 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-04 11:41:51,283 - admin - INFO - Checked 10 hosts in 1678ms. Online: 10
+2025-07-04 11:41:54,672 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-04 11:41:54,672 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-04 11:42:51,239 - admin - INFO - Checked 10 hosts in 1589ms. Online: 10
+2025-07-04 11:44:51,246 - admin - INFO - Checked 10 hosts in 1589ms. Online: 10
+2025-07-04 11:45:49,703 - admin - ERROR - Ошибка получения статистики live событий: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 980, in _wrap_create_connection
+    return await self._loop.create_connection(*args, **kwargs)  # type: ignore[return-value]  # noqa
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1076, in create_connection
+    raise exceptions[0]
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1060, in create_connection
+    sock = await self._connect_sock(
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 969, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 501, in sock_connect
+    return await fut
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 541, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8007)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/app/routers/admin.py", line 1003, in get_live_events_today
+    async with session.get('http://localhost:8007/sync/live/today') as response:
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/client.py", line 1167, in __aenter__
+    self._resp = await self._coro
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/client.py", line 562, in _request
+    conn = await self._connector.connect(
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 540, in connect
+    proto = await self._create_connection(req, traces, timeout)
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 901, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 1209, in _create_direct_connection
+    raise last_exc
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 1178, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 988, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+2025-07-04 11:45:51,221 - admin - INFO - Checked 10 hosts in 1570ms. Online: 10
+2025-07-04 11:46:51,268 - admin - INFO - Checked 10 hosts in 1615ms. Online: 10
+2025-07-04 11:47:15,992 - admin - ERROR - Ошибка получения статистики live событий: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 980, in _wrap_create_connection
+    return await self._loop.create_connection(*args, **kwargs)  # type: ignore[return-value]  # noqa
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1076, in create_connection
+    raise exceptions[0]
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1060, in create_connection
+    sock = await self._connect_sock(
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 969, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 501, in sock_connect
+    return await fut
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 541, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8007)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/app/routers/admin.py", line 1003, in get_live_events_today
+    async with session.get('http://localhost:8007/sync/live/today') as response:
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/client.py", line 1167, in __aenter__
+    self._resp = await self._coro
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/client.py", line 562, in _request
+    conn = await self._connector.connect(
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 540, in connect
+    proto = await self._create_connection(req, traces, timeout)
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 901, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 1209, in _create_direct_connection
+    raise last_exc
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 1178, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+  File "/usr/local/lib/python3.10/dist-packages/aiohttp/connector.py", line 988, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+2025-07-04 11:47:17,513 - admin - INFO - Checked 10 hosts in 1581ms. Online: 10
+2025-07-04 11:47:20,247 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-04 11:47:20,251 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-04 11:47:30,248 - admin - INFO - Запрос на генерацию токена для предприятия 0200
+2025-07-04 11:47:30,249 - admin - INFO - Токен для предприятия 0200 успешно сгенерирован.
+2025-07-04 11:48:17,600 - admin - INFO - Checked 10 hosts in 1589ms. Online: 10
+2025-07-04 11:48:46,325 - admin - INFO - Checked 10 hosts in 1534ms. Online: 10
+2025-07-04 11:48:49,763 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-04 11:48:49,764 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-04 11:49:22,458 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-04 11:49:22,460 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-04 11:49:27,986 - admin - INFO - Checked 10 hosts in 1517ms. Online: 10
+2025-07-04 11:49:30,801 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-04 11:49:30,803 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-04 11:50:28,226 - admin - INFO - Checked 10 hosts in 1556ms. Online: 10
+2025-07-04 11:51:28,367 - admin - INFO - Checked 10 hosts in 1625ms. Online: 10
+2025-07-04 11:52:28,222 - admin - INFO - Checked 10 hosts in 1550ms. Online: 10
+2025-07-04 11:53:28,217 - admin - INFO - Checked 10 hosts in 1546ms. Online: 10
+2025-07-04 11:56:17,598 - admin - INFO - Checked 10 hosts in 1531ms. Online: 10
+2025-07-04 11:56:20,033 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-04 11:56:20,034 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-04 11:56:20,122 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMDQ4MH0.6I7wG-oHqYc33VTTUcrTTJaQ3yUdBPKdTqWH7gCZO68
+2025-07-04 11:56:20,123 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-07-04 11:56:20,124 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0367', 'is_admin': True, 'exp': 1751630480}
+2025-07-04 11:56:20,124 - enterprise_admin_service - INFO - Номер предприятия из токена: 0367
+2025-07-04 11:56:20,203 - enterprise_admin_service - INFO - Создание сессии для предприятия 0367...
+2025-07-04 11:56:20,209 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-04 11:56:20,214 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0367.
+2025-07-04 11:56:20,215 - enterprise_admin_service - INFO - Запрос обработан за 0.0923 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMDQ4MH0.6I7wG-oHqYc33VTTUcrTTJaQ3yUdBPKdTqWH7gCZO68
+2025-07-04 11:56:20,251 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 11:56:20,449 - enterprise_admin_service - INFO - Запрос обработан за 0.1975 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 11:56:20,585 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 11:56:20,797 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-04 11:56:20,801 - enterprise_admin_service - INFO - Запрос обработан за 0.2161 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 11:56:22,054 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-04 11:56:24,977 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 11:56:25,121 - enterprise_admin_service - INFO - Запрос обработан за 0.1441 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 11:56:25,169 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 11:56:25,386 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-04 11:56:25,389 - enterprise_admin_service - INFO - Запрос обработан за 0.2194 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 11:56:26,615 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-04 11:56:27,504 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-04 11:56:47,227 - admin - INFO - Checked 10 hosts in 1575ms. Online: 10

@@ -764,7 +764,7 @@ async def get_user_details_for_edit(enterprise_number: str, user_id: int, curren
         raise HTTPException(status_code=500, detail="Failed to fetch user details")
     finally:
         if conn:
-        await conn.close()
+            await conn.close()
 
 @app.put("/enterprise/{enterprise_number}/users/{user_id}", status_code=status.HTTP_200_OK)
 async def update_user(enterprise_number: str, user_id: int, user_data: UserUpdate, current_enterprise: str = Depends(get_current_enterprise)):
