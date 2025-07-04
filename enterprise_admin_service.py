@@ -1798,8 +1798,8 @@ async def delete_internal_phone(enterprise_number: str, phone_number: str, curre
         
         # 3. Проверить, используется ли номер в исходящих схемах
         outgoing_schemas = await conn.fetch(
-            "SELECT osa.schema_name FROM gsm_outgoing_schema_assignments osa WHERE osa.gsm_line_id = $1 AND osa.enterprise_number = $2",
-            phone_number, enterprise_number)
+            "SELECT ds.schema_name FROM user_internal_phones uip JOIN dial_schemas ds ON uip.outgoing_schema_id = ds.schema_id WHERE uip.id = $1 AND uip.enterprise_number = $2",
+            phone_id, enterprise_number)
 
         conflicts = []
         if incoming_schemas:
@@ -1954,6 +1954,97 @@ async def delete_sip_line(enterprise_number: str, line_id: int, current_enterpri
     except Exception as e:
         logger.error(f"Failed to delete SIP line: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера.")
+    finally:
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/phone-config-data", response_class=JSONResponse)
+async def get_phone_config_data(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    """Получение конфигурационных данных для настройки телефона"""
+    if enterprise_number != current_enterprise:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+
+    try:
+        # Получаем IP адрес предприятия
+        enterprise_query = "SELECT ip FROM enterprises WHERE number = $1"
+        enterprise_row = await conn.fetchrow(enterprise_query, enterprise_number)
+        
+        if not enterprise_row or not enterprise_row['ip']:
+            raise HTTPException(status_code=404, detail="IP адрес предприятия не найден")
+        
+        host_ip = enterprise_row['ip']
+        
+        # SSH команды для получения конфигурационных файлов
+        commands = {
+            'sip_conf': f"sshpass -p '5atx9Ate@pbx' ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p 5059 root@{host_ip} 'cat /etc/asterisk/sip.conf | grep -E \"(externip|bindport)\"'",
+            'interfaces': f"sshpass -p '5atx9Ate@pbx' ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p 5059 root@{host_ip} 'cat /etc/network/interfaces | grep address'"
+        }
+        
+        config_data = {}
+        
+        # Выполняем SSH команды
+        for key, command in commands.items():
+            try:
+                process = await asyncio.create_subprocess_shell(
+                    command,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10)
+                
+                if process.returncode == 0:
+                    config_data[key] = stdout.decode('utf-8').strip()
+                else:
+                    config_data[key] = ''
+                    
+            except asyncio.TimeoutError:
+                config_data[key] = ''
+            except Exception as e:
+                logger.error(f"Error executing SSH command for {key}: {e}")
+                config_data[key] = ''
+        
+        # Парсим данные из sip.conf
+        sip_conf_content = config_data.get('sip_conf', '')
+        externip = None
+        bindport = '5060'
+        has_externip = False
+        
+        for line in sip_conf_content.split('\n'):
+            line = line.strip()
+            if line.startswith('externip='):
+                externip = line.split('=')[1].strip()
+                has_externip = True
+            elif line.startswith('bindport='):
+                bindport = line.split('=')[1].strip()
+        
+        # Парсим локальный IP из interfaces
+        interfaces_content = config_data.get('interfaces', '')
+        local_ip = None
+        
+        for line in interfaces_content.split('\n'):
+            line = line.strip()
+            if 'address' in line:
+                parts = line.split()
+                if len(parts) >= 2:
+                    local_ip = parts[1].strip()
+                    break
+        
+        return JSONResponse(content={
+            'externip': externip,
+            'bindport': bindport,
+            'localIp': local_ip,
+            'hasExternip': has_externip
+        })
+        
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=408, detail=f"Таймаут при подключении к хосту {host_ip}")
+    except Exception as e:
+        logger.error(f"Error getting phone config data for enterprise {enterprise_number}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Ошибка получения конфигурационных данных: {str(e)}")
     finally:
         await conn.close()
 

@@ -406,7 +406,7 @@
 
     <!-- Контейнер для модалки редактирования линии -->
     <div id="editLineModalContainer"></div>
-    <!-- Контейнер для модалки редактирования ВНУТРЕННЕЙ линии -->
+    <!-- Контейнер для модалки редактирования ВНУТРЕННИХ линий -->
     <div id="editInternalLineModalContainer"></div>
 
     <!-- Audiofiles Modal -->
@@ -653,7 +653,12 @@
             } else if (action === 'edit-internal-line') {
                 const phoneNumber = target.getAttribute('data-phone-number');
                 if (phoneNumber) {
-                    openEditInternalLineModal(phoneNumber);
+                    // Создаем искусственный event объект для совместимости
+                    const fakeEvent = {
+                        preventDefault: () => {},
+                        target: { textContent: phoneNumber.trim() }
+                    };
+                    openEditInternalLineModal(fakeEvent);
                 }
             } else if (action === 'delete-user') {
                 deleteUser();
@@ -2009,107 +2014,37 @@
         // --- Initial Load ---
         fetchUsers();
 
-        // --- Internal Line Edit Modal ---
-        const openEditInternalLineModal = async (phoneNumber) => {
-            try {
-                const response = await fetch(`/enterprise/${enterpriseNumber}/internal-phones/${phoneNumber}/details`);
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || `HTTP ${response.status}`);
-                }
-                const details = await response.json();
-
-                const modalHTML = `
-                    <div id="editInternalLineModal" class="modal" style="display: block;">
-                        <div class="modal-content modal-narrow">
-                            <div class="modal-header">
-                                <h2>Линия ${details.phone_number}</h2>
-                                <span data-action="close-modal" class="close-button">&times;</span>
-                            </div>
-                            <div class="modal-body">
-                                <form id="edit-internal-phone-form">
-                                    <div class="form-group">
-                                        <label>Номер</label>
-                                        <input type="text" value="${details.phone_number}" readonly style="background-color: #e9ecef;">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Пароль</label>
-                                        <div class="password-wrapper">
-                                            <input type="text" id="internalLinePassword" value="${details.password}" readonly style="background-color: #e9ecef;">
-                                            <button type="button" class="copy-btn" onclick="copyToClipboard('internalLinePassword')">❐</button>
-                                        </div>
-                                    </div>
-                                    <div class="form-actions" style="margin-top: 2rem;">
-                                        <button type="submit" class="btn btn-primary">Сохранить</button>
-                                        <button type="button" data-action="delete-internal-line" data-phone-number="${details.phone_number}" class="btn btn-danger">Удалить</button>
-                                        <button type="button" data-action="close-modal" class="btn btn-secondary">Закрыть</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                editInternalLineModalContainer.innerHTML = modalHTML;
-
-                // Add event listeners for the new modal
-                const modal = document.getElementById('editInternalLineModal');
-                modal.querySelector('[data-action="close-modal"]').addEventListener('click', () => closeModal(modal));
-                modal.querySelector('[data-action="delete-internal-line"]').addEventListener('click', deleteInternalLine);
-                 window.addEventListener('click', (event) => {
-                    if (event.target == modal) {
-                       closeModal(modal);
-                    }
-                });
-
-                // --- Добавляем логику сохранения ---
-                const editForm = modal.querySelector('#edit-internal-phone-form');
-                if (editForm) {
-                    editForm.addEventListener('submit', async (submitEvent) => {
-                        submitEvent.preventDefault();
-                        const submitButton = editForm.querySelector('button[type="submit"]');
-                        submitButton.disabled = true;
-                        submitButton.textContent = 'Сохранение...';
-
-                        try {
-                            const regenResponse = await fetch(`/enterprise/${enterpriseNumber}/regenerate-config`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                            });
-
-                            if (regenResponse.ok) {
-                                alert('Конфигурация успешно обновлена.');
-                                closeModal(modal);
-                            } else {
-                                const errorData = await regenResponse.json();
-                                throw new Error(errorData.detail || 'Не удалось обновить конфигурацию.');
-                            }
-                        } catch (error) {
-                            console.error('Ошибка:', error);
-                            alert(`Ошибка: ${error.message}`);
-                        } finally {
-                            submitButton.disabled = false;
-                            submitButton.textContent = 'Сохранить';
-                        }
-                    });
-                }
-
-            } catch (error) {
-                alert(`Ошибка загрузки данных линии: ${error.message}`);
-            }
-        };
+        // --- Internal Line Edit Modal --- (удалена старая версия)
         
-        const deleteInternalLine = async (event) => {
-            const phoneNumber = event.target.dataset.phoneNumber;
-            if (!confirm(`Вы уверены, что хотите удалить внутренний номер ${phoneNumber}?`)) return;
+        const deleteInternalLine = async (phoneNumber) => {
+            // Показываем подтверждение удаления
+            if (!confirm(`Вы уверены, что хотите удалить внутренний номер ${phoneNumber}?\n\nЭто действие необратимо.`)) {
+                return;
+            }
 
             try {
                 const response = await fetch(`/enterprise/${enterpriseNumber}/internal-phones/${phoneNumber}`, { method: 'DELETE' });
 
                 if (response.ok) {
                     alert(`Номер ${phoneNumber} успешно удален.`);
-                    closeModal(document.getElementById('editInternalLineModal'));
+                    // Закрываем все модальные окна
+                    closeAllModals();
+                    // Обновляем список пользователей
                     fetchUsers();
+                } else if (response.status === 409) {
+                    // Обрабатываем ошибки зависимостей (409 Conflict)
+                    try {
+                        const errorData = await response.json();
+                        const errorMessage = errorData.detail || `Номер ${phoneNumber} не может быть удален.`;
+                        
+                        // Показываем предупреждение с информацией о зависимостях
+                        alert(`Удаление невозможно!\n\n${errorMessage}`);
+                    } catch (jsonError) {
+                        const errorText = await response.text();
+                        alert(`Удаление невозможно!\n\n${errorText}`);
+                    }
                 } else {
+                    // Обрабатываем другие ошибки
                     let errorMessage;
                     try {
                         const errorData = await response.json();
@@ -2199,6 +2134,392 @@
                 alert(`Критическая ошибка: ${error.message}`);
             }
         });
+
+        // ============================================
+        // ФУНКЦИИ ДЛЯ РАБОТЫ С МОДАЛКОЙ ВНУТРЕННИХ ЛИНИЙ
+        // ============================================
+        
+        // Универсальная функция закрытия модальных окон
+        const closeAllModals = () => {
+            // Закрываем все модальные окна с классом .modal
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (modal && modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
+            });
+            
+            // Дополнительно очищаем все элементы с display: block, которые являются модальными окнами
+            const openModals = document.querySelectorAll('[style*="display: block"]');
+            openModals.forEach(element => {
+                if (element.classList && element.classList.contains('modal')) {
+                    if (element.parentNode) {
+                        element.parentNode.removeChild(element);
+                    }
+                }
+            });
+            
+            // Убираем возможные блокировки скролла
+            document.body.style.overflow = '';
+        };
+        
+        // Функция копирования в буфер обмена с уведомлением
+        const copyToClipboardWithNotification = async (text, message = "Данные скопированы в буфер обмена") => {
+            try {
+                await navigator.clipboard.writeText(text);
+                
+                // Создаем уведомление
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #28a745;
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 5px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    z-index: 10000;
+                    font-size: 14px;
+                    font-family: Arial, sans-serif;
+                `;
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                
+                // Удаляем уведомление через 3 секунды
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 3000);
+                
+            } catch (err) {
+                console.error('Ошибка копирования:', err);
+                // Fallback для старых браузеров
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                alert(message);
+            }
+        };
+
+        // Функция получения конфигурационных данных с хоста
+        const getPhoneConfigData = async (enterpriseNumber) => {
+            try {
+                // Используем прямой endpoint для получения конфигурационных данных
+                const response = await fetch(`/enterprise/${enterpriseNumber}/phone-config-data`);
+                if (!response.ok) {
+                    console.warn('Config endpoint not available, using fallback');
+                    // Fallback - возвращаем базовые данные
+                    return {
+                        externip: null,
+                        bindport: '5060',
+                        localIp: null,
+                        hasExternip: false
+                    };
+                }
+                
+                return await response.json();
+                
+            } catch (error) {
+                console.error('Error fetching config data:', error);
+                // Fallback для случаев когда endpoint недоступен
+                return {
+                    externip: null,
+                    bindport: '5060', 
+                    localIp: null,
+                    hasExternip: false
+                };
+            }
+        };
+
+        // Функция создания кнопки копирования для ячеек таблицы
+        const createCopyButton = (text) => {
+            const button = document.createElement('button');
+            button.innerHTML = '📋';
+            button.style.cssText = `
+                padding: 2px 4px;
+                border: 1px solid #ccc;
+                background: #f8f9fa;
+                border-radius: 3px;
+                cursor: pointer;
+                font-size: 12px;
+                vertical-align: middle;
+                min-width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            `;
+            button.title = 'Скопировать';
+            button.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                copyToClipboardWithNotification(text);
+            };
+            return button;
+        };
+
+        // Функция создания таблицы конфигурации
+        const createConfigTable = (lineData, configData) => {
+            const { phone_number, password } = lineData;
+            const { externip, bindport, localIp, hasExternip } = configData;
+            
+            const table = document.createElement('table');
+            table.style.cssText = `
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 15px;
+                font-size: 14px;
+            `;
+            
+            // Создаем заголовок
+            const header = document.createElement('tr');
+            header.innerHTML = `
+                <th style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5; text-align: center;">Параметр</th>
+                <th style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5; text-align: center;">Телефон в офисе</th>
+                ${hasExternip ? '<th style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5; text-align: center;">Телефон вне офиса</th>' : ''}
+            `;
+            table.appendChild(header);
+            
+            // Параметры для строк
+            const rows = [
+                { 
+                    param: '1', 
+                    office: phone_number, 
+                    external: phone_number 
+                },
+                { 
+                    param: '2', 
+                    office: password, 
+                    external: password 
+                },
+                { 
+                    param: '3', 
+                    office: localIp || 'н/д', 
+                    external: externip || 'н/д' 
+                },
+                { 
+                    param: '4', 
+                    office: localIp ? `${localIp}:${bindport}` : 'н/д', 
+                    external: externip ? `${externip}:${bindport}` : 'н/д' 
+                },
+                { 
+                    param: '5', 
+                    office: bindport, 
+                    external: bindport 
+                },
+                { 
+                    param: '6', 
+                    office: localIp ? `${phone_number}@${localIp}:${bindport}` : 'н/д', 
+                    external: externip ? `${phone_number}@${externip}:${bindport}` : 'н/д' 
+                }
+            ];
+            
+            // Создаем строки таблицы
+            rows.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                // Колонка параметра
+                const paramCell = document.createElement('td');
+                paramCell.style.cssText = 'border: 1px solid #ddd; padding: 8px; text-align: center; font-weight: bold;';
+                paramCell.textContent = row.param;
+                tr.appendChild(paramCell);
+                
+                // Колонка "Телефон в офисе"
+                const officeCell = document.createElement('td');
+                officeCell.style.cssText = 'border: 1px solid #ddd; padding: 8px; text-align: left; position: relative;';
+                
+                // Создаем контейнер для текста и кнопки
+                const officeContainer = document.createElement('div');
+                officeContainer.style.cssText = 'display: flex; justify-content: space-between; align-items: center;';
+                
+                const officeText = document.createElement('span');
+                officeText.textContent = row.office;
+                officeContainer.appendChild(officeText);
+                
+                // Добавляем кнопку копирования для параметров 2-6
+                if (parseInt(row.param) >= 2 && row.office !== 'н/д') {
+                    officeContainer.appendChild(createCopyButton(row.office));
+                }
+                
+                officeCell.appendChild(officeContainer);
+                tr.appendChild(officeCell);
+                
+                // Колонка "Телефон вне офиса" (только если есть externip)
+                if (hasExternip) {
+                    const externalCell = document.createElement('td');
+                    externalCell.style.cssText = 'border: 1px solid #ddd; padding: 8px; text-align: left; position: relative;';
+                    
+                    // Создаем контейнер для текста и кнопки
+                    const externalContainer = document.createElement('div');
+                    externalContainer.style.cssText = 'display: flex; justify-content: space-between; align-items: center;';
+                    
+                    const externalText = document.createElement('span');
+                    externalText.textContent = row.external;
+                    externalContainer.appendChild(externalText);
+                    
+                    // Добавляем кнопку копирования для параметров 2-6
+                    if (parseInt(row.param) >= 2 && row.external !== 'н/д') {
+                        externalContainer.appendChild(createCopyButton(row.external));
+                    }
+                    
+                    externalCell.appendChild(externalContainer);
+                    tr.appendChild(externalCell);
+                }
+                
+                table.appendChild(tr);
+            });
+            
+            return table;
+        };
+
+        // Функция показа индикатора загрузки
+        const showLoadingIndicator = (buttonElement) => {
+            const originalText = buttonElement.innerHTML;
+            buttonElement.innerHTML = '⏳ Загрузка...';
+            buttonElement.disabled = true;
+            buttonElement.style.opacity = '0.7';
+            
+            return () => {
+                buttonElement.innerHTML = originalText;
+                buttonElement.disabled = false;
+                buttonElement.style.opacity = '1';
+            };
+        };
+
+        // Открытие модального окна редактирования внутренней линии
+        const openEditInternalLineModal = async (event) => {
+            event.preventDefault();
+            
+            // Получаем номер линии
+            const lineNumber = event.target.textContent.trim();
+            
+            // Показываем индикатор загрузки для всех случаев
+            let hideLoading = () => {};
+            
+            // Если есть реальный DOM элемент - показываем индикатор на нем
+            if (event.target && event.target.style !== undefined) {
+                hideLoading = showLoadingIndicator(event.target);
+            } else {
+                // Для искусственных событий - находим кнопку по номеру и показываем индикатор
+                const realButton = document.querySelector(`[data-phone-number="${lineNumber}"]`);
+                if (realButton && realButton.style !== undefined) {
+                    hideLoading = showLoadingIndicator(realButton);
+                }
+            }
+            
+            try {
+                // Параллельно загружаем данные линии и конфигурации
+                const [lineResponse, configData] = await Promise.all([
+                    fetch(`/enterprise/${enterpriseNumber}/internal-phones/${lineNumber}/details`),
+                    getPhoneConfigData(enterpriseNumber)
+                ]);
+                
+                if (!lineResponse.ok) {
+                    throw new Error(`HTTP ${lineResponse.status}`);
+                }
+                
+                const lineData = await lineResponse.json();
+                
+                // Скрываем индикатор загрузки
+                hideLoading();
+                
+                // Создаем модальное окно
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 800px; width: 90%;">
+                        <span class="close">&times;</span>
+                        <h2>Линия ${lineData.phone_number}</h2>
+                        
+                        <form id="editInternalLineForm">
+                            <div class="form-group">
+                                <label for="editNumber">Номер</label>
+                                <input type="text" id="editNumber" value="${lineData.phone_number}" readonly>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="editPassword">Пароль</label>
+                                <div style="position: relative;">
+                                    <input type="text" id="editPassword" value="${lineData.password}" readonly style="padding-right: 40px;">
+                                    <button type="button" id="copyPasswordBtn"
+                                            style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); border: none; background: transparent; cursor: pointer; font-size: 16px;" 
+                                            title="Скопировать пароль">📋</button>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Параметры настройки телефона:</label>
+                                <div id="configTableContainer"></div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-danger" id="deleteLineBtn">Удалить</button>
+                                <button type="button" class="btn btn-secondary" id="closeModalBtn">Закрыть</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                // Добавляем таблицу конфигурации
+                const tableContainer = document.getElementById('configTableContainer');
+                const configTable = createConfigTable(lineData, configData);
+                tableContainer.appendChild(configTable);
+                
+                // Добавляем обработчик для кнопки копирования пароля
+                const copyPasswordBtn = document.getElementById('copyPasswordBtn');
+                if (copyPasswordBtn) {
+                    copyPasswordBtn.onclick = () => {
+                        copyToClipboardWithNotification(lineData.password, 'Пароль скопирован в буфер обмена');
+                    };
+                }
+                
+                // Добавляем обработчик для кнопки удаления
+                const deleteLineBtn = document.getElementById('deleteLineBtn');
+                if (deleteLineBtn) {
+                    deleteLineBtn.onclick = () => {
+                        deleteInternalLine(lineData.phone_number);
+                    };
+                }
+                
+                // Добавляем обработчик для кнопки закрытия
+                const closeModalBtn = document.getElementById('closeModalBtn');
+                if (closeModalBtn) {
+                    closeModalBtn.onclick = () => {
+                        closeAllModals();
+                    };
+                }
+                
+                // Обработчик закрытия модального окна (крестик)
+                modal.querySelector('.close').onclick = () => {
+                    closeAllModals();
+                };
+                
+                // Обработчик закрытия модального окна (клик вне области)
+                modal.onclick = function(event) {
+                    if (event.target === modal) {
+                        closeAllModals();
+                    }
+                };
+                
+
+                
+            } catch (error) {
+                hideLoading();
+                console.error('Ошибка загрузки данных:', error);
+                alert('Ошибка загрузки данных линии');
+            }
+        };
     });
     </script>
     <script src="https://unpkg.com/libphonenumber-js@1.11.1/bundle/libphonenumber-js.min.js"></script>
