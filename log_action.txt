@@ -15109,3 +15109,722 @@ aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost
 2025-07-04 12:25:32,600 - admin - INFO - Checked 10 hosts in 3186ms. Online: 9
 2025-07-04 12:26:32,600 - admin - INFO - Checked 10 hosts in 3180ms. Online: 9
 2025-07-04 12:27:31,142 - admin - INFO - Checked 10 hosts in 1707ms. Online: 10
+2025-07-04 12:28:31,199 - admin - INFO - Checked 10 hosts in 1774ms. Online: 10
+2025-07-04 12:31:39,510 - admin - INFO - Checked 11 hosts in 1635ms. Online: 11
+2025-07-04 12:32:39,660 - admin - INFO - Checked 11 hosts in 1746ms. Online: 11
+2025-07-04 12:33:39,666 - admin - INFO - Checked 11 hosts in 1734ms. Online: 11
+2025-07-04 12:34:39,591 - admin - INFO - Checked 11 hosts in 1673ms. Online: 11
+2025-07-04 12:35:39,610 - admin - INFO - Checked 11 hosts in 1661ms. Online: 11
+2025-07-04 12:36:39,566 - admin - INFO - Checked 11 hosts in 1651ms. Online: 11
+2025-07-04 12:37:27,193 - admin - INFO - Запрос на генерацию токена для предприятия 0104
+2025-07-04 12:37:27,194 - admin - INFO - Токен для предприятия 0104 успешно сгенерирован.
+2025-07-04 12:37:27,282 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMTA0IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMjk0N30.IyBLUqVQy8Sumd6OmfzPXeomFocAYukM2R-HAp-H-mA
+2025-07-04 12:37:27,286 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-07-04 12:37:27,287 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0104', 'is_admin': True, 'exp': 1751632947}
+2025-07-04 12:37:27,288 - enterprise_admin_service - INFO - Номер предприятия из токена: 0104
+2025-07-04 12:37:27,365 - enterprise_admin_service - INFO - Создание сессии для предприятия 0104...
+2025-07-04 12:37:27,369 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-04 12:37:27,375 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0104.
+2025-07-04 12:37:27,375 - enterprise_admin_service - INFO - Запрос обработан за 0.0932 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMTA0IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMjk0N30.IyBLUqVQy8Sumd6OmfzPXeomFocAYukM2R-HAp-H-mA
+2025-07-04 12:37:27,411 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:37:27,570 - enterprise_admin_service - INFO - Запрос обработан за 0.1589 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:37:27,720 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:37:27,905 - enterprise_admin_service - INFO - Найдено 0 пользователей для предприятия 0104
+2025-07-04 12:37:27,907 - enterprise_admin_service - INFO - Запрос обработан за 0.1869 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:37:29,198 - admin - INFO - Found 5 internal phones for enterprise 0104
+2025-07-04 12:37:29,837 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:37:29,984 - enterprise_admin_service - INFO - Запрос обработан за 0.1477 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:37:30,052 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:37:30,195 - enterprise_admin_service - INFO - Найдено 0 пользователей для предприятия 0104
+2025-07-04 12:37:30,196 - enterprise_admin_service - INFO - Запрос обработан за 0.1442 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:37:31,555 - admin - INFO - Found 5 internal phones for enterprise 0104
+2025-07-04 12:37:32,577 - admin - INFO - Found 5 internal phones for enterprise 0104
+2025-07-04 12:38:00,653 - admin - INFO - Checked 11 hosts in 1662ms. Online: 11
+2025-07-04 12:38:02,347 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/gsm-lines/all
+2025-07-04 12:38:02,445 - enterprise_admin_service - INFO - Запрос обработан за 0.0982 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/gsm-lines/all
+2025-07-04 12:38:02,484 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/gsm-lines/status
+2025-07-04 12:38:04,120 - enterprise_admin_service - INFO - Запрос обработан за 1.6366 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/gsm-lines/status
+2025-07-04 12:38:11,769 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/gsm-lines/310
+2025-07-04 12:38:11,868 - enterprise_admin_service - INFO - Запрос обработан за 0.0994 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/gsm-lines/310
+2025-07-04 12:38:43,005 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0104/gsm-lines/310
+2025-07-04 12:38:43,111 - enterprise_admin_service - INFO - Запрос обработан за 0.1063 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0104/gsm-lines/310
+2025-07-04 12:38:49,609 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/gsm-lines/312
+2025-07-04 12:38:49,679 - enterprise_admin_service - INFO - Запрос обработан за 0.0694 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/gsm-lines/312
+2025-07-04 12:39:01,354 - admin - INFO - Checked 11 hosts in 1670ms. Online: 11
+2025-07-04 12:39:15,322 - enterprise_admin_service - INFO - Получен запрос: PUT https://bot.vochi.by/enterprise/0104/gsm-lines/312
+2025-07-04 12:39:15,431 - enterprise_admin_service - INFO - Запрос обработан за 0.1094 сек. Статус: 200. Адрес: PUT https://bot.vochi.by/enterprise/0104/gsm-lines/312
+2025-07-04 12:39:19,095 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:39:19,252 - enterprise_admin_service - INFO - Найдено 0 пользователей для предприятия 0104
+2025-07-04 12:39:19,253 - enterprise_admin_service - INFO - Запрос обработан за 0.1583 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:39:20,614 - admin - INFO - Found 5 internal phones for enterprise 0104
+2025-07-04 12:39:35,354 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/next-available
+2025-07-04 12:39:35,578 - enterprise_admin_service - INFO - Запрос обработан за 0.2235 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/next-available
+2025-07-04 12:40:03,434 - admin - INFO - Checked 11 hosts in 3738ms. Online: 11
+2025-07-04 12:40:07,312 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0104/internal-phones
+2025-07-04 12:40:07,639 - enterprise_admin_service - INFO - Запрос обработан за 0.3271 сек. Статус: 200. Адрес: POST https://bot.vochi.by/enterprise/0104/internal-phones
+2025-07-04 12:40:07,678 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:40:07,834 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:40:07,835 - enterprise_admin_service - INFO - Запрос обработан за 0.1567 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:40:09,263 - admin - INFO - Found 5 internal phones for enterprise 0104
+2025-07-04 12:40:11,117 - enterprise_admin_service - INFO - Успешная генерация и развертывание SIP конфига для предприятия 0104
+2025-07-04 12:40:33,583 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:40:33,757 - enterprise_admin_service - INFO - Запрос обработан за 0.1742 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:40:33,834 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:40:34,024 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:40:34,028 - enterprise_admin_service - INFO - Запрос обработан за 0.1935 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:40:35,301 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:41:01,350 - admin - INFO - Checked 11 hosts in 1657ms. Online: 11
+2025-07-04 12:42:00,681 - admin - INFO - Checked 11 hosts in 1635ms. Online: 11
+2025-07-04 12:42:41,448 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:42:41,648 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:42:41,649 - enterprise_admin_service - INFO - Запрос обработан за 0.2016 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:42:42,935 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:43:01,415 - admin - INFO - Checked 11 hosts in 1740ms. Online: 11
+2025-07-04 12:43:34,922 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:43:35,112 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:43:35,114 - enterprise_admin_service - INFO - Запрос обработан за 0.1919 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:43:36,495 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:43:56,244 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:43:56,456 - enterprise_admin_service - INFO - Запрос обработан за 0.2122 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:43:56,572 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:43:56,805 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:43:56,807 - enterprise_admin_service - INFO - Запрос обработан за 0.2350 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:43:57,939 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:43:58,053 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:43:58,201 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:43:58,203 - enterprise_admin_service - INFO - Запрос обработан за 0.2643 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:43:59,564 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:44:01,254 - admin - INFO - Checked 11 hosts in 1639ms. Online: 11
+2025-07-04 12:45:04,991 - admin - INFO - Checked 11 hosts in 5316ms. Online: 11
+2025-07-04 12:46:02,304 - admin - INFO - Checked 11 hosts in 1689ms. Online: 11
+2025-07-04 12:46:05,773 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:46:05,973 - enterprise_admin_service - INFO - Запрос обработан за 0.2013 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:46:06,531 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:46:06,701 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:46:06,702 - enterprise_admin_service - INFO - Запрос обработан за 0.1710 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:46:08,022 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:46:09,951 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:46:10,113 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:46:10,115 - enterprise_admin_service - INFO - Запрос обработан за 0.1638 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:46:11,419 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:46:17,472 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 12:46:17,675 - enterprise_admin_service - INFO - Запрос обработан за 0.2026 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 12:47:03,458 - admin - INFO - Checked 11 hosts in 1766ms. Online: 11
+2025-07-04 12:47:40,203 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:47:40,356 - enterprise_admin_service - INFO - Запрос обработан за 0.1527 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:47:40,526 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:47:40,708 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:47:40,709 - enterprise_admin_service - INFO - Запрос обработан за 0.1834 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:47:42,050 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:47:48,331 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:47:48,461 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:47:48,462 - enterprise_admin_service - INFO - Запрос обработан за 0.1317 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:47:49,816 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:47:52,432 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 12:47:52,593 - enterprise_admin_service - INFO - Запрос обработан за 0.1611 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 12:48:01,277 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/next-available
+2025-07-04 12:48:01,491 - enterprise_admin_service - INFO - Запрос обработан за 0.2150 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/next-available
+2025-07-04 12:48:04,340 - admin - INFO - Checked 11 hosts in 1718ms. Online: 11
+2025-07-04 12:48:04,796 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 12:48:04,978 - enterprise_admin_service - INFO - Запрос обработан за 0.1815 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 12:49:05,479 - admin - INFO - Checked 11 hosts in 1799ms. Online: 11
+2025-07-04 12:49:24,719 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:49:24,937 - enterprise_admin_service - INFO - Запрос обработан за 0.2180 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:49:25,173 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:49:25,372 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:49:25,375 - enterprise_admin_service - INFO - Запрос обработан за 0.2012 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:49:26,700 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:49:27,457 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:49:27,600 - enterprise_admin_service - INFO - Запрос обработан за 0.1428 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:49:27,694 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:49:27,880 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:49:27,882 - enterprise_admin_service - INFO - Запрос обработан за 0.1880 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:49:29,165 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:49:33,722 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:49:33,965 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:49:33,968 - enterprise_admin_service - INFO - Запрос обработан за 0.2455 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:49:35,226 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:49:44,115 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-04 12:49:44,116 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-04 12:49:44,192 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMzY4NH0.hV6YiEmTYdtFD2ZKEG7kI5fv3_GDlw0docybJ8saIwc
+2025-07-04 12:49:44,193 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-07-04 12:49:44,194 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0367', 'is_admin': True, 'exp': 1751633684}
+2025-07-04 12:49:44,195 - enterprise_admin_service - INFO - Номер предприятия из токена: 0367
+2025-07-04 12:49:44,264 - enterprise_admin_service - INFO - Создание сессии для предприятия 0367...
+2025-07-04 12:49:44,268 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-04 12:49:44,273 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0367.
+2025-07-04 12:49:44,274 - enterprise_admin_service - INFO - Запрос обработан за 0.0824 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMzY4NH0.hV6YiEmTYdtFD2ZKEG7kI5fv3_GDlw0docybJ8saIwc
+2025-07-04 12:49:44,311 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 12:49:44,494 - enterprise_admin_service - INFO - Запрос обработан за 0.1828 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 12:49:44,605 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 12:49:44,780 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-04 12:49:44,781 - enterprise_admin_service - INFO - Запрос обработан за 0.1767 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 12:49:45,913 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-04 12:49:46,367 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 12:49:46,567 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-04 12:49:46,568 - enterprise_admin_service - INFO - Запрос обработан за 0.2007 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 12:49:47,854 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-04 12:50:03,443 - admin - INFO - Checked 11 hosts in 3750ms. Online: 11
+2025-07-04 12:50:08,730 - admin - INFO - Запрос на генерацию токена для предприятия 0200
+2025-07-04 12:50:08,731 - admin - INFO - Токен для предприятия 0200 успешно сгенерирован.
+2025-07-04 12:50:08,801 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMjAwIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMzcwOH0.FSoj6jVWqnVcqJUY8U-nfNy4_ITHlJam6YbGSiqCUXc
+2025-07-04 12:50:08,802 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-07-04 12:50:08,802 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0200', 'is_admin': True, 'exp': 1751633708}
+2025-07-04 12:50:08,802 - enterprise_admin_service - INFO - Номер предприятия из токена: 0200
+2025-07-04 12:50:08,895 - enterprise_admin_service - INFO - Создание сессии для предприятия 0200...
+2025-07-04 12:50:08,900 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-04 12:50:08,901 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0200.
+2025-07-04 12:50:08,901 - enterprise_admin_service - INFO - Запрос обработан за 0.1009 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMjAwIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMzcwOH0.FSoj6jVWqnVcqJUY8U-nfNy4_ITHlJam6YbGSiqCUXc
+2025-07-04 12:50:08,938 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-07-04 12:50:09,121 - enterprise_admin_service - INFO - Запрос обработан за 0.1831 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-07-04 12:50:09,227 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-07-04 12:50:09,396 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0200
+2025-07-04 12:50:09,398 - enterprise_admin_service - INFO - Запрос обработан за 0.1709 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-07-04 12:50:10,773 - admin - INFO - Found 7 internal phones for enterprise 0200
+2025-07-04 12:50:11,229 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/users
+2025-07-04 12:50:11,464 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0200
+2025-07-04 12:50:11,466 - enterprise_admin_service - INFO - Запрос обработан за 0.2372 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/users
+2025-07-04 12:50:12,732 - admin - INFO - Found 7 internal phones for enterprise 0200
+2025-07-04 12:50:24,253 - admin - INFO - Checked 11 hosts in 1725ms. Online: 11
+2025-07-04 12:50:28,124 - admin - INFO - Запрос на генерацию токена для предприятия 0104
+2025-07-04 12:50:28,126 - admin - INFO - Токен для предприятия 0104 успешно сгенерирован.
+2025-07-04 12:50:28,199 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMTA0IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMzcyOH0.H0yA_AM9Id8pzSHaXfUzw8joQc9ErZs4wHud8tekyQA
+2025-07-04 12:50:28,201 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-07-04 12:50:28,202 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0104', 'is_admin': True, 'exp': 1751633728}
+2025-07-04 12:50:28,202 - enterprise_admin_service - INFO - Номер предприятия из токена: 0104
+2025-07-04 12:50:28,277 - enterprise_admin_service - INFO - Создание сессии для предприятия 0104...
+2025-07-04 12:50:28,281 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-04 12:50:28,286 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0104.
+2025-07-04 12:50:28,287 - enterprise_admin_service - INFO - Запрос обработан за 0.0889 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMTA0IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzMzcyOH0.H0yA_AM9Id8pzSHaXfUzw8joQc9ErZs4wHud8tekyQA
+2025-07-04 12:50:28,326 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:50:28,493 - enterprise_admin_service - INFO - Запрос обработан за 0.1673 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:50:28,596 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:50:28,782 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:50:28,785 - enterprise_admin_service - INFO - Запрос обработан за 0.1891 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:50:30,099 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:50:30,583 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:50:30,833 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:50:30,834 - enterprise_admin_service - INFO - Запрос обработан за 0.2511 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:50:32,066 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:50:44,376 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 12:50:44,550 - enterprise_admin_service - INFO - Запрос обработан за 0.1742 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 12:51:06,911 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:51:07,106 - enterprise_admin_service - INFO - Запрос обработан за 0.1954 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:51:07,191 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:51:07,353 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:51:07,354 - enterprise_admin_service - INFO - Запрос обработан за 0.1632 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:51:08,664 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:51:24,290 - admin - INFO - Checked 11 hosts in 1674ms. Online: 11
+2025-07-04 12:51:36,884 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:51:37,067 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:51:37,070 - enterprise_admin_service - INFO - Запрос обработан за 0.1858 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:51:38,360 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:51:43,332 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:51:43,490 - enterprise_admin_service - INFO - Запрос обработан за 0.1580 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 12:51:43,583 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:51:43,793 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:51:43,795 - enterprise_admin_service - INFO - Запрос обработан за 0.2119 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:51:45,058 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:52:04,521 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:52:04,725 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 12:52:04,728 - enterprise_admin_service - INFO - Запрос обработан за 0.2067 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 12:52:06,059 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 12:52:11,947 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 12:52:12,104 - enterprise_admin_service - INFO - Запрос обработан за 0.1563 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 12:52:24,364 - admin - INFO - Checked 11 hosts in 1670ms. Online: 11
+2025-07-04 12:53:24,643 - admin - INFO - Checked 11 hosts in 1951ms. Online: 11
+2025-07-04 12:54:24,373 - admin - INFO - Checked 11 hosts in 1672ms. Online: 11
+2025-07-04 12:55:24,315 - admin - INFO - Checked 11 hosts in 1626ms. Online: 11
+2025-07-04 12:56:24,344 - admin - INFO - Checked 11 hosts in 1642ms. Online: 11
+2025-07-04 12:57:24,342 - admin - INFO - Checked 11 hosts in 1645ms. Online: 11
+2025-07-04 12:58:25,333 - admin - INFO - Checked 11 hosts in 1655ms. Online: 11
+2025-07-04 12:59:26,344 - admin - INFO - Checked 11 hosts in 1658ms. Online: 11
+2025-07-04 13:00:27,402 - admin - INFO - Checked 11 hosts in 1719ms. Online: 11
+2025-07-04 13:01:28,487 - admin - INFO - Checked 11 hosts in 1794ms. Online: 11
+2025-07-04 13:02:29,338 - admin - INFO - Checked 11 hosts in 1658ms. Online: 11
+2025-07-04 13:03:30,399 - admin - INFO - Checked 11 hosts in 1715ms. Online: 11
+2025-07-04 13:04:30,488 - admin - INFO - Checked 11 hosts in 1797ms. Online: 11
+2025-07-04 13:05:30,330 - admin - INFO - Checked 11 hosts in 1629ms. Online: 11
+2025-07-04 13:06:30,395 - admin - INFO - Checked 11 hosts in 1705ms. Online: 11
+2025-07-04 13:07:30,375 - admin - INFO - Checked 11 hosts in 1678ms. Online: 11
+2025-07-04 13:08:30,428 - admin - INFO - Checked 11 hosts in 1737ms. Online: 11
+2025-07-04 13:09:30,360 - admin - INFO - Checked 11 hosts in 1673ms. Online: 11
+2025-07-04 13:10:30,362 - admin - INFO - Checked 11 hosts in 1656ms. Online: 11
+2025-07-04 13:11:30,389 - admin - INFO - Checked 11 hosts in 1690ms. Online: 11
+2025-07-04 13:12:30,445 - admin - INFO - Checked 11 hosts in 1753ms. Online: 11
+2025-07-04 13:13:30,351 - admin - INFO - Checked 11 hosts in 1655ms. Online: 11
+2025-07-04 13:14:30,366 - admin - INFO - Checked 11 hosts in 1676ms. Online: 11
+2025-07-04 13:15:25,206 - admin - INFO - Checked 11 hosts in 2630ms. Online: 11
+2025-07-04 13:26:12,187 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/gsm-lines/all
+2025-07-04 13:26:12,313 - enterprise_admin_service - INFO - Запрос обработан за 0.1262 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/gsm-lines/all
+2025-07-04 13:26:12,352 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/gsm-lines/status
+2025-07-04 13:26:13,986 - enterprise_admin_service - INFO - Запрос обработан за 1.6343 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/gsm-lines/status
+2025-07-04 13:26:21,127 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:26:21,280 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 13:26:21,282 - enterprise_admin_service - INFO - Запрос обработан за 0.1549 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:26:22,614 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 13:28:32,849 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/gsm-lines/all
+2025-07-04 13:28:32,929 - enterprise_admin_service - INFO - Запрос обработан за 0.0809 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0200/gsm-lines/all
+2025-07-04 13:28:32,972 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/gsm-lines/status
+2025-07-04 13:28:33,052 - enterprise_admin_service - INFO - Запрос обработан за 0.0802 сек. Статус: 403. Адрес: GET https://bot.vochi.by/enterprise/0200/gsm-lines/status
+2025-07-04 13:28:43,640 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-07-04 13:28:43,716 - enterprise_admin_service - INFO - Запрос обработан за 0.0763 сек. Статус: 403. Адрес: GET https://bot.vochi.by/enterprise/0200/dashboard
+2025-07-04 13:28:52,851 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 13:28:53,038 - enterprise_admin_service - INFO - Запрос обработан за 0.1862 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 13:28:53,135 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:28:53,312 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 13:28:53,313 - enterprise_admin_service - INFO - Запрос обработан за 0.1786 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:28:54,634 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 13:28:55,461 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/gsm-lines/all
+2025-07-04 13:28:55,621 - enterprise_admin_service - INFO - Запрос обработан за 0.1606 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/gsm-lines/all
+2025-07-04 13:28:55,659 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/gsm-lines/status
+2025-07-04 13:28:57,337 - enterprise_admin_service - INFO - Запрос обработан за 1.6782 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/gsm-lines/status
+2025-07-04 13:48:16,622 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 13:48:16,858 - enterprise_admin_service - INFO - Запрос обработан за 0.2369 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 13:48:17,067 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:48:17,243 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 13:48:17,245 - enterprise_admin_service - INFO - Запрос обработан за 0.1783 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:48:18,549 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 13:48:20,580 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:48:20,799 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 13:48:20,803 - enterprise_admin_service - INFO - Запрос обработан за 0.2222 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:48:22,069 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 13:48:24,520 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 13:48:24,727 - enterprise_admin_service - INFO - Запрос обработан за 0.2066 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 13:48:40,228 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 13:48:40,413 - enterprise_admin_service - INFO - Запрос обработан за 0.1855 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 13:48:40,574 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:48:40,754 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 13:48:40,759 - enterprise_admin_service - INFO - Запрос обработан за 0.1852 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:48:42,073 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 13:48:43,428 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:48:43,638 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 13:48:43,640 - enterprise_admin_service - INFO - Запрос обработан за 0.2119 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:48:44,907 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 13:48:46,448 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 13:48:46,571 - enterprise_admin_service - INFO - Запрос обработан за 0.1224 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 13:49:55,051 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/admin/config/0104
+2025-07-04 13:49:55,053 - enterprise_admin_service - INFO - Запрос обработан за 0.0025 сек. Статус: 404. Адрес: GET http://localhost:8004/admin/config/0104
+2025-07-04 13:52:51,379 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 13:52:51,594 - enterprise_admin_service - INFO - Запрос обработан за 0.2151 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 13:52:51,839 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:52:52,025 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 13:52:52,034 - enterprise_admin_service - INFO - Запрос обработан за 0.1948 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:52:53,334 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 13:52:54,613 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:52:54,803 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 13:52:54,805 - enterprise_admin_service - INFO - Запрос обработан за 0.1914 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 13:52:56,105 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 13:52:59,255 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 13:52:59,255 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 13:52:59,571 - enterprise_admin_service - INFO - Запрос обработан за 0.3160 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 13:53:02,491 - enterprise_admin_service - INFO - Запрос обработан за 3.2356 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:00:17,200 - admin - INFO - Checked 11 hosts in 1702ms. Online: 11
+2025-07-04 14:00:28,481 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-04 14:00:28,483 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-04 14:00:28,561 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzNzkyOH0.JqHGFErEw8Ux2Sl8ER8ubhCEvyDHX-BEP7eH5TL9iBI
+2025-07-04 14:00:28,564 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-07-04 14:00:28,565 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0367', 'is_admin': True, 'exp': 1751637928}
+2025-07-04 14:00:28,565 - enterprise_admin_service - INFO - Номер предприятия из токена: 0367
+2025-07-04 14:00:28,687 - enterprise_admin_service - INFO - Создание сессии для предприятия 0367...
+2025-07-04 14:00:28,707 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-04 14:00:28,713 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0367.
+2025-07-04 14:00:28,714 - enterprise_admin_service - INFO - Запрос обработан за 0.1527 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzNzkyOH0.JqHGFErEw8Ux2Sl8ER8ubhCEvyDHX-BEP7eH5TL9iBI
+2025-07-04 14:00:28,749 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 14:00:28,944 - enterprise_admin_service - INFO - Запрос обработан за 0.1952 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 14:00:39,224 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 14:00:39,379 - enterprise_admin_service - INFO - Запрос обработан за 0.1543 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 14:00:44,978 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 14:00:45,134 - enterprise_admin_service - INFO - Запрос обработан за 0.1559 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 14:01:17,490 - admin - INFO - Checked 11 hosts in 1781ms. Online: 11
+2025-07-04 14:02:07,439 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 14:02:07,704 - enterprise_admin_service - INFO - Запрос обработан за 0.2647 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-04 14:02:07,888 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 14:02:08,063 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-04 14:02:08,066 - enterprise_admin_service - INFO - Запрос обработан за 0.1779 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 14:02:09,342 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-04 14:02:10,037 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 14:02:10,276 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-04 14:02:10,278 - enterprise_admin_service - INFO - Запрос обработан за 0.2411 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-04 14:02:11,549 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-04 14:02:17,340 - admin - INFO - Checked 11 hosts in 1630ms. Online: 11
+2025-07-04 14:02:29,859 - admin - INFO - Запрос на генерацию токена для предприятия 0104
+2025-07-04 14:02:29,861 - admin - INFO - Токен для предприятия 0104 успешно сгенерирован.
+2025-07-04 14:02:29,950 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMTA0IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzODA0OX0.1aKRs5SmznbEPQc44esOfWa-DVASP4bO96aYSBZPzhU
+2025-07-04 14:02:29,951 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJ0eXAiOiJKV1Q...
+2025-07-04 14:02:29,951 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0104', 'is_admin': True, 'exp': 1751638049}
+2025-07-04 14:02:29,951 - enterprise_admin_service - INFO - Номер предприятия из токена: 0104
+2025-07-04 14:02:30,043 - enterprise_admin_service - INFO - Создание сессии для предприятия 0104...
+2025-07-04 14:02:30,046 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-04 14:02:30,053 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0104.
+2025-07-04 14:02:30,054 - enterprise_admin_service - INFO - Запрос обработан за 0.1034 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMTA0IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTYzODA0OX0.1aKRs5SmznbEPQc44esOfWa-DVASP4bO96aYSBZPzhU
+2025-07-04 14:02:30,091 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:02:30,252 - enterprise_admin_service - INFO - Запрос обработан за 0.1614 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:02:30,366 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:02:30,596 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:02:30,597 - enterprise_admin_service - INFO - Запрос обработан за 0.2315 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:02:31,873 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:02:32,853 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:02:32,987 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:02:32,988 - enterprise_admin_service - INFO - Запрос обработан за 0.1351 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:02:34,345 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:02:41,757 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:02:41,926 - enterprise_admin_service - INFO - Запрос обработан за 0.1687 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:02:42,113 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:02:42,295 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:02:42,296 - enterprise_admin_service - INFO - Запрос обработан за 0.1829 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:02:43,628 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:02:44,348 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:02:44,535 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:02:44,537 - enterprise_admin_service - INFO - Запрос обработан за 0.1893 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:02:45,825 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:03:17,419 - admin - INFO - Checked 11 hosts in 1699ms. Online: 11
+2025-07-04 14:04:17,754 - admin - INFO - Checked 11 hosts in 1856ms. Online: 11
+2025-07-04 14:05:17,381 - admin - INFO - Checked 11 hosts in 1674ms. Online: 11
+2025-07-04 14:06:17,483 - admin - INFO - Checked 11 hosts in 1774ms. Online: 11
+2025-07-04 14:07:17,392 - admin - INFO - Checked 11 hosts in 1685ms. Online: 11
+2025-07-04 14:08:23,073 - admin - INFO - Checked 11 hosts in 6433ms. Online: 11
+2025-07-04 14:09:19,413 - admin - INFO - Checked 11 hosts in 1713ms. Online: 11
+2025-07-04 14:09:41,881 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:09:42,081 - enterprise_admin_service - INFO - Запрос обработан за 0.2002 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:09:42,296 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:09:42,487 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:09:42,489 - enterprise_admin_service - INFO - Запрос обработан за 0.1927 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:09:43,827 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:09:55,028 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:09:55,255 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:09:55,258 - enterprise_admin_service - INFO - Запрос обработан за 0.2304 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:09:56,550 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:10:20,391 - admin - INFO - Checked 11 hosts in 1751ms. Online: 11
+2025-07-04 14:11:21,389 - admin - INFO - Checked 11 hosts in 1675ms. Online: 11
+2025-07-04 14:12:21,168 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:12:21,406 - enterprise_admin_service - INFO - Запрос обработан за 0.2385 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:12:21,609 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:12:21,809 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:12:21,810 - enterprise_admin_service - INFO - Запрос обработан за 0.2014 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:12:23,113 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:12:23,203 - admin - INFO - Checked 11 hosts in 2502ms. Online: 11
+2025-07-04 14:12:25,157 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:12:25,359 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:12:25,360 - enterprise_admin_service - INFO - Запрос обработан за 0.2035 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:12:26,665 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:12:40,708 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:12:40,863 - enterprise_admin_service - INFO - Запрос обработан за 0.1557 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:12:41,066 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:12:41,247 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:12:41,250 - enterprise_admin_service - INFO - Запрос обработан за 0.1834 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:12:42,555 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:12:43,992 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:12:44,121 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:12:44,126 - enterprise_admin_service - INFO - Запрос обработан за 0.1340 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:12:45,492 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:13:23,360 - admin - INFO - Checked 11 hosts in 1642ms. Online: 11
+2025-07-04 14:13:51,375 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:13:51,575 - enterprise_admin_service - INFO - Запрос обработан за 0.2003 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:13:51,771 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:13:51,917 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:13:51,920 - enterprise_admin_service - INFO - Запрос обработан за 0.1486 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:13:53,299 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:13:54,666 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:13:54,872 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:13:54,873 - enterprise_admin_service - INFO - Запрос обработан за 0.2077 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:13:56,200 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:13:58,157 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-lines/150
+2025-07-04 14:13:58,159 - enterprise_admin_service - INFO - Запрос обработан за 0.0012 сек. Статус: 404. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-lines/150
+2025-07-04 14:13:58,162 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:14:01,195 - enterprise_admin_service - INFO - Запрос обработан за 3.0333 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:20:02,905 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:20:03,085 - enterprise_admin_service - INFO - Запрос обработан за 0.1801 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:20:03,299 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:20:03,439 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:20:03,440 - enterprise_admin_service - INFO - Запрос обработан за 0.1408 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:20:06,844 - admin - WARNING - Команда df завершилась с ошибкой для 10.88.10.25: Connection timed out during banner exchange
+
+2025-07-04 14:20:07,298 - admin - INFO - Checked 11 hosts in 5574ms. Online: 11
+2025-07-04 14:20:25,234 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:20:25,426 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:20:25,428 - enterprise_admin_service - INFO - Запрос обработан за 0.1935 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:20:26,755 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:20:28,525 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:20:28,530 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:20:28,738 - enterprise_admin_service - INFO - Запрос обработан за 0.2131 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:20:30,352 - admin - INFO - Checked 11 hosts in 1706ms. Online: 11
+2025-07-04 14:20:31,840 - enterprise_admin_service - INFO - Запрос обработан за 3.3101 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:21:24,741 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:21:24,875 - enterprise_admin_service - INFO - Запрос обработан за 0.1342 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:21:25,077 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:21:25,220 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:21:25,222 - enterprise_admin_service - INFO - Запрос обработан за 0.1445 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:21:26,574 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:21:29,733 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:21:29,904 - enterprise_admin_service - INFO - Запрос обработан за 0.1707 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:21:30,081 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:21:30,285 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:21:30,286 - enterprise_admin_service - INFO - Запрос обработан за 0.2048 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:21:30,354 - admin - INFO - Checked 11 hosts in 1710ms. Online: 11
+2025-07-04 14:21:31,593 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:21:33,423 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:21:33,553 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:21:33,555 - enterprise_admin_service - INFO - Запрос обработан за 0.1322 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:21:34,909 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:21:36,983 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:21:36,991 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:21:37,318 - enterprise_admin_service - INFO - Запрос обработан за 0.3356 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:21:40,250 - enterprise_admin_service - INFO - Запрос обработан за 3.2593 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:22:30,393 - admin - INFO - Checked 11 hosts in 1674ms. Online: 11
+2025-07-04 14:23:30,422 - admin - INFO - Checked 11 hosts in 1689ms. Online: 11
+2025-07-04 14:24:30,375 - admin - INFO - Checked 11 hosts in 1648ms. Online: 11
+2025-07-04 14:25:13,733 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:25:13,992 - enterprise_admin_service - INFO - Запрос обработан за 0.2601 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:25:14,177 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:25:14,321 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:25:14,322 - enterprise_admin_service - INFO - Запрос обработан за 0.1453 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:25:15,744 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:25:16,919 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:25:17,107 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:25:17,110 - enterprise_admin_service - INFO - Запрос обработан за 0.1911 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:25:18,416 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:25:20,352 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:25:20,353 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:25:20,656 - enterprise_admin_service - INFO - Запрос обработан за 0.3042 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:25:23,570 - enterprise_admin_service - INFO - Запрос обработан за 3.2167 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:25:30,340 - admin - INFO - Checked 11 hosts in 1633ms. Online: 11
+2025-07-04 14:26:30,493 - admin - INFO - Checked 11 hosts in 1757ms. Online: 11
+2025-07-04 14:27:30,341 - admin - INFO - Checked 11 hosts in 1626ms. Online: 11
+2025-07-04 14:27:36,863 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:27:37,073 - enterprise_admin_service - INFO - Запрос обработан за 0.2102 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:27:37,281 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:27:37,466 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:27:37,468 - enterprise_admin_service - INFO - Запрос обработан за 0.1865 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:27:38,743 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:27:40,316 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:27:40,513 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:27:40,514 - enterprise_admin_service - INFO - Запрос обработан за 0.1988 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:27:41,803 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:27:43,534 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:27:43,542 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:27:43,808 - enterprise_admin_service - INFO - Запрос обработан за 0.2740 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:27:46,720 - enterprise_admin_service - INFO - Запрос обработан за 3.1777 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:28:30,404 - admin - INFO - Checked 11 hosts in 1669ms. Online: 11
+2025-07-04 14:29:30,396 - admin - INFO - Checked 11 hosts in 1645ms. Online: 11
+2025-07-04 14:29:51,839 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:29:52,015 - enterprise_admin_service - INFO - Запрос обработан за 0.1764 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:29:52,270 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:29:52,491 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:29:52,494 - enterprise_admin_service - INFO - Запрос обработан за 0.2239 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:29:53,771 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:29:54,427 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:29:54,601 - enterprise_admin_service - INFO - Запрос обработан за 0.1739 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:29:54,670 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:29:54,839 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:29:54,840 - enterprise_admin_service - INFO - Запрос обработан за 0.1705 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:29:56,158 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:29:56,923 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:29:57,140 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:29:57,141 - enterprise_admin_service - INFO - Запрос обработан за 0.2177 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:29:57,235 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:29:58,742 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:29:59,245 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:29:59,252 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:29:59,525 - enterprise_admin_service - INFO - Запрос обработан за 0.2806 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:30:06,244 - enterprise_admin_service - INFO - Запрос обработан за 6.9916 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:30:26,589 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:30:26,772 - enterprise_admin_service - INFO - Запрос обработан за 0.1828 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:30:26,954 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:27,181 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:30:27,186 - enterprise_admin_service - INFO - Запрос обработан за 0.2323 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:28,516 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:30:30,421 - admin - INFO - Checked 11 hosts in 1777ms. Online: 11
+2025-07-04 14:30:30,912 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:31,063 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:30:31,068 - enterprise_admin_service - INFO - Запрос обработан за 0.1561 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:32,406 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:30:34,453 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:30:34,454 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:30:34,686 - enterprise_admin_service - INFO - Запрос обработан за 0.2329 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:30:37,613 - enterprise_admin_service - INFO - Запрос обработан за 3.1587 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:30:49,463 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:49,662 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:30:49,664 - enterprise_admin_service - INFO - Запрос обработан за 0.2008 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:50,938 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:30:53,208 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:53,382 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:30:53,384 - enterprise_admin_service - INFO - Запрос обработан за 0.1759 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:54,477 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:54,642 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:30:54,645 - enterprise_admin_service - INFO - Запрос обработан за 0.1678 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:54,721 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:30:56,288 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:30:56,609 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:30:56,776 - enterprise_admin_service - INFO - Запрос обработан за 0.1668 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:30:57,001 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:57,147 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:30:57,148 - enterprise_admin_service - INFO - Запрос обработан за 0.1470 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:58,524 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:30:59,045 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:30:59,206 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:30:59,208 - enterprise_admin_service - INFO - Запрос обработан за 0.1626 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:31:00,536 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:31:02,730 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:31:02,731 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:31:03,057 - enterprise_admin_service - INFO - Запрос обработан за 0.3278 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:31:05,992 - enterprise_admin_service - INFO - Запрос обработан за 3.2611 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:31:30,379 - admin - INFO - Checked 11 hosts in 1657ms. Online: 11
+2025-07-04 14:32:30,352 - admin - INFO - Checked 11 hosts in 1631ms. Online: 11
+2025-07-04 14:33:30,437 - admin - INFO - Checked 11 hosts in 1717ms. Online: 11
+2025-07-04 14:34:30,373 - admin - INFO - Checked 11 hosts in 1636ms. Online: 11
+2025-07-04 14:35:30,378 - admin - INFO - Checked 11 hosts in 1627ms. Online: 11
+2025-07-04 14:36:30,518 - admin - INFO - Checked 11 hosts in 1792ms. Online: 11
+2025-07-04 14:37:30,402 - admin - INFO - Checked 11 hosts in 1680ms. Online: 11
+2025-07-04 14:38:30,370 - admin - INFO - Checked 11 hosts in 1654ms. Online: 11
+2025-07-04 14:38:30,660 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:38:30,834 - enterprise_admin_service - INFO - Запрос обработан за 0.1742 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:38:31,019 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:38:31,211 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:38:31,212 - enterprise_admin_service - INFO - Запрос обработан за 0.1934 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:38:32,490 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:38:33,841 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:38:34,023 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:38:34,025 - enterprise_admin_service - INFO - Запрос обработан за 0.1834 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:38:35,326 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:38:37,676 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:38:37,681 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:38:37,916 - enterprise_admin_service - INFO - Запрос обработан за 0.2397 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:38:40,843 - enterprise_admin_service - INFO - Запрос обработан за 3.1615 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:38:47,433 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:38:47,610 - enterprise_admin_service - INFO - Запрос обработан за 0.1767 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:38:56,538 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:38:56,711 - enterprise_admin_service - INFO - Запрос обработан за 0.1737 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:38:56,771 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:38:56,935 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:38:56,936 - enterprise_admin_service - INFO - Запрос обработан за 0.1654 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:38:58,288 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:38:59,450 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:38:59,585 - enterprise_admin_service - INFO - Запрос обработан за 0.1354 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:38:59,686 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:38:59,889 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:38:59,891 - enterprise_admin_service - INFO - Запрос обработан за 0.2051 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:39:01,185 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:39:02,457 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:39:03,251 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:39:03,407 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:39:03,408 - enterprise_admin_service - INFO - Запрос обработан за 0.1569 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:39:04,736 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:39:06,490 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:39:06,495 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:39:06,818 - enterprise_admin_service - INFO - Запрос обработан за 0.3274 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:39:09,837 - enterprise_admin_service - INFO - Запрос обработан за 3.3422 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:39:15,358 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:39:15,552 - enterprise_admin_service - INFO - Запрос обработан за 0.1938 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:39:37,522 - admin - INFO - Checked 11 hosts in 1819ms. Online: 11
+2025-07-04 14:39:58,146 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:39:58,149 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:39:58,439 - enterprise_admin_service - INFO - Запрос обработан за 0.2934 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:40:01,331 - enterprise_admin_service - INFO - Запрос обработан за 3.1821 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:40:06,534 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:40:06,693 - enterprise_admin_service - INFO - Запрос обработан за 0.1598 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:45:02,472 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:45:02,709 - enterprise_admin_service - INFO - Запрос обработан за 0.2371 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:45:02,900 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:45:03,073 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:45:03,075 - enterprise_admin_service - INFO - Запрос обработан за 0.1753 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:45:05,054 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:45:05,211 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:45:05,214 - enterprise_admin_service - INFO - Запрос обработан за 0.1598 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:45:06,240 - admin - INFO - Checked 11 hosts in 5523ms. Online: 11
+2025-07-04 14:45:07,544 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:45:09,171 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:45:12,908 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:45:12,910 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:45:13,144 - enterprise_admin_service - INFO - Запрос обработан за 0.2361 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:45:16,150 - enterprise_admin_service - INFO - Запрос обработан за 3.2399 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:45:21,938 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:45:22,117 - enterprise_admin_service - INFO - Запрос обработан за 0.1793 сек. Статус: 409. Адрес: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:45:30,078 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:45:30,210 - enterprise_admin_service - INFO - Запрос обработан за 0.1322 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:45:30,300 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:45:30,363 - admin - INFO - Checked 11 hosts in 1643ms. Online: 11
+2025-07-04 14:45:30,472 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:45:30,473 - enterprise_admin_service - INFO - Запрос обработан за 0.1732 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:45:31,754 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:46:08,336 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:46:08,512 - enterprise_admin_service - INFO - Запрос обработан за 0.1756 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:46:08,598 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:46:08,818 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:46:08,819 - enterprise_admin_service - INFO - Запрос обработан за 0.2216 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:46:10,052 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:46:30,382 - admin - INFO - Checked 11 hosts in 1723ms. Online: 11
+2025-07-04 14:46:48,904 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:46:49,093 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:46:49,095 - enterprise_admin_service - INFO - Запрос обработан за 0.1915 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:46:50,389 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:46:52,980 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:46:52,993 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:46:53,322 - enterprise_admin_service - INFO - Запрос обработан за 0.3424 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:46:56,283 - enterprise_admin_service - INFO - Запрос обработан за 3.2901 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:47:00,543 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:47:00,824 - enterprise_admin_service - INFO - Запрос обработан за 0.2817 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:47:02,810 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:47:02,942 - enterprise_admin_service - INFO - Найдено 0 пользователей для предприятия 0104
+2025-07-04 14:47:02,944 - enterprise_admin_service - INFO - Запрос обработан за 0.1336 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:47:04,273 - enterprise_admin_service - INFO - Успешная генерация и развертывание SIP конфига для предприятия 0104
+2025-07-04 14:47:04,392 - admin - INFO - Found 0 internal phones for enterprise 0104
+2025-07-04 14:47:30,419 - admin - INFO - Checked 11 hosts in 1697ms. Online: 11
+2025-07-04 14:48:30,403 - admin - INFO - Checked 11 hosts in 1671ms. Online: 11
+2025-07-04 14:49:27,796 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/next-available
+2025-07-04 14:49:28,006 - enterprise_admin_service - INFO - Запрос обработан за 0.2101 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/next-available
+2025-07-04 14:49:30,524 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:49:30,761 - enterprise_admin_service - INFO - Запрос обработан за 0.2372 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:49:31,387 - admin - INFO - Checked 11 hosts in 2556ms. Online: 11
+2025-07-04 14:49:31,500 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:49:31,649 - enterprise_admin_service - INFO - Найдено 0 пользователей для предприятия 0104
+2025-07-04 14:49:31,650 - enterprise_admin_service - INFO - Запрос обработан за 0.1504 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:49:33,200 - admin - INFO - Found 0 internal phones for enterprise 0104
+2025-07-04 14:49:33,508 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:49:33,677 - enterprise_admin_service - INFO - Запрос обработан за 0.1688 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:49:33,761 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:49:33,973 - enterprise_admin_service - INFO - Найдено 0 пользователей для предприятия 0104
+2025-07-04 14:49:33,975 - enterprise_admin_service - INFO - Запрос обработан за 0.2136 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:49:35,283 - admin - INFO - Found 0 internal phones for enterprise 0104
+2025-07-04 14:49:36,658 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:49:36,678 - admin - INFO - Found 0 internal phones for enterprise 0104
+2025-07-04 14:49:36,822 - enterprise_admin_service - INFO - Запрос обработан за 0.1640 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/dashboard
+2025-07-04 14:49:36,901 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:49:37,079 - enterprise_admin_service - INFO - Найдено 0 пользователей для предприятия 0104
+2025-07-04 14:49:37,081 - enterprise_admin_service - INFO - Запрос обработан за 0.1800 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:49:38,404 - admin - INFO - Found 0 internal phones for enterprise 0104
+2025-07-04 14:49:42,731 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/gsm-lines/all
+2025-07-04 14:49:42,850 - enterprise_admin_service - INFO - Запрос обработан за 0.1194 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/gsm-lines/all
+2025-07-04 14:49:42,890 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/gsm-lines/status
+2025-07-04 14:49:44,562 - enterprise_admin_service - INFO - Запрос обработан за 1.6711 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/gsm-lines/status
+2025-07-04 14:49:46,584 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:49:46,742 - enterprise_admin_service - INFO - Найдено 0 пользователей для предприятия 0104
+2025-07-04 14:49:46,747 - enterprise_admin_service - INFO - Запрос обработан за 0.1631 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:49:48,081 - admin - INFO - Found 0 internal phones for enterprise 0104
+2025-07-04 14:49:49,348 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/next-available
+2025-07-04 14:49:49,480 - enterprise_admin_service - INFO - Запрос обработан за 0.1317 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/next-available
+2025-07-04 14:49:51,109 - enterprise_admin_service - INFO - Получен запрос: POST https://bot.vochi.by/enterprise/0104/internal-phones
+2025-07-04 14:49:51,409 - enterprise_admin_service - INFO - Запрос обработан за 0.2999 сек. Статус: 200. Адрес: POST https://bot.vochi.by/enterprise/0104/internal-phones
+2025-07-04 14:49:51,446 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:49:51,685 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:49:51,686 - enterprise_admin_service - INFO - Запрос обработан за 0.2408 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:49:53,030 - admin - INFO - Found 0 internal phones for enterprise 0104
+2025-07-04 14:49:54,945 - enterprise_admin_service - INFO - Успешная генерация и развертывание SIP конфига для предприятия 0104
+2025-07-04 14:50:00,881 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:50:01,041 - enterprise_admin_service - INFO - Найдено 1 пользователей для предприятия 0104
+2025-07-04 14:50:01,043 - enterprise_admin_service - INFO - Запрос обработан за 0.1619 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:50:05,419 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:50:07,539 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:50:07,541 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:50:07,829 - enterprise_admin_service - INFO - Запрос обработан за 0.2894 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/internal-phones/150/details
+2025-07-04 14:50:10,818 - enterprise_admin_service - INFO - Запрос обработан за 3.2769 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/phone-config-data
+2025-07-04 14:50:16,208 - enterprise_admin_service - INFO - Получен запрос: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:50:16,432 - enterprise_admin_service - INFO - Запрос обработан за 0.2239 сек. Статус: 204. Адрес: DELETE https://bot.vochi.by/enterprise/0104/internal-phones/150
+2025-07-04 14:50:18,165 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:50:18,320 - enterprise_admin_service - INFO - Найдено 0 пользователей для предприятия 0104
+2025-07-04 14:50:18,322 - enterprise_admin_service - INFO - Запрос обработан за 0.1562 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0104/users
+2025-07-04 14:50:19,723 - admin - INFO - Found 1 internal phones for enterprise 0104
+2025-07-04 14:50:19,826 - enterprise_admin_service - INFO - Успешная генерация и развертывание SIP конфига для предприятия 0104
+2025-07-04 14:50:25,271 - admin - INFO - Checked 11 hosts in 1711ms. Online: 11
+2025-07-04 14:50:27,675 - admin - INFO - Checked 11 hosts in 1680ms. Online: 11
+2025-07-04 14:50:39,066 - admin - INFO - Checked 11 hosts in 1661ms. Online: 11
