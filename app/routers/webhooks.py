@@ -1,13 +1,12 @@
 # app/routers/webhooks.py
-import aiosqlite
 from fastapi import APIRouter, Request
 from telegram import Bot
 
-from app.config import DB_PATH
 from app.services.events import save_asterisk_event
 from app.services.calls import process_start, process_dial, process_bridge, process_hangup
 from app.services.calls.internal import process_internal_start, process_internal_bridge, process_internal_hangup
 from app.services.calls.utils import is_internal_number
+from app.services.postgres import get_pool
 
 router = APIRouter()
 
@@ -21,26 +20,25 @@ async def handle_event(event_type: str, request: Request):
     await save_asterisk_event(et, uid, token, data)
 
     # ищем бот-токен предприятия
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        cur = await db.execute("SELECT bot_token FROM enterprises WHERE name2 = ?", (token,))
-        ent = await cur.fetchone()
-    if not ent:
-        return {"status": "no_such_bot"}
+    pool = await get_pool()
+    if not pool:
+        return {"status": "database_error"}
+    
+    async with pool.acquire() as conn:
+        ent_row = await conn.fetchrow("SELECT bot_token FROM enterprises WHERE name2 = $1", token)
+        if not ent_row:
+            return {"status": "no_such_bot"}
+        
+        bot_token = ent_row["bot_token"]
+        bot = Bot(token=bot_token)
 
-    bot_token = ent["bot_token"]
-    bot = Bot(token=bot_token)
-
-    # список подписчиков
-    async with aiosqlite.connect(DB_PATH) as db2:
-        db2.row_factory = aiosqlite.Row
-        cur2 = await db2.execute(
-            "SELECT tg_id FROM telegram_users WHERE bot_token = ? AND verified = 1",
-            (bot_token,),
+        # список подписчиков
+        user_rows = await conn.fetch(
+            "SELECT tg_id FROM telegram_users WHERE bot_token = $1",
+            bot_token,
         )
-        users = await cur2.fetchall()
-    if not users:
-        return {"status": "no_subscribers"}
+        if not user_rows:
+            return {"status": "no_subscribers"}
 
     # выбор обработчика
     raw = data.get("Phone", "") or data.get("CallerIDNum", "")
@@ -59,11 +57,11 @@ async def handle_event(event_type: str, request: Request):
         return {"status": "ignored"}
 
     results = []
-    for row in users:
+    for row in user_rows:
         tg = int(row["tg_id"])
         try:
             res = await handler(bot, tg, data)
             results.append({"tg_id": tg, "status": res.get("status")})
         except Exception as e:
             results.append({"tg_id": tg, "status": "error", "error": str(e)})
-    return {"status": "sent", "details": results}
+    return {"status": "sent", "details": results} 
