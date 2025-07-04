@@ -842,12 +842,12 @@ def parse_sip_peers(output: str) -> dict:
 
 
 async def check_single_host(ip: str, enterprise_number: str) -> dict:
-    """Проверка одного хоста Asterisk через SSH с детальным анализом линий"""
+    """Проверка одного хоста Asterisk через SSH с детальным анализом линий и информацией о диске"""
     start_time = time.time()
     
     try:
-        # SSH команда для проверки с sshpass
-        cmd = [
+        # SSH команда для проверки SIP peers
+        sip_cmd = [
             'sshpass', '-p', '5atx9Ate@pbx',
             'ssh', 
             '-o', 'ConnectTimeout=5',
@@ -859,26 +859,59 @@ async def check_single_host(ip: str, enterprise_number: str) -> dict:
             'timeout 10 asterisk -rx "sip show peers"'
         ]
         
-        # Выполняем команду с таймаутом
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
+        # SSH команда для проверки диска (получаем процент использования корневого раздела)
+        df_cmd = [
+            'sshpass', '-p', '5atx9Ate@pbx',
+            'ssh', 
+            '-o', 'ConnectTimeout=5',
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'UserKnownHostsFile=/dev/null',
+            '-o', 'LogLevel=ERROR',
+            '-p', '5059',
+            f'root@{ip}',
+            'df -h / | tail -1 | awk \'{print $5}\' | sed \'s/%//\''
+        ]
+        
+        # Выполняем обе команды параллельно
+        sip_process = await asyncio.create_subprocess_exec(
+            *sip_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        df_process = await asyncio.create_subprocess_exec(
+            *df_cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
         
         try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10.0)
+            # Ждем завершения обеих команд
+            (sip_stdout, sip_stderr), (df_stdout, df_stderr) = await asyncio.gather(
+                asyncio.wait_for(sip_process.communicate(), timeout=10.0),
+                asyncio.wait_for(df_process.communicate(), timeout=10.0)
+            )
+            
             response_time = int((time.time() - start_time) * 1000)  # в миллисекундах
             
-            if process.returncode == 0:
-                # Успешное выполнение - анализируем SIP peers
-                output = stdout.decode('utf-8', errors='ignore')
-                
-                # Детальный парсинг по типам линий
-                line_stats = parse_sip_peers(output)
-                
-                # Общее количество SIP peers для обратной совместимости
+            # Анализируем результат SIP команды
+            if sip_process.returncode == 0:
+                # Успешное выполнение SIP команды - анализируем SIP peers
+                sip_output = sip_stdout.decode('utf-8', errors='ignore')
+                line_stats = parse_sip_peers(sip_output)
                 total_peers = line_stats['gsm_total'] + line_stats['sip_total'] + line_stats['internal_total']
+                
+                # Анализируем результат df команды
+                disk_usage_percent = None
+                if df_process.returncode == 0:
+                    try:
+                        disk_usage_str = df_stdout.decode('utf-8', errors='ignore').strip()
+                        disk_usage_percent = int(disk_usage_str)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Не удалось распарсить процент использования диска для {ip}: '{disk_usage_str}'")
+                        disk_usage_percent = None
+                else:
+                    logger.warning(f"Команда df завершилась с ошибкой для {ip}: {df_stderr.decode()}")
                 
                 return {
                     'enterprise_number': enterprise_number,
@@ -887,11 +920,12 @@ async def check_single_host(ip: str, enterprise_number: str) -> dict:
                     'response_time_ms': response_time,
                     'sip_peers': total_peers,  # Для обратной совместимости
                     'line_stats': line_stats,  # Детальная статистика
+                    'disk_usage_percent': disk_usage_percent,  # Процент использования диска
                     'error_message': None
                 }
             else:
-                # Ошибка выполнения
-                error_output = stderr.decode('utf-8', errors='ignore')
+                # Ошибка выполнения SIP команды
+                error_output = sip_stderr.decode('utf-8', errors='ignore')
                 return {
                     'enterprise_number': enterprise_number,
                     'ip': ip,
@@ -899,6 +933,7 @@ async def check_single_host(ip: str, enterprise_number: str) -> dict:
                     'response_time_ms': response_time,
                     'sip_peers': None,
                     'line_stats': None,
+                    'disk_usage_percent': None,
                     'error_message': error_output.strip() or 'Command failed'
                 }
                 
@@ -910,6 +945,7 @@ async def check_single_host(ip: str, enterprise_number: str) -> dict:
                 'response_time_ms': int((time.time() - start_time) * 1000),
                 'sip_peers': None,
                 'line_stats': None,
+                'disk_usage_percent': None,
                 'error_message': 'Connection timeout'
             }
             
@@ -922,6 +958,7 @@ async def check_single_host(ip: str, enterprise_number: str) -> dict:
             'response_time_ms': response_time,
             'sip_peers': None,
             'line_stats': None,
+            'disk_usage_percent': None,
             'error_message': str(e)
         }
 
