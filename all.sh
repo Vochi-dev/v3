@@ -29,10 +29,24 @@ case "${1:-restart}" in
     echo "🔄 Запускаем все сервисы..."
     for service in "${SERVICES[@]}"; do
       echo "   ▶ Запускаем ${service}.sh..."
-      if ./${service}.sh start; then
-        echo "   ✅ ${service} запущен"
+      if [[ "$service" == "sms" ]]; then
+        # SMS-сервис: сначала останавливаем старый, потом запускаем новый
+        pkill -f "goip_sms_service" || true
+        pkill -f "deploy.py" || true
+        sleep 2
+        nohup uvicorn goip_sms_service:app --host 0.0.0.0 --port 8002 > logs/goip_service.log 2>&1 &
+        sleep 3
+        if netstat -tlnp | grep -q ":8002" && ps aux | grep -q "goip_sms_service" && ! ps aux | grep -q "deploy.py"; then
+          echo "   ✅ ${service} запущен"
+        else
+          echo "   ❌ Ошибка запуска ${service}"
+        fi
       else
-        echo "   ❌ Ошибка запуска ${service}"
+        if ./${service}.sh start; then
+          echo "   ✅ ${service} запущен"
+        else
+          echo "   ❌ Ошибка запуска ${service}"
+        fi
       fi
     done
     
@@ -90,10 +104,24 @@ case "${1:-restart}" in
     echo "🚀 Запускаем все сервисы..."
     for service in "${SERVICES[@]}"; do
       echo "   ▶ Запускаем ${service}.sh..."
-      if ./${service}.sh start; then
-        echo "   ✅ ${service} запущен"
+      if [[ "$service" == "sms" ]]; then
+        # SMS-сервис: сначала останавливаем старый, потом запускаем новый
+        pkill -f "goip_sms_service" || true
+        pkill -f "deploy.py" || true
+        sleep 2
+        nohup uvicorn goip_sms_service:app --host 0.0.0.0 --port 8002 > logs/goip_service.log 2>&1 &
+        sleep 3
+        if netstat -tlnp | grep -q ":8002" && ps aux | grep -q "goip_sms_service" && ! ps aux | grep -q "deploy.py"; then
+          echo "   ✅ ${service} запущен"
+        else
+          echo "   ❌ Ошибка запуска ${service}"
+        fi
       else
-        echo "   ❌ Ошибка запуска ${service}"
+        if ./${service}.sh start; then
+          echo "   ✅ ${service} запущен"
+        else
+          echo "   ❌ Ошибка запуска ${service}"
+        fi
       fi
       sleep 1  # Небольшая пауза между запусками
     done

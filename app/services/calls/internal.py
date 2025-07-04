@@ -5,6 +5,7 @@ from telegram import Bot
 from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
+from .hangup import create_call_record  # Импортируем функцию создания записи в calls
 from .utils import (
     update_call_pair_message,
     update_hangup_message_map,
@@ -98,6 +99,11 @@ async def process_internal_hangup(bot: Bot, chat_id: int, data: dict):
     caller = data.get("CallerIDNum","")
     exts   = data.get("Extensions",[]) or []
     callee = exts[0] if exts else data.get("ConnectedLineNum","")
+    token  = data.get("Token", "")
+
+    # Создаем запись в таблице calls для внутренних звонков
+    if uid and token:
+        await create_call_record(uid, token, data)
 
     # clean up
     bridge_store.pop(uid,None)
