@@ -237,14 +237,48 @@ async def get_device_line_status(port: int, password: str) -> List[LineStatus]:
             if not isinstance(status_response, Exception) and status_response.status == 200:
                 status_html = await status_response.text()
                 for line_status in lines:
-                    pattern = f'id="l{line_status.line}_gsm_signal"[^>]*>([^<]*)<'
-                    match = re.search(pattern, status_html)
+                    # Ищем содержимое ячейки с RSSI, включая HTML теги
+                    # Паттерн для извлечения содержимого до закрывающего тега </td>
+                    pattern = f'id="l{line_status.line}_gsm_signal"[^>]*>(.*?)</td>'
+                    match = re.search(pattern, status_html, re.DOTALL)
+                    
                     if match:
-                        rssi_value = match.group(1).strip()
-                        # Очищаем от HTML entities и проверяем валидность
-                        rssi_value = rssi_value.replace('&nbsp;', '').strip()
+                        rssi_content = match.group(1).strip()
+                        logger.info(f"📶 [RSSI] Найдено содержимое для линии {line_status.line}: '{rssi_content}'")
+                        
+                        # Очищаем от HTML entities
+                        rssi_content = rssi_content.replace('&nbsp;', '').strip()
+                        
+                        # Сначала пробуем извлечь значение из HTML тега <font>
+                        font_match = re.search(r'<font[^>]*>(\d+)</font>', rssi_content)
+                        if font_match:
+                            rssi_value = font_match.group(1)
+                            logger.info(f"🎨 [RSSI] Найдено цветное значение для линии {line_status.line}: {rssi_value}")
+                        else:
+                            # Если нет цветного тега, ищем обычные цифры
+                            rssi_digits = re.findall(r'\d+', rssi_content)
+                            if rssi_digits:
+                                rssi_value = rssi_digits[0]
+                            else:
+                                rssi_value = None
+                        
                         if rssi_value and rssi_value.isdigit():
-                            line_status.rssi = rssi_value
+                            # Проверяем, что значение в допустимом диапазоне RSSI (0-31)
+                            if 0 <= int(rssi_value) <= 31:
+                                line_status.rssi = rssi_value
+                                logger.info(f"✅ [RSSI] Линия {line_status.line}: установлено RSSI={rssi_value}")
+                            else:
+                                logger.warning(f"⚠️ [RSSI] Линия {line_status.line}: значение {rssi_value} вне диапазона 0-31")
+                        else:
+                            logger.warning(f"⚠️ [RSSI] Линия {line_status.line}: цифры не найдены в '{rssi_content}'")
+                    else:
+                        # Если не найдено, попробуем более широкий поиск
+                        broad_pattern = f'l{line_status.line}_gsm_signal.*?>(.*?)<'
+                        broad_match = re.search(broad_pattern, status_html, re.DOTALL)
+                        if broad_match:
+                            logger.warning(f"🔍 [RSSI] Широкий поиск для линии {line_status.line}: '{broad_match.group(1)[:100]}'")
+                        else:
+                            logger.error(f"❌ [RSSI] Не найден элемент l{line_status.line}_gsm_signal в HTML")
             
             # Добавляем Busy Status данные
             if not isinstance(busy_response, Exception) and busy_response.status == 200:
@@ -511,6 +545,82 @@ async def manual_scan():
             })
     
     return {"results": results}
+
+@app.get("/enterprise/{enterprise_number}/devices")
+async def get_enterprise_devices(enterprise_number: str):
+    """Получение активных устройств предприятия"""
+    try:
+        conn = await get_db_connection()
+        query = """
+        SELECT 
+            g.id, g.gateway_name, g.enterprise_number, g.port, 
+            g.port_scan_status, g.device_model, g.serial_last4, g.line_count,
+            e.secret as device_password
+        FROM goip g 
+        JOIN enterprises e ON g.enterprise_number = e.number 
+        WHERE g.enterprise_number = $1 AND g.port_scan_status = 'active'
+        ORDER BY g.gateway_name
+        """
+        rows = await conn.fetch(query, enterprise_number)
+        devices = [GoIPDevice(**dict(row)) for row in rows]
+        await conn.close()
+        
+        return {"devices": devices}
+    except Exception as e:
+        logger.error(f"Error getting enterprise devices: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get enterprise devices")
+
+@app.get("/devices/{gateway_name}/info")
+async def get_device_info_endpoint(gateway_name: str):
+    """Получение информации об устройстве (серийный номер, uptime)"""
+    logger.info(f"🔍 [API] Запрос информации об устройстве: {gateway_name}")
+    
+    device = await get_goip_device(gateway_name)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    
+    if not device.port or device.port_scan_status != 'active':
+        raise HTTPException(status_code=400, detail="Device is not active or port unknown")
+    
+    try:
+        # Получаем HTML страницу устройства
+        url = f"http://{MFTP_HOST}:{device.port}/default.html"
+        
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+            async with session.get(url, auth=aiohttp.BasicAuth('admin', device.device_password)) as response:
+                if response.status == 200:
+                    html_content = await response.text()
+                    logger.info(f"🌐 [API] Получен HTML для {gateway_name}, размер: {len(html_content)} символов")
+                    
+                    # Извлекаем серийный номер из таблицы
+                    serial_number = None
+                    serial_match = re.search(r'<td[^>]*>Serial Number</td>\s*<td[^>]*>([^<]+)</td>', html_content, re.IGNORECASE)
+                    if serial_match:
+                        serial_number = serial_match.group(1).strip()
+                    
+                    # Извлекаем uptime из JavaScript
+                    uptime_formatted = None
+                    uptime_match = re.search(r'var uptime_s = (\d+);', html_content)
+                    if uptime_match:
+                        uptime_seconds = int(uptime_match.group(1))
+                        hours = uptime_seconds // 3600
+                        minutes = (uptime_seconds % 3600) // 60
+                        seconds = uptime_seconds % 60
+                        uptime_formatted = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                    
+                    logger.info(f"🔍 [API] Для {gateway_name} найдено: SN={serial_number}, Uptime={uptime_formatted}")
+                    
+                    return {
+                        "serial_number": serial_number,
+                        "uptime": uptime_formatted
+                    }
+                else:
+                    logger.error(f"❌ [API] Ошибка HTTP {response.status} для {gateway_name}")
+                    raise HTTPException(status_code=response.status, detail=f"HTTP {response.status}")
+    
+    except Exception as e:
+        logger.error(f"💥 [API] Ошибка получения информации об устройстве {gateway_name}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get device info")
 
 @app.get("/health")
 async def health_check():
