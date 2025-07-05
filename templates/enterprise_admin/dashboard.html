@@ -239,7 +239,7 @@
                                 <th></th>
                                 <th>Номер</th>
                                 <th>Оператор</th>
-                                <th>Магазин</th>
+                                <th>Оператор</th>
                                 <th>Вх. схема</th>
                                 <th>Исх. схемы</th>
                             </tr>
@@ -1353,6 +1353,7 @@
                 
                 rows.forEach((row, index) => {
                     const lineGsmId = row.getAttribute('data-line-gsm-id');
+                    const carrierCell = row.cells[8]; // Столбец "Оператор" (индекс 8)
                     const levelCell = row.cells[9]; // Столбец "Уровень" (индекс 9)
                     const slotCell = row.cells[10]; // Столбец "Слот" (индекс 10)
                     const forwardCell = row.cells[11]; // Столбец "Переадр." (индекс 11)
@@ -1363,6 +1364,13 @@
                     const goipLine = goipLines.find(line => line.auth_id === lineGsmId);
                     
                     if (goipLine) {
+                        // Обновляем информацию об операторе
+                        if (goipLine.carrier && goipLine.carrier.trim() !== '') {
+                            carrierCell.innerHTML = `<span style="color: #007bff; font-weight: bold;">${goipLine.carrier}</span>`;
+                            console.log(`📡 [GoIP] Оператор для линии ${lineGsmId}: ${goipLine.carrier}`);
+                        } else {
+                            carrierCell.innerHTML = `<span style="color: #6c757d;">—</span>`;
+                        }
                         // Обновляем уровень сигнала RSSI
                         if (goipLine.rssi && goipLine.rssi.trim() !== '' && goipLine.rssi !== 'null') {
                             const rssiValue = parseInt(goipLine.rssi);
@@ -1413,6 +1421,7 @@
                         foundCount++;
                     } else {
                         // Заменяем песочные часы на "—" если линия не найдена
+                        carrierCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
                         levelCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
                         slotCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
                         forwardCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
@@ -1427,7 +1436,10 @@
             } catch (error) {
                 console.error('💥 [GoIP] Критическая ошибка при получении данных GoIP:', error);
                 console.error('💥 [GoIP] Stack trace:', error.stack);
-                // Заменяем песочные часы на "?" для всех уровней, слотов и переадресации при ошибке
+                // Заменяем песочные часы на "?" для всех операторов, уровней, слотов и переадресации при ошибке
+                document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(9)').forEach(cell => {
+                    cell.innerHTML = '<span style="color: #ffc107;">?</span>';
+                });
                 document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(10)').forEach(cell => {
                     cell.innerHTML = '<span style="color: #ffc107;">?</span>';
                 });
@@ -1473,6 +1485,7 @@
                 
                 rows.forEach((row, index) => {
                     const lineGsmId = row.getAttribute('data-line-gsm-id');
+                    const carrierCell = row.cells[8]; // Столбец "Оператор" (индекс 8)
                     const levelCell = row.cells[9]; // Столбец "Уровень" (индекс 9)
                     const slotCell = row.cells[10]; // Столбец "Слот" (индекс 10)
                     const forwardCell = row.cells[11]; // Столбец "Переадр." (индекс 11)
@@ -1483,6 +1496,13 @@
                     const goipLine = goipLines.find(line => line.auth_id === lineGsmId);
                     
                     if (goipLine) {
+                        // Обновляем информацию об операторе
+                        if (goipLine.carrier && goipLine.carrier.trim() !== '') {
+                            carrierCell.innerHTML = `<span style="color: #007bff; font-weight: bold;">${goipLine.carrier}</span>`;
+                            console.log(`📡 [REFRESH-GOIP] Оператор для линии ${lineGsmId}: ${goipLine.carrier}`);
+                        } else {
+                            carrierCell.innerHTML = `<span style="color: #6c757d;">—</span>`;
+                        }
                         // Обновляем уровень сигнала RSSI
                         if (goipLine.rssi && goipLine.rssi.trim() !== '' && goipLine.rssi !== 'null') {
                             const rssiValue = parseInt(goipLine.rssi);
@@ -1533,6 +1553,7 @@
                         foundCount++;
                     } else {
                         // Заменяем на "—" если линия не найдена
+                        carrierCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
                         levelCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
                         slotCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
                         forwardCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
@@ -1736,7 +1757,7 @@
                                     <th>Префикс</th>
                                     <th>Вх.сх</th>
                                     <th>Исх.схемы</th>
-                                    <th>Магазин</th>
+                                    <th>Оператор</th>
                                     <th>Уровень</th>
                                     <th>Слот</th>
                                     <th>Переадр.</th>
