@@ -87,6 +87,7 @@ class LineStatus(BaseModel):
     auth_id: str
     rssi: Optional[str] = None
     busy_status: Optional[str] = None
+    call_forward_busy: Optional[str] = None  # Переадресация при занятости
 
 # Подключение к базе данных
 async def get_db_connection():
@@ -205,6 +206,9 @@ async def get_device_line_status(port: int, password: str) -> List[LineStatus]:
         # Получаем Busy Status из SIM Call Forward
         busy_url = f"http://{GOIP_DEFAULT_USERNAME}:{password}@{MFTP_HOST}:{port}/default/en_US/status.html?type=callforward"
         
+        # Получаем данные переадресации из SIM Call Forward
+        forward_url = f"http://{GOIP_DEFAULT_USERNAME}:{password}@{MFTP_HOST}:{port}/default/en_US/status.html?type=callforward"
+        
         timeout = aiohttp.ClientTimeout(total=GOIP_SCAN_TIMEOUT)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -235,17 +239,34 @@ async def get_device_line_status(port: int, password: str) -> List[LineStatus]:
                 for line_status in lines:
                     pattern = f'id="l{line_status.line}_gsm_signal"[^>]*>([^<]*)<'
                     match = re.search(pattern, status_html)
-                    if match and match.group(1).strip() != '&nbsp;':
-                        line_status.rssi = match.group(1).strip()
+                    if match:
+                        rssi_value = match.group(1).strip()
+                        # Очищаем от HTML entities и проверяем валидность
+                        rssi_value = rssi_value.replace('&nbsp;', '').strip()
+                        if rssi_value and rssi_value.isdigit():
+                            line_status.rssi = rssi_value
             
             # Добавляем Busy Status данные
             if not isinstance(busy_response, Exception) and busy_response.status == 200:
                 busy_html = await busy_response.text()
                 for line_status in lines:
+                    # Получаем статус занятости
                     pattern = f'id="l{line_status.line}_cf_busy_status"[^>]*>([^<]*)<'
                     match = re.search(pattern, busy_html)
                     if match and match.group(1).strip() != '&nbsp;':
                         line_status.busy_status = match.group(1).strip()
+                    
+                    # Получаем номер переадресации при занятости из колонки "Busy"
+                    # Ищем ячейку в таблице SIM Call Forward для данной линии
+                    # Паттерн ищет строку таблицы с номером линии и извлекает значение из колонки "Busy"
+                    busy_forward_pattern = rf'<tr[^>]*>.*?<td[^>]*>\s*{line_status.line}\s*</td>.*?<td[^>]*>.*?</td>.*?<td[^>]*>([^<]*)</td>'
+                    busy_forward_match = re.search(busy_forward_pattern, busy_html, re.DOTALL | re.IGNORECASE)
+                    if busy_forward_match:
+                        busy_forward_value = busy_forward_match.group(1).strip()
+                        # Очищаем от HTML entities и пробелов
+                        busy_forward_value = re.sub(r'&nbsp;', '', busy_forward_value).strip()
+                        if busy_forward_value and busy_forward_value != 'OFF' and busy_forward_value != 'Not Set':
+                            line_status.call_forward_busy = busy_forward_value
             
             return lines
             
