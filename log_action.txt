@@ -16932,3 +16932,134 @@ aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost
 2025-07-05 09:38:02,763 - admin - INFO - Checked 11 hosts in 1689ms. Online: 11
 2025-07-05 09:39:02,897 - admin - INFO - Checked 11 hosts in 1818ms. Online: 11
 2025-07-05 09:40:06,768 - admin - INFO - Checked 11 hosts in 5706ms. Online: 11
+2025-07-05 09:41:02,802 - admin - INFO - Checked 11 hosts in 1735ms. Online: 11
+2025-07-05 09:42:02,750 - admin - INFO - Checked 11 hosts in 1688ms. Online: 11
+2025-07-05 09:42:44,140 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-05 09:42:44,367 - enterprise_admin_service - INFO - AUDIO_LIST: Найдено 2 файлов для предприятия 0367.
+2025-07-05 09:42:44,369 - enterprise_admin_service - INFO - AUDIO_LIST: Отправка списка файлов клиенту: [{'id': 9, 'display_name': 'Надежда', 'file_type': 'start', 'file_path': 'music/0367/start/hhfsnyeg.wav', 'original_filename': 'e79fe7ec-6a73-4714-b3d2-78f34d6bd0de.wav', 'created_at': '2025-07-02T06:43:10.421124+00:00', 'used_in_schemas': []}, {'id': 8, 'display_name': 'Sopranos', 'file_type': 'hold', 'file_path': 'music/0367/hold/g3cqsvjr.wav', 'original_filename': 'be206365-095b-491e-b6c7-3cad47778413.wav', 'created_at': '2025-07-02T06:42:33.168594+00:00', 'used_in_schemas': []}]
+2025-07-05 09:42:44,372 - enterprise_admin_service - INFO - Запрос обработан за 0.2327 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/audiofiles
+2025-07-05 09:42:47,426 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 09:42:47,549 - enterprise_admin_service - INFO - Запрос обработан за 0.1224 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 09:42:47,587 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 09:42:49,168 - enterprise_admin_service - INFO - Запрос обработан за 1.5805 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 09:43:02,871 - admin - INFO - Checked 11 hosts in 1792ms. Online: 11
+2025-07-05 09:43:41,658 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 09:43:41,662 - enterprise_admin_service - INFO - Запрос обработан за 0.0041 сек. Статус: 307. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 09:44:02,778 - admin - INFO - Checked 11 hosts in 1714ms. Online: 11
+2025-07-05 09:45:06,861 - admin - INFO - Checked 11 hosts in 4862ms. Online: 11
+2025-07-05 09:46:04,804 - admin - INFO - Checked 11 hosts in 1730ms. Online: 11
+2025-07-05 09:47:05,688 - admin - INFO - Checked 11 hosts in 1692ms. Online: 11
+2025-07-05 09:47:30,811 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 09:47:30,814 - enterprise_admin_service - INFO - Запрос обработан за 0.0035 сек. Статус: 307. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 09:47:50,349 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/admin
+2025-07-05 09:47:50,351 - enterprise_admin_service - INFO - Запрос обработан за 0.0023 сек. Статус: 404. Адрес: GET https://bot.vochi.by/enterprise/0367/admin
+2025-07-05 09:48:03,149 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/dashboard
+2025-07-05 09:48:03,151 - enterprise_admin_service - INFO - Запрос обработан за 0.0016 сек. Статус: 404. Адрес: GET https://bot.vochi.by/enterprise/dashboard
+2025-07-05 09:48:06,842 - admin - INFO - Checked 11 hosts in 1767ms. Online: 11
+2025-07-05 09:48:29,190 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 09:48:29,191 - enterprise_admin_service - INFO - Запрос обработан за 0.0016 сек. Статус: 307. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 09:48:44,736 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/
+2025-07-05 09:48:44,738 - enterprise_admin_service - INFO - Запрос обработан за 0.0023 сек. Статус: 404. Адрес: GET https://bot.vochi.by/enterprise/
+2025-07-05 09:49:07,769 - admin - INFO - Checked 11 hosts in 1704ms. Online: 11
+2025-07-05 09:50:08,862 - admin - INFO - Checked 11 hosts in 1798ms. Online: 11
+2025-07-05 09:51:09,782 - admin - INFO - Checked 11 hosts in 1709ms. Online: 11
+2025-07-05 09:52:10,776 - admin - INFO - Checked 11 hosts in 1701ms. Online: 11
+2025-07-05 09:53:11,771 - admin - INFO - Checked 11 hosts in 1679ms. Online: 11
+2025-07-05 09:54:12,910 - admin - INFO - Checked 11 hosts in 1831ms. Online: 11
+2025-07-05 09:55:13,922 - admin - INFO - Checked 11 hosts in 1845ms. Online: 11
+2025-07-05 09:55:26,699 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 09:55:26,891 - enterprise_admin_service - INFO - Запрос обработан за 0.1921 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 09:55:27,221 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 09:55:27,422 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 09:55:27,424 - enterprise_admin_service - INFO - Запрос обработан за 0.2033 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 09:55:28,637 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 09:55:29,294 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 09:55:29,400 - enterprise_admin_service - INFO - Запрос обработан за 0.1064 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 09:56:14,728 - admin - INFO - Checked 11 hosts in 1657ms. Online: 11
+2025-07-05 09:57:15,765 - admin - INFO - Checked 11 hosts in 1691ms. Online: 11
+2025-07-05 09:58:16,756 - admin - INFO - Checked 11 hosts in 1686ms. Online: 11
+2025-07-05 09:59:05,237 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 09:59:05,499 - enterprise_admin_service - INFO - Запрос обработан за 0.2623 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 09:59:05,701 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 09:59:05,870 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 09:59:05,874 - enterprise_admin_service - INFO - Запрос обработан за 0.1723 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 09:59:07,256 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 09:59:07,715 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 09:59:07,808 - enterprise_admin_service - INFO - Запрос обработан за 0.0931 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 09:59:07,849 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 09:59:09,560 - enterprise_admin_service - INFO - Запрос обработан за 1.7113 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 09:59:17,746 - admin - INFO - Checked 11 hosts in 1676ms. Online: 11
+2025-07-05 10:00:18,763 - admin - INFO - Checked 11 hosts in 1691ms. Online: 11
+2025-07-05 10:01:19,867 - admin - INFO - Checked 11 hosts in 1711ms. Online: 11
+2025-07-05 10:02:20,753 - admin - INFO - Checked 11 hosts in 1675ms. Online: 11
+2025-07-05 10:02:32,917 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 10:02:33,134 - enterprise_admin_service - INFO - Запрос обработан за 0.2171 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 10:02:33,324 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:02:33,522 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 10:02:33,525 - enterprise_admin_service - INFO - Запрос обработан за 0.2009 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:02:34,804 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 10:02:35,305 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 10:02:35,431 - enterprise_admin_service - INFO - Запрос обработан за 0.1259 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 10:02:35,471 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 10:02:37,100 - enterprise_admin_service - INFO - Запрос обработан за 1.6283 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 10:03:21,775 - admin - INFO - Checked 11 hosts in 1669ms. Online: 11
+2025-07-05 10:04:22,811 - admin - INFO - Checked 11 hosts in 1734ms. Online: 11
+2025-07-05 10:05:23,838 - admin - INFO - Checked 11 hosts in 1768ms. Online: 11
+2025-07-05 10:06:24,848 - admin - INFO - Checked 11 hosts in 1768ms. Online: 11
+2025-07-05 10:07:25,802 - admin - INFO - Checked 11 hosts in 1727ms. Online: 11
+2025-07-05 10:08:26,776 - admin - INFO - Checked 11 hosts in 1703ms. Online: 11
+2025-07-05 10:09:27,809 - admin - INFO - Checked 11 hosts in 1733ms. Online: 11
+2025-07-05 10:10:28,782 - admin - INFO - Checked 11 hosts in 1698ms. Online: 11
+2025-07-05 10:11:29,746 - admin - INFO - Checked 11 hosts in 1662ms. Online: 11
+2025-07-05 10:12:30,815 - admin - INFO - Checked 11 hosts in 1737ms. Online: 11
+2025-07-05 10:13:30,699 - admin - INFO - Checked 11 hosts in 1626ms. Online: 11
+2025-07-05 10:14:30,761 - admin - INFO - Checked 11 hosts in 1673ms. Online: 11
+2025-07-05 10:15:30,734 - admin - INFO - Checked 11 hosts in 1656ms. Online: 11
+2025-07-05 10:16:30,892 - admin - INFO - Checked 11 hosts in 1804ms. Online: 11
+2025-07-05 10:17:31,020 - admin - INFO - Checked 11 hosts in 1823ms. Online: 11
+2025-07-05 10:17:32,135 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 10:17:32,358 - enterprise_admin_service - INFO - Запрос обработан за 0.2231 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 10:17:32,551 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:17:32,759 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 10:17:32,762 - enterprise_admin_service - INFO - Запрос обработан за 0.2113 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:17:33,887 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 10:17:42,699 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 10:17:42,813 - enterprise_admin_service - INFO - Запрос обработан за 0.1140 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 10:17:42,860 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 10:17:44,525 - enterprise_admin_service - INFO - Запрос обработан за 1.6652 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 10:18:30,795 - admin - INFO - Checked 11 hosts in 1708ms. Online: 11
+2025-07-05 10:18:38,742 - admin - INFO - Checked 11 hosts in 1702ms. Online: 11
+2025-07-05 10:19:39,823 - admin - INFO - Checked 11 hosts in 1737ms. Online: 11
+2025-07-05 10:20:39,819 - admin - INFO - Checked 11 hosts in 1729ms. Online: 11
+2025-07-05 10:21:39,701 - admin - INFO - Checked 11 hosts in 1627ms. Online: 11
+2025-07-05 10:22:39,729 - admin - INFO - Checked 11 hosts in 1715ms. Online: 11
+2025-07-05 10:23:39,723 - admin - INFO - Checked 11 hosts in 1698ms. Online: 11
+2025-07-05 10:24:39,747 - admin - INFO - Checked 11 hosts in 1732ms. Online: 11
+2025-07-05 10:25:03,859 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 10:25:04,008 - enterprise_admin_service - INFO - Запрос обработан за 0.1499 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 10:25:04,209 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:25:04,367 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 10:25:04,368 - enterprise_admin_service - INFO - Запрос обработан за 0.1590 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:25:06,734 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 10:25:06,739 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 10:25:06,826 - enterprise_admin_service - INFO - Запрос обработан за 0.0872 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 10:25:06,866 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 10:25:08,468 - enterprise_admin_service - INFO - Запрос обработан за 1.6013 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 10:25:33,833 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 10:25:33,997 - enterprise_admin_service - INFO - Запрос обработан за 0.1644 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 10:25:34,073 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:25:34,190 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 10:25:34,191 - enterprise_admin_service - INFO - Запрос обработан за 0.1181 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:25:35,594 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 10:25:36,256 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 10:25:36,426 - enterprise_admin_service - INFO - Запрос обработан за 0.1706 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 10:25:36,525 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:25:36,749 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 10:25:36,755 - enterprise_admin_service - INFO - Запрос обработан за 0.2294 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:25:36,806 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 10:25:37,991 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 10:25:39,706 - admin - INFO - Checked 11 hosts in 1701ms. Online: 11
+2025-07-05 10:25:40,927 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:25:41,089 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 10:25:41,090 - enterprise_admin_service - INFO - Запрос обработан за 0.1636 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 10:25:42,354 - admin - INFO - Found 3 internal phones for enterprise 0367
