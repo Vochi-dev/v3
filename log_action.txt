@@ -17861,3 +17861,60 @@ aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost
 2025-07-05 15:26:27,748 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0334/gsm-lines/status
 2025-07-05 15:26:29,133 - enterprise_admin_service - INFO - Запрос обработан за 1.3846 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0334/gsm-lines/status
 2025-07-05 15:26:51,780 - admin - INFO - Checked 11 hosts in 1658ms. Online: 11
+2025-07-05 15:27:52,789 - admin - INFO - Checked 11 hosts in 1722ms. Online: 11
+2025-07-05 15:28:53,815 - admin - INFO - Checked 11 hosts in 1641ms. Online: 11
+2025-07-05 15:29:54,827 - admin - INFO - Checked 11 hosts in 1702ms. Online: 11
+2025-07-05 15:30:55,813 - admin - INFO - Checked 11 hosts in 1673ms. Online: 11
+2025-07-05 15:31:56,846 - admin - INFO - Checked 11 hosts in 1704ms. Online: 11
+2025-07-05 15:41:35,055 - enterprise_admin_service - INFO - Получен запрос: GET http://127.0.0.1:8004/enterprise/0201/gsm-lines/all
+2025-07-05 15:41:35,128 - enterprise_admin_service - INFO - Запрос обработан за 0.0738 сек. Статус: 200. Адрес: GET http://127.0.0.1:8004/enterprise/0201/gsm-lines/all
+2025-07-05 15:41:43,137 - enterprise_admin_service - INFO - Получен запрос: GET http://127.0.0.1:8004/enterprise/0201/gsm-lines/all
+2025-07-05 15:41:43,238 - enterprise_admin_service - INFO - Запрос обработан за 0.1010 сек. Статус: 200. Адрес: GET http://127.0.0.1:8004/enterprise/0201/gsm-lines/all
+2025-07-05 15:42:11,234 - enterprise_admin_service - INFO - Получен запрос: GET http://127.0.0.1:8004/enterprise/0367/gsm-lines/all
+2025-07-05 15:42:11,325 - enterprise_admin_service - INFO - Запрос обработан за 0.0912 сек. Статус: 200. Адрес: GET http://127.0.0.1:8004/enterprise/0367/gsm-lines/all
+2025-07-05 15:42:19,980 - enterprise_admin_service - INFO - Получен запрос: GET http://127.0.0.1:8004/enterprise/0201/gsm-lines/all
+2025-07-05 15:42:20,057 - enterprise_admin_service - INFO - Запрос обработан за 0.0777 сек. Статус: 200. Адрес: GET http://127.0.0.1:8004/enterprise/0201/gsm-lines/all
+2025-07-05 15:42:35,242 - enterprise_admin_service - INFO - Получен запрос: GET http://127.0.0.1:8004/enterprise/0201/gsm-lines/all
+2025-07-05 15:42:35,378 - enterprise_admin_service - INFO - Запрос обработан за 0.1362 сек. Статус: 200. Адрес: GET http://127.0.0.1:8004/enterprise/0201/gsm-lines/all
+2025-07-05 15:45:42,332 - admin - INFO - Checked 11 hosts in 1669ms. Online: 11
+2025-07-05 15:45:45,773 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-05 15:45:45,774 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-05 15:45:45,877 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTczMDY0NX0.zkYQ2RxZmkEtjPiyB_hl2wiwKfnKFQCarqcSzIMr9Mc
+2025-07-05 15:45:45,882 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJhbGciOiJIUzI...
+2025-07-05 15:45:45,884 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0367', 'is_admin': True, 'exp': 1751730645}
+2025-07-05 15:45:45,884 - enterprise_admin_service - INFO - Номер предприятия из токена: 0367
+2025-07-05 15:45:45,961 - enterprise_admin_service - INFO - Создание сессии для предприятия 0367...
+2025-07-05 15:45:45,967 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-05 15:45:45,968 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0367.
+2025-07-05 15:45:45,969 - enterprise_admin_service - INFO - Запрос обработан за 0.0925 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTczMDY0NX0.zkYQ2RxZmkEtjPiyB_hl2wiwKfnKFQCarqcSzIMr9Mc
+2025-07-05 15:45:46,004 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 15:45:46,218 - enterprise_admin_service - INFO - Запрос обработан за 0.2141 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 15:45:46,328 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 15:45:46,517 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 15:45:46,519 - enterprise_admin_service - INFO - Запрос обработан за 0.1907 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 15:45:47,765 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 15:45:47,993 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 15:45:48,099 - enterprise_admin_service - INFO - Запрос обработан за 0.1065 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 15:45:48,139 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 15:45:49,735 - enterprise_admin_service - INFO - Запрос обработан за 1.5956 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 15:46:19,732 - admin - INFO - Запрос на генерацию токена для предприятия 0334
+2025-07-05 15:46:19,733 - admin - INFO - Токен для предприятия 0334 успешно сгенерирован.
+2025-07-05 15:46:19,818 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMzM0IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTczMDY3OX0.F5t4immXMiB_m6gy9A3H3FsQO5KsLnWa0pgNXmFeVbw
+2025-07-05 15:46:19,823 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJhbGciOiJIUzI...
+2025-07-05 15:46:19,824 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0334', 'is_admin': True, 'exp': 1751730679}
+2025-07-05 15:46:19,825 - enterprise_admin_service - INFO - Номер предприятия из токена: 0334
+2025-07-05 15:46:19,934 - enterprise_admin_service - INFO - Создание сессии для предприятия 0334...
+2025-07-05 15:46:19,938 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-05 15:46:19,943 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0334.
+2025-07-05 15:46:19,944 - enterprise_admin_service - INFO - Запрос обработан за 0.1266 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMzM0IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTczMDY3OX0.F5t4immXMiB_m6gy9A3H3FsQO5KsLnWa0pgNXmFeVbw
+2025-07-05 15:46:19,978 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0334/dashboard
+2025-07-05 15:46:20,150 - enterprise_admin_service - INFO - Запрос обработан за 0.1714 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0334/dashboard
+2025-07-05 15:46:20,254 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0334/users
+2025-07-05 15:46:20,434 - enterprise_admin_service - INFO - Найдено 0 пользователей для предприятия 0334
+2025-07-05 15:46:20,436 - enterprise_admin_service - INFO - Запрос обработан за 0.1823 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0334/users
+2025-07-05 15:46:21,560 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0334/gsm-lines/all
+2025-07-05 15:46:21,604 - admin - INFO - Found 45 internal phones for enterprise 0334
+2025-07-05 15:46:21,658 - enterprise_admin_service - INFO - Запрос обработан за 0.0979 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0334/gsm-lines/all
+2025-07-05 15:46:21,698 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0334/gsm-lines/status
+2025-07-05 15:46:23,246 - enterprise_admin_service - INFO - Запрос обработан за 1.5481 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0334/gsm-lines/status
+2025-07-05 15:46:42,934 - admin - INFO - Checked 11 hosts in 1764ms. Online: 11
