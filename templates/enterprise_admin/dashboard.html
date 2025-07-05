@@ -1440,6 +1440,116 @@
             }
         };
 
+        // --- Функция для обновления GoIP данных конкретного устройства ---
+        const refreshDeviceGoipData = async (deviceName) => {
+            try {
+                console.log(`🔄 [REFRESH-GOIP] Обновляем GoIP данные для устройства ${deviceName}`);
+                
+                // Получаем данные линий для конкретного устройства
+                const linesUrl = `http://127.0.0.1:8008/devices/${deviceName}/lines`;
+                console.log(`🌐 [REFRESH-GOIP] Запрашиваем линии устройства ${deviceName}:`, linesUrl);
+                
+                const response = await fetch(linesUrl, {
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (!response.ok) {
+                    console.error(`❌ [REFRESH-GOIP] Ошибка для устройства ${deviceName}:`, response.status);
+                    throw new Error(`Ошибка получения данных устройства: ${response.status}`);
+                }
+                
+                const goipLines = await response.json();
+                console.log(`📊 [REFRESH-GOIP] Устройство ${deviceName}: получено ${goipLines.length} линий`);
+                
+                // Находим все строки таблицы, принадлежащие этому устройству
+                const deviceSection = document.querySelector(`#device-info-${deviceName}`).closest('div').nextElementSibling;
+                const rows = deviceSection.querySelectorAll('tr[data-line-gsm-id]');
+                
+                console.log(`📋 [REFRESH-GOIP] Найдено строк для устройства ${deviceName}:`, rows.length);
+                
+                // Обрабатываем каждую строку этого устройства
+                let foundCount = 0;
+                let notFoundCount = 0;
+                
+                rows.forEach((row, index) => {
+                    const lineGsmId = row.getAttribute('data-line-gsm-id');
+                    const levelCell = row.cells[9]; // Столбец "Уровень" (индекс 9)
+                    const slotCell = row.cells[10]; // Столбец "Слот" (индекс 10)
+                    const forwardCell = row.cells[11]; // Столбец "Переадр." (индекс 11)
+                    
+                    console.log(`🔎 [REFRESH-GOIP] Обрабатываем строку ${index + 1} устройства ${deviceName}: lineGsmId="${lineGsmId}"`);
+                    
+                    // Ищем линию по auth_id (который соответствует line_gsm_id)
+                    const goipLine = goipLines.find(line => line.auth_id === lineGsmId);
+                    
+                    if (goipLine) {
+                        // Обновляем уровень сигнала RSSI
+                        if (goipLine.rssi && goipLine.rssi.trim() !== '' && goipLine.rssi !== 'null') {
+                            const rssiValue = parseInt(goipLine.rssi);
+                            let rssiColor = '#6c757d'; // По умолчанию серый
+                            let rssiText = goipLine.rssi;
+                            
+                            if (!isNaN(rssiValue)) {
+                                if (rssiValue >= 19 && rssiValue <= 31) {
+                                    rssiColor = '#28a745'; // Зеленый для отличного сигнала (19-31)
+                                } else if (rssiValue >= 14 && rssiValue <= 18) {
+                                    rssiColor = '#ffc107'; // Желтый для среднего сигнала (14-18)
+                                } else if (rssiValue >= 1 && rssiValue <= 13) {
+                                    rssiColor = '#dc3545'; // Красный для слабого сигнала (1-13)
+                                }
+                                rssiText = rssiValue.toString();
+                            }
+                            
+                            levelCell.innerHTML = `<span style="color: ${rssiColor}; font-weight: bold;">${rssiText}</span>`;
+                            console.log(`📶 [REFRESH-GOIP] RSSI для линии ${lineGsmId}: ${rssiText} (цвет: ${rssiColor})`);
+                        } else {
+                            levelCell.innerHTML = `<span style="color: #6c757d;">—</span>`;
+                        }
+                        
+                        // Обновляем номер слота
+                        slotCell.innerHTML = `<span style="color: #28a745; font-weight: bold;">${goipLine.line}</span>`;
+                        
+                        // Обновляем переадресацию
+                        if (goipLine.call_forward_busy && goipLine.call_forward_busy.trim() !== '') {
+                            // Очищаем номер от лишних символов
+                            let forwardNumber = goipLine.call_forward_busy.replace(/&nbsp;/g, '').trim();
+                            if (forwardNumber && forwardNumber !== 'OFF' && forwardNumber !== 'Not Set') {
+                                // Добавляем + если его нет для корректного форматирования
+                                if (!forwardNumber.startsWith('+')) {
+                                    forwardNumber = '+' + forwardNumber;
+                                }
+                                // Форматируем номер согласно международному стандарту
+                                const formattedNumber = formatPhoneNumber(forwardNumber);
+                                forwardCell.innerHTML = `<span style="color: #007bff; font-weight: bold;">${formattedNumber}</span>`;
+                                console.log(`📞 [REFRESH-GOIP] Переадресация для линии ${lineGsmId}: ${formattedNumber}`);
+                            } else {
+                                forwardCell.innerHTML = `<span style="color: #6c757d;">—</span>`;
+                            }
+                        } else {
+                            forwardCell.innerHTML = `<span style="color: #6c757d;">—</span>`;
+                        }
+                        
+                        console.log(`✅ [REFRESH-GOIP] Найдена линия ${lineGsmId} в слоте ${goipLine.line}`);
+                        foundCount++;
+                    } else {
+                        // Заменяем на "—" если линия не найдена
+                        levelCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
+                        slotCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
+                        forwardCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
+                        console.log(`❌ [REFRESH-GOIP] Линия ${lineGsmId} НЕ найдена в GoIP`);
+                        notFoundCount++;
+                    }
+                });
+                
+                console.log(`📊 [REFRESH-GOIP] Устройство ${deviceName}: найдено ${foundCount}, не найдено ${notFoundCount}`);
+                console.log(`✅ [REFRESH-GOIP] Обновление GoIP данных для устройства ${deviceName} завершено`);
+                
+            } catch (error) {
+                console.error(`💥 [REFRESH-GOIP] Критическая ошибка при обновлении GoIP данных для устройства ${deviceName}:`, error);
+                throw error; // Пробрасываем ошибку дальше для обработки в основном обработчике
+            }
+        };
+
         // --- Функция для получения информации об устройствах ---
         const updateDeviceInfo = async () => {
             try {
@@ -1603,10 +1713,14 @@
                                     Загрузка информации...
                                 </span>
                             </div>
-                            <div>
+                            <div style="display: flex; gap: 5px;">
+                                <button class="refresh-device-btn" data-device-name="${gateway.gateway_name}" 
+                                        style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer;">
+                                    🔄 Обновить
+                                </button>
                                 <button class="reboot-device-btn" data-device-name="${gateway.gateway_name}" 
                                         style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer;">
-                                    🔄 Reboot
+                                    ⚡ Reboot
                                 </button>
                             </div>
                         </div>
@@ -1648,6 +1762,76 @@
                     html += `</tbody></table></div>`;
                 });
                 container.innerHTML = html;
+                
+                // Добавляем обработчики для кнопок Обновить
+                document.querySelectorAll('.refresh-device-btn').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        const deviceName = button.dataset.deviceName;
+                        
+                        console.log(`🔄 [REFRESH] Начинаем обновление информации для устройства ${deviceName}`);
+                        
+                        // Отключаем кнопку и показываем процесс
+                        button.disabled = true;
+                        button.innerHTML = '⏳ Обновляем...';
+                        
+                        try {
+                            // Обновляем информацию об устройстве (серийник и uptime)
+                            const infoElement = document.getElementById(`device-info-${deviceName}`);
+                            if (infoElement) {
+                                infoElement.innerHTML = 'Обновляем информацию...';
+                                
+                                const infoUrl = `http://127.0.0.1:8008/devices/${deviceName}/info`;
+                                const infoResponse = await fetch(infoUrl, {
+                                    headers: { 'Cache-Control': 'no-cache' }
+                                });
+                                
+                                if (infoResponse.ok) {
+                                    const info = await infoResponse.json();
+                                    let infoText = '';
+                                    if (info.serial_number) {
+                                        infoText += `SN: ${info.serial_number}`;
+                                    }
+                                    if (info.uptime) {
+                                        if (infoText) infoText += ' | ';
+                                        infoText += `Uptime: ${info.uptime}`;
+                                    }
+                                    infoElement.innerHTML = infoText || 'Нет данных';
+                                    console.log(`✅ [REFRESH] Информация об устройстве ${deviceName} обновлена`);
+                                } else {
+                                    infoElement.innerHTML = '<span style="color: #dc3545;">Ошибка получения данных</span>';
+                                    console.error(`❌ [REFRESH] Ошибка получения информации об устройстве ${deviceName}`);
+                                }
+                            }
+                            
+                            // Обновляем GoIP слоты (уровень, слот, переадресация) только для этого устройства
+                            await refreshDeviceGoipData(deviceName);
+                            
+                            button.innerHTML = '✅ Обновлено';
+                            button.style.background = '#28a745';
+                            
+                            // Через 2 секунды возвращаем кнопку в исходное состояние
+                            setTimeout(() => {
+                                button.disabled = false;
+                                button.innerHTML = '🔄 Обновить';
+                                button.style.background = '#28a745';
+                            }, 2000);
+                            
+                        } catch (error) {
+                            console.error(`💥 [REFRESH] Критическая ошибка при обновлении ${deviceName}:`, error);
+                            
+                            button.innerHTML = '❌ Ошибка';
+                            button.style.background = '#6c757d';
+                            
+                            // Через 3 секунды возвращаем кнопку в исходное состояние
+                            setTimeout(() => {
+                                button.disabled = false;
+                                button.innerHTML = '🔄 Обновить';
+                                button.style.background = '#28a745';
+                            }, 3000);
+                        }
+                    });
+                });
                 
                 // Добавляем обработчики для кнопок Reboot
                 document.querySelectorAll('.reboot-device-btn').forEach(button => {

@@ -17846,3 +17846,18 @@ aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost
 2025-07-05 15:21:44,730 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0334/gsm-lines/status
 2025-07-05 15:21:46,151 - enterprise_admin_service - INFO - Запрос обработан за 1.4210 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0334/gsm-lines/status
 2025-07-05 15:21:51,884 - admin - INFO - Checked 11 hosts in 1758ms. Online: 11
+2025-07-05 15:22:51,860 - admin - INFO - Checked 11 hosts in 1722ms. Online: 11
+2025-07-05 15:23:51,925 - admin - INFO - Checked 11 hosts in 1784ms. Online: 11
+2025-07-05 15:24:51,816 - admin - INFO - Checked 11 hosts in 1665ms. Online: 11
+2025-07-05 15:25:51,855 - admin - INFO - Checked 11 hosts in 1724ms. Online: 11
+2025-07-05 15:26:24,409 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0334/dashboard
+2025-07-05 15:26:24,650 - enterprise_admin_service - INFO - Запрос обработан за 0.2412 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0334/dashboard
+2025-07-05 15:26:24,855 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0334/users
+2025-07-05 15:26:25,086 - enterprise_admin_service - INFO - Найдено 0 пользователей для предприятия 0334
+2025-07-05 15:26:25,087 - enterprise_admin_service - INFO - Запрос обработан за 0.2321 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0334/users
+2025-07-05 15:26:26,307 - admin - INFO - Found 45 internal phones for enterprise 0334
+2025-07-05 15:26:27,552 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0334/gsm-lines/all
+2025-07-05 15:26:27,693 - enterprise_admin_service - INFO - Запрос обработан за 0.1405 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0334/gsm-lines/all
+2025-07-05 15:26:27,748 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0334/gsm-lines/status
+2025-07-05 15:26:29,133 - enterprise_admin_service - INFO - Запрос обработан за 1.3846 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0334/gsm-lines/status
+2025-07-05 15:26:51,780 - admin - INFO - Checked 11 hosts in 1658ms. Online: 11
