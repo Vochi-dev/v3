@@ -17063,3 +17063,140 @@ aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost
 2025-07-05 10:25:41,089 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
 2025-07-05 10:25:41,090 - enterprise_admin_service - INFO - Запрос обработан за 0.1636 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
 2025-07-05 10:25:42,354 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 10:26:40,688 - admin - INFO - Checked 11 hosts in 1677ms. Online: 11
+2025-07-05 10:27:41,782 - admin - INFO - Checked 11 hosts in 1696ms. Online: 11
+2025-07-05 10:28:42,703 - admin - INFO - Checked 11 hosts in 1696ms. Online: 11
+2025-07-05 10:29:43,731 - admin - INFO - Checked 11 hosts in 1715ms. Online: 11
+2025-07-05 10:30:44,710 - admin - INFO - Checked 11 hosts in 1701ms. Online: 11
+2025-07-05 10:31:45,814 - admin - INFO - Checked 11 hosts in 1798ms. Online: 11
+2025-07-05 10:32:46,858 - admin - INFO - Checked 11 hosts in 1762ms. Online: 11
+2025-07-05 10:33:47,894 - admin - INFO - Checked 11 hosts in 1711ms. Online: 11
+2025-07-05 10:34:48,761 - admin - INFO - Checked 11 hosts in 1683ms. Online: 11
+2025-07-05 10:35:49,756 - admin - INFO - Checked 11 hosts in 1671ms. Online: 11
+2025-07-05 10:36:50,762 - admin - INFO - Checked 11 hosts in 1668ms. Online: 11
+2025-07-05 10:37:51,820 - admin - INFO - Checked 11 hosts in 1721ms. Online: 11
+2025-07-05 10:38:52,760 - admin - INFO - Checked 11 hosts in 1666ms. Online: 11
+2025-07-05 10:39:53,786 - admin - INFO - Checked 11 hosts in 1691ms. Online: 11
+2025-07-05 10:40:54,774 - admin - INFO - Checked 11 hosts in 1683ms. Online: 11
+2025-07-05 10:41:55,717 - admin - INFO - Checked 11 hosts in 1639ms. Online: 11
+2025-07-05 10:42:56,796 - admin - INFO - Checked 11 hosts in 1717ms. Online: 11
+2025-07-05 10:43:57,789 - admin - INFO - Checked 11 hosts in 1710ms. Online: 11
+2025-07-05 10:44:58,852 - admin - INFO - Checked 11 hosts in 1758ms. Online: 11
+2025-07-05 10:45:59,743 - admin - INFO - Checked 11 hosts in 1647ms. Online: 11
+2025-07-05 10:47:00,793 - admin - INFO - Checked 11 hosts in 1691ms. Online: 11
+2025-07-05 10:48:01,744 - admin - INFO - Checked 11 hosts in 1662ms. Online: 11
+2025-07-05 10:49:02,868 - admin - INFO - Checked 11 hosts in 1789ms. Online: 11
+2025-07-05 10:50:04,399 - admin - WARNING - Команда df завершилась с ошибкой для 10.88.10.43: ssh: connect to host 10.88.10.43 port 5059: Connection refused
+
+2025-07-05 10:50:06,615 - admin - WARNING - Команда df завершилась с ошибкой для 10.88.10.25: kex_exchange_identification: read: Connection reset by peer
+
+2025-07-05 10:50:06,952 - admin - INFO - Checked 11 hosts in 4863ms. Online: 9
+2025-07-05 10:51:04,841 - admin - INFO - Checked 11 hosts in 1747ms. Online: 11
+2025-07-05 10:52:05,740 - admin - INFO - Checked 11 hosts in 1660ms. Online: 11
+2025-07-05 10:53:06,745 - admin - INFO - Checked 11 hosts in 1651ms. Online: 11
+2025-07-05 10:54:07,781 - admin - INFO - Checked 11 hosts in 1683ms. Online: 11
+2025-07-05 10:55:12,207 - admin - INFO - Checked 11 hosts in 5124ms. Online: 10
+2025-07-05 10:56:09,740 - admin - INFO - Checked 11 hosts in 1657ms. Online: 11
+2025-07-05 10:57:10,752 - admin - INFO - Checked 11 hosts in 1659ms. Online: 11
+2025-07-05 10:58:11,812 - admin - INFO - Checked 11 hosts in 1709ms. Online: 11
+2025-07-05 10:59:12,792 - admin - INFO - Checked 11 hosts in 1714ms. Online: 11
+2025-07-05 10:59:33,170 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 10:59:33,284 - enterprise_admin_service - INFO - Запрос обработан за 0.1144 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 10:59:33,321 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 10:59:34,784 - enterprise_admin_service - INFO - Запрос обработан за 1.4622 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 11:00:14,007 - admin - INFO - Checked 11 hosts in 1915ms. Online: 11
+2025-07-05 11:01:14,813 - admin - INFO - Checked 11 hosts in 1719ms. Online: 11
+2025-07-05 11:02:15,762 - admin - INFO - Checked 11 hosts in 1683ms. Online: 11
+2025-07-05 11:03:16,849 - admin - INFO - Checked 11 hosts in 1749ms. Online: 11
+2025-07-05 11:04:17,738 - admin - INFO - Checked 11 hosts in 1653ms. Online: 11
+2025-07-05 11:05:18,852 - admin - INFO - Checked 11 hosts in 1763ms. Online: 11
+2025-07-05 11:06:19,748 - admin - INFO - Checked 11 hosts in 1645ms. Online: 11
+2025-07-05 11:07:20,795 - admin - INFO - Checked 11 hosts in 1697ms. Online: 11
+2025-07-05 11:08:21,772 - admin - INFO - Checked 11 hosts in 1656ms. Online: 11
+2025-07-05 11:09:22,774 - admin - INFO - Checked 11 hosts in 1684ms. Online: 11
+2025-07-05 11:10:23,834 - admin - INFO - Checked 11 hosts in 1725ms. Online: 11
+2025-07-05 11:11:23,216 - admin - ERROR - Ошибка получения статистики live событий: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 980, in _wrap_create_connection
+    return await self._loop.create_connection(*args, **kwargs)  # type: ignore[return-value]  # noqa
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1076, in create_connection
+    raise exceptions[0]
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1060, in create_connection
+    sock = await self._connect_sock(
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 969, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 501, in sock_connect
+    return await fut
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 541, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8007)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/app/routers/admin.py", line 1040, in get_live_events_today
+    async with session.get('http://localhost:8007/sync/live/today') as response:
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/client.py", line 1167, in __aenter__
+    self._resp = await self._coro
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/client.py", line 562, in _request
+    conn = await self._connector.connect(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 540, in connect
+    proto = await self._create_connection(req, traces, timeout)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 901, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 1209, in _create_direct_connection
+    raise last_exc
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 1178, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 988, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+2025-07-05 11:11:23,667 - admin - INFO - Checked 11 hosts in 573ms. Online: 0
+2025-07-05 11:12:25,908 - admin - INFO - Checked 11 hosts in 1821ms. Online: 11
+2025-07-05 11:13:26,869 - admin - INFO - Checked 11 hosts in 1773ms. Online: 11
+2025-07-05 11:13:51,685 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 11:13:51,943 - enterprise_admin_service - INFO - Запрос обработан за 0.2589 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 11:13:52,184 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 11:13:52,349 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 11:13:52,351 - enterprise_admin_service - INFO - Запрос обработан за 0.1671 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 11:13:53,511 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 11:13:55,856 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 11:13:55,961 - enterprise_admin_service - INFO - Запрос обработан за 0.1050 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 11:13:56,000 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 11:13:57,779 - enterprise_admin_service - INFO - Запрос обработан за 1.7789 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 11:14:27,829 - admin - INFO - Checked 11 hosts in 1732ms. Online: 11
+2025-07-05 11:14:40,063 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 11:14:40,253 - enterprise_admin_service - INFO - Запрос обработан за 0.1902 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 11:14:40,459 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 11:14:40,639 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 11:14:40,641 - enterprise_admin_service - INFO - Запрос обработан за 0.1828 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 11:14:41,811 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 11:14:44,984 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 11:14:45,103 - enterprise_admin_service - INFO - Запрос обработан за 0.1195 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 11:14:45,143 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 11:14:46,777 - enterprise_admin_service - INFO - Запрос обработан за 1.6339 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 11:15:05,655 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 11:15:05,877 - enterprise_admin_service - INFO - Запрос обработан за 0.2214 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 11:15:06,060 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 11:15:06,244 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 11:15:06,257 - enterprise_admin_service - INFO - Запрос обработан за 0.1979 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 11:15:07,586 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 11:15:07,829 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 11:15:07,944 - enterprise_admin_service - INFO - Запрос обработан за 0.1157 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-05 11:15:07,987 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 11:15:09,670 - enterprise_admin_service - INFO - Запрос обработан за 1.6829 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-05 11:15:28,739 - admin - INFO - Checked 11 hosts in 1655ms. Online: 11
+2025-07-05 11:16:29,737 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 11:16:29,761 - admin - INFO - Checked 11 hosts in 1671ms. Online: 11
+2025-07-05 11:16:29,884 - enterprise_admin_service - INFO - Запрос обработан за 0.1475 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 11:16:29,938 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 11:16:30,066 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 11:16:30,068 - enterprise_admin_service - INFO - Запрос обработан за 0.1296 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 11:16:31,448 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 11:16:32,460 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-05 11:16:32,496 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 11:16:32,666 - enterprise_admin_service - INFO - Запрос обработан за 0.1701 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-05 11:16:32,748 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 11:16:32,903 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-05 11:16:32,905 - enterprise_admin_service - INFO - Запрос обработан за 0.1566 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-05 11:16:34,264 - admin - INFO - Found 3 internal phones for enterprise 0367
