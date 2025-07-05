@@ -1300,30 +1300,47 @@
             try {
                 console.log('🔍 [GoIP] Начинаем запрос данных GoIP слотов...');
                 
-                // Делаем один запрос к GoIP сервису
-                const goipUrl = 'http://127.0.0.1:8008/devices/Vochi-Main/lines';
-                console.log('🌐 [GoIP] Отправляем запрос к:', goipUrl);
+                // Сначала получаем список активных устройств предприятия
+                const devicesUrl = `http://127.0.0.1:8008/enterprise/${enterpriseNumber}/devices`;
+                console.log('🌐 [GoIP] Запрашиваем устройства предприятия:', devicesUrl);
                 
-                const goipResponse = await fetch(goipUrl);
-                console.log('📡 [GoIP] Статус ответа:', goipResponse.status, goipResponse.statusText);
-                
-                if (!goipResponse.ok) {
-                    console.error('❌ [GoIP] Ошибка запроса к GoIP сервису:', goipResponse.status, goipResponse.statusText);
-                    // Заменяем песочные часы на "?" для всех уровней, слотов и переадресации при ошибке
-                    document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(10)').forEach(cell => {
-                        cell.innerHTML = '<span style="color: #ffc107;">?</span>';
-                    });
-                    document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(11)').forEach(cell => {
-                        cell.innerHTML = '<span style="color: #ffc107;">?</span>';
-                    });
-                    document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(12)').forEach(cell => {
-                        cell.innerHTML = '<span style="color: #ffc107;">?</span>';
-                    });
-                    return;
+                const devicesResponse = await fetch(devicesUrl);
+                if (!devicesResponse.ok) {
+                    console.error('❌ [GoIP] Ошибка получения устройств:', devicesResponse.status, devicesResponse.statusText);
+                    throw new Error(`Ошибка получения устройств: ${devicesResponse.status}`);
                 }
                 
-                const goipLines = await goipResponse.json();
-                console.log('📊 [GoIP] Получены данные GoIP:', goipLines);
+                const devicesData = await devicesResponse.json();
+                const devices = devicesData.devices || [];
+                console.log('📱 [GoIP] Найдено устройств:', devices.length, devices.map(d => d.gateway_name));
+                
+                if (devices.length === 0) {
+                    console.warn('⚠️ [GoIP] Нет активных устройств для предприятия');
+                    throw new Error('Нет активных устройств');
+                }
+                
+                // Получаем данные линий со всех устройств
+                const allLinesPromises = devices.map(device => {
+                    const linesUrl = `http://127.0.0.1:8008/devices/${device.gateway_name}/lines`;
+                    console.log(`🌐 [GoIP] Запрашиваем линии устройства ${device.gateway_name}:`, linesUrl);
+                    return fetch(linesUrl).then(response => {
+                        if (!response.ok) {
+                            console.error(`❌ [GoIP] Ошибка для устройства ${device.gateway_name}:`, response.status);
+                            return [];
+                        }
+                        return response.json().then(lines => {
+                            console.log(`📊 [GoIP] Устройство ${device.gateway_name}: получено ${lines.length} линий`);
+                            return lines;
+                        });
+                    }).catch(error => {
+                        console.error(`💥 [GoIP] Ошибка запроса к ${device.gateway_name}:`, error);
+                        return [];
+                    });
+                });
+                
+                const allLinesArrays = await Promise.all(allLinesPromises);
+                const goipLines = allLinesArrays.flat();
+                console.log('📊 [GoIP] Получены данные GoIP со всех устройств:', goipLines.length, 'линий');
                 console.log('📈 [GoIP] Количество линий в ответе:', goipLines.length);
                 
                 // Получаем все строки таблицы с GSM линиями
