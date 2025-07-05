@@ -1309,8 +1309,14 @@
                 
                 if (!goipResponse.ok) {
                     console.error('❌ [GoIP] Ошибка запроса к GoIP сервису:', goipResponse.status, goipResponse.statusText);
-                    // Заменяем песочные часы на "?" для всех слотов при ошибке
+                    // Заменяем песочные часы на "?" для всех уровней, слотов и переадресации при ошибке
+                    document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(10)').forEach(cell => {
+                        cell.innerHTML = '<span style="color: #ffc107;">?</span>';
+                    });
                     document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(11)').forEach(cell => {
+                        cell.innerHTML = '<span style="color: #ffc107;">?</span>';
+                    });
+                    document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(12)').forEach(cell => {
                         cell.innerHTML = '<span style="color: #ffc107;">?</span>';
                     });
                     return;
@@ -1330,7 +1336,9 @@
                 
                 rows.forEach((row, index) => {
                     const lineGsmId = row.getAttribute('data-line-gsm-id');
+                    const levelCell = row.cells[9]; // Столбец "Уровень" (индекс 9)
                     const slotCell = row.cells[10]; // Столбец "Слот" (индекс 10)
+                    const forwardCell = row.cells[11]; // Столбец "Переадр." (индекс 11)
                     
                     console.log(`🔎 [GoIP] Обрабатываем строку ${index + 1}: lineGsmId="${lineGsmId}"`);
                     
@@ -1338,13 +1346,59 @@
                     const goipLine = goipLines.find(line => line.auth_id === lineGsmId);
                     
                     if (goipLine) {
+                        // Обновляем уровень сигнала RSSI
+                        if (goipLine.rssi && goipLine.rssi.trim() !== '' && goipLine.rssi !== 'null') {
+                            const rssiValue = parseInt(goipLine.rssi);
+                            let rssiColor = '#6c757d'; // По умолчанию серый
+                            let rssiText = goipLine.rssi;
+                            
+                            if (!isNaN(rssiValue)) {
+                                if (rssiValue >= 19 && rssiValue <= 31) {
+                                    rssiColor = '#28a745'; // Зеленый для отличного сигнала (19-31)
+                                } else if (rssiValue >= 14 && rssiValue <= 18) {
+                                    rssiColor = '#ffc107'; // Желтый для среднего сигнала (14-18)
+                                } else if (rssiValue >= 1 && rssiValue <= 13) {
+                                    rssiColor = '#dc3545'; // Красный для слабого сигнала (1-13)
+                                }
+                                rssiText = rssiValue.toString();
+                            }
+                            
+                            levelCell.innerHTML = `<span style="color: ${rssiColor}; font-weight: bold;">${rssiText}</span>`;
+                            console.log(`📶 [GoIP] RSSI для линии ${lineGsmId}: ${rssiText} (цвет: ${rssiColor})`);
+                        } else {
+                            levelCell.innerHTML = `<span style="color: #6c757d;">—</span>`;
+                        }
+                        
                         // Заменяем песочные часы на номер линии из GoIP
                         slotCell.innerHTML = `<span style="color: #28a745; font-weight: bold;">${goipLine.line}</span>`;
+                        
+                        // Обновляем переадресацию
+                        if (goipLine.call_forward_busy && goipLine.call_forward_busy.trim() !== '') {
+                            // Очищаем номер от лишних символов
+                            let forwardNumber = goipLine.call_forward_busy.replace(/&nbsp;/g, '').trim();
+                            if (forwardNumber && forwardNumber !== 'OFF' && forwardNumber !== 'Not Set') {
+                                // Добавляем + если его нет для корректного форматирования
+                                if (!forwardNumber.startsWith('+')) {
+                                    forwardNumber = '+' + forwardNumber;
+                                }
+                                // Форматируем номер согласно международному стандарту
+                                const formattedNumber = formatPhoneNumber(forwardNumber);
+                                forwardCell.innerHTML = `<span style="color: #007bff; font-weight: bold;">${formattedNumber}</span>`;
+                                console.log(`📞 [GoIP] Переадресация для линии ${lineGsmId}: ${formattedNumber}`);
+                            } else {
+                                forwardCell.innerHTML = `<span style="color: #6c757d;">—</span>`;
+                            }
+                        } else {
+                            forwardCell.innerHTML = `<span style="color: #6c757d;">—</span>`;
+                        }
+                        
                         console.log(`✅ [GoIP] Найдена линия ${lineGsmId} в слоте ${goipLine.line}`);
                         foundCount++;
                     } else {
                         // Заменяем песочные часы на "—" если линия не найдена
+                        levelCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
                         slotCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
+                        forwardCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
                         console.log(`❌ [GoIP] Линия ${lineGsmId} НЕ найдена в GoIP`);
                         notFoundCount++;
                     }
@@ -1356,8 +1410,14 @@
             } catch (error) {
                 console.error('💥 [GoIP] Критическая ошибка при получении данных GoIP:', error);
                 console.error('💥 [GoIP] Stack trace:', error.stack);
-                // Заменяем песочные часы на "?" для всех слотов при ошибке
+                // Заменяем песочные часы на "?" для всех уровней, слотов и переадресации при ошибке
+                document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(10)').forEach(cell => {
+                    cell.innerHTML = '<span style="color: #ffc107;">?</span>';
+                });
                 document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(11)').forEach(cell => {
+                    cell.innerHTML = '<span style="color: #ffc107;">?</span>';
+                });
+                document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(12)').forEach(cell => {
                     cell.innerHTML = '<span style="color: #ffc107;">?</span>';
                 });
             }
@@ -1401,7 +1461,7 @@
                                     <th>Вх.сх</th>
                                     <th>Исх.схемы</th>
                                     <th>Магазин</th>
-                                    <th>Goip</th>
+                                    <th>Уровень</th>
                                     <th>Слот</th>
                                     <th>Переадр.</th>
                                 </tr>
@@ -1419,9 +1479,9 @@
                             <td>${line.incoming_schema_name || ''}</td>
                             <td>${displayOutgoingSchemas(line.outgoing_schema_names)}</td>
                             <td>${line.shop || ''}</td>
-                            <td>${gateway.gateway_name || ''}</td>
                             <td><span class="slot-loading">⏳</span></td>
-                            <td>${line.redirect || ''}</td>
+                            <td><span class="slot-loading">⏳</span></td>
+                            <td><span class="slot-loading">⏳</span></td>
                         </tr>`;
                     });
                     html += `</tbody></table></div>`;
