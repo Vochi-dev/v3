@@ -14,6 +14,7 @@ import aiohttp
 import asyncpg
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from bs4 import BeautifulSoup
 import re
@@ -48,6 +49,15 @@ app = FastAPI(
     title="GoIP Management Service",
     description="Микросервис для управления GoIP устройствами",
     version="1.0.0"
+)
+
+# Добавляем CORS middleware для поддержки запросов из браузера
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # В продакшене лучше указать конкретные домены
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Модели данных
