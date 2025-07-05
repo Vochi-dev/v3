@@ -88,6 +88,7 @@ class LineStatus(BaseModel):
     rssi: Optional[str] = None
     busy_status: Optional[str] = None
     call_forward_busy: Optional[str] = None  # Переадресация при занятости
+    carrier: Optional[str] = None  # Оператор связи
 
 # Подключение к базе данных
 async def get_db_connection():
@@ -279,6 +280,27 @@ async def get_device_line_status(port: int, password: str) -> List[LineStatus]:
                             logger.warning(f"🔍 [RSSI] Широкий поиск для линии {line_status.line}: '{broad_match.group(1)[:100]}'")
                         else:
                             logger.error(f"❌ [RSSI] Не найден элемент l{line_status.line}_gsm_signal в HTML")
+                    
+                    # Извлекаем информацию о Carrier (операторе)
+                    carrier_pattern = f'id="l{line_status.line}_gsm_cur_oper"[^>]*>(.*?)</td>'
+                    carrier_match = re.search(carrier_pattern, status_html, re.DOTALL)
+                    
+                    if carrier_match:
+                        carrier_content = carrier_match.group(1).strip()
+                        logger.info(f"📡 [CARRIER] Найдено содержимое для линии {line_status.line}: '{carrier_content}'")
+                        
+                        # Очищаем от HTML entities и тегов
+                        carrier_content = carrier_content.replace('&nbsp;', '').strip()
+                        # Удаляем HTML теги, оставляя только текст
+                        carrier_clean = re.sub(r'<[^>]+>', '', carrier_content).strip()
+                        
+                        if carrier_clean and carrier_clean != '':
+                            line_status.carrier = carrier_clean
+                            logger.info(f"✅ [CARRIER] Линия {line_status.line}: установлен оператор={carrier_clean}")
+                        else:
+                            logger.warning(f"⚠️ [CARRIER] Линия {line_status.line}: пустое значение оператора")
+                    else:
+                        logger.warning(f"❌ [CARRIER] Не найден элемент l{line_status.line}_gsm_cur_oper в HTML")
             
             # Добавляем Busy Status данные
             if not isinstance(busy_response, Exception) and busy_response.status == 200:
