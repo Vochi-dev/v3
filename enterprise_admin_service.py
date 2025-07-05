@@ -842,6 +842,7 @@ async def get_enterprise_gsm_lines(enterprise_number: str):
         query = """
         SELECT
             g.gateway_name,
+            g.custom_boolean_flag,
             gl.id,
             gl.line_id,
             gl.internal_id,
@@ -871,6 +872,7 @@ async def get_enterprise_gsm_lines(enterprise_number: str):
                 gateways[gateway_name] = {
                     'gateway_name': gateway_name,
                     'gateway_id': 0, # Это поле больше не имеет смысла, но оставим для совместимости
+                    'is_main': row['custom_boolean_flag'] if row['custom_boolean_flag'] is not None else False,
                     'lines': []
                 }
             if row['id'] is not None:
