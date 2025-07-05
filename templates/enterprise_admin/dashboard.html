@@ -1440,6 +1440,92 @@
             }
         };
 
+        // --- Функция для получения информации об устройствах ---
+        const updateDeviceInfo = async () => {
+            try {
+                console.log('🔍 [INFO] Начинаем получение информации об устройствах...');
+                
+                // Получаем список активных устройств предприятия
+                const devicesUrl = `http://127.0.0.1:8008/enterprise/${enterpriseNumber}/devices`;
+                console.log('🌐 [INFO] Запрашиваем устройства предприятия:', devicesUrl);
+                
+                const devicesResponse = await fetch(devicesUrl);
+                if (!devicesResponse.ok) {
+                    console.error('❌ [INFO] Ошибка получения устройств:', devicesResponse.status);
+                    throw new Error(`Ошибка получения устройств: ${devicesResponse.status}`);
+                }
+                
+                const devicesData = await devicesResponse.json();
+                const devices = devicesData.devices || [];
+                console.log('📱 [INFO] Найдено устройств:', devices.length, devices.map(d => d.gateway_name));
+                
+                if (devices.length === 0) {
+                    console.warn('⚠️ [INFO] Нет активных устройств для предприятия');
+                    return;
+                }
+                
+                // Получаем информацию о каждом устройстве
+                const deviceInfoPromises = devices.map(async device => {
+                    try {
+                        const infoUrl = `http://127.0.0.1:8008/devices/${device.gateway_name}/info`;
+                        console.log(`🌐 [INFO] Запрашиваем информацию об устройстве ${device.gateway_name}:`, infoUrl);
+                        
+                        const response = await fetch(infoUrl);
+                        if (!response.ok) {
+                            console.error(`❌ [INFO] Ошибка для устройства ${device.gateway_name}:`, response.status);
+                            return { device: device.gateway_name, error: true };
+                        }
+                        
+                        const info = await response.json();
+                        console.log(`📊 [INFO] Устройство ${device.gateway_name}:`, info);
+                        return { device: device.gateway_name, info };
+                        
+                    } catch (error) {
+                        console.error(`💥 [INFO] Ошибка запроса к ${device.gateway_name}:`, error);
+                        return { device: device.gateway_name, error: true };
+                    }
+                });
+                
+                const deviceInfoResults = await Promise.all(deviceInfoPromises);
+                console.log('📊 [INFO] Получены данные об устройствах:', deviceInfoResults.length);
+                
+                // Обновляем информацию в заголовках таблиц
+                deviceInfoResults.forEach(result => {
+                    const infoElement = document.getElementById(`device-info-${result.device}`);
+                    if (infoElement) {
+                        if (result.error) {
+                            infoElement.innerHTML = '<span style="color: #dc3545;">Ошибка получения данных</span>';
+                        } else if (result.info) {
+                            let infoText = '';
+                            if (result.info.serial_number) {
+                                infoText += `SN: ${result.info.serial_number}`;
+                            }
+                            if (result.info.uptime) {
+                                if (infoText) infoText += ' | ';
+                                infoText += `Uptime: ${result.info.uptime}`;
+                            }
+                            
+                            if (infoText) {
+                                infoElement.innerHTML = infoText;
+                                console.log(`✅ [INFO] Обновлена информация для ${result.device}: ${infoText}`);
+                            } else {
+                                infoElement.innerHTML = '<span style="color: #6c757d;">Нет данных</span>';
+                            }
+                        }
+                    }
+                });
+                
+                console.log('✅ [INFO] Обновление информации об устройствах завершено');
+                
+            } catch (error) {
+                console.error('💥 [INFO] Критическая ошибка при получении информации об устройствах:', error);
+                // Обновляем все элементы информации об устройствах на "Ошибка"
+                document.querySelectorAll('[id^="device-info-"]').forEach(element => {
+                    element.innerHTML = '<span style="color: #dc3545;">Ошибка</span>';
+                });
+            }
+        };
+
         // --- GSM Lines Logic ---
         document.getElementById('btn-gsm-lines').addEventListener('click', async () => {
             const modal = document.getElementById('gsmLinesModal');
@@ -1465,7 +1551,14 @@
                 gateways.forEach(gateway => {
                     if (!gateway.lines || gateway.lines.length === 0) return;
                     html += `<div style="margin-bottom:2em;">
-                        <div class="table-secondary" style="padding:8px 0 8px 8px;font-size:1.1em;">${gateway.gateway_name}</div>
+                        <div class="table-secondary" style="padding:8px 0 8px 8px;font-size:1.1em;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>${gateway.gateway_name}</span>
+                                <span id="device-info-${gateway.gateway_name}" style="font-size: 0.9em; color: #6c757d; font-weight: normal;">
+                                    Загрузка информации...
+                                </span>
+                            </div>
+                        </div>
                         <table class="gsm-table">
                             <thead>
                                 <tr>
@@ -1512,7 +1605,8 @@
                 const startTime = performance.now();
                 await Promise.all([
                     fetchGsmLinesStatus(),  // Проверка IP адресов через sip show peers
-                    fetchGoipSlots()        // Проверка слотов через GoIP сервис
+                    fetchGoipSlots(),       // Проверка слотов через GoIP сервис
+                    updateDeviceInfo()      // Получение информации об устройствах
                 ]);
                 const endTime = performance.now();
                 

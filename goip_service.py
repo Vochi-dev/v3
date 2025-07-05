@@ -583,8 +583,8 @@ async def get_device_info_endpoint(gateway_name: str):
         raise HTTPException(status_code=400, detail="Device is not active or port unknown")
     
     try:
-        # Получаем HTML страницу устройства
-        url = f"http://{MFTP_HOST}:{device.port}/default.html"
+        # Получаем HTML страницу устройства (страница статуса)
+        url = f"http://{MFTP_HOST}:{device.port}/default/en_US/status.html"
         
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
             async with session.get(url, auth=aiohttp.BasicAuth('admin', device.device_password)) as response:
@@ -594,14 +594,14 @@ async def get_device_info_endpoint(gateway_name: str):
                     
                     # Извлекаем серийный номер из таблицы
                     serial_number = None
-                    serial_match = re.search(r'<td[^>]*>Serial Number</td>\s*<td[^>]*>([^<]+)</td>', html_content, re.IGNORECASE)
+                    serial_match = re.search(r'<td[^>]*>SN\(Serial Number\):</td>\s*<td[^>]*>([^<]+)</td>', html_content, re.IGNORECASE)
                     if serial_match:
                         serial_number = serial_match.group(1).strip()
                     
                     # Извлекаем uptime из JavaScript
                     uptime_formatted = None
-                    uptime_match = re.search(r'var uptime_s = (\d+);', html_content)
-                    if uptime_match:
+                    uptime_match = re.search(r'var uptime_s="(\d*)";', html_content)
+                    if uptime_match and uptime_match.group(1):
                         uptime_seconds = int(uptime_match.group(1))
                         hours = uptime_seconds // 3600
                         minutes = (uptime_seconds % 3600) // 60
