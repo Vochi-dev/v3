@@ -140,6 +140,16 @@
             color: #6c757d;
             font-style: italic;
         }
+        
+        .slot-loading {
+            animation: slot-pulse 1.5s ease-in-out infinite;
+            color: #6c757d;
+        }
+        
+        @keyframes slot-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
 
         /* Стили для модального окна схем */
         .schema-modal-content {
@@ -1299,7 +1309,7 @@
                 
                 if (!goipResponse.ok) {
                     console.error('❌ [GoIP] Ошибка запроса к GoIP сервису:', goipResponse.status, goipResponse.statusText);
-                    // Показываем "?" для всех слотов при ошибке
+                    // Заменяем песочные часы на "?" для всех слотов при ошибке
                     document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(11)').forEach(cell => {
                         cell.innerHTML = '<span style="color: #ffc107;">?</span>';
                     });
@@ -1328,12 +1338,12 @@
                     const goipLine = goipLines.find(line => line.auth_id === lineGsmId);
                     
                     if (goipLine) {
-                        // Обновляем столбец "Слот" номером линии из GoIP
+                        // Заменяем песочные часы на номер линии из GoIP
                         slotCell.innerHTML = `<span style="color: #28a745; font-weight: bold;">${goipLine.line}</span>`;
                         console.log(`✅ [GoIP] Найдена линия ${lineGsmId} в слоте ${goipLine.line}`);
                         foundCount++;
                     } else {
-                        // Линия не найдена в GoIP
+                        // Заменяем песочные часы на "—" если линия не найдена
                         slotCell.innerHTML = `<span style="color: #dc3545;">—</span>`;
                         console.log(`❌ [GoIP] Линия ${lineGsmId} НЕ найдена в GoIP`);
                         notFoundCount++;
@@ -1346,7 +1356,7 @@
             } catch (error) {
                 console.error('💥 [GoIP] Критическая ошибка при получении данных GoIP:', error);
                 console.error('💥 [GoIP] Stack trace:', error.stack);
-                // Показываем "?" для всех слотов при ошибке
+                // Заменяем песочные часы на "?" для всех слотов при ошибке
                 document.querySelectorAll('tr[data-line-gsm-id] td:nth-child(11)').forEach(cell => {
                     cell.innerHTML = '<span style="color: #ffc107;">?</span>';
                 });
@@ -1410,7 +1420,7 @@
                             <td>${displayOutgoingSchemas(line.outgoing_schema_names)}</td>
                             <td>${line.shop || ''}</td>
                             <td>${gateway.gateway_name || ''}</td>
-                            <td>${line.slot || ''}</td>
+                            <td><span class="slot-loading">⏳</span></td>
                             <td>${line.redirect || ''}</td>
                         </tr>`;
                     });
