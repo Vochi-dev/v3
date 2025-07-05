@@ -311,51 +311,58 @@ async def get_device_line_status(port: int, password: str) -> List[LineStatus]:
 async def reboot_device(port: int, password: str) -> bool:
     """Перезагрузка GoIP устройства"""
     try:
-        url = f"http://{GOIP_DEFAULT_USERNAME}:{password}@{MFTP_HOST}:{port}/default/en_US/tools.html"
+        logger.info(f"🔄 [REBOOT] Начинаем перезагрузку устройства на порту {port}")
+        
+        # Шаг 1: Заходим на страницу Tools
+        tools_url = f"http://{MFTP_HOST}:{port}/default/en_US/tools.html"
         timeout = aiohttp.ClientTimeout(total=GOIP_SCAN_TIMEOUT)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
             # Получаем страницу tools
-            async with session.get(url) as response:
+            async with session.get(tools_url, auth=aiohttp.BasicAuth('admin', password)) as response:
                 if response.status != 200:
-                    logger.error(f"Failed to access tools page on port {port}")
+                    logger.error(f"❌ [REBOOT] Не удалось получить страницу tools на порту {port}: {response.status}")
                     return False
                 
+                logger.info(f"✅ [REBOOT] Страница tools получена для порта {port}")
                 html = await response.text()
                 
-                # Ищем форму для reboot
+                # Ищем кнопку Reboot на странице
                 soup = BeautifulSoup(html, 'html.parser')
-                reboot_form = None
+                reboot_button = None
                 
-                for form in soup.find_all('form'):
-                    if 'reboot' in form.get('action', '').lower():
-                        reboot_form = form
+                # Ищем кнопку или ссылку с текстом "Reboot"
+                for element in soup.find_all(['input', 'button', 'a']):
+                    if element.get('value') == 'Reboot' or 'reboot' in element.get_text().lower():
+                        reboot_button = element
                         break
                 
-                if not reboot_form:
-                    logger.error(f"Reboot form not found on port {port}")
-                    return False
+                if not reboot_button:
+                    logger.warning(f"⚠️ [REBOOT] Кнопка Reboot не найдена на странице tools для порта {port}")
                 
-                # Отправляем POST запрос для перезагрузки
-                form_data = {}
-                for input_tag in reboot_form.find_all('input'):
-                    name = input_tag.get('name')
-                    value = input_tag.get('value', '')
-                    if name:
-                        form_data[name] = value
+                # Шаг 2: Отправляем POST запрос на reboot.html
+                reboot_url = f"http://{MFTP_HOST}:{port}/default/en_US/reboot.html"
                 
-                reboot_url = f"http://{GOIP_DEFAULT_USERNAME}:{password}@{MFTP_HOST}:{port}/default/en_US/reboot.html"
+                # Формируем данные для отправки
+                form_data = {
+                    'reboot': 'Reboot',
+                    'submit': 'Reboot'
+                }
                 
-                async with session.post(reboot_url, data=form_data) as reboot_response:
+                logger.info(f"🚀 [REBOOT] Отправляем команду перезагрузки на {reboot_url}")
+                
+                async with session.post(reboot_url, data=form_data, auth=aiohttp.BasicAuth('admin', password)) as reboot_response:
+                    logger.info(f"📡 [REBOOT] Ответ сервера: {reboot_response.status}")
+                    
                     if reboot_response.status == 200:
-                        logger.info(f"Device on port {port} rebooted successfully")
+                        logger.info(f"✅ [REBOOT] Устройство на порту {port} успешно перезагружено")
                         return True
                     else:
-                        logger.error(f"Failed to reboot device on port {port}: {reboot_response.status}")
+                        logger.error(f"❌ [REBOOT] Ошибка при перезагрузке устройства на порту {port}: {reboot_response.status}")
                         return False
                         
     except Exception as e:
-        logger.error(f"Error rebooting device on port {port}: {e}")
+        logger.error(f"💥 [REBOOT] Критическая ошибка при перезагрузке устройства на порту {port}: {e}")
         return False
 
 # Функции для работы с базой данных
