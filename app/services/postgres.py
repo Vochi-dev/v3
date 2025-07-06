@@ -334,32 +334,59 @@ async def _get_max_line_id(conn, enterprise_number: str) -> int:
     )
     return int(max_id_str) if max_id_str and max_id_str.isdigit() else 0
 
-async def _get_last_internal_id_details(conn, enterprise_number: str) -> tuple[int, int]:
+async def _get_enterprise_name2_suffix(conn, enterprise_number: str) -> str:
+    """
+    Получает последние 4 цифры name2 для предприятия.
+    Если name2 пустое или нет цифр, возвращает номер предприятия.
+    """
+    name2 = await conn.fetchval(
+        "SELECT name2 FROM enterprises WHERE number = $1",
+        enterprise_number
+    )
+    if name2 and len(name2) >= 4:
+        # Извлекаем только цифры из name2
+        digits_only = ''.join(filter(str.isdigit, name2))
+        if len(digits_only) >= 4:
+            return digits_only[-4:]  # Последние 4 цифры
+    
+    # Если не удалось получить 4 цифры из name2, используем номер предприятия
+    return enterprise_number
+
+async def _get_last_internal_id_details(conn, enterprise_number: str) -> tuple[int, int, str]:
     """
     Получает детали последнего internal_id для предприятия.
-    Возвращает кортеж (номер_блока, номер_линии_в_блоке).
+    Возвращает кортеж (номер_блока, номер_линии_в_блоке, name2_suffix).
     """
+    # Получаем последние 4 цифры name2 для этого предприятия
+    name2_suffix = await _get_enterprise_name2_suffix(conn, enterprise_number)
+    
+    # Ищем последний internal_id для предприятия с учетом нового формата
     last_internal_id = await conn.fetchval(
         "SELECT internal_id FROM gsm_lines WHERE enterprise_number = $1 ORDER BY internal_id DESC LIMIT 1",
         enterprise_number
     )
     if not last_internal_id:
-        return 10, 0 # Если линий нет, начинаем с 10-го блока, 0-й линии
+        return 10, 0, name2_suffix # Если линий нет, начинаем с 10-го блока, 0-й линии
 
-    # Парсим ID: первые 2 символа - блок, остальное - номер предприятия и линии
-    block_part_str = last_internal_id[:2]
-    rest_part_str = last_internal_id[2:]
-    
-    # Из оставшейся части убираем номер предприятия, чтобы получить номер линии
-    line_in_block_str = rest_part_str.replace(enterprise_number, '', 1)
-
+    # Парсим ID: первые 2 символа - блок, символы 3-6 - код из name2, последние 2 - номер линии
     try:
+        block_part_str = last_internal_id[:2]
+        name2_part_str = last_internal_id[2:6]
+        line_in_block_str = last_internal_id[6:8]
+        
         block_part = int(block_part_str)
         line_in_block = int(line_in_block_str)
-        return block_part, line_in_block
-    except (ValueError, TypeError):
+        
+        # Проверяем, соответствует ли найденный ID новому формату
+        if name2_part_str == name2_suffix:
+            return block_part, line_in_block, name2_suffix
+        else:
+            # Если старый формат, начинаем заново с новым форматом
+            return 10, 0, name2_suffix
+            
+    except (ValueError, TypeError, IndexError):
         # В случае ошибки парсинга, возвращаем значения по умолчанию
-        return 10, 0
+        return 10, 0, name2_suffix
 
 async def _add_gsm_line(conn, goip_id, enterprise_number, line_id, internal_id, prefix):
     await conn.execute(
@@ -378,8 +405,8 @@ async def create_gsm_lines_for_gateway(conn: asyncpg.Connection, gateway_id: int
     # Шаг 1: Получаем последний (максимальный) line_id для ЭТОГО предприятия
     last_line_id = await _get_max_line_id(conn, enterprise_number)
     
-    # Шаг 2: Получаем последний internal_id для ЭТОГО предприятия
-    block, last_line_in_block = await _get_last_internal_id_details(conn, enterprise_number)
+    # Шаг 2: Получаем последний internal_id и последние 4 цифры name2 для ЭТОГО предприятия
+    block, last_line_in_block, name2_suffix = await _get_last_internal_id_details(conn, enterprise_number)
 
     # Определяем начальные значения
     next_line_id = 1363 if last_line_id == 0 else last_line_id + 1
@@ -388,17 +415,21 @@ async def create_gsm_lines_for_gateway(conn: asyncpg.Connection, gateway_id: int
     current_prefix = 21
 
     # Шаг 3: Создаем линии в цикле
+    current_block = block
+    current_line_in_block = last_line_in_block
+    
     for i in range(line_count):
         new_line_id = next_line_id + i
         
         # Корректная логика генерации internal_id
-        current_line_in_block = last_line_in_block + (i + 1)
+        current_line_in_block += 1
         if current_line_in_block > 99:
-            block += 1
+            current_block += 1
             current_line_in_block = 1
         
         line_in_block_str = str(current_line_in_block).zfill(2)
-        new_internal_id = f"{block}{enterprise_number}{line_in_block_str}"
+        # Используем последние 4 цифры name2 вместо номера предприятия
+        new_internal_id = f"{current_block:02d}{name2_suffix}{line_in_block_str}"
 
         await _add_gsm_line(
             conn=conn,
