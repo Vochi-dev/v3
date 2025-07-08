@@ -24,6 +24,7 @@ from telegram import Bot
 from telegram.error import TelegramError
 import jwt
 import uuid
+import aiohttp
 
 from app.config import ADMIN_PASSWORD, DB_PATH, JWT_SECRET_KEY
 from app.services.db import get_connection
@@ -769,6 +770,166 @@ async def get_enterprise_config(enterprise_number: str, request: Request):
 
 
 # ——————————————————————————————————————————————————————————————————————————
+# Проверка GoIP устройств
+# ——————————————————————————————————————————————————————————————————————————
+
+async def check_goip_devices() -> dict:
+    """Проверка GoIP устройств с custom_boolean_flag = true"""
+    try:
+        start_time = time.time()
+        
+        # Получаем список GoIP устройств с флагом custom_boolean_flag = true
+        import asyncpg
+        conn = await asyncpg.connect(
+            host='localhost',
+            port=5432,
+            database='postgres',
+            user='postgres',
+            password='r/Yskqh/ZbZuvjb2b3ahfg=='
+        )
+        
+        # SQL запрос для получения GoIP с флагом custom_boolean_flag = true
+        query = """
+        SELECT g.enterprise_number, g.gateway_name, g.port, g.device_model, 
+               e.name as enterprise_name, g.custom_boolean_flag
+        FROM goip g
+        JOIN enterprises e ON g.enterprise_number = e.number
+        WHERE g.custom_boolean_flag = true
+        AND g.port IS NOT NULL
+        """
+        
+        rows = await conn.fetch(query)
+        await conn.close()
+        
+        if not rows:
+            logger.info("No GoIP devices with custom_boolean_flag = true found")
+            return {
+                'success': True,
+                'total_goip_devices': 0,
+                'online_goip_devices': 0,
+                'goip_devices': [],
+                'checked_at': datetime.now().isoformat(),
+                'total_time_ms': int((time.time() - start_time) * 1000)
+            }
+        
+        # Проверяем каждое GoIP устройство параллельно
+        tasks = []
+        for row in rows:
+            task = check_single_goip_device(
+                row['enterprise_number'],
+                row['gateway_name'], 
+                row['port'],
+                row['device_model'],
+                row['enterprise_name']
+            )
+            tasks.append(task)
+        
+        # Ждем завершения всех проверок
+        results = await asyncio.gather(*tasks)
+        
+        # Подсчитываем статистику
+        online_count = sum(1 for result in results if result['status'] == 'online')
+        total_time = int((time.time() - start_time) * 1000)
+        
+        logger.info(f"Checked {len(results)} GoIP devices in {total_time}ms. Online: {online_count}")
+        
+        return {
+            'success': True,
+            'total_goip_devices': len(results),
+            'online_goip_devices': online_count,
+            'goip_devices': results,
+            'checked_at': datetime.now().isoformat(),
+            'total_time_ms': total_time
+        }
+        
+    except Exception as e:
+        logger.error(f"Error checking GoIP devices: {e}", exc_info=True)
+        return {
+            'success': False,
+            'error': str(e),
+            'total_goip_devices': 0,
+            'online_goip_devices': 0,
+            'goip_devices': [],
+            'checked_at': datetime.now().isoformat(),
+            'total_time_ms': int((time.time() - start_time) * 1000) if 'start_time' in locals() else 0
+        }
+
+
+async def check_single_goip_device(enterprise_number: str, gateway_name: str, port: int, device_model: str, enterprise_name: str) -> dict:
+    """Проверка одного GoIP устройства через HTTP запрос к веб-интерфейсу"""
+    start_time = time.time()
+    
+    try:
+        # URL для проверки GoIP устройства через mftp.vochi.by
+        url = f"http://mftp.vochi.by:{port}/"
+        
+        timeout = aiohttp.ClientTimeout(total=10)
+        
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, allow_redirects=False) as response:
+                response_time = int((time.time() - start_time) * 1000)
+                
+                # GoIP устройства обычно отвечают 200 или 303 (редирект)
+                if response.status in [200, 303]:
+                    logger.debug(f"GoIP {gateway_name} (enterprise {enterprise_number}) is online: HTTP {response.status}")
+                    return {
+                        'enterprise_number': enterprise_number,
+                        'gateway_name': gateway_name,
+                        'port': port,
+                        'device_model': device_model,
+                        'enterprise_name': enterprise_name,
+                        'status': 'online',
+                        'response_time_ms': response_time,
+                        'http_status': response.status,
+                        'error_message': None
+                    }
+                else:
+                    # Неожиданный HTTP статус
+                    error_msg = f"Unexpected HTTP status: {response.status}"
+                    logger.warning(f"GoIP {gateway_name} (enterprise {enterprise_number}) returned HTTP {response.status}")
+                    return {
+                        'enterprise_number': enterprise_number,
+                        'gateway_name': gateway_name,
+                        'port': port,
+                        'device_model': device_model,
+                        'enterprise_name': enterprise_name,
+                        'status': 'offline',
+                        'response_time_ms': response_time,
+                        'http_status': response.status,
+                        'error_message': error_msg
+                    }
+                    
+    except asyncio.TimeoutError:
+        response_time = int((time.time() - start_time) * 1000)
+        logger.warning(f"GoIP {gateway_name} (enterprise {enterprise_number}) timeout")
+        return {
+            'enterprise_number': enterprise_number,
+            'gateway_name': gateway_name,
+            'port': port,
+            'device_model': device_model,
+            'enterprise_name': enterprise_name,
+            'status': 'offline',
+            'response_time_ms': response_time,
+            'http_status': None,
+            'error_message': 'Connection timeout'
+        }
+    except Exception as e:
+        response_time = int((time.time() - start_time) * 1000)
+        error_msg = str(e)
+        logger.error(f"GoIP {gateway_name} (enterprise {enterprise_number}) error: {error_msg}")
+        return {
+            'enterprise_number': enterprise_number,
+            'gateway_name': gateway_name,
+            'port': port,
+            'device_model': device_model,
+            'enterprise_name': enterprise_name,
+            'status': 'offline',
+            'response_time_ms': response_time,
+            'http_status': None,
+            'error_message': error_msg
+        }
+
+# ——————————————————————————————————————————————————————————————————————————
 # Мониторинг хостов Asterisk
 # ——————————————————————————————————————————————————————————————————————————
 
@@ -965,7 +1126,7 @@ async def check_single_host(ip: str, enterprise_number: str) -> dict:
 
 @router.get("/check-hosts", response_class=JSONResponse)
 async def check_hosts(request: Request):
-    """Проверка всех активных хостов предприятий"""
+    """Проверка всех активных хостов предприятий и GoIP устройств"""
     require_login(request)
     
     try:
@@ -981,37 +1142,35 @@ async def check_hosts(request: Request):
             and ent.get('ip').strip() != ''
         ]
         
-        if not active_enterprises:
-            return JSONResponse({
-                'success': True,
-                'total_hosts': 0,
-                'online_hosts': 0,
-                'hosts': [],
-                'checked_at': datetime.now().isoformat(),
-                'total_time_ms': 0
-            })
-        
-        # Проверяем все хосты параллельно
-        tasks = []
+        # Проверяем хосты и GoIP устройства параллельно
+        host_tasks = []
         for enterprise in active_enterprises:
             task = check_single_host(enterprise['ip'], enterprise['number'])
-            tasks.append(task)
+            host_tasks.append(task)
         
-        # Ждем завершения всех проверок
-        results = await asyncio.gather(*tasks)
+        # Запускаем проверку хостов и GoIP параллельно
+        if host_tasks:
+            hosts_result, goip_result = await asyncio.gather(
+                asyncio.gather(*host_tasks),
+                check_goip_devices()
+            )
+        else:
+            hosts_result = []
+            goip_result = await check_goip_devices()
         
         # Подсчитываем статистику
-        online_count = sum(1 for result in results if result['status'] == 'online')
+        online_count = sum(1 for result in hosts_result if result['status'] == 'online')
         total_time = int((time.time() - start_time) * 1000)
         
         # Логируем результат
-        logger.info(f"Checked {len(results)} hosts in {total_time}ms. Online: {online_count}")
+        logger.info(f"Checked {len(hosts_result)} hosts and {goip_result.get('total_goip_devices', 0)} GoIP devices in {total_time}ms. Online hosts: {online_count}, Online GoIP: {goip_result.get('online_goip_devices', 0)}")
         
         return JSONResponse({
             'success': True,
-            'total_hosts': len(results),
+            'total_hosts': len(hosts_result),
             'online_hosts': online_count,
-            'hosts': results,
+            'hosts': hosts_result,
+            'goip_devices': goip_result,
             'checked_at': datetime.now().isoformat(),
             'total_time_ms': total_time
         })
@@ -1024,6 +1183,13 @@ async def check_hosts(request: Request):
             'total_hosts': 0,
             'online_hosts': 0,
             'hosts': [],
+            'goip_devices': {
+                'success': False,
+                'total_goip_devices': 0,
+                'online_goip_devices': 0,
+                'goip_devices': [],
+                'error': str(e)
+            },
             'checked_at': datetime.now().isoformat(),
             'total_time_ms': 0
         }, status_code=500)
@@ -1058,6 +1224,26 @@ async def get_live_events_today(request: Request):
             "by_enterprise": {},
             "error": str(e)
         }, status_code=500)
+
+@router.get("/test-goip", response_class=JSONResponse)
+async def test_goip():
+    """Тестовый эндпоинт для проверки GoIP функционала без авторизации"""
+    try:
+        start_time = time.time()
+        goip_result = await check_goip_devices()
+        
+        return JSONResponse({
+            'success': True,
+            'goip_devices': goip_result,
+            'check_time_ms': round((time.time() - start_time) * 1000, 2)
+        })
+        
+    except Exception as e:
+        return JSONResponse({
+            'success': False,
+            'error': str(e),
+            'goip_devices': []
+        })
 
 @router.get("/check-internal-phones-ip/{enterprise_number}", response_class=JSONResponse)
 async def check_internal_phones_ip(enterprise_number: str, request: Request):

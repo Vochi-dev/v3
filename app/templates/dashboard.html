@@ -86,6 +86,22 @@
       left: 8px;
       display: none; /* По умолчанию скрыт */
     }
+    .enterprise-card .goip-status {
+      font-size: 16px;
+      font-family: sans-serif;
+      font-weight: normal;
+      line-height: 1.1;
+      position: absolute;
+      top: 4px;
+      right: 8px;
+      display: none; /* По умолчанию скрыт */
+    }
+    .enterprise-card .goip-status.online {
+      color: #28a745; /* Зеленый для онлайн */
+    }
+    .enterprise-card .goip-status.offline {
+      color: #dc3545; /* Красный для офлайн */
+    }
     /* Старые стили кнопки, если они еще где-то используются */
     .button {
       display: inline-block;
@@ -170,6 +186,7 @@
                 <div class="line-stats" id="stats-{{ enterprise.number }}">—/— —/— —/—</div>
                 <div class="live-events" id="live-{{ enterprise.number }}"></div>
                 <div class="disk-usage" id="disk-{{ enterprise.number }}"></div>
+                <div class="goip-status" id="goip-{{ enterprise.number }}"></div>
             </div>
             <!-- Другая информация будет здесь -->
           </div>
@@ -464,9 +481,62 @@
                     sortEnterpriseCards();
                 }
                 
+                // Обрабатываем данные GoIP устройств
+                if (data.goip_devices && data.goip_devices.success) {
+                    updateGoipStatuses(data.goip_devices.goip_devices);
+                }
+                
             } catch (error) {
                 console.error('[Мониторинг] Ошибка при проверке хостов:', error);
             }
+        }
+        
+        // Функция обновления статусов GoIP устройств
+        function updateGoipStatuses(goipDevices) {
+            console.log('[GoIP] Обновление статусов GoIP устройств:', goipDevices);
+            
+            // Сначала скрываем все GoIP статусы
+            document.querySelectorAll('[id^="goip-"]').forEach(element => {
+                element.style.display = 'none';
+            });
+            
+            // Обновляем статусы для найденных GoIP устройств
+            goipDevices.forEach(device => {
+                const goipElement = document.getElementById(`goip-${device.enterprise_number}`);
+                if (goipElement) {
+                    // Очищаем старые классы
+                    goipElement.classList.remove('online', 'offline');
+                    
+                    if (device.status === 'online') {
+                        // Зеленая галочка для онлайн
+                        goipElement.innerHTML = '✓';
+                        goipElement.classList.add('online');
+                        goipElement.style.display = 'block';
+                        console.log(`[GoIP] ${device.gateway_name} (${device.enterprise_number}) - онлайн`);
+                    } else {
+                        // Красный крестик для офлайн
+                        goipElement.innerHTML = '✗';
+                        goipElement.classList.add('offline');
+                        goipElement.style.display = 'block';
+                        console.log(`[GoIP] ${device.gateway_name} (${device.enterprise_number}) - офлайн: ${device.error_message}`);
+                    }
+                    
+                    // Добавляем информацию в title карточки
+                    const card = document.querySelector(`.enterprise-card[data-number="${device.enterprise_number}"]`);
+                    if (card) {
+                        let currentTitle = card.title || `Предприятие ${device.enterprise_number}`;
+                        // Убираем старую информацию о GoIP, если есть
+                        currentTitle = currentTitle.replace(/\nGoIP.*$/m, '');
+                        
+                        if (device.status === 'online') {
+                            currentTitle += `\nGoIP ${device.gateway_name}: Онлайн (${device.response_time_ms}мс)`;
+                        } else {
+                            currentTitle += `\nGoIP ${device.gateway_name}: Офлайн (${device.error_message})`;
+                        }
+                        card.title = currentTitle;
+                    }
+                }
+            });
         }
         
         // Загрузка сохраненных состояний

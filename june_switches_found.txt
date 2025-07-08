@@ -1,0 +1,33 @@
+НАЙДЕННЫЕ ПЕРЕКЛЮЧАТЕЛИ УСТРОЙСТВА JUNE:
+==================================================
+
+Селектор: *:has-text("June") button
+Индекс: 0
+Inner HTML: <!----><img data-v-a30fecd0="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACsAAAAqCAYAAAAqAaJlAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAY2SURBVHgB1VlLTFxVGD73zgAzrX
+Outer HTML: <button data-v-a30fecd0="" class="css-1hsjdkk ant-btn ant-btn-default fold-button" type="button"><!----><img data-v-a30fecd0="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACsAAAAqCAYAAAAqAaJlAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAY2SURBVHgB1VlLTFxVGD73zgAzrXWAC
+--------------------------------------------------
+Селектор: *:has-text("June") button
+Индекс: 1
+Inner HTML: <span role="img" aria-label="search" class="anticon anticon-search"><svg focusable="false" data-icon="search" width="1em" height="1em" fill="currentColor" aria-hidden="true" viewBox="64 64 896 896"><p
+Outer HTML: <button class="css-1hsjdkk ant-btn ant-btn-default ant-input-search-button ant-btn-icon-only" type="button"><span role="img" aria-label="search" class="anticon anticon-search"><svg focusable="false" data-icon="search" width="1em" height="1em" fill="currentColor" aria-hidden="true" viewBox="64 64 896
+--------------------------------------------------
+Селектор: *:has-text("June") button
+Индекс: 2
+Inner HTML: 1
+Outer HTML: <button>1</button>
+--------------------------------------------------
+Селектор: *:has-text("June") button
+Индекс: 3
+Inner HTML: 2
+Outer HTML: <button>2</button>
+--------------------------------------------------
+Селектор: *:has-text("June") button
+Индекс: 4
+Inner HTML: <!----><span>Maybe later</span>
+Outer HTML: <button data-v-69426719="" class="css-1hsjdkk ant-btn ant-btn-default later-on" type="button"><!----><span>Maybe later</span></button>
+--------------------------------------------------
+Селектор: *:has-text("June") button
+Индекс: 5
+Inner HTML: <!----><span>Try Now</span>
+Outer HTML: <button data-v-69426719="" class="css-1hsjdkk ant-btn ant-btn-primary" type="button"><!----><span>Try Now</span></button>
+--------------------------------------------------
