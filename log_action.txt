@@ -20931,3 +20931,286 @@ aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost
 2025-07-07 07:36:17,153 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0347/gsm-lines/status
 2025-07-07 07:36:18,570 - enterprise_admin_service - INFO - Запрос обработан за 1.4170 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0347/gsm-lines/status
 2025-07-07 07:36:55,854 - admin - INFO - Checked 15 hosts in 1742ms. Online: 15
+2025-07-08 09:16:12,443 - admin - ERROR - Ошибка получения статистики live событий: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 980, in _wrap_create_connection
+    return await self._loop.create_connection(*args, **kwargs)  # type: ignore[return-value]  # noqa
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1076, in create_connection
+    raise exceptions[0]
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1060, in create_connection
+    sock = await self._connect_sock(
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 969, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 501, in sock_connect
+    return await fut
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 541, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8007)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/app/routers/admin.py", line 1040, in get_live_events_today
+    async with session.get('http://localhost:8007/sync/live/today') as response:
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/client.py", line 1167, in __aenter__
+    self._resp = await self._coro
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/client.py", line 562, in _request
+    conn = await self._connector.connect(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 540, in connect
+    proto = await self._create_connection(req, traces, timeout)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 901, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 1209, in _create_direct_connection
+    raise last_exc
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 1178, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 988, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+2025-07-08 09:16:14,601 - admin - INFO - Checked 19 hosts in 2171ms. Online: 19
+2025-07-08 09:16:36,337 - admin - INFO - Checked 19 hosts in 1908ms. Online: 19
+2025-07-08 09:17:14,838 - admin - INFO - Checked 19 hosts in 2405ms. Online: 19
+2025-07-08 09:17:36,275 - admin - INFO - Checked 19 hosts in 1981ms. Online: 19
+2025-07-08 09:18:14,304 - admin - INFO - Checked 19 hosts in 1877ms. Online: 19
+2025-07-08 09:18:37,070 - admin - INFO - Checked 19 hosts in 2783ms. Online: 19
+2025-07-08 09:19:14,295 - admin - INFO - Checked 19 hosts in 1868ms. Online: 19
+2025-07-08 09:19:36,275 - admin - INFO - Checked 19 hosts in 1995ms. Online: 19
+2025-07-08 09:20:14,311 - admin - INFO - Checked 19 hosts in 1928ms. Online: 19
+2025-07-08 09:20:40,885 - admin - INFO - Checked 19 hosts in 6493ms. Online: 19
+2025-07-08 09:21:14,197 - admin - INFO - Checked 19 hosts in 1833ms. Online: 19
+2025-07-08 09:21:36,211 - admin - INFO - Checked 19 hosts in 1928ms. Online: 19
+2025-07-08 09:22:14,139 - admin - INFO - Checked 19 hosts in 1782ms. Online: 19
+2025-07-08 09:22:36,034 - admin - INFO - Checked 19 hosts in 1756ms. Online: 19
+2025-07-08 09:23:14,353 - admin - INFO - Checked 19 hosts in 1999ms. Online: 19
+2025-07-08 09:23:36,143 - admin - INFO - Checked 19 hosts in 1834ms. Online: 19
+2025-07-08 09:24:14,127 - admin - INFO - Checked 19 hosts in 1773ms. Online: 19
+2025-07-08 09:24:36,104 - admin - INFO - Checked 19 hosts in 1825ms. Online: 19
+2025-07-08 09:25:15,877 - admin - INFO - Checked 19 hosts in 3361ms. Online: 19
+2025-07-08 09:25:36,245 - admin - INFO - Checked 19 hosts in 1958ms. Online: 19
+2025-07-08 09:26:14,107 - admin - INFO - Checked 19 hosts in 1752ms. Online: 19
+2025-07-08 09:26:36,287 - admin - INFO - Checked 19 hosts in 1999ms. Online: 19
+2025-07-08 09:27:14,161 - admin - INFO - Checked 19 hosts in 1799ms. Online: 19
+2025-07-08 09:27:36,096 - admin - INFO - Checked 19 hosts in 1817ms. Online: 19
+2025-07-08 09:28:14,221 - admin - INFO - Checked 19 hosts in 1792ms. Online: 19
+2025-07-08 09:28:36,177 - admin - INFO - Checked 19 hosts in 1781ms. Online: 19
+2025-07-08 09:29:14,352 - admin - INFO - Checked 19 hosts in 1941ms. Online: 19
+2025-07-08 09:29:36,132 - admin - INFO - Checked 19 hosts in 1838ms. Online: 19
+2025-07-08 09:30:14,327 - admin - INFO - Checked 19 hosts in 1967ms. Online: 19
+2025-07-08 09:30:36,116 - admin - INFO - Checked 19 hosts in 1822ms. Online: 19
+2025-07-08 09:31:14,133 - admin - INFO - Checked 19 hosts in 1770ms. Online: 19
+2025-07-08 09:31:36,097 - admin - INFO - Checked 19 hosts in 1811ms. Online: 19
+2025-07-08 09:32:14,180 - admin - INFO - Checked 19 hosts in 1803ms. Online: 19
+2025-07-08 09:32:36,140 - admin - INFO - Checked 19 hosts in 1853ms. Online: 19
+2025-07-08 09:33:14,202 - admin - INFO - Checked 19 hosts in 1847ms. Online: 19
+2025-07-08 09:33:36,162 - admin - INFO - Checked 19 hosts in 1856ms. Online: 19
+2025-07-08 09:34:14,150 - admin - INFO - Checked 19 hosts in 1787ms. Online: 19
+2025-07-08 09:34:36,659 - admin - INFO - Checked 19 hosts in 2356ms. Online: 19
+2025-07-08 09:35:14,280 - admin - INFO - Checked 19 hosts in 1926ms. Online: 19
+2025-07-08 09:35:36,098 - admin - INFO - Checked 19 hosts in 1805ms. Online: 19
+2025-07-08 09:39:12,905 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:39:12,906 - admin - INFO - Checked 1 GoIP devices in 343ms. Online: 1
+2025-07-08 09:39:14,258 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 1798ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:39:17,442 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/admin/check-hosts
+2025-07-08 09:39:17,443 - enterprise_admin_service - INFO - Запрос обработан за 0.0015 сек. Статус: 404. Адрес: GET http://localhost:8004/admin/check-hosts
+2025-07-08 09:39:24,361 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/admin/check-hosts
+2025-07-08 09:39:24,362 - enterprise_admin_service - INFO - Запрос обработан за 0.0010 сек. Статус: 404. Адрес: GET http://localhost:8004/admin/check-hosts
+2025-07-08 09:39:35,068 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:39:35,069 - admin - INFO - Checked 1 GoIP devices in 663ms. Online: 1
+2025-07-08 09:39:36,114 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 1836ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:39:39,597 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/admin/health
+2025-07-08 09:39:39,605 - enterprise_admin_service - INFO - Запрос обработан за 0.0084 сек. Статус: 404. Адрес: GET http://localhost:8004/admin/health
+2025-07-08 09:39:45,822 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/
+2025-07-08 09:39:45,832 - enterprise_admin_service - INFO - Запрос обработан за 0.0104 сек. Статус: 200. Адрес: GET http://localhost:8004/
+2025-07-08 09:40:09,099 - enterprise_admin_service - INFO - Получен запрос: GET http://localhost:8004/admin/test-goip
+2025-07-08 09:40:09,101 - enterprise_admin_service - INFO - Запрос обработан за 0.0016 сек. Статус: 404. Адрес: GET http://localhost:8004/admin/test-goip
+2025-07-08 09:40:10,798 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:40:10,801 - admin - INFO - Checked 1 GoIP devices in 298ms. Online: 1
+2025-07-08 09:40:12,196 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 1816ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:40:34,767 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:40:34,769 - admin - INFO - Checked 1 GoIP devices in 356ms. Online: 1
+2025-07-08 09:40:36,144 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 1841ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:40:41,694 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:40:41,696 - admin - INFO - Checked 1 GoIP devices in 214ms. Online: 1
+2025-07-08 09:41:10,832 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:41:10,834 - admin - INFO - Checked 1 GoIP devices in 377ms. Online: 1
+2025-07-08 09:41:15,363 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 4983ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:41:35,033 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:41:35,034 - admin - INFO - Checked 1 GoIP devices in 463ms. Online: 1
+2025-07-08 09:41:36,475 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 2085ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:41:42,208 - admin - INFO - Запрос на генерацию токена для предприятия 0367
+2025-07-08 09:41:42,208 - admin - INFO - Токен для предприятия 0367 успешно сгенерирован.
+2025-07-08 09:41:42,298 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTk2ODAwMn0.fCh2ILmyvNPC1MGuMYbngHfCvwRX_tqL8jZQcqYK0DI
+2025-07-08 09:41:42,303 - enterprise_admin_service - INFO - Попытка аутентификации с токеном: eyJhbGciOiJIUzI...
+2025-07-08 09:41:42,305 - enterprise_admin_service - INFO - Токен успешно декодирован. Payload: {'sub': '0367', 'is_admin': True, 'exp': 1751968002}
+2025-07-08 09:41:42,306 - enterprise_admin_service - INFO - Номер предприятия из токена: 0367
+2025-07-08 09:41:42,385 - enterprise_admin_service - INFO - Создание сессии для предприятия 0367...
+2025-07-08 09:41:42,389 - enterprise_admin_service - INFO - Сессия успешно создана. Токен сессии: session_admin_1...
+2025-07-08 09:41:42,395 - enterprise_admin_service - INFO - Перенаправление на дашборд предприятия 0367.
+2025-07-08 09:41:42,395 - enterprise_admin_service - INFO - Запрос обработан за 0.0981 сек. Статус: 303. Адрес: GET https://bot.vochi.by/auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMzY3IiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc1MTk2ODAwMn0.fCh2ILmyvNPC1MGuMYbngHfCvwRX_tqL8jZQcqYK0DI
+2025-07-08 09:41:42,428 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-08 09:41:42,668 - enterprise_admin_service - INFO - Запрос обработан за 0.2398 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/dashboard
+2025-07-08 09:41:42,789 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-08 09:41:42,975 - enterprise_admin_service - INFO - Найдено 2 пользователей для предприятия 0367
+2025-07-08 09:41:42,977 - enterprise_admin_service - INFO - Запрос обработан за 0.1883 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/users
+2025-07-08 09:41:44,273 - admin - INFO - Found 3 internal phones for enterprise 0367
+2025-07-08 09:41:44,518 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-08 09:41:44,638 - enterprise_admin_service - INFO - Запрос обработан за 0.1205 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/all
+2025-07-08 09:41:44,679 - enterprise_admin_service - INFO - Получен запрос: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-08 09:41:46,348 - enterprise_admin_service - INFO - Запрос обработан за 1.6688 сек. Статус: 200. Адрес: GET https://bot.vochi.by/enterprise/0367/gsm-lines/status
+2025-07-08 09:42:10,805 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:42:10,805 - admin - INFO - Checked 1 GoIP devices in 332ms. Online: 1
+2025-07-08 09:42:16,792 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 6407ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:42:34,662 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:42:34,664 - admin - INFO - Checked 1 GoIP devices in 278ms. Online: 1
+2025-07-08 09:42:36,121 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 1834ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:45:00,941 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:45:00,947 - admin - INFO - Checked 1 GoIP devices in 3277ms. Online: 1
+2025-07-08 09:45:01,259 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:45:01,260 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:45:01,260 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:45:01,261 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:45:01,268 - admin - INFO - Checked 1 GoIP devices in 3046ms. Online: 1
+2025-07-08 09:45:01,268 - admin - INFO - Checked 1 GoIP devices in 3127ms. Online: 1
+2025-07-08 09:45:01,269 - admin - INFO - Checked 1 GoIP devices in 2537ms. Online: 1
+2025-07-08 09:45:01,270 - admin - INFO - Checked 1 GoIP devices in 2768ms. Online: 1
+2025-07-08 09:45:02,117 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 4454ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:45:02,702 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 5013ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:45:07,254 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 9421ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:45:07,258 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 9581ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:45:34,311 - admin - ERROR - Ошибка получения статистики live событий: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 980, in _wrap_create_connection
+    return await self._loop.create_connection(*args, **kwargs)  # type: ignore[return-value]  # noqa
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1076, in create_connection
+    raise exceptions[0]
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 1060, in create_connection
+    sock = await self._connect_sock(
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 969, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 501, in sock_connect
+    return await fut
+  File "/usr/lib/python3.10/asyncio/selector_events.py", line 541, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8007)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/asterisk-webhook/app/routers/admin.py", line 1206, in get_live_events_today
+    async with session.get('http://localhost:8007/sync/live/today') as response:
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/client.py", line 1167, in __aenter__
+    self._resp = await self._coro
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/client.py", line 562, in _request
+    conn = await self._connector.connect(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 540, in connect
+    proto = await self._create_connection(req, traces, timeout)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 901, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 1209, in _create_direct_connection
+    raise last_exc
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 1178, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+  File "/root/asterisk-webhook/venv/lib/python3.10/site-packages/aiohttp/connector.py", line 988, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8007 ssl:default [Connect call failed ('127.0.0.1', 8007)]
+2025-07-08 09:45:34,880 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:45:34,882 - admin - INFO - Checked 1 GoIP devices in 477ms. Online: 1
+2025-07-08 09:45:36,203 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 1910ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:46:21,438 - admin - WARNING - GoIP Vochi-Main (enterprise 0367) timeout
+2025-07-08 09:46:21,438 - admin - INFO - Checked 1 GoIP devices in 10893ms. Online: 0
+2025-07-08 09:46:21,440 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 11047ms. Online hosts: 19, Online GoIP: 0
+2025-07-08 09:46:45,352 - admin - WARNING - GoIP Vochi-Main (enterprise 0367) timeout
+2025-07-08 09:46:45,355 - admin - INFO - Checked 1 GoIP devices in 10938ms. Online: 0
+2025-07-08 09:46:45,356 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 11052ms. Online hosts: 19, Online GoIP: 0
+2025-07-08 09:47:21,350 - admin - WARNING - GoIP Vochi-Main (enterprise 0367) timeout
+2025-07-08 09:47:21,352 - admin - INFO - Checked 1 GoIP devices in 10719ms. Online: 0
+2025-07-08 09:47:21,353 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 10928ms. Online hosts: 19, Online GoIP: 0
+2025-07-08 09:47:34,840 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:47:34,840 - admin - INFO - Checked 1 GoIP devices in 370ms. Online: 1
+2025-07-08 09:47:36,185 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 1879ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:48:11,210 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:48:11,212 - admin - INFO - Checked 1 GoIP devices in 660ms. Online: 1
+2025-07-08 09:48:12,299 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 1889ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:48:34,989 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:48:34,990 - admin - INFO - Checked 1 GoIP devices in 397ms. Online: 1
+2025-07-08 09:48:36,836 - admin - INFO - Checked 19 hosts and 1 GoIP devices in 2392ms. Online hosts: 19, Online GoIP: 1
+2025-07-08 09:49:13,536 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:49:13,546 - admin - DEBUG - GoIP Amedis (enterprise 0113) is online: HTTP 303
+2025-07-08 09:49:13,547 - admin - INFO - Checked 2 GoIP devices in 482ms. Online: 2
+2025-07-08 09:49:14,975 - admin - INFO - Checked 19 hosts and 2 GoIP devices in 2041ms. Online hosts: 19, Online GoIP: 2
+2025-07-08 09:49:24,005 - admin - DEBUG - GoIP Amedis (enterprise 0113) is online: HTTP 303
+2025-07-08 09:49:24,014 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:49:24,015 - admin - INFO - Checked 2 GoIP devices in 311ms. Online: 2
+2025-07-08 09:49:25,416 - admin - INFO - Checked 19 hosts and 2 GoIP devices in 1812ms. Online hosts: 19, Online GoIP: 2
+2025-07-08 09:49:34,738 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:49:34,813 - admin - DEBUG - GoIP Amedis (enterprise 0113) is online: HTTP 303
+2025-07-08 09:49:34,814 - admin - INFO - Checked 2 GoIP devices in 444ms. Online: 2
+2025-07-08 09:49:36,110 - admin - INFO - Checked 19 hosts and 2 GoIP devices in 1824ms. Online hosts: 19, Online GoIP: 2
+2025-07-08 09:50:35,204 - admin - DEBUG - GoIP BBG (enterprise 0262) is online: HTTP 303
+2025-07-08 09:50:35,207 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:50:35,227 - admin - DEBUG - GoIP Amedis (enterprise 0113) is online: HTTP 303
+2025-07-08 09:50:35,228 - admin - DEBUG - GoIP SSM (enterprise 0281) is online: HTTP 303
+2025-07-08 09:50:36,030 - admin - DEBUG - GoIP 1AKB-1379-1386 (enterprise 0233) is online: HTTP 303
+2025-07-08 09:50:36,042 - admin - INFO - Checked 5 GoIP devices in 1616ms. Online: 5
+2025-07-08 09:50:36,134 - admin - INFO - Checked 19 hosts and 5 GoIP devices in 1834ms. Online hosts: 19, Online GoIP: 5
+2025-07-08 09:51:05,708 - admin - DEBUG - GoIP 1AKB-1379-1386 (enterprise 0233) is online: HTTP 303
+2025-07-08 09:51:05,711 - admin - DEBUG - GoIP VOS (enterprise 0327) is online: HTTP 303
+2025-07-08 09:51:05,725 - admin - DEBUG - GoIP BBG (enterprise 0262) is online: HTTP 303
+2025-07-08 09:51:05,728 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:51:05,734 - admin - DEBUG - GoIP M-Market-1367-1374 (enterprise 0286) is online: HTTP 303
+2025-07-08 09:51:05,738 - admin - DEBUG - GoIP SSM (enterprise 0281) is online: HTTP 303
+2025-07-08 09:51:05,745 - admin - DEBUG - GoIP Amedis (enterprise 0113) is online: HTTP 303
+2025-07-08 09:51:05,746 - admin - INFO - Checked 7 GoIP devices in 409ms. Online: 7
+2025-07-08 09:51:08,148 - admin - INFO - Checked 19 hosts and 7 GoIP devices in 2952ms. Online hosts: 19, Online GoIP: 7
+2025-07-08 09:51:34,974 - admin - DEBUG - GoIP BBG (enterprise 0262) is online: HTTP 303
+2025-07-08 09:51:34,976 - admin - DEBUG - GoIP VOS (enterprise 0327) is online: HTTP 303
+2025-07-08 09:51:34,988 - admin - DEBUG - GoIP M-Market-1367-1374 (enterprise 0286) is online: HTTP 303
+2025-07-08 09:51:34,989 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:51:34,993 - admin - DEBUG - GoIP SSM (enterprise 0281) is online: HTTP 303
+2025-07-08 09:51:34,996 - admin - DEBUG - GoIP Amedis (enterprise 0113) is online: HTTP 303
+2025-07-08 09:51:35,036 - admin - DEBUG - GoIP 1AKB-1379-1386 (enterprise 0233) is online: HTTP 303
+2025-07-08 09:51:35,038 - admin - INFO - Checked 7 GoIP devices in 680ms. Online: 7
+2025-07-08 09:51:40,691 - admin - INFO - Checked 19 hosts and 7 GoIP devices in 6402ms. Online hosts: 19, Online GoIP: 7
+2025-07-08 09:52:34,995 - admin - DEBUG - GoIP KlimResh (enterprise 0348) is online: HTTP 303
+2025-07-08 09:52:34,996 - admin - DEBUG - GoIP Merida (enterprise 0335) is online: HTTP 303
+2025-07-08 09:52:34,996 - admin - DEBUG - GoIP 1AKB-1379-1386 (enterprise 0233) is online: HTTP 303
+2025-07-08 09:52:34,996 - admin - DEBUG - GoIP BBG (enterprise 0262) is online: HTTP 303
+2025-07-08 09:52:34,997 - admin - DEBUG - GoIP Megas (enterprise 0334) is online: HTTP 303
+2025-07-08 09:52:34,997 - admin - DEBUG - GoIP CDEK-Belarus (enterprise 0347) is online: HTTP 303
+2025-07-08 09:52:34,997 - admin - DEBUG - GoIP M-Market-1367-1374 (enterprise 0286) is online: HTTP 303
+2025-07-08 09:52:34,998 - admin - DEBUG - GoIP VOS (enterprise 0327) is online: HTTP 303
+2025-07-08 09:52:34,998 - admin - DEBUG - GoIP SSM (enterprise 0281) is online: HTTP 303
+2025-07-08 09:52:34,999 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:52:34,999 - admin - DEBUG - GoIP Amedis (enterprise 0113) is online: HTTP 303
+2025-07-08 09:52:35,000 - admin - INFO - Checked 11 GoIP devices in 563ms. Online: 11
+2025-07-08 09:52:36,551 - admin - INFO - Checked 19 hosts and 11 GoIP devices in 2239ms. Online hosts: 19, Online GoIP: 11
+2025-07-08 09:53:26,830 - admin - DEBUG - GoIP VOS (enterprise 0327) is online: HTTP 303
+2025-07-08 09:53:26,834 - admin - DEBUG - GoIP KlimResh (enterprise 0348) is online: HTTP 303
+2025-07-08 09:53:26,837 - admin - DEBUG - GoIP Megas (enterprise 0334) is online: HTTP 303
+2025-07-08 09:53:26,838 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:53:26,847 - admin - DEBUG - GoIP Amedis (enterprise 0113) is online: HTTP 303
+2025-07-08 09:53:26,851 - admin - DEBUG - GoIP 1AKB-1379-1386 (enterprise 0233) is online: HTTP 303
+2025-07-08 09:53:26,852 - admin - DEBUG - GoIP BBG (enterprise 0262) is online: HTTP 303
+2025-07-08 09:53:26,853 - admin - DEBUG - GoIP Mers (enterprise 0389) is online: HTTP 303
+2025-07-08 09:53:26,860 - admin - DEBUG - GoIP M-Market-1367-1374 (enterprise 0286) is online: HTTP 303
+2025-07-08 09:53:26,865 - admin - DEBUG - GoIP CDEK-Belarus (enterprise 0347) is online: HTTP 303
+2025-07-08 09:53:26,881 - admin - DEBUG - GoIP Merida (enterprise 0335) is online: HTTP 303
+2025-07-08 09:53:26,882 - admin - DEBUG - GoIP MyCar (enterprise 0351) is online: HTTP 303
+2025-07-08 09:53:26,886 - admin - DEBUG - GoIP SSM (enterprise 0281) is online: HTTP 303
+2025-07-08 09:53:26,887 - admin - INFO - Checked 13 GoIP devices in 840ms. Online: 13
+2025-07-08 09:53:27,750 - admin - INFO - Checked 19 hosts and 13 GoIP devices in 1820ms. Online hosts: 19, Online GoIP: 13
+2025-07-08 09:53:34,787 - admin - DEBUG - GoIP Merida (enterprise 0335) is online: HTTP 303
+2025-07-08 09:53:34,788 - admin - DEBUG - GoIP VOS (enterprise 0327) is online: HTTP 303
+2025-07-08 09:53:34,801 - admin - DEBUG - GoIP SSM (enterprise 0281) is online: HTTP 303
+2025-07-08 09:53:34,807 - admin - DEBUG - GoIP 1AKB-1379-1386 (enterprise 0233) is online: HTTP 303
+2025-07-08 09:53:34,808 - admin - DEBUG - GoIP Amedis (enterprise 0113) is online: HTTP 303
+2025-07-08 09:53:34,808 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-07-08 09:53:34,808 - admin - DEBUG - GoIP BBG (enterprise 0262) is online: HTTP 303
+2025-07-08 09:53:34,809 - admin - DEBUG - GoIP Mers (enterprise 0389) is online: HTTP 303
+2025-07-08 09:53:34,818 - admin - DEBUG - GoIP M-Market-1367-1374 (enterprise 0286) is online: HTTP 303
+2025-07-08 09:53:34,824 - admin - DEBUG - GoIP KlimResh (enterprise 0348) is online: HTTP 303
+2025-07-08 09:53:34,826 - admin - DEBUG - GoIP CDEK-Belarus (enterprise 0347) is online: HTTP 303
+2025-07-08 09:53:34,828 - admin - DEBUG - GoIP Megas (enterprise 0334) is online: HTTP 303
+2025-07-08 09:53:34,830 - admin - DEBUG - GoIP MyCar (enterprise 0351) is online: HTTP 303
+2025-07-08 09:53:34,831 - admin - INFO - Checked 13 GoIP devices in 442ms. Online: 13
+2025-07-08 09:53:36,074 - admin - INFO - Checked 19 hosts and 13 GoIP devices in 1782ms. Online hosts: 19, Online GoIP: 13
