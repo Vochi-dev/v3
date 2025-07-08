@@ -283,6 +283,46 @@
         });
 
         // ============================================
+        // ФУНКЦИОНАЛ ПОИСКА ПРЕДПРИЯТИЙ
+        // ============================================
+        
+        // Инициализация поиска
+        const searchInput = document.querySelector('.search-bar input[type="search"]');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                const enterpriseCards = document.querySelectorAll('.enterprise-card');
+                
+                console.log(`[Поиск] Поиск по запросу: "${searchTerm}"`);
+                
+                enterpriseCards.forEach(card => {
+                    const enterpriseName = (card.dataset.name || '').toLowerCase();
+                    const enterpriseName2 = (card.dataset.name2 || '').toLowerCase();
+                    const enterpriseNumber = (card.dataset.number || '').toLowerCase();
+                    
+                    // Проверяем соответствие в основном названии, дополнительном имени или номере
+                    const matches = enterpriseName.includes(searchTerm) || 
+                                  enterpriseName2.includes(searchTerm) ||
+                                  enterpriseNumber.includes(searchTerm);
+                    
+                    if (searchTerm === '' || matches) {
+                        card.style.display = 'flex';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                
+                // Подсчитываем и логируем результаты
+                const visibleCards = document.querySelectorAll('.enterprise-card[style*="flex"], .enterprise-card:not([style*="none"])');
+                const totalCards = enterpriseCards.length;
+                console.log(`[Поиск] Показано ${visibleCards.length} из ${totalCards} предприятий`);
+            });
+            
+            // Добавляем плейсхолдер для более понятного интерфейса
+            searchInput.placeholder = 'Поиск предприятий...';
+        }
+
+        // ============================================
         // СИСТЕМА МОНИТОРИНГА ХОСТОВ
         // ============================================
         
@@ -319,11 +359,17 @@
             });
             
             // Перемещаем карточки в правильном порядке
+            // Сохраняем видимость после сортировки
             cards.forEach(card => {
+                const wasHidden = card.style.display === 'none';
                 grid.appendChild(card);
+                // Восстанавливаем состояние видимости если карточка была скрыта поиском
+                if (wasHidden) {
+                    card.style.display = 'none';
+                }
             });
             
-            console.log('[Сортировка] Карточки предприятий пересортированы');
+            console.log('[Сортировка] Карточки предприятий пересортированы с сохранением фильтрации');
         }
         
         // Инициализация состояний хостов
