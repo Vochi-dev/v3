@@ -800,7 +800,7 @@ def generate_pattern_check_context(schema_id, node, nodes, edges):
 
         if final_target_id:
             target_context_name = generate_context_name(schema_id, final_target_id)
-            lines.append(f'same => n,GotoIf($[{{REGEX("{pattern_shablon}" ${{EXTEN}})}}]?{target_context_name},${{EXTEN}},1)')
+            lines.append(f'same => n,GotoIf($[${{REGEX("{pattern_shablon}" ${{EXTEN}})}}]?{target_context_name},${{EXTEN}},1)')
             
     return "\n".join(lines)
 
