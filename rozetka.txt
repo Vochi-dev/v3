@@ -1,0 +1,77 @@
+==============================
+ОБЗОР СЕРВИСОВ reboot.py и ewelink_api.py
+==============================
+
+1. ОБЩАЯ АРХИТЕКТУРА
+--------------------
+- reboot.py: сервис мониторинга доступности хостов (Asterisk), автоматической перезагрузки eWeLink-устройств и записи статусов в БД.
+- ewelink_api.py: FastAPI-сервис для управления eWeLink-устройствами через HTTP API, с логированием и аудитом действий в БД.
+
+2. ЛОГИ И ОТЛАДКА
+------------------
+- reboot.py пишет логи в reboot_service.log
+- ewelink_api.py пишет логи в ewelink_service.log
+
+3. КАК ОТСЛЕЖИВАТЬ ПРОБЛЕМЫ С ТОКЕНОМ
+--------------------------------------
+- Если access_token истёк или невалиден, в ewelink_service.log появятся ошибки:
+  - "Нет access_token для управления устройствами!"
+  - "Токены истекли, нужна повторная авторизация"
+  - "Не удалось загрузить токены eWeLink! Авторизация требуется через CLI или callback."
+- Без access_token сервис не сможет управлять устройствами и не будет писать в БД.
+
+4. КАК СГЕНЕРИРОВАТЬ ССЫЛКУ ДЛЯ РУЧНОЙ АВТОРИЗАЦИИ
+---------------------------------------------------
+- Через API: GET http://localhost:8010/ewelink-auth-url
+  - В ответе будет поле auth_url — это ссылка для ручной авторизации.
+- Через Python:
+  - python3 -c "from ewelink_devices import EWeLinkDevices; print(EWeLinkDevices().generate_oauth_url())"
+- Перейти по ссылке, авторизоваться, скопировать code из URL (?code=...)
+
+5. КУДА ВСТАВЛЯТЬ CODE ПОСЛЕ РУЧНОЙ АВТОРИЗАЦИИ
+-----------------------------------------------
+- Через API: GET http://localhost:8010/ewelink-callback/?code=ВАШ_CODE&region=eu
+- Через Python:
+  - python3 -c "from ewelink_devices import EWeLinkDevices; EWeLinkDevices().exchange_oauth_code('ВАШ_CODE', region='eu')"
+- После успешного обмена токены сохраняются в ewelink_token.json, сервисы нужно перезапустить.
+
+6. unit_live_status — РАСШИФРОВКА ПОЛЕЙ
+---------------------------------------
+- enterprise_number (text, PK) — номер предприятия (ссылка на enterprises.number)
+- last_status (text) — последний статус ('online'/'offline')
+- last_checked_at (timestamp) — время последней проверки
+- failure_counter (int) — число подряд неудачных проверок (для автоматики)
+- last_error_message (text) — последнее сообщение об ошибке
+- disk_usage_percent (int) — заполненность диска (%)
+- line_stats (jsonb) — статистика по линиям (см. parse_sip_peers)
+- sip_peers (int) — число SIP peers
+- ewelink_action_done (bool) — была ли уже попытка перезагрузки eWeLink (чтобы не дублировать)
+
+7. unit_status_history — РАСШИФРОВКА ПОЛЕЙ
+------------------------------------------
+- id (int, PK) — уникальный идентификатор записи
+- enterprise_number (text, FK) — номер предприятия
+- prev_status (text) — предыдущий статус ('on'/'off')
+- new_status (text) — новый статус ('on'/'off')
+- change_time (timestamp) — время события
+- failure_counter (int) — значение счётчика неудач на момент события
+- error_message (text) — текст ошибки (если была)
+- action_type (text) — тип действия (например, 'ewelink_toggle', 'ewelink_toggle_off', 'ewelink_toggle_on')
+- action_result (text) — результат ('success'/'fail')
+- action_time (timestamp) — время действия (может не заполняться)
+- user_initiator (text) — инициатор ('api', 'auto', 'user')
+- extra_info (jsonb) — дополнительная информация (например, {"device_id": ..., "state": true/false})
+
+8. КРАТКО О ЛОГИКЕ
+------------------
+- reboot.py опрашивает хосты, пишет статусы в unit_live_status, при 3 оффлайнах и parameter_option_2=true вызывает reboot_ewelink_device.
+- reboot_ewelink_device вызывает ewelink_api.py (POST /toggle), который управляет устройством и пишет аудит в unit_status_history.
+- Все действия и ошибки логируются в соответствующие .log-файлы.
+
+9. ЧТО ДЕЛАТЬ ПРИ ПРОБЛЕМАХ
+---------------------------
+- Проверить ewelink_service.log и reboot_service.log на наличие ошибок токена, БД, HTTP.
+- Если токен истёк — пройти ручную авторизацию по инструкции выше.
+- После получения токена перезапустить сервисы: ./all.sh restart && ./reboot.sh restart && ./ewelink.sh restart
+
+-- EOF -- 
