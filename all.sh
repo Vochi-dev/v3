@@ -50,6 +50,26 @@ case "${1:-restart}" in
       fi
     done
     
+    # Запуск reboot.py (порт 8009)
+    echo "   ▶ Запускаем reboot.py (порт 8009)..."
+    nohup python3 reboot.py > reboot_service.log 2>&1 &
+    sleep 2
+    if netstat -tlnp | grep -q ":8009"; then
+      echo "   ✅ reboot.py запущен"
+    else
+      echo "   ❌ Ошибка запуска reboot.py"
+    fi
+    
+    # Запуск ewelink_api.py (порт 8010)
+    echo "   ▶ Запускаем ewelink_api.py (порт 8010)..."
+    nohup uvicorn ewelink_api:app --host 0.0.0.0 --port 8010 > ewelink_service.log 2>&1 &
+    sleep 2
+    if netstat -tlnp | grep -q ":8010"; then
+      echo "   ✅ ewelink_api.py запущен"
+    else
+      echo "   ❌ Ошибка запуска ewelink_api.py"
+    fi
+    
     echo "🎉 Все сервисы запущены!"
     ;;
 
@@ -66,6 +86,16 @@ case "${1:-restart}" in
         echo "   ⚠️  Проблема при остановке ${service}"
       fi
     done
+    
+    # Остановка reboot.py
+    echo "   ▶ Останавливаем reboot.py..."
+    pkill -f reboot.py || true
+    sleep 1
+    
+    # Остановка ewelink_api.py
+    echo "   ▶ Останавливаем ewelink_api.py..."
+    pkill -f 'uvicorn.*ewelink_api' || true
+    sleep 1
     
     echo "✅ Все сервисы остановлены"
     ;;
@@ -126,6 +156,26 @@ case "${1:-restart}" in
       sleep 1  # Небольшая пауза между запусками
     done
     
+    # Запуск reboot.py (порт 8009)
+    echo "   ▶ Запускаем reboot.py (порт 8009)..."
+    nohup python3 reboot.py > reboot_service.log 2>&1 &
+    sleep 2
+    if netstat -tlnp | grep -q ":8009"; then
+      echo "   ✅ reboot.py запущен"
+    else
+      echo "   ❌ Ошибка запуска reboot.py"
+    fi
+    
+    # Запуск ewelink_api.py (порт 8010)
+    echo "   ▶ Запускаем ewelink_api.py (порт 8010)..."
+    nohup uvicorn ewelink_api:app --host 0.0.0.0 --port 8010 > ewelink_service.log 2>&1 &
+    sleep 2
+    if netstat -tlnp | grep -q ":8010"; then
+      echo "   ✅ ewelink_api.py запущен"
+    else
+      echo "   ❌ Ошибка запуска ewelink_api.py"
+    fi
+    
     echo "🎉 Все сервисы перезапущены!"
     ;;
 
@@ -171,6 +221,21 @@ case "${1:-restart}" in
       fi
       echo ""
     done
+    
+    # --- Статус reboot.py ---
+    echo "🔍 reboot.py (порт 8009):"
+    if netstat -tlnp | grep -q ":8009"; then
+      echo "   ✅ reboot.py работает"
+    else
+      echo "   ❌ reboot.py не запущен"
+    fi
+    # --- Статус ewelink_api.py ---
+    echo "🔍 ewelink_api.py (порт 8010):"
+    if netstat -tlnp | grep -q ":8010"; then
+      echo "   ✅ ewelink_api.py работает"
+    else
+      echo "   ❌ ewelink_api.py не запущен"
+    fi
     ;;
 
   build)
@@ -209,6 +274,8 @@ case "${1:-restart}" in
     echo "  dial: 8005"  
     echo "  plan: 8006"
     echo "  download: 8007"
+    echo "  reboot: 8009"
+    echo "  ewelink: 8010"
     exit 1
     ;;
 esac 
