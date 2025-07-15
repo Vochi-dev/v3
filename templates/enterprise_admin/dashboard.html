@@ -1398,7 +1398,7 @@
                 console.log('🔍 [GoIP] Начинаем запрос данных GoIP слотов...');
                 
                 // Сначала получаем список активных устройств предприятия
-                const devicesUrl = `http://127.0.0.1:8008/enterprise/${enterpriseNumber}/devices`;
+                const devicesUrl = `/goip/enterprise/${enterpriseNumber}/devices`;
                 console.log('🌐 [GoIP] Запрашиваем устройства предприятия:', devicesUrl);
                 
                 const devicesResponse = await fetch(devicesUrl);
@@ -1418,7 +1418,7 @@
                 
                 // Получаем данные линий со всех устройств
                 const allLinesPromises = devices.map(device => {
-                    const linesUrl = `http://127.0.0.1:8008/devices/${device.gateway_name}/lines`;
+                    const linesUrl = `/goip/devices/${device.gateway_name}/lines`;
                     console.log(`🌐 [GoIP] Запрашиваем линии устройства ${device.gateway_name}:`, linesUrl);
                     return fetch(linesUrl).then(response => {
                         if (!response.ok) {
@@ -1555,7 +1555,7 @@
                 console.log(`🔄 [REFRESH-GOIP] Обновляем GoIP данные для устройства ${deviceName}`);
                 
                 // Получаем данные линий для конкретного устройства
-                const linesUrl = `http://127.0.0.1:8008/devices/${deviceName}/lines`;
+                const linesUrl = `/goip/devices/${deviceName}/lines`;
                 console.log(`🌐 [REFRESH-GOIP] Запрашиваем линии устройства ${deviceName}:`, linesUrl);
                 
                 const response = await fetch(linesUrl, {
@@ -1676,7 +1676,7 @@
                 console.log('🏢 [INFO] Enterprise Number:', enterpriseNumber);
                 
                 // Получаем список активных устройств предприятия
-                const devicesUrl = `http://127.0.0.1:8008/enterprise/${enterpriseNumber}/devices`;
+                const devicesUrl = `/goip/enterprise/${enterpriseNumber}/devices`;
                 console.log('🌐 [INFO] Запрашиваем устройства предприятия:', devicesUrl);
                 
                 const devicesResponse = await fetch(devicesUrl);
@@ -1697,7 +1697,7 @@
                 // Получаем информацию о каждом устройстве
                 const deviceInfoPromises = devices.map(async device => {
                     try {
-                        const infoUrl = `http://127.0.0.1:8008/devices/${device.gateway_name}/info`;
+                        const infoUrl = `/goip/devices/${device.gateway_name}/info`;
                         console.log(`🌐 [INFO] Запрашиваем информацию об устройстве ${device.gateway_name}:`, infoUrl);
                         
                         const response = await fetch(infoUrl, {
@@ -1775,7 +1775,7 @@
                 // Тест прямого запроса для диагностики
                 console.log('🧪 [INFO] Тестируем прямой запрос к Vochi-Main...');
                 try {
-                    const testResponse = await fetch('http://127.0.0.1:8008/devices/Vochi-Main/info', {
+                    const testResponse = await fetch('/goip/devices/Vochi-Main/info', {
                         headers: { 'Cache-Control': 'no-cache' }
                     });
                     console.log('🧪 [TEST] Прямой запрос к Vochi-Main:', testResponse.status, testResponse.ok);
@@ -1900,7 +1900,7 @@
                             if (infoElement) {
                                 infoElement.innerHTML = 'Обновляем информацию...';
                                 
-                                const infoUrl = `http://127.0.0.1:8008/devices/${deviceName}/info`;
+                                const infoUrl = `/goip/devices/${deviceName}/info`;
                                 const infoResponse = await fetch(infoUrl, {
                                     headers: { 'Cache-Control': 'no-cache' }
                                 });
@@ -1976,7 +1976,7 @@
                         try {
                             console.log(`🔄 [REBOOT] Запуск перезагрузки устройства ${deviceName}`);
                             
-                            const rebootUrl = `http://127.0.0.1:8008/devices/${deviceName}/reboot`;
+                            const rebootUrl = `/goip/devices/${deviceName}/reboot`;
                             const response = await fetch(rebootUrl, {
                                 method: 'POST',
                                 headers: {
