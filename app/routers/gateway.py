@@ -1,6 +1,5 @@
 # app/routers/gateway.py
 import logging
-import sys
 from typing import List, Optional
 from datetime import datetime
 
@@ -40,13 +39,13 @@ async def delete_gateway(gateway_id: int):
     """
     Удаляет шлюз и все связанные с ним линии.
     """
-    print(f"GATEWAY_ROUTER: Получен DELETE-запрос для шлюза ID: {gateway_id}", file=sys.stderr)
+    logger.info(f"GATEWAY_ROUTER: Получен DELETE-запрос для шлюза ID: {gateway_id}")
     try:
         await delete_goip_gateway(gateway_id)
-        print(f"GATEWAY_ROUTER: Успешное удаление шлюза ID: {gateway_id}", file=sys.stderr)
+        logger.info(f"GATEWAY_ROUTER: Успешное удаление шлюза ID: {gateway_id}")
         return
     except Exception as e:
-        print(f"GATEWAY_ROUTER: Ошибка при удалении шлюза ID {gateway_id}: {e}", file=sys.stderr)
+        logger.error(f"GATEWAY_ROUTER: Ошибка при удалении шлюза ID {gateway_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/", status_code=201)
@@ -54,7 +53,7 @@ async def add_gateway(data: GatewayCreate):
     """
     Создает шлюз и связанные с ним линии в рамках одной транзакции.
     """
-    print(f"GATEWAY_ROUTER: Получен POST-запрос на создание шлюза: {data}", file=sys.stderr)
+    logger.info(f"GATEWAY_ROUTER: Получен POST-запрос на создание шлюза: {data}")
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -83,15 +82,15 @@ async def get_gateway_modal_content(request: Request, gateway_id: int):
     Возвращает HTML-содержимое для модального окна со списком GSM-линий
     ДЛЯ КОНКРЕТНОГО ШЛЮЗА.
     """
-    print(f"GATEWAY_ROUTER: Запрос на получение модального окна для шлюза ID: {gateway_id}", file=sys.stderr)
+    logger.info(f"GATEWAY_ROUTER: Запрос на получение модального окна для шлюза ID: {gateway_id}")
     try:
         gateway = await get_goip_gateway_by_id(gateway_id)
         if not gateway:
-            print(f"GATEWAY_ROUTER: Шлюз с ID {gateway_id} не найден.", file=sys.stderr)
+            logger.warning(f"GATEWAY_ROUTER: Шлюз с ID {gateway_id} не найден.")
             raise HTTPException(status_code=404, detail="Шлюз не найден.")
         
         lines = await get_gsm_lines_by_gateway_id(gateway_id)
-        print(f"GATEWAY_ROUTER: Для шлюза {gateway_id} найдено {len(lines)} линий.", file=sys.stderr)
+        logger.info(f"GATEWAY_ROUTER: Для шлюза {gateway_id} найдено {len(lines)} линий.")
         
         return templates.TemplateResponse(
             "gateway_modal.html",
@@ -102,7 +101,7 @@ async def get_gateway_modal_content(request: Request, gateway_id: int):
             }
         )
     except Exception as e:
-        print(f"GATEWAY_ROUTER: КРИТИЧЕСКАЯ ОШИБКА при получении данных для модального окна: {e}", file=sys.stderr)
+        logger.error(f"GATEWAY_ROUTER: КРИТИЧЕСКАЯ ОШИБКА при получении данных для модального окна: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/gsm-lines/{line_id}/edit-modal", response_class=HTMLResponse)
