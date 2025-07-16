@@ -170,10 +170,73 @@ def reboot_ewelink_device(device_id, api_url="http://localhost:8010", enterprise
         logger.error(f"Ошибка в reboot_ewelink_device: {e}")
         return False
 
+# === ФУНКЦИИ ДЛЯ РАБОТЫ С GOIP ===
+async def get_goip_device_with_flag(enterprise_number):
+    """Получить GoIP устройство с custom_boolean_flag = true для предприятия"""
+    import asyncpg
+    conn = await asyncpg.connect(DB_DSN)
+    try:
+        row = await conn.fetchrow(
+            "SELECT gateway_name FROM goip WHERE enterprise_number = $1 AND custom_boolean_flag = true",
+            enterprise_number
+        )
+        return row['gateway_name'] if row else None
+    finally:
+        await conn.close()
+
+async def reboot_goip_device(gateway_name, enterprise_number=None, prev_status=None, failure_counter=None, user_initiator="auto"):
+    """Перезагрузка GoIP устройства через HTTP API"""
+    goip_api_url = "http://localhost:8008"
+    extra_info = {"gateway_name": gateway_name}
+    
+    try:
+        logger.info(f"[GOIP] Отправляю запрос на перезагрузку GoIP устройства {gateway_name}")
+        response = requests.post(f"{goip_api_url}/devices/{gateway_name}/reboot", timeout=30)
+        
+        extra_info["response_status"] = response.status_code
+        extra_info["response_text"] = response.text
+        
+        if response.status_code == 200:
+            logger.info(f"[GOIP] GoIP устройство {gateway_name} успешно перезагружено")
+            action_result = "success"
+        else:
+            logger.error(f"[GOIP] Ошибка при перезагрузке GoIP устройства {gateway_name}: HTTP {response.status_code}")
+            action_result = "fail"
+        
+        # Логируем операцию в unit_status_history
+        if enterprise_number:
+            await log_unit_status_history(
+                enterprise_number, 
+                prev_status, 
+                "goip_reboot_initiated", 
+                failure_counter, 
+                "goip_reboot", 
+                action_result, 
+                user_initiator, 
+                extra_info
+            )
+        
+        return response.status_code == 200
+        
+    except Exception as e:
+        logger.error(f"[GOIP] Критическая ошибка при перезагрузке GoIP устройства {gateway_name}: {e}")
+        if enterprise_number:
+            await log_unit_status_history(
+                enterprise_number, 
+                prev_status, 
+                "goip_reboot_error", 
+                failure_counter, 
+                "goip_reboot", 
+                "error", 
+                user_initiator, 
+                {"gateway_name": gateway_name, "error": str(e)}
+            )
+        return False
+
 # === ОПРОС ВСЕХ ХОСТОВ ===
 async def poll_all_hosts(pool):
     async with pool.acquire() as conn:
-        enterprises = await conn.fetch("SELECT number, ip, parameter_option_2, host FROM enterprises WHERE active AND is_enabled AND ip IS NOT NULL AND ip <> ''")
+        enterprises = await conn.fetch("SELECT number, ip, parameter_option_2, host, LENGTH(host) as host_length FROM enterprises WHERE active AND is_enabled AND ip IS NOT NULL AND ip <> ''")
     tasks = []
     for ent in enterprises:
         tasks.append(check_single_host(ent['ip'], ent['number']))
@@ -198,7 +261,7 @@ async def poll_all_hosts(pool):
             else:
                 failure_counter = 0
                 ewelink_action_done = False  # сбрасываем если снова online
-            # Автоматическая перезагрузка ewelink
+            # Автоматическая перезагрузка (GoIP или eWeLink)
             if (
                 res['status'] == 'offline' and
                 failure_counter == 3 and
@@ -206,13 +269,34 @@ async def poll_all_hosts(pool):
                 not ewelink_action_done and
                 ent['host']
             ):
-                device_name = ent['host']
-                try:
-                    logger.info(f"{res['enterprise_number']} {res['ip']} — 3 оффлайна подряд, перезагружаем ewelink {device_name}")
-                    reboot_ewelink_device(device_name, enterprise_number=res['enterprise_number'], prev_status=prev_status, failure_counter=failure_counter, user_initiator="auto")
-                    ewelink_action_done = True
-                except Exception as e:
-                    logger.error(f"Ошибка перезагрузки ewelink для {res['enterprise_number']} ({device_name}): {e}")
+                host_length = ent['host_length']
+                
+                # Определяем тип перезагрузки по длине host
+                if host_length > 10:
+                    # GoIP перезагрузка для длинных host (> 10 символов)
+                    try:
+                        logger.info(f"{res['enterprise_number']} {res['ip']} — 3 оффлайна подряд, host='{ent['host']}' ({host_length} символов > 10), проверяем GoIP")
+                        
+                        # Проверяем наличие GoIP с custom_boolean_flag = true
+                        goip_gateway_name = await get_goip_device_with_flag(res['enterprise_number'])
+                        if goip_gateway_name:
+                            logger.info(f"{res['enterprise_number']} — найден GoIP {goip_gateway_name} с custom_boolean_flag=true, перезагружаем GoIP")
+                            success = await reboot_goip_device(goip_gateway_name, enterprise_number=res['enterprise_number'], prev_status=prev_status, failure_counter=failure_counter, user_initiator="auto")
+                            if success:
+                                ewelink_action_done = True
+                        else:
+                            logger.info(f"{res['enterprise_number']} — GoIP с custom_boolean_flag=true не найден, перезагрузка не выполняется")
+                    except Exception as e:
+                        logger.error(f"Ошибка перезагрузки GoIP для {res['enterprise_number']}: {e}")
+                else:
+                    # eWeLink перезагрузка для коротких host (<= 10 символов)
+                    device_name = ent['host']
+                    try:
+                        logger.info(f"{res['enterprise_number']} {res['ip']} — 3 оффлайна подряд, host='{ent['host']}' ({host_length} символов <= 10), перезагружаем ewelink {device_name}")
+                        reboot_ewelink_device(device_name, enterprise_number=res['enterprise_number'], prev_status=prev_status, failure_counter=failure_counter, user_initiator="auto")
+                        ewelink_action_done = True
+                    except Exception as e:
+                        logger.error(f"Ошибка перезагрузки ewelink для {res['enterprise_number']} ({device_name}): {e}")
             # Обновляем unit_live_status
             await conn.execute(
                 """
