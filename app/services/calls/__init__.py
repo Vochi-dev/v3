@@ -21,6 +21,14 @@ from .dial import process_dial
 from .bridge import process_bridge
 from .hangup import process_hangup
 
+# новые обработчики для модернизации (17.01.2025)
+from .bridge import (
+    process_bridge_create,
+    process_bridge_leave,
+    process_bridge_destroy,
+    process_new_callerid
+)
+
 # (если у вас есть ещё и внутренние звонки)
 try:
     from .internal import (

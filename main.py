@@ -36,7 +36,12 @@ from app.services.calls import (
     process_start,
     process_dial,
     process_bridge,
-    process_hangup
+    process_hangup,
+    # Новые обработчики для модернизации (17.01.2025)
+    process_bridge_create,
+    process_bridge_leave,
+    process_bridge_destroy,
+    process_new_callerid
 )
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -234,6 +239,50 @@ async def asterisk_hangup(body: dict = Body(...), request: Request = None):
     return JSONResponse(await _dispatch_to_all(process_hangup, body))
 
 # ────────────────────────────────────────────────────────────────────────────────
+# Новые эндпоинты для модернизированного AMI-скрипта (17.01.2025)
+# ────────────────────────────────────────────────────────────────────────────────
+
+@app.post("/bridge_create")
+async def asterisk_bridge_create(body: dict = Body(...), request: Request = None):
+    """
+    При POST /bridge_create вызываем process_bridge_create из app/services/calls/bridge.py
+    """
+    client_ip = request.client.host if request and request.client else "Unknown"
+    logger.info(f"BRIDGE_CREATE REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
+    
+    return JSONResponse(await _dispatch_to_all(process_bridge_create, body))
+
+@app.post("/bridge_leave")
+async def asterisk_bridge_leave(body: dict = Body(...), request: Request = None):
+    """
+    При POST /bridge_leave вызываем process_bridge_leave из app/services/calls/bridge.py
+    """
+    client_ip = request.client.host if request and request.client else "Unknown"
+    logger.info(f"BRIDGE_LEAVE REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
+    
+    return JSONResponse(await _dispatch_to_all(process_bridge_leave, body))
+
+@app.post("/bridge_destroy")
+async def asterisk_bridge_destroy(body: dict = Body(...), request: Request = None):
+    """
+    При POST /bridge_destroy вызываем process_bridge_destroy из app/services/calls/bridge.py
+    """
+    client_ip = request.client.host if request and request.client else "Unknown"
+    logger.info(f"BRIDGE_DESTROY REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
+    
+    return JSONResponse(await _dispatch_to_all(process_bridge_destroy, body))
+
+@app.post("/new_callerid")
+async def asterisk_new_callerid(body: dict = Body(...), request: Request = None):
+    """
+    При POST /new_callerid вызываем process_new_callerid из app/services/calls/bridge.py
+    """
+    client_ip = request.client.host if request and request.client else "Unknown"
+    logger.info(f"NEW_CALLERID REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
+    
+    return JSONResponse(await _dispatch_to_all(process_new_callerid, body))
+
+# ────────────────────────────────────────────────────────────────────────────────
 # Раздел, связанный с запуском Aiogram-ботов, временно отключён,
 # чтобы не было ошибки NameError для setup_dispatcher.
 # Если вы хотите вернуть этот функционал, убедитесь, что
@@ -328,6 +377,14 @@ async def _dispatch_to_all(handler, body: dict):
         caller_name = frame.f_back.f_code.co_name
         if "hangup" in caller_name:
             event_type = "hangup"
+        elif "bridge_create" in caller_name:
+            event_type = "bridge_create"
+        elif "bridge_leave" in caller_name:
+            event_type = "bridge_leave"
+        elif "bridge_destroy" in caller_name:
+            event_type = "bridge_destroy"
+        elif "new_callerid" in caller_name:
+            event_type = "new_callerid"
         elif "bridge" in caller_name:
             event_type = "bridge"
         elif "dial" in caller_name:
