@@ -6,104 +6,154 @@ from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
 from .utils import (
     format_phone_number,
-    get_relevant_hangup_message_id,     # (в dial мы не используем, но можно оставить)
-    get_last_call_info,                 # (также не нужен здесь, но пусть будет)
+    get_relevant_hangup_message_id,
+    get_last_call_info,
     update_call_pair_message,
     update_hangup_message_map,
     dial_cache,
     bridge_store,
+    # Новые функции для группировки событий
+    get_phone_for_grouping,
+    should_send_as_comment,
+    should_replace_previous_message,
+    update_phone_tracker,
+    is_internal_number,
 )
 
 async def process_dial(bot: Bot, chat_id: int, data: dict):
     """
-    Обрабатывает Asterisk-событие 'dial':
-      1. Извлекает UniqueId, телефон (raw_phone), определяет call_type.
-      2. Удаляет предыдущее 'start'-сообщение (bridge_store).
-      3. Формирует текст (внутренний или внешний, с LastCallInfo для внешнего).
-      4. Отправляет в Telegram (parse_mode="HTML").
-      5. Сохраняет информацию в dial_cache.
-      6. Обновляет call_pair_message_map и hangup_message_map.
-      7. Сохраняет запись в БД (await save_telegram_message).
+    Модернизированный обработчик события 'dial' (17.01.2025):
+    - Использует новую систему группировки по номеру телефона
+    - Применяет форматы сообщений из файла "Пояснение"  
+    - Правильно заменяет start сообщения или отправляет комментарии
+    - Поддерживает сложные сценарии с несколькими Extensions
     """
 
     # Сохраняем лог в asterisk_logs
     await save_asterisk_log(data)
 
-    uid = data.get("UniqueId", "")
-    # Берём номер из разных ключей на случай, если Asterisk шлёт не всегда "Phone"
-    raw_phone = data.get("Phone", "") or data.get("CallerIDNum", "") or ""
-    phone     = format_phone_number(raw_phone)
-    exts      = data.get("Extensions", [])
-    call_type = int(data.get("CallType", 0))
-    is_int    = call_type == 2
-    callee    = exts[0] if exts else ""
+    # Получаем номер для группировки событий
+    phone_for_grouping = get_phone_for_grouping(data)
 
-    # ───────── Шаг 2. Удаляем прошлый "start"-месседж ─────────
+    # ───────── Шаг 1. Извлечение данных ─────────
+    uid = data.get("UniqueId", "")
+    raw_phone = data.get("Phone", "") or data.get("CallerIDNum", "") or ""
+    phone = format_phone_number(raw_phone)
+    exts = data.get("Extensions", [])
+    call_type = int(data.get("CallType", 0))
+    is_int = call_type == 2
+    callee = exts[0] if exts else ""
+    token = data.get("Token", "")
+    trunk_info = data.get("Trunk", "")
+
+    logging.info(f"[process_dial] RAW DATA = {data!r}")
+    logging.info(f"[process_dial] Phone for grouping: {phone_for_grouping}, call_type: {call_type}")
+
+    # ───────── Шаг 2. Проверяем, нужно ли заменить предыдущее сообщение ─────────
+    should_replace, message_to_delete = should_replace_previous_message(phone_for_grouping, 'dial')
+    
+    if should_replace and message_to_delete:
+        try:
+            await bot.delete_message(chat_id, message_to_delete)
+            logging.info(f"[process_dial] Deleted previous message {message_to_delete}")
+        except Exception as e:
+            logging.warning(f"[process_dial] Failed to delete message {message_to_delete}: {e}")
+
+    # Удаляем прошлый "start"-месседж из bridge_store (старая логика)
     if uid in bridge_store:
         try:
-            await bot.delete_message(chat_id, bridge_store.pop(uid))
+            if not should_replace:  # Если уже удалили выше, не удаляем дважды
+                await bot.delete_message(chat_id, bridge_store.pop(uid))
         except Exception:
             pass
 
-    # ───────── Шаг 3. Формируем текст ─────────
+    # ───────── Шаг 3. Формируем текст согласно Пояснению ─────────
     if is_int:
         # Внутренний звонок
-        text = f"🛎️ Внутренний звонок\n{raw_phone} ➡️ {callee}"
+        text = f"🛎️ Внутренний звонок\n ➡️ {callee}"
     else:
-        # Внешний звонок: проверяем, не +000... (неопределён)
-        display = phone if (phone and not phone.startswith("+000")) else "Номер не определен"
+        # Внешний звонок - ИСПРАВЛЕНО: внутренний номер у ☎️, внешний у 💰
+        display = phone if not phone.startswith("+000") else "Номер не определен"
+        
+        # Определяем внутренний номер - из Extensions или CallerIDNum
+        internal_num = ""
+        if exts:
+            # Ищем внутренний номер среди Extensions
+            for ext in exts:
+                if is_internal_number(ext):
+                    internal_num = ext
+                    break
+        
+        if not internal_num:
+            # Если не нашли в Extensions, проверяем CallerIDNum
+            caller_id = data.get("CallerIDNum", "")
+            if is_internal_number(caller_id):
+                internal_num = caller_id
 
-        if call_type == 1:
-            # Исходящий набор
-            text = (
-                f"⬆️ <b>Набираем номер</b>\n"
-                f"☎️ {', '.join(exts)} ➡️\n"
-                f"💰 {display}"
-            )
+        # Формируем сообщение: внутренний у ☎️, внешний у 💰
+        if internal_num:
+            text = f"☎️{internal_num} ➡️ 💰{display}"
         else:
-            # Входящий разговор
-            lines = "\n".join(f"☎️ {e}" for e in exts)
-            text  = (
-                f"🛎️ <b>Входящий разговор</b>\n"
-                f"💰 {display} ➡️\n"
-                f"{lines}"
-            )
-        # Если есть история последнего hangup, добавляем её
-        last = get_last_call_info(raw_phone if call_type != 1 else callee)
-        if last:
-            text += f"\n\n{last}"
+            text = f"📞 ➡️ 💰{display}"
+            
+        if trunk_info:
+            text += f"\nЛиния: {trunk_info}"
+            
+        # Добавляем историю звонков для входящих
+        if call_type != 1:  # Не для исходящих
+            last = get_last_call_info(raw_phone)
+            if last:
+                # Добавляем информацию в формате "Звонил: X раз, Последний раз: дата"
+                text += f"\n{last}"
 
     # Экранируем html-спецсимволы
     safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
-    logging.debug(f"[process_dial] => chat={chat_id}, text={safe_text!r}")
+    logging.info(f"[process_dial] => chat={chat_id}, text={safe_text!r}")
 
-    # ───────── Шаг 4. Отправляем сообщение в Telegram ─────────
+    # ───────── Шаг 4. Проверяем, нужно ли отправить как комментарий ─────────
+    should_comment, reply_to_id = should_send_as_comment(phone_for_grouping, 'dial')
+
+    # ───────── Шаг 5. Отправляем сообщение в Telegram ─────────
     try:
-        sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+        if should_comment and reply_to_id:
+            logging.info(f"[process_dial] Sending as comment to message {reply_to_id}")
+            sent = await bot.send_message(
+                chat_id,
+                safe_text,
+                reply_to_message_id=reply_to_id,
+                parse_mode="HTML"
+            )
+        else:
+            sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+            
     except BadRequest as e:
         logging.error(f"[process_dial] send_message failed: {e}. text={safe_text!r}")
         return {"status": "error", "error": str(e)}
 
-    # ───────── Шаг 5. Сохраняем в dial_cache ─────────
+    # ───────── Шаг 6. Сохраняем в dial_cache ─────────
     dial_cache[uid] = {
         "caller":     raw_phone,
         "extensions": exts,
         "call_type":  call_type,
-        "token":      data.get("Token", "")
+        "token":      token
     }
 
-    # ───────── Шаг 6. Обновляем историю для reply-to ─────────
+    # ───────── Шаг 7. Обновляем состояние системы ─────────
     update_call_pair_message(raw_phone, callee, sent.message_id, is_int)
     update_hangup_message_map(raw_phone, callee, sent.message_id, is_int)
+    
+    # Обновляем новый трекер для группировки
+    update_phone_tracker(phone_for_grouping, sent.message_id, 'dial', data)
 
-    # ───────── Шаг 7. Сохраняем в БД (await!) ─────────
+    # ───────── Шаг 8. Сохраняем в БД ─────────
     await save_telegram_message(
         sent.message_id,
         "dial",
-        data.get("Token", ""),
+        token,
         raw_phone,
         callee,
         is_int
     )
 
-    return {"status": "sent"}
+    logging.info(f"[process_dial] Successfully sent dial message {sent.message_id} for {phone_for_grouping}")
+    return {"status": "sent", "message_id": sent.message_id}

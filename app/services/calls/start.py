@@ -11,78 +11,117 @@ from .utils import (
     update_call_pair_message,
     update_hangup_message_map,
     bridge_store,
+    # Новые функции для группировки событий
+    get_phone_for_grouping,
+    should_send_as_comment,
+    should_replace_previous_message,
+    update_phone_tracker,
 )
 
 async def process_start(bot: Bot, chat_id: int, data: dict):
     """
-    Обрабатывает событие Asterisk 'start':
-      1. Печатаем весь payload в stdout (для отладки).
-      2. Извлекаем UniqueId и телефон (raw_phone) — в этом JSON ключ называется "Phone".
-      3. Формируем текст: 🛎️ Входящий звонок + форматированный номер или "Номер не определен".
-      4. Экранируем '<' и '>' и отправляем в Telegram (reply_to, если есть предыдущий hangup).
-      5. Сохраняем message_id в bridge_store, обновляем history-структуры.
-      6. await save_telegram_message для записи в БД.
+    Модернизированный обработчик события 'start' (17.01.2025):
+    - Использует новую систему группировки по номеру телефона
+    - Применяет форматы сообщений из файла "Пояснение"
+    - Поддерживает отправку комментариев к предыдущим сообщениям
     """
 
     # Сохраняем лог в asterisk_logs
     await save_asterisk_log(data)
 
+    # Получаем номер для группировки событий
+    phone_for_grouping = get_phone_for_grouping(data)
+    
     # ───────── Шаг 1. Вывод в stdout всего payload ─────────
-    print(f"[process_start] RAW DATA = {data!r}")
+    logging.info(f"[process_start] RAW DATA = {data!r}")
+    logging.info(f"[process_start] Phone for grouping: {phone_for_grouping}")
 
-    # ───────── Шаг 2. Извлечение raw_phone и форматирование ─────────
+    # ───────── Шаг 2. Извлечение данных ─────────
     uid = data.get("UniqueId", "")
     raw_phone = data.get("Phone", "") or ""
     phone = format_phone_number(raw_phone)
-
     exts = data.get("Extensions", [])
-    is_int = data.get("CallType", 0) == 2
+    call_type = int(data.get("CallType", 0))
+    is_int = call_type == 2
     callee = exts[0] if exts else ""
+    token = data.get("Token", "")
 
-    # ───────── Шаг 3. Формируем текст уведомления ─────────
+    # ───────── Шаг 3. Формируем текст согласно Пояснению ─────────
     if is_int:
+        # Внутренние звонки обычно не имеют start события
         text = f"🛎️ Внутренний звонок\n{raw_phone} ➡️ {callee}"
     else:
+        # Входящий звонок - используем формат из Пояснения
         display = phone if (phone and not phone.startswith("+000")) else "Номер не определен"
-        text = f"🛎️ Входящий звонок\n💰 {display}"
+        
+        # Базовый формат для start события
+        text = f"💰{display} ➡️ Приветствие"
+        
+        # Добавляем информацию о линии, если есть Token
+        if token:
+            # Пытаемся определить название линии по токену
+            trunk_info = data.get("Trunk", "")
+            if trunk_info:
+                text += f"\nЛиния: {trunk_info}"
+        
+        # Добавляем историю звонков
         last = get_last_call_info(raw_phone)
         if last:
-            text += f"\n\n{last}"
+            # Извлекаем информацию из истории для формата "Звонил: X раз"
+            # Пока используем базовую логику, можно будет улучшить
+            text += f"\n{last}"
 
     safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
 
     # ───────── Шаг 3a. Выводим сформированный текст ─────────
-    print(f"[process_start] => chat={chat_id}, text={safe_text!r}")
+    logging.info(f"[process_start] => chat={chat_id}, text={safe_text!r}")
 
-    # ───────── Шаг 4. Отправка в Telegram ─────────
+    # ───────── Шаг 4. Проверяем, нужно ли отправить как комментарий ─────────
+    should_comment, reply_to_id = should_send_as_comment(phone_for_grouping, 'start')
+    
+    # ───────── Шаг 5. Отправка в Telegram ─────────
     try:
-        reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_int)
-        if reply_id:
+        if should_comment and reply_to_id:
+            logging.info(f"[process_start] Sending as comment to message {reply_to_id}")
             sent = await bot.send_message(
                 chat_id,
                 safe_text,
-                reply_to_message_id=reply_id,
+                reply_to_message_id=reply_to_id,
                 parse_mode="HTML"
             )
         else:
-            sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+            # Проверяем старую логику reply_to для совместимости
+            reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_int)
+            if reply_id and not should_comment:
+                sent = await bot.send_message(
+                    chat_id,
+                    safe_text,
+                    reply_to_message_id=reply_id,
+                    parse_mode="HTML"
+                )
+            else:
+                sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
     except BadRequest as e:
         logging.error(f"[process_start] send_message failed: {e}. text={safe_text!r}")
         return {"status": "error", "error": str(e)}
 
-    # ───────── Шаг 5. Обновляем глобальное состояние ─────────
+    # ───────── Шаг 6. Обновляем состояние системы ─────────
     bridge_store[uid] = sent.message_id
     update_call_pair_message(raw_phone, callee, sent.message_id, is_int)
     update_hangup_message_map(raw_phone, callee, sent.message_id, is_int)
+    
+    # Обновляем новый трекер для группировки
+    update_phone_tracker(phone_for_grouping, sent.message_id, 'start', data)
 
-    # ───────── Шаг 6. Сохраняем в БД ─────────
+    # ───────── Шаг 7. Сохраняем в БД ─────────
     await save_telegram_message(
         sent.message_id,
         "start",
-        data.get("Token", ""),
+        token,
         raw_phone,
         callee,
         is_int
     )
 
-    return {"status": "sent"}
+    logging.info(f"[process_start] Successfully sent start message {sent.message_id} for {phone_for_grouping}")
+    return {"status": "sent", "message_id": sent.message_id}

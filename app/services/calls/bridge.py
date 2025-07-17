@@ -1,91 +1,48 @@
 import logging
 from telegram import Bot
 from telegram.error import BadRequest
+import json
+import hashlib
+import asyncio
+from datetime import datetime, timedelta
 
 from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
+from app.services.postgres import get_pool
 from .utils import (
     format_phone_number,
-    get_relevant_hangup_message_id,
-    get_last_call_info,
-    update_call_pair_message,
-    update_hangup_message_map,
-    dial_cache,
     bridge_store,
-    active_bridges,
+    
+    # Новые функции для группировки событий
+    get_phone_for_grouping,
+    should_send_as_comment,
+    should_replace_previous_message,
+    update_phone_tracker,
+    is_internal_number,
+    phone_message_tracker,
 )
+
+# ═══════════════════════════════════════════════════════════════════
+# ОСНОВНАЯ ФУНКЦИЯ ОБРАБОТКИ BRIDGE СОБЫТИЙ
+# ═══════════════════════════════════════════════════════════════════
 
 async def process_bridge(bot: Bot, chat_id: int, data: dict):
     """
-    Обрабатывает Asterisk-событие 'bridge':
-    — удаляет связанный dial (если есть),
-    — формирует текст,
-    — сохраняет в active_bridges для повторной отправки,
-    — отправляет и сохраняет историю.
+    ФИНАЛЬНЫЙ обработчик события 'bridge' (17.01.2025):
+    - Проверяет является ли bridge ПРАВИЛЬНЫМ для отправки
+    - Отправляет МГНОВЕННО только правильные bridge
+    - НЕ кэширует, НЕ ждет 5 секунд
     """
-    # Сохраняем лог в asterisk_logs
-    await save_asterisk_log(data)
-
-    uid       = data.get("UniqueId", "")
-    caller    = data.get("CallerIDNum", "")
-    connected = data.get("ConnectedLineNum", "")
-    is_int    = caller.isdigit() and len(caller) <= 4 and connected.isdigit() and len(connected) <= 4
-
-    # Удаляем dial-сообщение, чтобы не дублировать
-    if uid in dial_cache:
-        dial_cache.pop(uid)
-        try:
-            await bot.delete_message(chat_id, bridge_store.get(uid, 0))
-        except Exception:
-            pass
-
-    # Формируем текст
-    if is_int:
-        text = f"⏱ Идет внутренний разговор\n{caller} ➡️ {connected}"
+    logging.info(f"[process_bridge] RAW DATA = {data!r}")
+    
+    # Проверяем нужно ли отправлять этот bridge
+    if should_send_bridge(data):
+        # Отправляем bridge МГНОВЕННО
+        result = await send_bridge_to_telegram(data)
+        return result
     else:
-        status = int(data.get("CallStatus", 0))
-        pre    = "✅ Успешный разговор" if status == 2 else "⬇️ 💬 <b>Входящий разговор</b>"
-        cli    = format_phone_number(caller)
-        cal    = format_phone_number(connected)
-        text   = f"{pre}\n☎️ {cli} ➡️ 💰 {cal}"
-        last   = get_last_call_info(connected)
-        if last:
-            text += f"\n\n{last}"
-
-    safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
-    logging.debug(f"[process_bridge] => chat={chat_id}, text={safe_text!r}")
-
-    # Отправляем
-    try:
-        sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
-    except BadRequest as e:
-        logging.error(f"[process_bridge] send_message failed: {e}. text={safe_text!r}")
-        return {"status": "error", "error": str(e)}
-
-    # Сохраняем состояние и историю
-    bridge_store[uid] = sent.message_id
-    update_call_pair_message(caller, connected, sent.message_id, is_int)
-    update_hangup_message_map(caller, connected, sent.message_id, is_int)
-
-    # Трекер незакрытых мостов для resend-loop
-    active_bridges[uid] = {
-        "text": safe_text,
-        "cli":  caller,
-        "op":   connected,
-        "token": data.get("Token", "")
-    }
-
-    # Сохраняем в БД
-    await save_telegram_message(
-        sent.message_id,
-        "bridge",
-        data.get("Token", ""),
-        caller,
-        connected,
-        is_int
-    )
-
-    return {"status": "sent"}
+        logging.info(f"[process_bridge] Skipping bridge - not the right one to send")
+        return {"status": "skipped"}
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Новые обработчики для модернизированного AMI-скрипта (17.01.2025)
@@ -238,3 +195,239 @@ async def process_new_callerid(bot: Bot, chat_id: int, data: dict):
     )
     
     return {"status": "logged"}
+
+# ═══════════════════════════════════════════════════════════════════
+# ЛОГИКА ВЫБОРА ПРАВИЛЬНОГО BRIDGE ДЛЯ ОТПРАВКИ
+# ═══════════════════════════════════════════════════════════════════
+
+def should_send_bridge(data: dict) -> bool:
+    """
+    Определяет нужно ли отправлять данный bridge в Telegram.
+    
+    Логика:
+    - Отправляем bridge если у него есть CallerIDNum и ConnectedLineNum
+    - Пропускаем "пустые" или неполные bridge события
+    """
+    caller = data.get("CallerIDNum", "")
+    connected = data.get("ConnectedLineNum", "")
+    bridge_id = data.get("BridgeUniqueid", "")
+    
+    logging.info(f"[should_send_bridge] Checking bridge {bridge_id}: caller='{caller}', connected='{connected}'")
+    
+    # Основное условие: должны быть и caller и connected
+    if not caller or not connected:
+        logging.info(f"[should_send_bridge] Skipping bridge - missing caller or connected")
+        return False
+    
+    # Пропускаем bridge с пустыми или некорректными номерами
+    if caller in ["", "unknown", "<unknown>"] or connected in ["", "unknown", "<unknown>"]:
+        logging.info(f"[should_send_bridge] Skipping bridge - invalid numbers")
+        return False
+    
+    logging.info(f"[should_send_bridge] Bridge {bridge_id} is valid for sending")
+    return True
+
+# ═══════════════════════════════════════════════════════════════════
+# ОТПРАВКА BRIDGE СООБЩЕНИЙ В ТЕЛЕГРАМ  
+# ═══════════════════════════════════════════════════════════════════
+
+async def send_bridge_to_telegram(data: dict):
+    """
+    Отправляет bridge сообщение в телеграм.
+    ИСПРАВЛЕНО: Добавлена логика получения bot и chat_id из токена.
+    """
+    try:
+        # Получаем bot и chat_ids для токена
+        token = data.get("Token", "")
+        if not token:
+            logging.error(f"[send_bridge_to_telegram] No token in bridge data")
+            return {"status": "error", "error": "No token"}
+            
+        # Логика получения бота и получателей (из main.py)
+        from telegram import Bot
+        from app.services.postgres import get_pool
+        
+        pool = await get_pool()
+        if not pool:
+            logging.error(f"[send_bridge_to_telegram] Database pool not available")
+            return {"status": "error", "error": "No database"}
+        
+        async with pool.acquire() as conn:
+            ent_row = await conn.fetchrow(
+                "SELECT bot_token FROM enterprises WHERE name2 = $1", 
+                token
+            )
+            if not ent_row:
+                logging.error(f"[send_bridge_to_telegram] Unknown enterprise token: {token}")
+                return {"status": "error", "error": "Unknown token"}
+            
+            bot_token = ent_row["bot_token"]
+            
+            user_rows = await conn.fetch(
+                "SELECT tg_id FROM telegram_users WHERE bot_token = $1",
+                bot_token
+            )
+        
+        tg_ids = [int(row["tg_id"]) for row in user_rows]
+        # Добавляем суперюзера если его нет
+        SUPERUSER_TG_ID = 374573193
+        if SUPERUSER_TG_ID not in tg_ids:
+            tg_ids.append(SUPERUSER_TG_ID)
+            
+        bot = Bot(token=bot_token)
+        
+        # Отправляем в каждый чат
+        results = []
+        for chat_id in tg_ids:
+            result = await send_bridge_to_single_chat(bot, chat_id, data)
+            results.append(result)
+        
+        return {"status": "success", "results": results}
+        
+    except Exception as e:
+        logging.error(f"[send_bridge_to_telegram] Error: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
+    """
+    Отправляет bridge событие в телеграм (реальная обработка).
+    """
+    # Сохраняем лог в asterisk_logs
+    await save_asterisk_log(data)
+
+    # Получаем номер для группировки событий
+    phone_for_grouping = get_phone_for_grouping(data)
+    logging.info(f"[send_bridge_to_single_chat] Phone for grouping: {phone_for_grouping}")
+
+    # ───────── Шаг 2. Удаляем предыдущие bridge сообщения ─────────
+    messages_to_delete = []
+    
+    # Проверяем, есть ли уже bridge для этого номера телефона
+    should_replace, msg_to_delete = should_replace_previous_message(phone_for_grouping, 'bridge')
+    if should_replace and msg_to_delete:
+        messages_to_delete.append(msg_to_delete)
+        logging.info(f"[send_bridge_to_single_chat] Found previous message {msg_to_delete} to delete for phone {phone_for_grouping}")
+    
+    # Также проверяем bridge_store по UniqueId (старая логика)
+    uid = data.get("UniqueId", "")
+    if uid in bridge_store:
+        old_bridge_msg = bridge_store.pop(uid)
+        if old_bridge_msg not in messages_to_delete:
+            messages_to_delete.append(old_bridge_msg)
+            logging.info(f"[send_bridge_to_single_chat] Found bridge in store {old_bridge_msg} to delete for uid {uid}")
+
+    # Удаляем старые сообщения
+    for msg_id in messages_to_delete:
+        try:
+            await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            logging.info(f"[send_bridge_to_single_chat] Deleted previous bridge message {msg_id}")
+        except BadRequest as e:
+            logging.warning(f"[send_bridge_to_single_chat] Could not delete message {msg_id}: {e}")
+        except Exception as e:
+            logging.error(f"[send_bridge_to_single_chat] Error deleting message {msg_id}: {e}")
+
+    logging.info(f"[send_bridge_to_single_chat] After cleanup, proceeding to create new bridge message")
+
+    # ───────── Шаг 3. Определяем тип звонка ─────────
+    caller = data.get("CallerIDNum", "")
+    connected = data.get("ConnectedLineNum", "")
+    
+    # Проверяем что это за звонок
+    caller_internal = is_internal_number(caller)
+    connected_internal = is_internal_number(connected)
+    
+    if caller_internal and connected_internal:
+        call_direction = "internal"
+        internal_ext = caller or connected
+        external_phone = None
+    elif caller_internal:
+        call_direction = "outgoing" 
+        internal_ext = caller
+        external_phone = connected
+    elif connected_internal:
+        call_direction = "incoming"
+        internal_ext = connected
+        external_phone = caller
+    else:
+        call_direction = "unknown"
+        internal_ext = caller or connected
+        external_phone = connected or caller
+
+    logging.info(f"[send_bridge_to_single_chat] Bridge: {caller} <-> {connected}")
+
+    # ───────── Шаг 4. Формируем текст согласно Пояснению ─────────
+    if call_direction == "internal":
+        # Внутренний звонок: ☎️185 📞➡️ ☎️186📞
+        text = f"☎️{caller} 📞➡️ ☎️{connected}📞"
+    
+    elif call_direction in ["incoming", "outgoing"]:
+        # Внешний звонок - ИСПРАВЛЕНО: внутренний у ☎️, внешний у 💰
+        if external_phone:
+            # ИСПРАВЛЕНО: заменяем <unknown> на безопасный текст
+            if external_phone == "<unknown>" or external_phone.startswith("<unknown>") or external_phone.endswith("<unknown>"):
+                display_external = "Номер не определен"
+            else:
+                formatted_external = format_phone_number(external_phone)
+                display_external = formatted_external if not formatted_external.startswith("+000") else "Номер не определен"
+        else:
+            display_external = "Номер не определен"
+        
+        # И для входящих, и для исходящих: внутренний номер у ☎️, внешний у 💰
+        text = f"☎️{internal_ext} 📞➡️ 💰{display_external}📞"
+    
+    else:
+        # Неопределенный тип
+        text = f"☎️{caller} 📞➡️ ☎️{connected}📞"
+
+    # ───────── Шаг 5. Отправляем сообщение ─────────
+    logging.info(f"[send_bridge_to_single_chat] => chat={chat_id}, text='{text}'")
+    
+    try:
+        # Проверяем нужно ли отправлять как комментарий
+        should_comment, reply_to_msg_id = should_send_as_comment(phone_for_grouping, 'bridge')
+        
+        if should_comment and reply_to_msg_id:
+            # Отправляем как комментарий к предыдущему сообщению
+            message = await bot.send_message(
+                chat_id=chat_id, 
+                text=text, 
+                parse_mode='HTML',
+                reply_to_message_id=reply_to_msg_id
+            )
+            logging.info(f"[send_bridge_to_single_chat] Sent bridge as comment to message {reply_to_msg_id}")
+        else:
+            # Отправляем как обычное сообщение
+            message = await bot.send_message(chat_id=chat_id, text=text, parse_mode='HTML')
+        
+        message_id = message.message_id
+        logging.info(f"[send_bridge_to_single_chat] Sent bridge message {message_id}")
+        
+        # Сохраняем в трекер для последующих комментариев
+        update_phone_tracker(phone_for_grouping, message_id, 'bridge', data)
+        
+        # Сохраняем в bridge_store
+        bridge_store[uid] = message_id
+        
+        # Сохраняем в базу
+        token = data.get("Token", "")
+        caller = data.get("CallerIDNum", "")
+        callee = data.get("ConnectedLineNum", "")
+        is_internal = call_direction == "internal"
+        
+        await save_telegram_message(
+            message_id=message_id,
+            event_type="bridge", 
+            token=token,
+            caller=caller,
+            callee=callee,
+            is_internal=is_internal
+        )
+        
+        logging.info(f"[send_bridge_to_single_chat] Successfully sent bridge message {message_id} for {phone_for_grouping}")
+        
+        return {"status": "success", "message_id": message_id}
+        
+    except Exception as e:
+        logging.error(f"[send_bridge_to_single_chat] Error sending bridge message: {e}")
+        return {"status": "error", "error": str(e)}
