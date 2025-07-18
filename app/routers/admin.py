@@ -32,7 +32,7 @@ from app.services.bot_status import check_bot_status
 from app.services.enterprise import send_message_to_bot
 from app.services.database import update_enterprise
 from app.services.fail2ban import get_banned_ips, get_banned_count
-from app.services.postgres import get_all_enterprises as get_all_enterprises_postgresql
+from app.services.postgres import get_all_enterprises as get_all_enterprises_postgresql, get_pool
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
@@ -1351,6 +1351,53 @@ async def check_internal_phones_ip(enterprise_number: str, request: Request):
             
     except Exception as e:
         logger.error(f"Error checking internal phones IP for enterprise {enterprise_number}: {e}", exc_info=True)
+        return JSONResponse({
+            'success': False,
+            'error': str(e)
+        }, status_code=500)
+
+
+@router.get("/reboot-events-today", response_class=JSONResponse)
+async def get_reboot_events_today(request: Request):
+    """Получить счетчик событий перезагрузки за текущий день для всех предприятий"""
+    require_login(request)
+    
+    try:
+        pool = await get_pool()
+        if not pool:
+            return JSONResponse({'success': False, 'error': 'Database connection failed'}, status_code=500)
+        
+        async with pool.acquire() as conn:
+            # SQL запрос для подсчета событий перезагрузки за текущий день
+            query = """
+                SELECT 
+                    enterprise_number,
+                    COUNT(*) as reboot_count
+                FROM unit_status_history
+                WHERE 
+                    DATE(change_time) = CURRENT_DATE
+                    AND (
+                        (action_type = 'goip_reboot_initiated')
+                        OR 
+                        (action_type != 'goip_reboot_initiated' AND new_status = 'on')
+                    )
+                GROUP BY enterprise_number
+            """
+            
+            rows = await conn.fetch(query)
+            
+            # Преобразуем результат в словарь
+            reboot_counts = {}
+            for row in rows:
+                reboot_counts[row['enterprise_number']] = row['reboot_count']
+                
+            return JSONResponse({
+                'success': True,
+                'reboot_counts': reboot_counts
+            })
+            
+    except Exception as e:
+        logger.error(f"Error getting reboot events: {e}", exc_info=True)
         return JSONResponse({
             'success': False,
             'error': str(e)
