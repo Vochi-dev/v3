@@ -218,7 +218,10 @@
       <p>Номер: <span id="modalNumber"></span></p>
       <p>IP: <span id="modalIp"></span></p>
       <p>Второе имя: <span id="modalName2"></span></p>
-      <button class="button" id="adminLoginButton" style="margin-top: 15px;">Войти в админку</button>
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button class="button" id="adminLoginButton" style="flex: 1;">Войти в админку</button>
+        <button class="button" id="deskButton" style="flex: 1; background: #28a745;">Рабочий стол</button>
+      </div>
     </div>
   </div>
 
@@ -274,6 +277,14 @@
                             console.error('Ошибка при получении токена:', error);
                             alert('Произошла ошибка при попытке входа. См. консоль для деталей.');
                         });
+                };
+
+                // Логика для кнопки "Рабочий стол"
+                const deskButton = document.getElementById('deskButton');
+                deskButton.onclick = function() {
+                    // Открываем наш новый сервис desk через HTTPS и nginx proxy
+                    const enterpriseName = encodeURIComponent(name);
+                    window.open('https://' + window.location.hostname + '/desk/?enterprise=' + enterpriseName, '_blank');
                 };
 
                 modal.style.display = 'block';

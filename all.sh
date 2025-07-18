@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Список всех сервисов в порядке зависимости
-SERVICES=("admin" "dial" "111" "plan" "sms" "download" "goip")
+SERVICES=("admin" "dial" "111" "plan" "sms" "download" "goip" "desk")
 
 case "${1:-restart}" in
   start)
