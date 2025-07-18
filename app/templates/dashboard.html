@@ -284,7 +284,8 @@
                 deskButton.onclick = function() {
                     // Открываем наш новый сервис desk через HTTPS и nginx proxy
                     const enterpriseName = encodeURIComponent(name);
-                    window.open('https://' + window.location.hostname + '/desk/?enterprise=' + enterpriseName, '_blank');
+                    const enterpriseNumber = encodeURIComponent(number);
+                    window.open('https://' + window.location.hostname + '/desk/?enterprise=' + enterpriseName + '&number=' + enterpriseNumber, '_blank');
                 };
 
                 modal.style.display = 'block';
