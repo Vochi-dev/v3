@@ -96,6 +96,17 @@
       left: 8px;
       display: none; /* По умолчанию скрыт */
     }
+    .enterprise-card .reboot-events {
+      font-size: 16px;
+      color: #ff8c00; /* Темно-оранжевый цвет для счетчика перезагрузок */
+      font-family: sans-serif;
+      font-weight: normal;
+      line-height: 1.1;
+      position: absolute;
+      bottom: 4px;
+      left: 60px; /* Размещаем справа от процентов диска */
+      display: none; /* По умолчанию скрыт */
+    }
     .enterprise-card .goip-status {
       font-size: 16px;
       font-family: sans-serif;
@@ -196,6 +207,7 @@
                 <div class="line-stats" id="stats-{{ enterprise.number }}">—/— —/— —/—</div>
                 <div class="live-events" id="live-{{ enterprise.number }}"></div>
                 <div class="disk-usage" id="disk-{{ enterprise.number }}"></div>
+                <div class="reboot-events" id="reboot-{{ enterprise.number }}"></div>
                 <div class="goip-status" id="goip-{{ enterprise.number }}"></div>
             </div>
             <!-- Другая информация будет здесь -->
@@ -649,6 +661,7 @@
         // ============================================
         
         let liveEventsInterval = null; // Интервал для проверки live событий
+        let rebootEventsInterval = null; // Интервал для проверки событий перезагрузки
         
         // Функция обновления live статистики
         function updateLiveEventsDisplay(data) {
@@ -726,6 +739,70 @@
             }
         }
         
+        // Загрузка счетчика событий перезагрузки
+        async function loadRebootEventsStats() {
+            try {
+                console.log('[Reboot Events] Загрузка статистики...');
+                const response = await fetch('/admin/reboot-events-today');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                updateRebootEventsDisplay(data);
+                
+            } catch (error) {
+                console.error('[Reboot Events] Ошибка загрузки статистики:', error);
+                // При ошибке скрываем все счетчики
+                document.querySelectorAll('[id^="reboot-"]').forEach(element => {
+                    element.style.display = 'none';
+                });
+            }
+        }
+        
+        // Обновление отображения счетчика перезагрузок
+        function updateRebootEventsDisplay(data) {
+            if (!data || !data.success) {
+                console.error('[Reboot Events] Некорректные данные:', data);
+                return;
+            }
+            
+            const rebootCounts = data.reboot_counts || {};
+            console.log('[Reboot Events] Полученные данные:', rebootCounts);
+            
+            // Обновляем все элементы
+            document.querySelectorAll('[id^="reboot-"]').forEach(element => {
+                const enterpriseNumber = element.id.replace('reboot-', '');
+                const count = rebootCounts[enterpriseNumber] || 0;
+                
+                if (count > 0) {
+                    element.textContent = 'R' + count;
+                    element.style.display = 'block';
+                } else {
+                    element.style.display = 'none';
+                }
+            });
+        }
+
+        // Запуск мониторинга событий перезагрузки
+        function startRebootEventsMonitoring() {
+            console.log('[Reboot Events] Запуск мониторинга...');
+            loadRebootEventsStats();
+            
+            // Обновляем каждые 2 минуты
+            rebootEventsInterval = setInterval(loadRebootEventsStats, 120000);
+        }
+        
+        // Остановка мониторинга событий перезагрузки
+        function stopRebootEventsMonitoring() {
+            if (rebootEventsInterval) {
+                clearInterval(rebootEventsInterval);
+                rebootEventsInterval = null;
+                console.log('[Reboot Events] Мониторинг событий перезагрузки остановлен');
+            }
+        }
+        
         // Запуск мониторинга
         function startMonitoring() {
             console.log('[Мониторинг] Запуск системы мониторинга...');
@@ -778,6 +855,7 @@
         // Автоматический запуск мониторинга при загрузке страницы
         startMonitoring();
         startLiveEventsMonitoring();
+        startRebootEventsMonitoring();
     });
   </script>
 
