@@ -1038,7 +1038,11 @@ def VarSet(manager, message):
                 call = simle_call(Uniqueid = message.Uniqueid, CallerIDNum = amiEvent.Phone)
 
                 # добавляем в список вызовов
-                Call_List.append(call) 
+                Call_List.append(call)
+
+                # Отправляем dial событие
+                if apiAlternative == 1:
+                    apiAlternativeQueue.put(amiEvent) 
 
                 
             elif temp_data[0] == 'localcallEnd':

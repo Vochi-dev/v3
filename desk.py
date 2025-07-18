@@ -100,7 +100,7 @@ async def get_latest_hangup_calls(enterprise_id: str, limit: int = 200) -> List[
             FROM calls c
             LEFT JOIN call_participants cp ON c.id = cp.call_id
             LEFT JOIN call_events ce ON c.unique_id = ce.unique_id AND ce.event_type = 'hangup'
-            WHERE c.enterprise_id = $1 
+            WHERE c.enterprise_id = $1
             GROUP BY c.id, c.unique_id, c.phone_number, c.duration, c.call_status, c.call_type, c.start_time, c.end_time, c.timestamp, ce.raw_data, c.raw_data
             ORDER BY c.timestamp DESC
             LIMIT $2
@@ -272,7 +272,7 @@ async def root(
         
         # Форматирование участников
         if call_type == '2':  # Внутренний звонок
-            caller = raw_data.get('CallerIDNum', '')
+            caller = raw_data.get('CallerIDNum', '') or phone or ''
             callee = extensions[0] if extensions else ''
             
             caller_display = extension_owners.get(caller, caller) if caller else caller
