@@ -750,14 +750,26 @@
                 }
                 
                 const data = await response.json();
-                updateRebootEventsDisplay(data);
+                updateRebootEventsDisplay(data);  // Предполагаю, что эта функция уже существует для индивидуальных
+                
+                // Новый код: расчет общего количества
+                if (data.reboot_counts) {
+                    let total = Object.values(data.reboot_counts).reduce((sum, count) => sum + count, 0);
+                    const totalElement = document.getElementById('total-reboots');
+                    if (totalElement) {
+                        totalElement.textContent = `R: ${total}`;
+                        totalElement.style.display = total > 0 ? 'inline-block' : 'none';
+                    }
+                }
                 
             } catch (error) {
                 console.error('[Reboot Events] Ошибка загрузки статистики:', error);
-                // При ошибке скрываем все счетчики
-                document.querySelectorAll('[id^="reboot-"]').forEach(element => {
-                    element.style.display = 'none';
-                });
+                // При ошибке сбрасываем общий счетчик
+                const totalElement = document.getElementById('total-reboots');
+                if (totalElement) {
+                    totalElement.textContent = 'R: 0';
+                    totalElement.style.display = 'none';
+                }
             }
         }
         
