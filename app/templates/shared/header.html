@@ -49,6 +49,7 @@
     font-size: 0.95rem;
     border-radius: 4px;
     transition: background-color 0.2s ease;
+    line-height: 1; /* Добавляем для центрирования текста посередине */
   }
   .main-header nav a:hover,
   .main-header nav a.active { /* Стиль для активной кнопки */
@@ -58,9 +59,10 @@
   /* Убираем стандартные стили списка, если nav обернут в ul/li */
   .main-header nav ul {
     list-style: none;
-    padding: 0;
     margin: 0;
+    padding: 0;
     display: flex;
+    align-items: center; /* Выравниваем все элементы по центру */
   }
   .main-header nav li {
     margin: 0;
@@ -179,6 +181,7 @@
       <li><a href="/admin/enterprises">Компании</a></li>
       <li><a href="#" id="openSipModalBtn">SIP</a></li>
       <li><a href="#" id="openMobileModalBtn">Mobile</a></li>
+      <li><span id="total-reboots" style="color: darkorange; font-weight: bold; margin-left: 12px; padding: 8px 12px; border-radius: 4px; font-size: 0.95rem; vertical-align: middle; display: inline-block;">R: 0</span></li>
       <!-- Дополнительные кнопки можно будет добавить сюда -->
     </ul>
   </nav>
