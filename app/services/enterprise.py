@@ -71,12 +71,12 @@ def delete_enterprise(number: str):
 async def send_message_to_bot(bot_token: str, chat_id: str, message: str):
     """
     Асинхронно отправляет сообщение в Telegram-бота по bot_token и chat_id.
-    Возвращает True при успехе, False при ошибке.
+    Возвращает (True, None) при успехе, (False, error_message) при ошибке.
     """
     bot = Bot(token=bot_token)
     try:
         await bot.send_message(chat_id=int(chat_id), text=message)
-        return True
+        return True, None
     except TelegramError as e:
-        # Можно добавить логирование ошибки здесь
-        return False
+        # Возвращаем описание ошибки
+        return False, str(e)

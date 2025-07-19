@@ -10,21 +10,35 @@ from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
 
-# ───────── In-memory stores ─────────
-dial_cache       = {}
-bridge_store     = {}
-active_bridges   = {}
+# ───────── In-memory stores (ИНДИВИДУАЛЬНЫЕ ДЛЯ КАЖДОГО CHAT_ID) ─────────
+# Структура: {chat_id: {uid: data}}
+dial_cache_by_chat       = defaultdict(dict)
+bridge_store_by_chat     = defaultdict(dict)
+active_bridges_by_chat   = defaultdict(dict)
 
-# для историй
-call_pair_message_map = {}
-hangup_message_map    = defaultdict(list)
+# для историй: {chat_id: {phone: [records]}}
+call_pair_message_map_by_chat = defaultdict(dict)
+hangup_message_map_by_chat    = defaultdict(lambda: defaultdict(list))
 
-# ─────── Новая система группировки событий (17.01.2025) ───────
-# Ключ: номер телефона, значение: информация о последнем сообщении
-phone_message_tracker = {}
+# ─────── Новая система группировки событий (ИНДИВИДУАЛЬНАЯ) ───────
+# Структура: {chat_id: {phone: tracker_data}}
+phone_message_tracker_by_chat = defaultdict(dict)
 
 # Структура для отслеживания состояния звонков
 call_state_tracker = defaultdict(dict)
+
+# ===== ОБРАТНАЯ СОВМЕСТИМОСТЬ =====
+# Для старого кода, который ещё использует глобальные переменные
+# Будем использовать значения для суперюзера 374573193
+SUPERUSER_CHAT_ID = 374573193
+
+# Создаем псевдонимы для обратной совместимости
+dial_cache = dial_cache_by_chat[SUPERUSER_CHAT_ID]
+bridge_store = bridge_store_by_chat[SUPERUSER_CHAT_ID]  
+active_bridges = active_bridges_by_chat[SUPERUSER_CHAT_ID]
+call_pair_message_map = call_pair_message_map_by_chat[SUPERUSER_CHAT_ID]
+hangup_message_map = hangup_message_map_by_chat[SUPERUSER_CHAT_ID]
+phone_message_tracker = phone_message_tracker_by_chat[SUPERUSER_CHAT_ID]
 
 def get_phone_for_grouping(data: dict) -> str:
     """
@@ -60,17 +74,21 @@ def get_phone_for_grouping(data: dict) -> str:
                 phone = exts[0]  # Если все внутренние, берем первый
     return phone
 
-def should_send_as_comment(phone: str, event_type: str) -> tuple[bool, int]:
+def should_send_as_comment(phone: str, event_type: str, chat_id: int = None) -> tuple[bool, int]:
     """
     Определяет, нужно ли отправить событие как комментарий к предыдущему сообщению.
+    ОБНОВЛЕНО: теперь индивидуально для каждого chat_id
     
     Возвращает:
         (should_comment, reply_to_message_id)
     """
     if not phone or phone == "Номер не определен":
         return False, None
+    
+    if chat_id is None:
+        chat_id = SUPERUSER_CHAT_ID
         
-    tracker = phone_message_tracker.get(phone)
+    tracker = phone_message_tracker_by_chat[chat_id].get(phone)
     if not tracker:
         return False, None
     
@@ -97,14 +115,18 @@ def should_send_as_comment(phone: str, event_type: str) -> tuple[bool, int]:
     
     return False, None
 
-def update_phone_tracker(phone: str, message_id: int, event_type: str, data: dict):
+def update_phone_tracker(phone: str, message_id: int, event_type: str, data: dict, chat_id: int = None):
     """
     Обновляет трекер сообщений для номера телефона
+    ОБНОВЛЕНО: теперь индивидуально для каждого chat_id
     """
     if not phone or phone == "Номер не определен":
         return
+    
+    if chat_id is None:
+        chat_id = SUPERUSER_CHAT_ID
         
-    phone_message_tracker[phone] = {
+    phone_message_tracker_by_chat[chat_id][phone] = {
         'message_id': message_id,
         'event_type': event_type,
         'timestamp': datetime.now().isoformat(),
@@ -122,9 +144,10 @@ def update_phone_tracker(phone: str, message_id: int, event_type: str, data: dic
         for phone_to_remove, _ in sorted_phones[:100]:
             del phone_message_tracker[phone_to_remove]
 
-def should_replace_previous_message(phone: str, event_type: str) -> tuple[bool, int]:
+def should_replace_previous_message(phone: str, event_type: str, chat_id: int = None) -> tuple[bool, int]:
     """
     Определяет, нужно ли заменить предыдущее сообщение (удалить + отправить новое).
+    ОБНОВЛЕНО: теперь индивидуально для каждого chat_id
     
     Согласно Пояснению:
     - bridge события заменяют dial события
@@ -135,8 +158,11 @@ def should_replace_previous_message(phone: str, event_type: str) -> tuple[bool, 
     """
     if not phone or phone == "Номер не определен":
         return False, None
+    
+    if chat_id is None:
+        chat_id = SUPERUSER_CHAT_ID
         
-    tracker = phone_message_tracker.get(phone)
+    tracker = phone_message_tracker_by_chat[chat_id].get(phone)
     if not tracker:
         return False, None
     
@@ -174,18 +200,30 @@ def format_phone_number(phone: str) -> str:
 
 
 # ───────── Обновление истории ─────────
-def update_call_pair_message(caller, callee, message_id, is_internal=False):
+def update_call_pair_message(caller, callee, message_id, is_internal=False, chat_id=None):
+    """
+    ОБНОВЛЕНО: теперь индивидуально для каждого chat_id
+    """
+    if chat_id is None:
+        chat_id = SUPERUSER_CHAT_ID
+        
     if is_internal:
         key = tuple(sorted([caller, callee]))
     else:
         key = (caller,)
-    call_pair_message_map[key] = message_id
+    call_pair_message_map_by_chat[chat_id][key] = message_id
     return key
 
 def update_hangup_message_map(caller, callee, message_id,
                               is_internal=False,
                               call_status=-1, call_type=-1,
-                              extensions=None):
+                              extensions=None, chat_id=None):
+    """
+    ОБНОВЛЕНО: теперь индивидуально для каждого chat_id
+    """
+    if chat_id is None:
+        chat_id = SUPERUSER_CHAT_ID
+        
     rec = {
         'message_id': message_id,
         'caller':      caller,
@@ -195,20 +233,26 @@ def update_hangup_message_map(caller, callee, message_id,
         'call_type':   call_type,
         'extensions':  extensions or []
     }
-    hangup_message_map[caller].append(rec)
+    hangup_message_map_by_chat[chat_id][caller].append(rec)
     if is_internal:
-        hangup_message_map[callee].append(rec)
+        hangup_message_map_by_chat[chat_id][callee].append(rec)
     # оставляем не более 5
-    hangup_message_map[caller]   = hangup_message_map[caller][-5:]
+    hangup_message_map_by_chat[chat_id][caller] = hangup_message_map_by_chat[chat_id][caller][-5:]
     if is_internal:
-        hangup_message_map[callee] = hangup_message_map[callee][-5:]
+        hangup_message_map_by_chat[chat_id][callee] = hangup_message_map_by_chat[chat_id][callee][-5:]
 
 
-def get_relevant_hangup_message_id(caller, callee, is_internal=False):
+def get_relevant_hangup_message_id(caller, callee, is_internal=False, chat_id=None):
+    """
+    ОБНОВЛЕНО: теперь индивидуально для каждого chat_id
+    """
+    if chat_id is None:
+        chat_id = SUPERUSER_CHAT_ID
+        
     if is_internal:
-        hist = hangup_message_map.get(caller, []) + hangup_message_map.get(callee, [])
+        hist = hangup_message_map_by_chat[chat_id].get(caller, []) + hangup_message_map_by_chat[chat_id].get(callee, [])
     else:
-        hist = hangup_message_map.get(caller, [])
+        hist = hangup_message_map_by_chat[chat_id].get(caller, [])
     if not hist:
         return None
     hist.sort(key=lambda x: x['timestamp'], reverse=True)

@@ -77,7 +77,9 @@ async def message_user(
     if not rec or not rec.get("bot_token"):
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    await send_message_to_bot(rec["bot_token"], tg_id, message)
+    success, error = await send_message_to_bot(rec["bot_token"], str(tg_id), message)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Не удалось отправить сообщение: {error}")
     return RedirectResponse("/admin/email-users", status_code=303)
 
 
@@ -97,7 +99,9 @@ async def message_group(request: Request, message: str = Form(...)):
     for tg_id, bot_token in rows:
         if tg_id and bot_token:
             try:
-                await send_message_to_bot(bot_token, tg_id, message)
+                success, error = await send_message_to_bot(bot_token, str(tg_id), message)
+                if not success:
+                    logger.warning(f"Не удалось отправить групповое сообщение {tg_id}: {error}")
             except Exception as e:
                 logger.warning(f"Не удалось отправить групповое сообщение {tg_id}: {e}")
 
@@ -194,7 +198,9 @@ async def confirm_upload(
         for r in rows:
             email, tg_id, bot_token = r["email"], r["tg_id"], r["bot_token"]
             if email and email not in new_set and tg_id and bot_token:
-                await send_message_to_bot(bot_token, tg_id, "❌ Ваш доступ отозван администратором.")
+                success, error = await send_message_to_bot(bot_token, str(tg_id), "❌ Ваш доступ отозван администратором.")
+                if not success:
+                    logger.warning(f"Не удалось уведомить пользователя {tg_id} об отзыве доступа: {error}")
                 await db.execute("DELETE FROM telegram_users WHERE tg_id = ?", (tg_id,))
                 await db.execute("DELETE FROM enterprise_users WHERE telegram_id = ?", (tg_id,))
                 await db.execute("DELETE FROM email_users WHERE email = ?", (email,))

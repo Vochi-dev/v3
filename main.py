@@ -413,10 +413,16 @@ async def _dispatch_to_all(handler, body: dict):
 
     for chat_id in tg_ids:
         try:
-            await handler(bot, chat_id, body)
-            results.append({"chat_id": chat_id, "status": "ok"})
-            telegram_success = True
-            logger.info(f"Successfully sent to chat_id: {chat_id}")
+            result = await handler(bot, chat_id, body)
+            if result and result.get("status") == "error":
+                # Обработчик вернул ошибку
+                results.append({"chat_id": chat_id, "status": "error", "error": result.get("error", "Unknown error")})
+                logger.error(f"Handler returned error for chat_id {chat_id}: {result.get('error')}")
+            else:
+                # Успешный результат
+                results.append({"chat_id": chat_id, "status": "ok"})
+                telegram_success = True
+                logger.info(f"Successfully sent to chat_id: {chat_id}")
         except Exception as e:
             logger.error(f"Asterisk dispatch to {chat_id} failed: {e}")
             results.append({"chat_id": chat_id, "status": "error", "error": str(e)})

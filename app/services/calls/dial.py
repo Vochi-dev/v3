@@ -12,6 +12,7 @@ from .utils import (
     update_hangup_message_map,
     dial_cache,
     bridge_store,
+    bridge_store_by_chat,
     # Новые функции для группировки событий
     get_phone_for_grouping,
     should_send_as_comment,
@@ -50,7 +51,7 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     logging.info(f"[process_dial] Phone for grouping: {phone_for_grouping}, call_type: {call_type}")
 
     # ───────── Шаг 2. Проверяем, нужно ли заменить предыдущее сообщение ─────────
-    should_replace, message_to_delete = should_replace_previous_message(phone_for_grouping, 'dial')
+    should_replace, message_to_delete = should_replace_previous_message(phone_for_grouping, 'dial', chat_id)
     
     if should_replace and message_to_delete:
         try:
@@ -60,10 +61,10 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             logging.warning(f"[process_dial] Failed to delete message {message_to_delete}: {e}")
 
     # Удаляем прошлый "start"-месседж из bridge_store (старая логика)
-    if uid in bridge_store:
+    if uid in bridge_store_by_chat[chat_id]:
         try:
             if not should_replace:  # Если уже удалили выше, не удаляем дважды
-                await bot.delete_message(chat_id, bridge_store.pop(uid))
+                await bot.delete_message(chat_id, bridge_store_by_chat[chat_id].pop(uid))
         except Exception:
             pass
 
@@ -111,7 +112,13 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     logging.info(f"[process_dial] => chat={chat_id}, text={safe_text!r}")
 
     # ───────── Шаг 4. Проверяем, нужно ли отправить как комментарий ─────────
-    should_comment, reply_to_id = should_send_as_comment(phone_for_grouping, 'dial')
+    should_comment, reply_to_id = should_send_as_comment(phone_for_grouping, 'dial', chat_id)
+    
+    # Если предыдущее сообщение было удалено, НЕ отправляем как комментарий
+    if should_replace and message_to_delete:
+        should_comment = False
+        reply_to_id = None
+        logging.info(f"[process_dial] Previous message was deleted, sending as standalone message")
 
     # ───────── Шаг 5. Отправляем сообщение в Telegram ─────────
     try:
@@ -139,11 +146,11 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     }
 
     # ───────── Шаг 7. Обновляем состояние системы ─────────
-    update_call_pair_message(raw_phone, callee, sent.message_id, is_int)
-    update_hangup_message_map(raw_phone, callee, sent.message_id, is_int)
+    update_call_pair_message(raw_phone, callee, sent.message_id, is_int, chat_id)
+    update_hangup_message_map(raw_phone, callee, sent.message_id, is_int, chat_id=chat_id)
     
     # Обновляем новый трекер для группировки
-    update_phone_tracker(phone_for_grouping, sent.message_id, 'dial', data)
+    update_phone_tracker(phone_for_grouping, sent.message_id, 'dial', data, chat_id)
 
     # ───────── Шаг 8. Сохраняем в БД ─────────
     await save_telegram_message(

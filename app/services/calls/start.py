@@ -11,6 +11,7 @@ from .utils import (
     update_call_pair_message,
     update_hangup_message_map,
     bridge_store,
+    bridge_store_by_chat,
     # Новые функции для группировки событий
     get_phone_for_grouping,
     should_send_as_comment,
@@ -77,7 +78,7 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
     logging.info(f"[process_start] => chat={chat_id}, text={safe_text!r}")
 
     # ───────── Шаг 4. Проверяем, нужно ли отправить как комментарий ─────────
-    should_comment, reply_to_id = should_send_as_comment(phone_for_grouping, 'start')
+    should_comment, reply_to_id = should_send_as_comment(phone_for_grouping, 'start', chat_id)
     
     # ───────── Шаг 5. Отправка в Telegram ─────────
     try:
@@ -91,7 +92,7 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
             )
         else:
             # Проверяем старую логику reply_to для совместимости
-            reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_int)
+            reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_int, chat_id)
             if reply_id and not should_comment:
                 sent = await bot.send_message(
                     chat_id,
@@ -106,12 +107,12 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
         return {"status": "error", "error": str(e)}
 
     # ───────── Шаг 6. Обновляем состояние системы ─────────
-    bridge_store[uid] = sent.message_id
-    update_call_pair_message(raw_phone, callee, sent.message_id, is_int)
-    update_hangup_message_map(raw_phone, callee, sent.message_id, is_int)
+    bridge_store_by_chat[chat_id][uid] = sent.message_id
+    update_call_pair_message(raw_phone, callee, sent.message_id, is_int, chat_id)
+    update_hangup_message_map(raw_phone, callee, sent.message_id, is_int, chat_id=chat_id)
     
     # Обновляем новый трекер для группировки
-    update_phone_tracker(phone_for_grouping, sent.message_id, 'start', data)
+    update_phone_tracker(phone_for_grouping, sent.message_id, 'start', data, chat_id)
 
     # ───────── Шаг 7. Сохраняем в БД ─────────
     await save_telegram_message(
