@@ -406,7 +406,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         logging.info(f"[process_hangup] => chat={chat_id}, text={safe_text!r}")
 
         # ───────── Шаг 6. Проверяем, нужно ли отправить как комментарий ─────────
-        should_comment, reply_to_id = should_send_as_comment(phone_for_grouping, 'hangup')
+        should_comment, reply_to_id = should_send_as_comment(phone_for_grouping, 'hangup', chat_id)
 
         # ───────── Шаг 7. Отправляем финальное сообщение ПЕРЕД удалением bridge ─────────
         logging.info(f"[process_hangup] === SENDING HANGUP MESSAGE ===")
@@ -479,11 +479,11 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 callee = ""
             is_int = False
             
-        update_call_pair_message(caller, callee, sent.message_id, is_int)
-        update_hangup_message_map(caller, callee, sent.message_id, is_int, call_status, call_type, exts)
+        update_call_pair_message(caller, callee, sent.message_id, is_int, chat_id)
+        update_hangup_message_map(caller, callee, sent.message_id, is_int, call_status, call_type, exts, chat_id=chat_id)
         
         # Обновляем новый трекер для группировки
-        update_phone_tracker(phone_for_grouping, sent.message_id, 'hangup', data)
+        update_phone_tracker(phone_for_grouping, sent.message_id, 'hangup', data, chat_id)
 
         # ───────── Шаг 10. Сохраняем в БД ─────────
         await save_telegram_message(

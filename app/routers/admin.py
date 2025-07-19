@@ -596,7 +596,10 @@ async def send_admin_message(tg_id: int, request: Request, message: str = Form(.
         raise HTTPException(status_code=500, detail="Не удалось определить токен бота для пользователя")
 
     try:
-        await send_message_to_bot(bot_token, tg_id, message)
+        success, error = await send_message_to_bot(bot_token, str(tg_id), message)
+        if not success:
+            logger.error(f"Не удалось отправить сообщение {tg_id}: {error}")
+            raise HTTPException(status_code=500, detail=f"Не удалось отправить сообщение: {error}")
     except Exception as e:
         logger.exception(f"Не удалось отправить сообщение {tg_id}: {e}")
         raise HTTPException(status_code=500, detail="Не удалось отправить сообщение")

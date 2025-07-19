@@ -356,10 +356,43 @@ async def send_message_api(number: str, request: Request):
         raise HTTPException(status_code=400, detail="Сообщение не может быть пустым.")
     
     ent = await get_enterprise_by_number(number)
-    if not ent or not ent.get("bot_token") or not ent.get("chat_id"):
-        raise HTTPException(status_code=404, detail="Предприятие или его токен/chat_id не найдены.")
+    if not ent or not ent.get("bot_token"):
+        raise HTTPException(status_code=404, detail="Предприятие или его токен не найдены.")
 
-    success, error = await send_message_to_bot(ent["bot_token"], ent["chat_id"], message)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to send message")
-    return JSONResponse({"detail": "Message sent"})
+    bot_token = ent["bot_token"]
+    
+    # Получаем всех подписчиков для этого бота из telegram_users
+    pool = await db_services.get_pool()
+    if not pool:
+        raise HTTPException(status_code=500, detail="Database connection error")
+    
+    async with pool.acquire() as conn:
+        user_rows = await conn.fetch(
+            "SELECT tg_id FROM telegram_users WHERE bot_token = $1",
+            bot_token
+        )
+    
+    if not user_rows:
+        raise HTTPException(status_code=404, detail="Нет подписчиков для этого бота")
+    
+    # Отправляем сообщение всем подписчикам
+    success_count = 0
+    error_count = 0
+    errors = []
+    
+    for row in user_rows:
+        chat_id = int(row["tg_id"])
+        success, error = await send_message_to_bot(bot_token, str(chat_id), message)
+        if success:
+            success_count += 1
+        else:
+            error_count += 1
+            errors.append(f"Chat {chat_id}: {error}")
+    
+    if success_count > 0:
+        result = {"detail": f"Message sent to {success_count} recipients"}
+        if error_count > 0:
+            result["warnings"] = f"{error_count} failed: {'; '.join(errors)}"
+        return JSONResponse(result)
+    else:
+        raise HTTPException(status_code=500, detail=f"Failed to send to all recipients: {'; '.join(errors)}")

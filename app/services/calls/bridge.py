@@ -12,6 +12,7 @@ from app.services.postgres import get_pool
 from .utils import (
     format_phone_number,
     bridge_store,
+    bridge_store_by_chat,
     
     # Новые функции для группировки событий
     get_phone_for_grouping,
@@ -304,7 +305,7 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     messages_to_delete = []
     
     # Проверяем, есть ли уже bridge для этого номера телефона
-    should_replace, msg_to_delete = should_replace_previous_message(phone_for_grouping, 'bridge')
+    should_replace, msg_to_delete = should_replace_previous_message(phone_for_grouping, 'bridge', chat_id)
     if should_replace and msg_to_delete:
         messages_to_delete.append(msg_to_delete)
         logging.info(f"[send_bridge_to_single_chat] Found previous message {msg_to_delete} to delete for phone {phone_for_grouping}")
@@ -385,7 +386,13 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     
     try:
         # Проверяем нужно ли отправлять как комментарий
-        should_comment, reply_to_msg_id = should_send_as_comment(phone_for_grouping, 'bridge')
+        should_comment, reply_to_msg_id = should_send_as_comment(phone_for_grouping, 'bridge', chat_id)
+        
+        # Если предыдущие сообщения были удалены, НЕ отправляем как комментарий
+        if messages_to_delete and reply_to_msg_id in messages_to_delete:
+            should_comment = False
+            reply_to_msg_id = None
+            logging.info(f"[send_bridge_to_single_chat] Previous message was deleted, sending as standalone message")
         
         if should_comment and reply_to_msg_id:
             # Отправляем как комментарий к предыдущему сообщению
@@ -404,10 +411,10 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
         logging.info(f"[send_bridge_to_single_chat] Sent bridge message {message_id}")
         
         # Сохраняем в трекер для последующих комментариев
-        update_phone_tracker(phone_for_grouping, message_id, 'bridge', data)
+        update_phone_tracker(phone_for_grouping, message_id, 'bridge', data, chat_id)
         
         # Сохраняем в bridge_store
-        bridge_store[uid] = message_id
+        bridge_store_by_chat[chat_id][uid] = message_id
         
         # Сохраняем в базу
         token = data.get("Token", "")
