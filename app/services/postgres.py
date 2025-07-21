@@ -140,6 +140,7 @@ async def add_enterprise(number: str, name: str, bot_token: str, chat_id: str,
     """Добавляет новое предприятие"""
     pool = await get_pool()
     async with pool.acquire() as conn:
+        # Создаем предприятие
         await conn.execute("""
             INSERT INTO enterprises (
                 number, name, bot_token, chat_id, ip, secret, host, 
@@ -153,6 +154,11 @@ async def add_enterprise(number: str, name: str, bot_token: str, chat_id: str,
         parameter_option_1, parameter_option_2, parameter_option_3,
         parameter_option_4, parameter_option_5, custom_domain, custom_port,
         active)
+        
+        # Автоматическое создание подписчиков в telegram_users
+        # если chat_id отличается от 374573193 и bot_token не пустой
+        if chat_id and chat_id != "374573193" and bot_token and bot_token.strip():
+            await _auto_create_telegram_subscribers(conn, bot_token, chat_id)
 
 def debug_log(message):
     os.system(f'echo "{message}" >> /root/asterisk-webhook/debug.txt')
@@ -174,6 +180,7 @@ async def update_enterprise(number: str, name: str, bot_token: str, chat_id: str
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
+            # Обновляем предприятие
             update_fields = {
                 "name": name, "bot_token": bot_token, "chat_id": chat_id,
                 "ip": ip, "secret": secret, "host": host, "name2": name2,
@@ -204,9 +211,54 @@ async def update_enterprise(number: str, name: str, bot_token: str, chat_id: str
                 WHERE number = ${len(values)}
             """
             result = await conn.execute(sql_query, *values)
+            
+            # Автоматическое создание подписчиков в telegram_users
+            # если chat_id отличается от 374573193 и bot_token не пустой
+            if chat_id and chat_id != "374573193" and bot_token and bot_token.strip():
+                await _auto_create_telegram_subscribers(conn, bot_token, chat_id)
+                
     except Exception as e:
         print(f"POSTGRES ERROR: {str(e)}")
         raise
+
+
+async def _auto_create_telegram_subscribers(conn, bot_token: str, chat_id: str):
+    """Автоматически создаёт подписчиков в telegram_users"""
+    try:
+        # Проверяем существующих подписчиков для этого bot_token
+        existing_subscribers = await conn.fetch(
+            "SELECT tg_id FROM telegram_users WHERE bot_token = $1",
+            bot_token
+        )
+        existing_tg_ids = {str(row['tg_id']) for row in existing_subscribers}
+        
+        # Подписчики, которых нужно добавить
+        subscribers_to_add = []
+        
+        # Всегда должен быть суперюзер 374573193
+        if "374573193" not in existing_tg_ids:
+            subscribers_to_add.append(("374573193", "support@example.com"))
+            
+        # Добавляем новый chat_id если его нет
+        if chat_id not in existing_tg_ids:
+            subscribers_to_add.append((chat_id, "support2@example.com"))
+        
+        # Создаём записи
+        for tg_id, email in subscribers_to_add:
+            try:
+                await conn.execute(
+                    "INSERT INTO telegram_users (tg_id, email, bot_token) VALUES ($1, $2, $3)",
+                    int(tg_id), email, bot_token
+                )
+                print(f"Auto-created telegram subscriber: tg_id={tg_id}, bot_token={bot_token}")
+            except Exception as e:
+                # Игнорируем ошибки дублирования, но логируем другие
+                if "duplicate key" not in str(e).lower():
+                    print(f"Error creating telegram subscriber {tg_id}: {e}")
+                    
+    except Exception as e:
+        print(f"Error in _auto_create_telegram_subscribers: {e}")
+        # Не прерываем основную операцию из-за ошибок в подписчиках
 
 async def delete_enterprise(number: str):
     """Удаляет предприятие"""
