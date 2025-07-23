@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 import logging
 import os
 import asyncio
+import psycopg2
 
 # Импорт нашего S3 клиента
 try:
@@ -70,6 +71,41 @@ class UploadRequest(BaseModel):
 
 # Глобальный S3 клиент
 s3_client = None
+
+def get_enterprise_name2(enterprise_number: str) -> str:
+    """
+    Получает name2 предприятия из базы данных
+    
+    Args:
+        enterprise_number: Номер предприятия
+        
+    Returns:
+        str: name2 предприятия или enterprise_number если не найден
+    """
+    try:
+        conn = psycopg2.connect(
+            host="localhost",
+            database="postgres",
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT name2 FROM enterprises WHERE number = %s", (enterprise_number,))
+            result = cursor.fetchone()
+            
+            if result and result[0]:
+                return result[0]
+            else:
+                logger.warning(f"Предприятие {enterprise_number} не найдено в БД или name2 пустой")
+                return enterprise_number
+                
+    except Exception as e:
+        logger.error(f"Ошибка получения name2 для предприятия {enterprise_number}: {e}")
+        return enterprise_number
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 @app.on_event("startup")
 async def startup_event():
@@ -247,11 +283,28 @@ async def get_download_link(
         raise HTTPException(status_code=503, detail="S3 интеграция недоступна")
     
     try:
-        # Формируем ключ файла (нужно будет улучшить поиск по call_id)
-        # Пока используем текущую дату как приблизительный поиск
-        today = datetime.now()
-        date_path = today.strftime('%Y/%m/%d')
-        object_key = f"call-recordings/{date_path}/{enterprise_number}/{call_id}.wav"
+        # Получаем name2 предприятия
+        enterprise_name2 = get_enterprise_name2(enterprise_number)
+        
+        # Ищем файл в S3 по префиксу (поиск во всех месяцах для данного предприятия)
+        prefix = f"CallRecords/{enterprise_name2}/"
+        
+        # Поиск файла по call_id
+        response = s3_client.s3_client.list_objects_v2(
+            Bucket=s3_client.bucket_name,
+            Prefix=prefix
+        )
+        
+        object_key = None
+        if 'Contents' in response:
+            for obj in response['Contents']:
+                # Ищем файл который содержит call_id в имени
+                if call_id in obj['Key']:
+                    object_key = obj['Key']
+                    break
+        
+        if not object_key:
+            raise HTTPException(status_code=404, detail="Запись не найдена")
         
         # Генерируем временную ссылку
         download_link = s3_client.generate_download_link(object_key, expires_in)

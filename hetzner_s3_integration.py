@@ -9,6 +9,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 import logging
+import psycopg2
 
 class HetznerS3Client:
     """Клиент для работы с Hetzner Object Storage"""
@@ -55,6 +56,41 @@ class HetznerS3Client:
                 self.logger.error(f"Ошибка создания bucket: {e}")
                 return False
     
+    def _get_enterprise_name2(self, enterprise_number: str) -> str:
+        """
+        Получает name2 предприятия из базы данных
+        
+        Args:
+            enterprise_number: Номер предприятия
+            
+        Returns:
+            str: name2 предприятия или enterprise_number если не найден
+        """
+        try:
+            conn = psycopg2.connect(
+                host="localhost",
+                database="postgres",
+                user="postgres",
+                password="r/Yskqh/ZbZuvjb2b3ahfg=="
+            )
+            
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT name2 FROM enterprises WHERE number = %s", (enterprise_number,))
+                result = cursor.fetchone()
+                
+                if result and result[0]:
+                    return result[0]
+                else:
+                    logging.warning(f"Предприятие {enterprise_number} не найдено в БД или name2 пустой")
+                    return enterprise_number
+                    
+        except Exception as e:
+            logging.error(f"Ошибка получения name2 для предприятия {enterprise_number}: {e}")
+            return enterprise_number
+        finally:
+            if 'conn' in locals():
+                conn.close()
+    
     def upload_call_recording(self, 
                             enterprise_number: str,
                             call_unique_id: str, 
@@ -75,12 +111,15 @@ class HetznerS3Client:
         if call_date is None:
             call_date = datetime.now()
             
-        # Формируем структуру папок: год/месяц/день/предприятие/
-        date_path = call_date.strftime('%Y/%m/%d')
+        # Получаем name2 предприятия из БД
+        enterprise_name2 = self._get_enterprise_name2(enterprise_number)
+        
+        # Формируем структуру папок: CallRecords/name2/год/месяц/
+        date_path = call_date.strftime('%Y/%m')
         file_extension = os.path.splitext(local_file_path)[1]
         
-        # Ключ объекта (путь в bucket)
-        object_key = f"call-recordings/{date_path}/{enterprise_number}/{call_unique_id}{file_extension}"
+        # Ключ объекта (новая структура путей)
+        object_key = f"CallRecords/{enterprise_name2}/{date_path}/{call_unique_id}{file_extension}"
         
         try:
             # Загружаем файл
@@ -147,13 +186,27 @@ class HetznerS3Client:
         """
         recordings = []
         
-        # Формируем префикс для поиска
+        # Получаем name2 предприятия из БД
+        enterprise_name2 = self._get_enterprise_name2(enterprise_number)
+        
+        # Формируем список месяцев для поиска
         current_date = date_from.date()
         end_date = date_to.date()
         
-        while current_date <= end_date:
-            date_prefix = current_date.strftime('%Y/%m/%d')
-            prefix = f"call-recordings/{date_prefix}/{enterprise_number}/"
+        # Уникальные месяцы в диапазоне дат
+        months_to_search = set()
+        temp_date = current_date
+        while temp_date <= end_date:
+            months_to_search.add(temp_date.strftime('%Y/%m'))
+            # Переходим к следующему месяцу
+            if temp_date.month == 12:
+                temp_date = temp_date.replace(year=temp_date.year + 1, month=1)
+            else:
+                temp_date = temp_date.replace(month=temp_date.month + 1)
+        
+        # Ищем записи в каждом месяце
+        for month_prefix in months_to_search:
+            prefix = f"CallRecords/{enterprise_name2}/{month_prefix}/"
             
             try:
                 response = self.s3_client.list_objects_v2(
@@ -163,24 +216,31 @@ class HetznerS3Client:
                 
                 if 'Contents' in response:
                     for obj in response['Contents']:
-                        # Получаем метаданные
-                        metadata_response = self.s3_client.head_object(
-                            Bucket=self.bucket_name,
-                            Key=obj['Key']
-                        )
-                        
-                        recordings.append({
-                            'key': obj['Key'],
-                            'size': obj['Size'],
-                            'last_modified': obj['LastModified'],
-                            'metadata': metadata_response.get('Metadata', {}),
-                            'download_url': f"https://{self.bucket_name}.{self.region}.your-objectstorage.com/{obj['Key']}"
-                        })
+                        # Фильтруем по дате изменения файла
+                        file_date = obj['LastModified'].date()
+                        if date_from.date() <= file_date <= date_to.date():
+                            
+                            # Получаем метаданные
+                            try:
+                                metadata_response = self.s3_client.head_object(
+                                    Bucket=self.bucket_name,
+                                    Key=obj['Key']
+                                )
+                                metadata = metadata_response.get('Metadata', {})
+                            except Exception as e:
+                                logging.warning(f"Не удалось получить метаданные для {obj['Key']}: {e}")
+                                metadata = {}
+                            
+                            recordings.append({
+                                'key': obj['Key'],
+                                'size': obj['Size'],
+                                'last_modified': obj['LastModified'],
+                                'metadata': metadata,
+                                'download_url': f"https://{self.bucket_name}.{self.region}.your-objectstorage.com/{obj['Key']}"
+                            })
                         
             except Exception as e:
-                self.logger.error(f"Ошибка поиска записей для {date_prefix}: {e}")
-                
-            current_date += timedelta(days=1)
+                self.logger.error(f"Ошибка поиска записей для {month_prefix}: {e}")
             
         return recordings
     
