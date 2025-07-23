@@ -11,6 +11,22 @@ venv/
 *.log
 log_action.txt
 debug.txt
+logs/
+# Service logs  
+*_service.log
+uvicorn*.log
+asterisk_events.log
+bots.log
+client_bots.log
+bot.log
+app.log
+plan.log
+keystroke.log
+
+# Temp files
+*.tmp
+cookies.txt
+headers.txt
 
 # SQLite DB
 *.db
