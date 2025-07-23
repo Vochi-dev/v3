@@ -1380,9 +1380,11 @@ async def get_reboot_events_today(request: Request):
                 WHERE 
                     DATE(change_time) = CURRENT_DATE
                     AND (
-                        (action_type = 'goip_reboot_initiated')
+                        (action_type = 'goip_reboot' AND action_result = 'success')
                         OR 
-                        (action_type != 'goip_reboot_initiated' AND new_status = 'on')
+                        (action_type = 'ewelink_toggle_on' AND new_status = 'on' AND action_result = 'success')
+                        OR
+                        (action_type IS NULL AND new_status = 'on')
                     )
                 GROUP BY enterprise_number
             """
