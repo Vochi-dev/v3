@@ -6,7 +6,7 @@
 import sys
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Добавляем текущую папку в путь
 sys.path.insert(0, os.path.abspath('.'))
@@ -98,7 +98,6 @@ def test_s3_connection():
     print("\n6️⃣  Тест генерации временных ссылок...")
     try:
         # Находим первый файл для теста
-        from datetime import datetime, timedelta
         recordings = s3_client.find_recordings(
             enterprise_number="TEST",
             date_from=datetime.now() - timedelta(days=1),

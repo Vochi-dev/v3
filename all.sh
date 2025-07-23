@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Список всех сервисов в порядке зависимости
-SERVICES=("admin" "dial" "111" "plan" "sms" "download" "goip" "desk")
+SERVICES=("admin" "dial" "111" "plan" "sms" "download" "goip" "desk" "call")
 
 case "${1:-restart}" in
   start)
@@ -276,6 +276,7 @@ case "${1:-restart}" in
     echo "  download: 8007"
     echo "  reboot: 8009"
     echo "  ewelink: 8010"
+    echo "  call: 8012"
     exit 1
     ;;
 esac 
