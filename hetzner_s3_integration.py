@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 import logging
 import psycopg2
+import tempfile
+from pydub import AudioSegment
 
 class HetznerS3Client:
     """Клиент для работы с Hetzner Object Storage"""
@@ -91,6 +93,48 @@ class HetznerS3Client:
             if 'conn' in locals():
                 conn.close()
     
+    def _convert_wav_to_mp3(self, wav_file_path: str, quality: str = "192k") -> str:
+        """
+        Конвертирует WAV файл в MP3
+        
+        Args:
+            wav_file_path: Путь к WAV файлу
+            quality: Качество MP3 (битрейт), например "128k", "192k", "320k"
+            
+        Returns:
+            str: Путь к созданному MP3 файлу
+        """
+        try:
+            # Загружаем WAV файл
+            audio = AudioSegment.from_wav(wav_file_path)
+            
+            # Создаем временный MP3 файл
+            temp_mp3 = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+            temp_mp3_path = temp_mp3.name
+            temp_mp3.close()
+            
+            # Конвертируем в MP3 с указанным качеством
+            audio.export(
+                temp_mp3_path, 
+                format="mp3",
+                bitrate=quality,
+                parameters=["-q:a", "2"]  # Хорошее качество кодирования
+            )
+            
+            # Получаем размеры файлов для сравнения
+            original_size = os.path.getsize(wav_file_path)
+            converted_size = os.path.getsize(temp_mp3_path)
+            compression_ratio = round((1 - converted_size / original_size) * 100, 1)
+            
+            logging.info(f"Конвертация WAV→MP3: {original_size} → {converted_size} байт (сжатие {compression_ratio}%)")
+            
+            return temp_mp3_path
+            
+        except Exception as e:
+            logging.error(f"Ошибка конвертации {wav_file_path} в MP3: {e}")
+            # Если конвертация не удалась, возвращаем оригинальный файл
+            return wav_file_path
+    
     def upload_call_recording(self, 
                             enterprise_number: str,
                             call_unique_id: str, 
@@ -116,15 +160,38 @@ class HetznerS3Client:
         
         # Формируем структуру папок: CallRecords/name2/год/месяц/
         date_path = call_date.strftime('%Y/%m')
-        file_extension = os.path.splitext(local_file_path)[1]
         
-        # Ключ объекта (новая структура путей)
-        object_key = f"CallRecords/{enterprise_name2}/{date_path}/{call_unique_id}{file_extension}"
+        # Определяем нужна ли конвертация
+        file_extension = os.path.splitext(local_file_path)[1].lower()
+        file_to_upload = local_file_path
+        temp_files_to_cleanup = []
+        
+        # Если файл WAV, конвертируем в MP3
+        if file_extension == '.wav':
+            logging.info(f"Конвертируем WAV файл в MP3: {local_file_path}")
+            mp3_file_path = self._convert_wav_to_mp3(local_file_path)
+            
+            if mp3_file_path != local_file_path:  # Конвертация успешна
+                file_to_upload = mp3_file_path
+                file_extension = '.mp3'
+                temp_files_to_cleanup.append(mp3_file_path)
+                logging.info(f"Конвертация завершена: {mp3_file_path}")
+            else:
+                logging.warning(f"Конвертация не удалась, загружаем оригинальный WAV файл")
+        
+        # Ключ объекта (новая структура путей) - всегда с расширением .mp3 для аудио
+        if file_extension in ['.wav', '.mp3']:
+            object_key = f"CallRecords/{enterprise_name2}/{date_path}/{call_unique_id}.mp3"
+        else:
+            object_key = f"CallRecords/{enterprise_name2}/{date_path}/{call_unique_id}{file_extension}"
         
         try:
-            # Загружаем файл
+            # Определяем Content-Type по расширению файла
+            content_type = 'audio/mpeg' if file_extension == '.mp3' else 'audio/wav'
+            
+            # Загружаем файл (может быть конвертированный MP3)
             self.s3_client.upload_file(
-                local_file_path, 
+                file_to_upload, 
                 self.bucket_name, 
                 object_key,
                 ExtraArgs={
@@ -132,20 +199,32 @@ class HetznerS3Client:
                         'enterprise-number': enterprise_number,
                         'call-unique-id': call_unique_id,
                         'upload-timestamp': datetime.utcnow().isoformat(),
-                        'call-date': call_date.isoformat()
+                        'call-date': call_date.isoformat(),
+                        'original-format': os.path.splitext(local_file_path)[1].lower(),
+                        'converted-to-mp3': 'true' if file_to_upload != local_file_path else 'false'
                     },
-                    'ContentType': 'audio/wav'  # или определять автоматически
+                    'ContentType': content_type
                 }
             )
             
             # Возвращаем URL файла
             file_url = f"https://{self.bucket_name}.{self.region}.your-objectstorage.com/{object_key}"
-            self.logger.info(f"Файл загружен: {file_url}")
+            logging.info(f"Файл загружен: {file_url}")
             return file_url
             
         except Exception as e:
-            self.logger.error(f"Ошибка загрузки файла {local_file_path}: {e}")
+            logging.error(f"Ошибка загрузки файла {file_to_upload}: {e}")
             return None
+            
+        finally:
+            # Очищаем временные файлы
+            for temp_file in temp_files_to_cleanup:
+                try:
+                    if os.path.exists(temp_file):
+                        os.unlink(temp_file)
+                        logging.debug(f"Удален временный файл: {temp_file}")
+                except Exception as e:
+                    logging.warning(f"Не удалось удалить временный файл {temp_file}: {e}")
     
     def generate_download_link(self, object_key: str, expires_in: int = 3600) -> Optional[str]:
         """

@@ -298,10 +298,13 @@ async def get_download_link(
         object_key = None
         if 'Contents' in response:
             for obj in response['Contents']:
-                # Ищем файл который содержит call_id в имени
-                if call_id in obj['Key']:
+                # Ищем файл который содержит call_id в имени и имеет расширение .mp3
+                if call_id in obj['Key'] and obj['Key'].endswith('.mp3'):
                     object_key = obj['Key']
                     break
+                # Fallback: ищем WAV файлы для обратной совместимости
+                elif call_id in obj['Key'] and obj['Key'].endswith('.wav'):
+                    object_key = obj['Key']
         
         if not object_key:
             raise HTTPException(status_code=404, detail="Запись не найдена")
