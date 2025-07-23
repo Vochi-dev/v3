@@ -12,6 +12,7 @@ import logging
 import psycopg2
 import tempfile
 from pydub import AudioSegment
+import uuid
 
 class HetznerS3Client:
     """Клиент для работы с Hetzner Object Storage"""
@@ -135,31 +136,82 @@ class HetznerS3Client:
             # Если конвертация не удалась, возвращаем оригинальный файл
             return wav_file_path
     
+    def generate_file_path(self, enterprise_number: str, call_unique_id: str, call_date: datetime) -> tuple[str, str]:
+        """
+        Генерирует путь файла в старой структуре + UUID токен для безопасной ссылки
+        
+        Args:
+            enterprise_number: Номер предприятия (например, "0387")
+            call_unique_id: Уникальный ID звонка (например, "123456.0254")
+            call_date: Дата звонка
+            
+        Returns:
+            Кортеж (object_key, uuid_token) - путь в S3 и UUID токен
+        """
+        # Получаем name2 предприятия из БД
+        enterprise_name2 = self._get_enterprise_name2(enterprise_number)
+        
+        # Формируем структуру папок как в старом проекте: CallRecords/name2/год/месяц/
+        date_path = call_date.strftime('%Y/%m')
+        
+        # Оригинальное имя файла с расширением .mp3 (заменяем .wav если есть)
+        original_filename = call_unique_id
+        if original_filename.endswith('.wav'):
+            original_filename = original_filename[:-4]  # убираем .wav
+        filename = f"{original_filename}.mp3"
+        
+        # Путь в старой структуре
+        object_key = f"CallRecords/{enterprise_name2}/{date_path}/{filename}"
+        
+        # UUID токен для безопасной ссылки
+        uuid_token = str(uuid.uuid4())
+        
+        logging.info(f"Сгенерирован путь: {object_key}")
+        logging.info(f"UUID токен: {uuid_token}")
+        
+        return object_key, uuid_token
+    
+    def get_audio_duration(self, file_path: str) -> Optional[int]:
+        """
+        Получает длительность аудиофайла в секундах
+        
+        Args:
+            file_path: Путь к аудиофайлу
+            
+        Returns:
+            Длительность в секундах или None при ошибке
+        """
+        try:
+            audio = AudioSegment.from_file(file_path)
+            duration_seconds = int(len(audio) / 1000)  # Переводим из миллисекунд в секунды
+            logging.info(f"Длительность файла {file_path}: {duration_seconds} секунд")
+            return duration_seconds
+        except Exception as e:
+            logging.error(f"Ошибка получения длительности файла {file_path}: {e}")
+            return None
+    
     def upload_call_recording(self, 
                             enterprise_number: str,
                             call_unique_id: str, 
                             local_file_path: str,
-                            call_date: Optional[datetime] = None) -> Optional[str]:
+                            call_date: Optional[datetime] = None) -> Optional[tuple[str, str, str, int]]:
         """
         Загружает запись разговора в Object Storage
         
         Args:
             enterprise_number: Номер предприятия (например, "0387")
-            call_unique_id: Уникальный ID звонка
+            call_unique_id: Уникальный ID звонка (например, "123456.0254")
             local_file_path: Путь к локальному файлу
             call_date: Дата звонка (по умолчанию - текущая)
             
         Returns:
-            URL загруженного файла или None при ошибке
+            Кортеж (file_url, object_key, uuid_token, recording_duration) или None при ошибке
         """
         if call_date is None:
             call_date = datetime.now()
             
-        # Получаем name2 предприятия из БД
-        enterprise_name2 = self._get_enterprise_name2(enterprise_number)
-        
-        # Формируем структуру папок: CallRecords/name2/год/месяц/
-        date_path = call_date.strftime('%Y/%m')
+        # Генерируем путь в старой структуре + UUID токен
+        object_key, uuid_token = self.generate_file_path(enterprise_number, call_unique_id, call_date)
         
         # Определяем нужна ли конвертация
         file_extension = os.path.splitext(local_file_path)[1].lower()
@@ -179,11 +231,11 @@ class HetznerS3Client:
             else:
                 logging.warning(f"Конвертация не удалась, загружаем оригинальный WAV файл")
         
-        # Ключ объекта (новая структура путей) - всегда с расширением .mp3 для аудио
-        if file_extension in ['.wav', '.mp3']:
-            object_key = f"CallRecords/{enterprise_name2}/{date_path}/{call_unique_id}.mp3"
-        else:
-            object_key = f"CallRecords/{enterprise_name2}/{date_path}/{call_unique_id}{file_extension}"
+        # Получаем длительность готового файла для загрузки
+        recording_duration = self.get_audio_duration(file_to_upload)
+        if recording_duration is None:
+            logging.warning(f"Не удалось получить длительность файла: {file_to_upload}")
+            recording_duration = 0  # Устанавливаем по умолчанию
         
         try:
             # Определяем Content-Type по расширению файла
@@ -207,10 +259,10 @@ class HetznerS3Client:
                 }
             )
             
-            # Возвращаем URL файла
+            # Возвращаем URL файла, object_key, UUID токен и длительность записи
             file_url = f"https://{self.bucket_name}.{self.region}.your-objectstorage.com/{object_key}"
-            logging.info(f"Файл загружен: {file_url}")
-            return file_url
+            logging.info(f"Файл загружен: {file_url} (длительность: {recording_duration}с)")
+            return file_url, object_key, uuid_token, recording_duration
             
         except Exception as e:
             logging.error(f"Ошибка загрузки файла {file_to_upload}: {e}")

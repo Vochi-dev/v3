@@ -30,6 +30,22 @@ except ImportError as e:
     logging.warning(f"S3 интеграция недоступна: {e}")
     S3_AVAILABLE = False
 
+# Импорт функций для работы с БД
+try:
+    import sys
+    sys.path.append('app')
+    from app.services.postgres import (
+        update_call_recording_info, 
+        get_call_recording_info,
+        get_call_recording_by_token, 
+        search_calls_with_recordings,
+        init_pool
+    )
+    DB_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"PostgreSQL интеграция недоступна: {e}")
+    DB_AVAILABLE = False
+
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -48,6 +64,18 @@ app = FastAPI(
     description="Сервис для управления записями телефонных разговоров",
     version="1.0.0"
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Инициализация при запуске сервиса"""
+    if DB_AVAILABLE:
+        try:
+            await init_pool()
+            logger.info("PostgreSQL пул соединений инициализирован")
+        except Exception as e:
+            logger.error(f"Ошибка инициализации БД: {e}")
+    else:
+        logger.warning("PostgreSQL недоступен, некоторые функции будут ограничены")
 
 # Модели данных
 class RecordingSearchRequest(BaseModel):
@@ -283,31 +311,93 @@ async def get_download_link(
         raise HTTPException(status_code=503, detail="S3 интеграция недоступна")
     
     try:
-        # Получаем name2 предприятия
-        enterprise_name2 = get_enterprise_name2(enterprise_number)
+        # Получаем информацию о записи из БД (быстрый прямой доступ)
+        if DB_AVAILABLE:
+            call_info = await get_call_recording_info(call_id)
+            
+            if not call_info or not call_info.get('s3_object_key'):
+                raise HTTPException(status_code=404, detail="Запись не найдена в БД")
+            
+            object_key = call_info['s3_object_key']
+            
+            # Проверяем что предприятие совпадает для безопасности
+            if call_info['enterprise_id'] != enterprise_number:
+                raise HTTPException(status_code=403, detail="Доступ к записи запрещен")
+                
+        else:
+            # Fallback: старая логика поиска в S3 (если БД недоступна)
+            logger.warning("БД недоступна, используем поиск в S3")
+            enterprise_name2 = get_enterprise_name2(enterprise_number)
+            prefix = f"CallRecords/{enterprise_name2}/"
+            
+            response = s3_client.s3_client.list_objects_v2(
+                Bucket=s3_client.bucket_name,
+                Prefix=prefix
+            )
+            
+            object_key = None
+            if 'Contents' in response:
+                for obj in response['Contents']:
+                    if call_id in obj['Key'] and obj['Key'].endswith('.mp3'):
+                        object_key = obj['Key']
+                        break
+                    elif call_id in obj['Key'] and obj['Key'].endswith('.wav'):
+                        object_key = obj['Key']
+            
+            if not object_key:
+                raise HTTPException(status_code=404, detail="Запись не найдена в S3")
         
-        # Ищем файл в S3 по префиксу (поиск во всех месяцах для данного предприятия)
-        prefix = f"CallRecords/{enterprise_name2}/"
+        # Генерируем временную ссылку
+        download_link = s3_client.generate_download_link(object_key, expires_in)
         
-        # Поиск файла по call_id
-        response = s3_client.s3_client.list_objects_v2(
-            Bucket=s3_client.bucket_name,
-            Prefix=prefix
-        )
+        if download_link:
+            result = {
+                "download_url": download_link,
+                "expires_in_seconds": expires_in,
+                "expires_at": (datetime.now() + timedelta(seconds=expires_in)).isoformat(),
+                "enterprise_number": enterprise_number,
+                "call_id": call_id,
+                "object_key": object_key
+            }
+            
+            # Добавляем дополнительную информацию если есть данные из БД
+            if DB_AVAILABLE and 'call_info' in locals():
+                result.update({
+                    "recording_duration": call_info.get('recording_duration'),
+                    "call_duration": call_info.get('duration'),
+                    "call_start_time": call_info.get('start_time').isoformat() if call_info.get('start_time') else None
+                })
+            
+            return result
+        else:
+            raise HTTPException(status_code=404, detail="Не удалось сгенерировать ссылку")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка генерации ссылки: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации ссылки: {str(e)}")
+
+@app.get("/recordings/download/{uuid_token}")
+async def get_download_link_by_token(
+    uuid_token: str,
+    expires_in: int = Query(3600, description="Время жизни ссылки в секундах")
+):
+    """Генерация временной ссылки для скачивания записи по UUID токену (новый безопасный метод)"""
+    if not s3_client:
+        raise HTTPException(status_code=503, detail="S3 интеграция недоступна")
+    
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="База данных недоступна")
+    
+    try:
+        # Получаем информацию о записи по UUID токену
+        call_info = await get_call_recording_by_token(uuid_token)
         
-        object_key = None
-        if 'Contents' in response:
-            for obj in response['Contents']:
-                # Ищем файл который содержит call_id в имени и имеет расширение .mp3
-                if call_id in obj['Key'] and obj['Key'].endswith('.mp3'):
-                    object_key = obj['Key']
-                    break
-                # Fallback: ищем WAV файлы для обратной совместимости
-                elif call_id in obj['Key'] and obj['Key'].endswith('.wav'):
-                    object_key = obj['Key']
-        
-        if not object_key:
+        if not call_info or not call_info.get('s3_object_key'):
             raise HTTPException(status_code=404, detail="Запись не найдена")
+        
+        object_key = call_info['s3_object_key']
         
         # Генерируем временную ссылку
         download_link = s3_client.generate_download_link(object_key, expires_in)
@@ -317,14 +407,22 @@ async def get_download_link(
                 "download_url": download_link,
                 "expires_in_seconds": expires_in,
                 "expires_at": (datetime.now() + timedelta(seconds=expires_in)).isoformat(),
-                "enterprise_number": enterprise_number,
-                "call_id": call_id
+                "uuid_token": uuid_token,
+                "call_id": call_info.get('unique_id'),
+                "enterprise_id": call_info.get('enterprise_id'),
+                "recording_duration": call_info.get('recording_duration'),
+                "call_duration": call_info.get('duration'),
+                "call_start_time": call_info.get('start_time').isoformat() if call_info.get('start_time') else None,
+                "phone_number": call_info.get('phone_number'),
+                "object_key": object_key
             }
         else:
-            raise HTTPException(status_code=404, detail="Запись не найдена")
+            raise HTTPException(status_code=404, detail="Не удалось сгенерировать ссылку")
             
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Ошибка генерации ссылки: {e}")
+        logger.error(f"Ошибка генерации ссылки по токену: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка генерации ссылки: {str(e)}")
 
 @app.post("/recordings/upload")
@@ -339,23 +437,46 @@ async def upload_recording(request: UploadRequest, background_tasks: BackgroundT
     
     try:
         # Загружаем файл в S3
-        file_url = s3_client.upload_call_recording(
+        upload_result = s3_client.upload_call_recording(
             enterprise_number=request.enterprise_number,
             call_unique_id=request.call_unique_id,
             local_file_path=request.local_file_path,
             call_date=request.call_date
         )
         
-        if file_url:
+        if upload_result:
+            file_url, object_key, uuid_token, recording_duration = upload_result
+            
+            # Формируем безопасную публичную ссылку с UUID токеном
+            public_call_url = f"/recordings/download/{uuid_token}"
+            
+            # Сохраняем информацию в БД
+            if DB_AVAILABLE:
+                db_success = await update_call_recording_info(
+                    call_unique_id=request.call_unique_id,
+                    call_url=public_call_url,
+                    s3_object_key=object_key,
+                    uuid_token=uuid_token,
+                    recording_duration=recording_duration
+                )
+                
+                if not db_success:
+                    logger.warning(f"Не удалось сохранить информацию о записи в БД для звонка {request.call_unique_id}")
+            
             # Опционально: удаляем локальный файл в фоне
             background_tasks.add_task(cleanup_local_file, request.local_file_path)
             
             return {
                 "success": True,
-                "file_url": file_url,
+                "public_url": public_call_url,  # Безопасная ссылка с UUID токеном
+                "s3_file_url": file_url,        # Прямая ссылка на S3 (для отладки)
+                "s3_object_key": object_key,
+                "uuid_token": uuid_token,
+                "recording_duration": recording_duration,
                 "enterprise_number": request.enterprise_number,
                 "call_unique_id": request.call_unique_id,
-                "upload_time": datetime.now().isoformat()
+                "upload_time": datetime.now().isoformat(),
+                "db_saved": DB_AVAILABLE
             }
         else:
             raise HTTPException(status_code=500, detail="Ошибка загрузки файла в S3")

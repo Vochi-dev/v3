@@ -658,8 +658,155 @@ async def update_gsm_line(line_id: int, line_name: Optional[str], phone_number: 
         )
         return dict(row) if row else None
 
-# Далее существующий код...
-# Например, если следующая функция это:
-# async def some_other_function():
-#    pass
-# Убедитесь, что новые функции вставлены корректно относительно других. 
+# ============== ФУНКЦИИ ДЛЯ РАБОТЫ С ЗАПИСЯМИ ЗВОНКОВ ==============
+
+async def update_call_recording_info(call_unique_id: str, call_url: str, s3_object_key: str, uuid_token: str, recording_duration: int) -> bool:
+    """
+    Обновляет информацию о записи звонка в таблице calls
+    
+    Args:
+        call_unique_id: Уникальный ID звонка
+        call_url: URL записи (будет формироваться как /recordings/download/{uuid_token})
+        s3_object_key: Ключ объекта в S3
+        uuid_token: UUID токен для безопасной ссылки
+        recording_duration: Длительность записи в секундах
+        
+    Returns:
+        True при успешном обновлении, False при ошибке
+    """
+    try:
+        async with _pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE calls 
+                SET call_url = $1, s3_object_key = $2, uuid_token = $3, recording_duration = $4
+                WHERE unique_id = $5
+                """,
+                call_url, s3_object_key, uuid_token, recording_duration, call_unique_id
+            )
+            
+            # Проверяем что обновлена хотя бы одна строка
+            rows_affected = int(result.split()[-1]) if result else 0
+            
+            if rows_affected > 0:
+                logger.info(f"Обновлена информация о записи для звонка {call_unique_id}")
+                return True
+            else:
+                logger.warning(f"Звонок {call_unique_id} не найден в БД")
+                return False
+                
+    except Exception as e:
+        logger.error(f"Ошибка обновления записи звонка {call_unique_id}: {e}")
+        return False
+
+async def get_call_recording_info(call_unique_id: str) -> Optional[Dict]:
+    """
+    Получает информацию о записи звонка по call_unique_id
+    
+    Args:
+        call_unique_id: Уникальный ID звонка
+        
+    Returns:
+        Словарь с информацией о записи или None
+    """
+    try:
+        async with _pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT unique_id, call_url, s3_object_key, uuid_token, recording_duration,
+                       enterprise_id, start_time, duration
+                FROM calls 
+                WHERE unique_id = $1
+                """,
+                call_unique_id
+            )
+            
+            return dict(row) if row else None
+            
+    except Exception as e:
+        logger.error(f"Ошибка получения информации о записи {call_unique_id}: {e}")
+        return None
+
+async def get_call_recording_by_token(uuid_token: str) -> Optional[Dict]:
+    """
+    Получает информацию о записи звонка по UUID токену
+    
+    Args:
+        uuid_token: UUID токен для поиска записи
+        
+    Returns:
+        Словарь с информацией о записи или None
+    """
+    try:
+        async with _pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT unique_id, call_url, s3_object_key, uuid_token, recording_duration,
+                       enterprise_id, start_time, duration, phone_number
+                FROM calls 
+                WHERE uuid_token = $1
+                """,
+                uuid_token
+            )
+            
+            return dict(row) if row else None
+            
+    except Exception as e:
+        logger.error(f"Ошибка получения информации о записи по токену {uuid_token}: {e}")
+        return None
+
+async def search_calls_with_recordings(enterprise_id: str = None, 
+                                     date_from: datetime = None, 
+                                     date_to: datetime = None,
+                                     limit: int = 100) -> List[Dict]:
+    """
+    Поиск звонков с записями по критериям
+    
+    Args:
+        enterprise_id: ID предприятия для фильтрации
+        date_from: Начальная дата поиска
+        date_to: Конечная дата поиска
+        limit: Максимальное количество результатов
+        
+    Returns:
+        Список звонков с записями
+    """
+    try:
+        async with _pool.acquire() as conn:
+            conditions = ["call_url IS NOT NULL"]
+            params = []
+            param_count = 0
+            
+            if enterprise_id:
+                param_count += 1
+                conditions.append(f"enterprise_id = ${param_count}")
+                params.append(enterprise_id)
+                
+            if date_from:
+                param_count += 1
+                conditions.append(f"start_time >= ${param_count}")
+                params.append(date_from)
+                
+            if date_to:
+                param_count += 1
+                conditions.append(f"start_time <= ${param_count}")
+                params.append(date_to)
+            
+            param_count += 1
+            params.append(limit)
+            
+            query = f"""
+                SELECT unique_id, call_url, s3_object_key, uuid_token, recording_duration,
+                       enterprise_id, start_time, duration, phone_number
+                FROM calls 
+                WHERE {' AND '.join(conditions)}
+                ORDER BY start_time DESC
+                LIMIT ${param_count}
+            """
+            
+            rows = await conn.fetch(query, *params)
+            return [dict(row) for row in rows]
+            
+    except Exception as e:
+        logger.error(f"Ошибка поиска звонков с записями: {e}")
+        return [] 
