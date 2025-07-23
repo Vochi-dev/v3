@@ -378,12 +378,46 @@ async def get_download_link(
         logger.error(f"Ошибка генерации ссылки: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка генерации ссылки: {str(e)}")
 
+@app.get("/recordings/file/{uuid_token}")
+async def get_recording_file(uuid_token: str):
+    """Прямой доступ к файлу записи по UUID токену (для воспроизведения в браузере)"""
+    if not s3_client:
+        raise HTTPException(status_code=503, detail="S3 интеграция недоступна")
+    
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="База данных недоступна")
+    
+    try:
+        # Получаем информацию о записи по UUID токену
+        call_info = await get_call_recording_by_token(uuid_token)
+        
+        if not call_info or not call_info.get('s3_object_key'):
+            raise HTTPException(status_code=404, detail="Запись не найдена")
+        
+        object_key = call_info['s3_object_key']
+        
+        # Генерируем временную ссылку для редиректа
+        download_link = s3_client.generate_download_link(object_key, 3600)
+        
+        if download_link:
+            # Возвращаем редирект на файл для прямого воспроизведения
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=download_link, status_code=302)
+        else:
+            raise HTTPException(status_code=404, detail="Не удалось получить доступ к файлу")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка доступа к файлу по токену: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка доступа к файлу: {str(e)}")
+
 @app.get("/recordings/download/{uuid_token}")
 async def get_download_link_by_token(
     uuid_token: str,
     expires_in: int = Query(3600, description="Время жизни ссылки в секундах")
 ):
-    """Генерация временной ссылки для скачивания записи по UUID токену (новый безопасный метод)"""
+    """Генерация временной ссылки для скачивания записи по UUID токену (API метод)"""
     if not s3_client:
         raise HTTPException(status_code=503, detail="S3 интеграция недоступна")
     
@@ -447,8 +481,8 @@ async def upload_recording(request: UploadRequest, background_tasks: BackgroundT
         if upload_result:
             file_url, object_key, uuid_token, recording_duration = upload_result
             
-            # Формируем безопасную публичную ссылку с UUID токеном
-            public_call_url = f"/recordings/download/{uuid_token}"
+            # Формируем безопасную публичную ссылку с UUID токеном (прямой доступ к файлу)
+            public_call_url = f"/recordings/file/{uuid_token}"
             
             # Сохраняем информацию в БД
             if DB_AVAILABLE:

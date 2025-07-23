@@ -171,6 +171,27 @@ class HetznerS3Client:
         
         return object_key, uuid_token
     
+    def _get_enterprise_name2(self, enterprise_number: str) -> str:
+        """
+        Получает name2 предприятия из БД или использует маппинг
+        
+        Args:
+            enterprise_number: Номер предприятия (например, "0334")
+            
+        Returns:
+            name2 предприятия для структуры папок
+        """
+        # Пока используем прямой маппинг для известных предприятий
+        enterprise_mapping = {
+            "0334": "375291111120",  # Megas
+            "0387": "375291111177",  # Другое предприятие
+            # Добавить другие предприятия по мере необходимости
+        }
+        
+        name2 = enterprise_mapping.get(enterprise_number, enterprise_number)
+        logging.info(f"Маппинг предприятия {enterprise_number} → {name2}")
+        return name2
+    
     def get_audio_duration(self, file_path: str) -> Optional[int]:
         """
         Получает длительность аудиофайла в секундах
