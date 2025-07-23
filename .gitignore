@@ -28,6 +28,16 @@ keystroke.log
 cookies.txt
 headers.txt
 
+# S3 Configuration (содержит секретные ключи)
+s3_config.py
+.env
+*.key
+*.secret
+
+# S3 test files  
+test_s3_temp*
+*_s3_test_temp*
+
 # SQLite DB
 *.db
 

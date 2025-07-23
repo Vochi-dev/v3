@@ -4,3 +4,4 @@ httpx
 aiogram==2.25.2
 asyncpg==0.29.0  # Асинхронный драйвер PostgreSQL
 psycopg2-binary==2.9.9  # Для работы с PostgreSQL через SQLAlchemy
+boto3==1.34.144  # AWS SDK для работы с S3-совместимыми хранилищами (Hetzner Object Storage)
