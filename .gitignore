@@ -9,6 +9,8 @@ venv/
 
 # Logs
 *.log
+log_action.txt
+debug.txt
 
 # SQLite DB
 *.db
