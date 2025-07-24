@@ -44,7 +44,7 @@
 Port: 5432
 Database: postgres
 Username: postgres
-Password: r/Yskqh/ZbZuvjb2b3ahfg==
+Password: r/Yskqh/ZbZuvjb2b3ahfg== 
 
 # Учетные данные для подключения к Hetzner Object Storage (S3)
 Endpoint: fsn1.your-objectstorage.com
