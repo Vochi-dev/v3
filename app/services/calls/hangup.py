@@ -55,9 +55,32 @@ async def create_call_record(unique_id: str, token: str, data: dict):
             end_time_str = data.get('EndTime', '')
             call_status = str(data.get('CallStatus', '0'))
             call_type = str(data.get('CallType', '0'))
+            trunk = data.get('Trunk', '')  # Добавлено поле trunk
             
-            # Рассчитываем duration
+            # 🔍 ПОЛУЧАЕМ TRUNK ИЗ ПРЕДЫДУЩИХ СОБЫТИЙ (dial/start)
+            if not trunk:
+                try:
+                    trunk_query = """
+                        SELECT raw_data->'Trunk' as trunk_data
+                        FROM call_events 
+                        WHERE unique_id = $1 
+                          AND event_type IN ('dial', 'start')
+                          AND raw_data ? 'Trunk'
+                        ORDER BY event_timestamp DESC
+                        LIMIT 1
+                    """
+                    trunk_result = await connection.fetchrow(trunk_query, unique_id)
+                    if trunk_result and trunk_result['trunk_data']:
+                        trunk = str(trunk_result['trunk_data']).strip('"')
+                        logging.info(f"Получили trunk '{trunk}' из события для {unique_id}")
+                except Exception as e:
+                    logging.error(f"Ошибка получения trunk для {unique_id}: {e}")
+            
+            # Парсинг времени
+            start_time = None
+            end_time = None
             duration = 0
+            
             if start_time_str and end_time_str:
                 try:
                     start_time = datetime.fromisoformat(start_time_str)
@@ -66,20 +89,28 @@ async def create_call_record(unique_id: str, token: str, data: dict):
                 except:
                     pass
             
-            # Создаем запись в calls
+            # Создаем запись в calls с ПОЛНЫМИ данными
             insert_query = """
                 INSERT INTO calls (
                     unique_id, token, enterprise_id, phone_number, 
-                    call_status, call_type, duration, data_source, created_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                ON CONFLICT (unique_id) DO NOTHING
+                    call_status, call_type, duration, data_source, created_at,
+                    start_time, end_time, trunk, raw_data
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                ON CONFLICT (unique_id) DO UPDATE SET
+                    start_time = COALESCE(EXCLUDED.start_time, calls.start_time),
+                    end_time = COALESCE(EXCLUDED.end_time, calls.end_time),
+                    trunk = COALESCE(EXCLUDED.trunk, calls.trunk),
+                    call_status = EXCLUDED.call_status,
+                    duration = EXCLUDED.duration,
+                    raw_data = COALESCE(EXCLUDED.raw_data, calls.raw_data)
                 RETURNING id
             """
             
             result = await connection.fetchrow(
                 insert_query,
                 unique_id, hashed_token, enterprise_id, phone_number,
-                call_status, call_type, duration, 'live', datetime.now()
+                call_status, call_type, duration, 'live', datetime.now(),
+                start_time, end_time, trunk, json.dumps(data)
             )
             
             if result:

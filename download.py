@@ -438,7 +438,7 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                 
                                 # Парсим и вставляем
                                 call_data = parse_call_data(event, ent_id)
-                                call_data['data_source'] = 'live'  # Помечаем как live данные
+                                call_data['data_source'] = 'recovery'  # Помечаем как восстановленные данные
                                 
                                 call_id = insert_call_to_db(cursor, call_data)
                                 if call_id:
@@ -782,16 +782,16 @@ async def get_live_sync_status():
 
 @app.get("/sync/live/today")
 async def get_live_events_today():
-    """Получить количество live событий за текущий день по предприятиям"""
+    """Получить количество неуспешных событий (восстановленных из AlternativeAPIlogs) за текущий день по предприятиям"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Получаем live события за сегодня по предприятиям
+        # Получаем неуспешные события (восстановленные из AlternativeAPIlogs) за сегодня по предприятиям
         cursor.execute("""
             SELECT enterprise_id, COUNT(*) as count
             FROM calls 
-            WHERE data_source = 'live' 
+            WHERE data_source = 'recovery' 
               AND DATE(start_time) = CURRENT_DATE
             GROUP BY enterprise_id
             ORDER BY enterprise_id
@@ -815,7 +815,7 @@ async def get_live_events_today():
         conn.close()
         return {
             "date": datetime.now().strftime("%Y-%m-%d"),
-            "total_live_events_today": total_today,
+            "total_unsuccessful_events_today": total_today,
             "by_enterprise": today_stats
         }
         

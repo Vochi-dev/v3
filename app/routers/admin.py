@@ -1214,7 +1214,7 @@ async def get_live_events_today(request: Request):
                     logger.error(f"Ошибка получения статистики из download service: {response.status}")
                     return JSONResponse({
                         "date": datetime.now().strftime("%Y-%m-%d"),
-                        "total_live_events_today": 0,
+                        "total_unsuccessful_events_today": 0,
                         "by_enterprise": {},
                         "error": "Сервис синхронизации недоступен"
                     }, status_code=500)
@@ -1223,7 +1223,7 @@ async def get_live_events_today(request: Request):
         logger.error(f"Ошибка получения статистики live событий: {e}", exc_info=True)
         return JSONResponse({
             "date": datetime.now().strftime("%Y-%m-%d"),
-            "total_live_events_today": 0,
+            "total_unsuccessful_events_today": 0,
             "by_enterprise": {},
             "error": str(e)
         }, status_code=500)
