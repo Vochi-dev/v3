@@ -11,7 +11,7 @@
 - Автоматическая выгрузка записей из локальных хранилищ
 """
 
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict
@@ -379,8 +379,21 @@ async def get_download_link(
         raise HTTPException(status_code=500, detail=f"Ошибка генерации ссылки: {str(e)}")
 
 @app.get("/recordings/file/{uuid_token}")
-async def get_recording_file(uuid_token: str):
-    """Прямой доступ к файлу записи по UUID токену (с ленивой загрузкой)"""
+async def get_recording_by_uuid(uuid_token: str, request: Request):
+    """
+    Получение записи разговора по UUID токену.
+    Если файл не на S3 - запускается ленивая загрузка.
+    """
+    logger.info(f"🎯 Запрос записи: {uuid_token}")
+    
+    # Блокируем ботов (Telegram, Twitter и другие) от автоматических запросов
+    user_agent = request.headers.get('user-agent', '').lower()
+    bot_indicators = ['bot', 'crawler', 'spider', 'telegram', 'twitter', 'facebook', 'whatsapp']
+    
+    if any(indicator in user_agent for indicator in bot_indicators):
+        logger.info(f"🚫 Блокируем бота: {user_agent}")
+        raise HTTPException(status_code=403, detail="Forbidden for bots")
+    
     if not s3_client:
         raise HTTPException(status_code=503, detail="S3 интеграция недоступна")
     

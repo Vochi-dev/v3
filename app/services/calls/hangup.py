@@ -10,6 +10,17 @@ from datetime import datetime
 from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
+
+def get_recording_link_text(call_record_info):
+    """
+    Формирует кликабельную ссылку на запись разговора для Telegram
+    """
+    if call_record_info and call_record_info.get('call_url'):
+        call_url = call_record_info['call_url']
+        return f'\n🔉<a href="{call_url}">Запись разговора</a>'
+    else:
+        # Если ссылка недоступна, показываем обычный текст
+        return f'\n🔉Запись разговора'
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
@@ -135,7 +146,8 @@ async def create_call_record(unique_id: str, token: str, data: dict):
                 """
                 await connection.execute(update_query, unique_id)
                 
-                return call_id
+                # Возвращаем call_id и call_url для использования в Telegram сообщении
+                return {"call_id": call_id, "call_url": call_url}
             else:
                 logging.debug(f"Call record for {unique_id} already exists, skipping")
                 return None
@@ -184,9 +196,10 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             logging.error(f"[process_hangup] ERROR accessing exts: {e}, exts={exts}")
             exts = []  # Обнуляем если есть проблемы
 
-        # Создаем запись в таблице calls
+        # Создаем запись в таблице calls и получаем ссылку на запись
+        call_record_info = None
         if uid and token:
-            await create_call_record(uid, token, data)
+            call_record_info = await create_call_record(uid, token, data)
 
         # ───────── Шаг 2. Очистка состояния системы ─────────
         bridge_store.pop(uid, None)
@@ -251,7 +264,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                             logging.warning(f"[process_hangup] Error parsing StartTime '{start_time}': {e}")
                             text += f"\n⏰Начало звонка неизв"
                     text += f"\n⌛ Длительность: {duration_text}"
-                    text += f"\n🔉Запись разговора"
+                    text += get_recording_link_text(call_record_info)
             else:
                 # Неуспешный внутренний звонок
                 text = (f"❌ Коллега не поднял трубку\n"
@@ -322,7 +335,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                         text += f"\n⏰Начало звонка неизв"
                 if duration_text:
                     text += f"\n⌛ Длительность: {duration_text}"
-                    text += f"\n🔉Запись разговора"
+                    text += get_recording_link_text(call_record_info)
             else:
                 # Неуспешный входящий звонок
                 text = f"❌ Мы не подняли трубку\n💰{display}"
@@ -411,7 +424,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                         text += f"\n⏰Начало звонка {start_time_str}"
                 if duration_text:
                     text += f"\n⌛ Длительность: {duration_text}"
-                    text += f"\n🔉Запись разговора"
+                    text += get_recording_link_text(call_record_info)
             else:
                 # Неуспешный исходящий звонок
                 text = f"❌ Абонент не поднял трубку"
@@ -442,8 +455,9 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             if duration_text:
                 text += f"\n⌛ {duration_text}"
 
-        # Экранируем html-спецсимволы
-        safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
+        # НЕ экранируем html-теги т.к. используем parse_mode="HTML"
+        # и нужны кликабельные ссылки на записи
+        safe_text = text
         logging.info(f"[process_hangup] => chat={chat_id}, text={safe_text!r}")
 
         # ───────── Шаг 6. Проверяем, нужно ли отправить как комментарий ─────────
