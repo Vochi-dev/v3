@@ -8,6 +8,7 @@ import asyncio
 import json
 import subprocess
 import psycopg2
+import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -275,6 +276,10 @@ def parse_call_data(event: Dict, enterprise_id: str) -> Dict:
     extensions = data.get('Extensions', [])
     main_extension = extensions[0] if extensions else None
     
+    # 🔗 Генерируем UUID ссылку для recovery события
+    uuid_token = str(uuid.uuid4())
+    call_url = f"https://bot.vochi.by/recordings/file/{uuid_token}"
+    
     return {
         'unique_id': data.get('UniqueId'),
         'enterprise_id': enterprise_id,
@@ -288,10 +293,12 @@ def parse_call_data(event: Dict, enterprise_id: str) -> Dict:
         'extensions_count': len(extensions),
         'call_type': call_type,
         'call_status': call_status,
-        'data_source': 'downloaded',
+        'data_source': 'recovery',
         'asterisk_host': config['ip'],
         'raw_data': json.dumps(data),
-        'extensions': extensions
+        'extensions': extensions,
+        'uuid_token': uuid_token,
+        'call_url': call_url
     }
 
 def insert_call_to_db(cursor, call_data: Dict) -> Optional[int]:
@@ -300,9 +307,10 @@ def insert_call_to_db(cursor, call_data: Dict) -> Optional[int]:
     INSERT INTO calls (
         unique_id, enterprise_id, token, start_time, end_time, duration,
         phone_number, trunk, main_extension, extensions_count,
-        call_type, call_status, data_source, asterisk_host, raw_data
+        call_type, call_status, data_source, asterisk_host, raw_data,
+        uuid_token, call_url
     ) VALUES (
-        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
     ) 
     ON CONFLICT (unique_id) DO NOTHING
     RETURNING id;
@@ -323,7 +331,9 @@ def insert_call_to_db(cursor, call_data: Dict) -> Optional[int]:
         call_data['call_status'],
         call_data['data_source'],
         call_data['asterisk_host'],
-        call_data['raw_data']
+        call_data['raw_data'],
+        call_data['uuid_token'],
+        call_data['call_url']
     ))
     
     result = cursor.fetchone()
@@ -438,13 +448,13 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                 
                                 # Парсим и вставляем
                                 call_data = parse_call_data(event, ent_id)
-                                call_data['data_source'] = 'recovery'  # Помечаем как восстановленные данные
                                 
                                 call_id = insert_call_to_db(cursor, call_data)
                                 if call_id:
                                     insert_participants_to_db(cursor, call_id, call_data['extensions'], call_data)
                                     new_events += 1
-                                    logger.info(f"Добавлено новое live событие {unique_id}")
+                                    logger.info(f"✅ Создана recovery запись call_id={call_id} для {unique_id}")
+                                    logger.info(f"🔗 UUID ссылка: {call_data['call_url']}")
                                 else:
                                     logger.warning(f"Не удалось вставить событие {unique_id}")
                                 
@@ -529,6 +539,8 @@ async def sync_enterprise_data(enterprise_id: str, force_all: bool = False,
                     if call_id:
                         insert_participants_to_db(cursor, call_id, call_data['extensions'], call_data)
                         file_new_events += 1
+                        logger.info(f"✅ Создана recovery запись call_id={call_id} для {call_data['unique_id']}")
+                        logger.info(f"🔗 UUID ссылка: {call_data['call_url']}")
                     # Если call_id is None, значит запись уже существует (ON CONFLICT DO NOTHING)
                     
                 except Exception as e:

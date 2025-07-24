@@ -4,6 +4,7 @@ from telegram.error import BadRequest
 import json
 import hashlib
 import traceback
+import uuid
 from datetime import datetime
 
 from app.services.events import save_telegram_message
@@ -89,20 +90,27 @@ async def create_call_record(unique_id: str, token: str, data: dict):
                 except:
                     pass
             
-            # Создаем запись в calls с ПОЛНЫМИ данными
+            # 🔗 Генерируем UUID ссылку для записи разговора
+            uuid_token = str(uuid.uuid4())
+            call_url = f"https://bot.vochi.by/recordings/file/{uuid_token}"
+            
+            # Создаем запись в calls с ПОЛНЫМИ данными включая UUID ссылку
             insert_query = """
                 INSERT INTO calls (
                     unique_id, token, enterprise_id, phone_number, 
                     call_status, call_type, duration, data_source, created_at,
-                    start_time, end_time, trunk, raw_data
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                    start_time, end_time, trunk, raw_data,
+                    uuid_token, call_url
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
                 ON CONFLICT (unique_id) DO UPDATE SET
                     start_time = COALESCE(EXCLUDED.start_time, calls.start_time),
                     end_time = COALESCE(EXCLUDED.end_time, calls.end_time),
                     trunk = COALESCE(EXCLUDED.trunk, calls.trunk),
                     call_status = EXCLUDED.call_status,
                     duration = EXCLUDED.duration,
-                    raw_data = COALESCE(EXCLUDED.raw_data, calls.raw_data)
+                    raw_data = COALESCE(EXCLUDED.raw_data, calls.raw_data),
+                    uuid_token = COALESCE(EXCLUDED.uuid_token, calls.uuid_token),
+                    call_url = COALESCE(EXCLUDED.call_url, calls.call_url)
                 RETURNING id
             """
             
@@ -110,12 +118,14 @@ async def create_call_record(unique_id: str, token: str, data: dict):
                 insert_query,
                 unique_id, hashed_token, enterprise_id, phone_number,
                 call_status, call_type, duration, 'live', datetime.now(),
-                start_time, end_time, trunk, json.dumps(data)
+                start_time, end_time, trunk, json.dumps(data),
+                uuid_token, call_url
             )
             
             if result:
                 call_id = result['id']
-                logging.info(f"Created call record id={call_id} for {unique_id}")
+                logging.info(f"✅ Создана запись call_id={call_id} для {unique_id}")
+                logging.info(f"🔗 UUID ссылка: {call_url}")
                 
                 # Помечаем событие как обработанное
                 update_query = """

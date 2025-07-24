@@ -380,7 +380,7 @@ async def get_download_link(
 
 @app.get("/recordings/file/{uuid_token}")
 async def get_recording_file(uuid_token: str):
-    """Прямой доступ к файлу записи по UUID токену (для воспроизведения в браузере)"""
+    """Прямой доступ к файлу записи по UUID токену (с ленивой загрузкой)"""
     if not s3_client:
         raise HTTPException(status_code=503, detail="S3 интеграция недоступна")
     
@@ -391,20 +391,49 @@ async def get_recording_file(uuid_token: str):
         # Получаем информацию о записи по UUID токену
         call_info = await get_call_recording_by_token(uuid_token)
         
-        if not call_info or not call_info.get('s3_object_key'):
+        if not call_info:
             raise HTTPException(status_code=404, detail="Запись не найдена")
         
-        object_key = call_info['s3_object_key']
+        # Проверяем есть ли файл на S3
+        if call_info.get('s3_object_key'):
+            # ✅ Файл уже на S3 - отдаем его
+            object_key = call_info['s3_object_key']
+            download_link = s3_client.generate_download_link(object_key, 3600)
+            
+            if download_link:
+                logger.info(f"🎯 Возвращаем готовый файл: {uuid_token}")
+                return RedirectResponse(url=download_link, status_code=302)
+            else:
+                raise HTTPException(status_code=404, detail="Не удалось получить доступ к файлу")
         
-        # Генерируем временную ссылку для редиректа
-        download_link = s3_client.generate_download_link(object_key, 3600)
-        
-        if download_link:
-            # Возвращаем редирект на файл для прямого воспроизведения
-            from fastapi.responses import RedirectResponse
-            return RedirectResponse(url=download_link, status_code=302)
         else:
-            raise HTTPException(status_code=404, detail="Не удалось получить доступ к файлу")
+            # ❌ Файла нет на S3 - запускаем ленивую загрузку
+            logger.info(f"🚀 Запускаем ленивую загрузку для {uuid_token}")
+            
+            # Импортируем наш новый модуль
+            from recording_downloader import RecordingDownloader
+            
+            downloader = RecordingDownloader()
+            unique_id = call_info['unique_id']
+            
+            # Запускаем точечную загрузку
+            download_result = await downloader.download_single_recording(unique_id)
+            
+            if download_result['success']:
+                # Загрузка успешна - отдаем файл
+                object_key = download_result['s3_object_key']
+                download_link = s3_client.generate_download_link(object_key, 3600)
+                
+                if download_link:
+                    logger.info(f"✅ Ленивая загрузка завершена: {uuid_token}")
+                    return RedirectResponse(url=download_link, status_code=302)
+                else:
+                    raise HTTPException(status_code=500, detail="Файл загружен, но недоступен")
+            else:
+                # Ошибка загрузки
+                error_msg = download_result.get('error_message', 'Неизвестная ошибка')
+                logger.error(f"❌ Ленивая загрузка не удалась для {uuid_token}: {error_msg}")
+                raise HTTPException(status_code=404, detail=f"Не удалось загрузить файл: {error_msg}")
             
     except HTTPException:
         raise
@@ -470,50 +499,115 @@ async def upload_recording(request: UploadRequest, background_tasks: BackgroundT
         raise HTTPException(status_code=404, detail=f"Файл не найден: {request.local_file_path}")
     
     try:
-        # Загружаем файл в S3
-        upload_result = s3_client.upload_call_recording(
-            enterprise_number=request.enterprise_number,
-            call_unique_id=request.call_unique_id,
-            local_file_path=request.local_file_path,
-            call_date=request.call_date
-        )
+        # 🔄 НОВАЯ ЛОГИКА: Получаем UUID из БД вместо генерации нового
+        existing_call_info = await get_call_recording_info(request.call_unique_id)
         
-        if upload_result:
-            file_url, object_key, uuid_token, recording_duration = upload_result
+        if not existing_call_info or not existing_call_info.get('uuid_token'):
+            raise HTTPException(status_code=404, detail=f"UUID токен не найден для звонка {request.call_unique_id}. Сначала должно быть создано hangup событие.")
+        
+        existing_uuid = existing_call_info['uuid_token']
+        existing_call_url = existing_call_info['call_url']
+        
+        logger.info(f"📋 Используем существующий UUID: {existing_uuid} для {request.call_unique_id}")
+        
+        # Загружаем файл в S3 с существующим UUID
+        from recording_downloader import RecordingDownloader
+        downloader = RecordingDownloader()
+        
+        # Используем метод загрузки с существующим UUID
+        enterprise_number = request.enterprise_number
+        name2 = s3_client._get_enterprise_name2(enterprise_number)
+        
+        if not name2:
+            raise HTTPException(status_code=400, detail=f"Не найден name2 для предприятия {enterprise_number}")
+        
+        # Конвертируем файл если нужно
+        file_extension = os.path.splitext(request.local_file_path)[1].lower()
+        file_to_upload = request.local_file_path
+        temp_files_to_cleanup = []
+        
+        if file_extension == '.wav':
+            logger.info(f"Конвертируем WAV файл в MP3: {request.local_file_path}")
+            mp3_file_path = s3_client._convert_wav_to_mp3(request.local_file_path)
             
-            # Формируем безопасную публичную ссылку с UUID токеном (прямой доступ к файлу)
-            public_call_url = f"/recordings/file/{uuid_token}"
+            if mp3_file_path != request.local_file_path:
+                file_to_upload = mp3_file_path
+                file_extension = '.mp3'
+                temp_files_to_cleanup.append(mp3_file_path)
+                logger.info(f"Конвертация завершена: {mp3_file_path}")
+            else:
+                logger.warning(f"Конвертация не удалась, загружаем оригинальный WAV файл")
+        
+        # Получаем длительность
+        recording_duration = s3_client.get_audio_duration(file_to_upload)
+        if recording_duration is None:
+            recording_duration = 0
+        
+        # Формируем путь S3 с существующим UUID
+        call_date = request.call_date or datetime.now()
+        object_key = f"CallRecords/{name2}/{call_date.year}/{call_date.month:02d}/{existing_uuid}.mp3"
+        
+        try:
+            # Загружаем в S3
+            s3_client.s3_client.upload_file(
+                file_to_upload,
+                s3_client.bucket_name,
+                object_key,
+                ExtraArgs={
+                    'Metadata': {
+                        'enterprise-number': enterprise_number,
+                        'call-unique-id': request.call_unique_id,
+                        'upload-timestamp': datetime.utcnow().isoformat(),
+                        'uuid-token': existing_uuid
+                    },
+                    'ContentType': 'audio/mpeg'
+                }
+            )
+            
+            logger.info(f"✅ Файл загружен в S3: {object_key}")
             
             # Сохраняем информацию в БД
             if DB_AVAILABLE:
                 db_success = await update_call_recording_info(
                     call_unique_id=request.call_unique_id,
-                    call_url=public_call_url,
+                    call_url=existing_call_url,
                     s3_object_key=object_key,
-                    uuid_token=uuid_token,
+                    uuid_token=existing_uuid,
                     recording_duration=recording_duration
                 )
                 
                 if not db_success:
                     logger.warning(f"Не удалось сохранить информацию о записи в БД для звонка {request.call_unique_id}")
             
+            # Очистка временных файлов
+            for temp_file in temp_files_to_cleanup:
+                background_tasks.add_task(cleanup_local_file, temp_file)
+            
             # Опционально: удаляем локальный файл в фоне
             background_tasks.add_task(cleanup_local_file, request.local_file_path)
             
+            # Генерируем временную ссылку для ответа
+            file_url = s3_client.generate_download_link(object_key, 3600)
+            
             return {
                 "success": True,
-                "public_url": public_call_url,  # Безопасная ссылка с UUID токеном
-                "s3_file_url": file_url,        # Прямая ссылка на S3 (для отладки)
+                "public_url": existing_call_url,  # Безопасная ссылка с существующим UUID токеном
+                "s3_file_url": file_url,          # Прямая ссылка на S3 (для отладки)
                 "s3_object_key": object_key,
-                "uuid_token": uuid_token,
+                "uuid_token": existing_uuid,
                 "recording_duration": recording_duration,
                 "enterprise_number": request.enterprise_number,
                 "call_unique_id": request.call_unique_id,
                 "upload_time": datetime.now().isoformat(),
                 "db_saved": DB_AVAILABLE
             }
-        else:
-            raise HTTPException(status_code=500, detail="Ошибка загрузки файла в S3")
+            
+        except Exception as upload_error:
+                         # Очистка временных файлов при ошибке
+             for temp_file in temp_files_to_cleanup:
+                 if os.path.exists(temp_file):
+                     os.remove(temp_file)
+             raise HTTPException(status_code=500, detail=f"Ошибка загрузки в S3: {str(upload_error)}")
             
     except Exception as e:
         logger.error(f"Ошибка загрузки записи: {e}")
