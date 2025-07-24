@@ -257,7 +257,7 @@ def format_message_template(call_data: dict, stats: dict, line_info: dict) -> st
 ⏰Начало звонка {call_start_time}
 ⌛ Длительность: {duration}"""
 
-async def create_call_record(unique_id: str, token: str, data: dict):
+async def create_call_record(unique_id: str, token: str, data: dict, uuid_token: str = None):
     """
     Создает запись в таблице calls для hangup события
     """
@@ -363,7 +363,9 @@ async def process_hangup_v2(bot: Bot, chat_id: int, data: dict):
         return {"status": "error", "error": "Missing required fields"}
     
     # Создаем/обновляем запись в таблице calls
-    call_id = await create_call_record(uid, token, data)
+    # Используем общий UUID токен если он есть (для одинаковых ссылок во всех chat_id)
+    shared_uuid = data.get("_shared_uuid_token", None)
+    call_id = await create_call_record(uid, token, data, shared_uuid)
     
     # Получаем enterprise_id
     pool = await get_pool()

@@ -409,6 +409,13 @@ async def _dispatch_to_all(handler, body: dict):
     bot = Bot(token=bot_token)
     results = []
     
+    # 🔗 Для hangup событий генерируем общий UUID токен для всех chat_id
+    if event_type == "hangup" and unique_id:
+        import uuid
+        shared_uuid_token = str(uuid.uuid4())
+        body["_shared_uuid_token"] = shared_uuid_token
+        logger.info(f"Generated shared UUID token for hangup {unique_id}: {shared_uuid_token}")
+    
     telegram_success = False
 
     for chat_id in tg_ids:

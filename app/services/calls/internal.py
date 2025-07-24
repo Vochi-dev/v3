@@ -103,7 +103,9 @@ async def process_internal_hangup(bot: Bot, chat_id: int, data: dict):
 
     # Создаем запись в таблице calls для внутренних звонков
     if uid and token:
-        call_record_info = await create_call_record(uid, token, data)
+        # Используем общий UUID токен если он есть (для одинаковых ссылок во всех chat_id)
+        shared_uuid = data.get("_shared_uuid_token", None)
+        call_record_info = await create_call_record(uid, token, data, shared_uuid)
 
     # clean up
     bridge_store.pop(uid,None)

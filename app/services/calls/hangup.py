@@ -38,7 +38,7 @@ from .utils import (
     phone_message_tracker,
 )
 
-async def create_call_record(unique_id: str, token: str, data: dict):
+async def create_call_record(unique_id: str, token: str, data: dict, uuid_token: str = None):
     """
     Создает запись в таблице calls для hangup события
     """
@@ -101,8 +101,9 @@ async def create_call_record(unique_id: str, token: str, data: dict):
                 except:
                     pass
             
-            # 🔗 Генерируем UUID ссылку для записи разговора
-            uuid_token = str(uuid.uuid4())
+            # 🔗 Генерируем UUID ссылку для записи разговора (только если не передан)
+            if uuid_token is None:
+                uuid_token = str(uuid.uuid4())
             call_url = f"https://bot.vochi.by/recordings/file/{uuid_token}"
             
             # Создаем запись в calls с ПОЛНЫМИ данными включая UUID ссылку
@@ -199,7 +200,9 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         # Создаем запись в таблице calls и получаем ссылку на запись
         call_record_info = None
         if uid and token:
-            call_record_info = await create_call_record(uid, token, data)
+            # Используем общий UUID токен если он есть (для одинаковых ссылок во всех chat_id)
+            shared_uuid = data.get("_shared_uuid_token", None)
+            call_record_info = await create_call_record(uid, token, data, shared_uuid)
 
         # ───────── Шаг 2. Очистка состояния системы ─────────
         bridge_store.pop(uid, None)
