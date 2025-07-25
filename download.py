@@ -14,6 +14,8 @@ from typing import Dict, List, Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 import logging
+from telegram import Bot
+from telegram.error import BadRequest
 
 # Настройка логирования
 logging.basicConfig(
@@ -391,7 +393,7 @@ def update_sync_stats(cursor, enterprise_id: str, total_downloaded: int, new_eve
         total_downloaded_events = download_sync.total_downloaded_events + EXCLUDED.total_downloaded_events,
         failed_events_count = %s,
         last_successful_sync = EXCLUDED.last_successful_sync,
-        updated_at = EXCLUDED.updated_at;
+        updated_at = EXCLUDED.last_successful_sync;
     """
     
     now = datetime.now()
@@ -403,6 +405,161 @@ def update_sync_stats(cursor, enterprise_id: str, total_downloaded: int, new_eve
         now,
         failed_events
     ))
+
+def get_telegram_settings(enterprise_id: str) -> Optional[Dict[str, str]]:
+    """Получить настройки Telegram для предприятия"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT bot_token, chat_id 
+            FROM enterprises 
+            WHERE number = %s AND is_enabled = true
+        """, (enterprise_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result and result[0] and result[1]:
+            return {
+                "bot_token": result[0],
+                "chat_id": result[1]
+            }
+        else:
+            logger.warning(f"Настройки Telegram для предприятия {enterprise_id} не найдены или неполные")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Ошибка получения настроек Telegram для {enterprise_id}: {e}")
+        return None
+
+def format_phone_number(phone: str) -> str:
+    """Форматирование номера телефона для отображения"""
+    if not phone or phone == "":
+        return "Номер не определен"
+    
+    # Убираем лишние символы
+    clean_phone = ''.join(filter(str.isdigit, phone))
+    
+    if len(clean_phone) == 11 and clean_phone.startswith('8'):
+        # Российский номер в формате 8XXXXXXXXXX
+        return f"+7{clean_phone[1:]}"
+    elif len(clean_phone) == 10:
+        # Номер без кода страны
+        return f"+7{clean_phone}"
+    elif len(clean_phone) == 12 and clean_phone.startswith('375'):
+        # Белорусский номер
+        return f"+{clean_phone}"
+    elif clean_phone.startswith('7') and len(clean_phone) == 11:
+        # Номер уже с кодом +7
+        return f"+{clean_phone}"
+    else:
+        return f"+{clean_phone}" if clean_phone else "Номер не определен"
+
+def is_internal_number(number: str) -> bool:
+    """Проверка, является ли номер внутренним"""
+    if not number:
+        return False
+    clean_number = ''.join(filter(str.isdigit, number))
+    return len(clean_number) <= 4 and clean_number.isdigit()
+
+async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str):
+    """Отправка сообщения в Telegram о recovery событии"""
+    try:
+        # Получаем настройки Telegram
+        telegram_settings = get_telegram_settings(enterprise_id)
+        if not telegram_settings:
+            logger.warning(f"Не удалось получить настройки Telegram для {enterprise_id}")
+            return False
+        
+        # Создаем бота
+        bot = Bot(token=telegram_settings["bot_token"])
+        chat_id = telegram_settings["chat_id"]
+        
+        # Формируем сообщение согласно формату из hangup.py
+        phone_number = call_data.get('phone_number', '')
+        call_type = call_data.get('call_type', '')
+        call_status = call_data.get('call_status', '')
+        duration = call_data.get('duration', 0)
+        start_time = call_data.get('start_time', '')
+        main_extension = call_data.get('main_extension', '')
+        call_url = call_data.get('call_url', '')
+        
+        # Определяем тип звонка
+        is_incoming = call_type == "incoming"
+        is_answered = call_status == "answered"
+        
+        # Форматируем номер
+        formatted_phone = format_phone_number(phone_number)
+        
+        # Форматируем длительность
+        duration_text = f"{duration//60:02d}:{duration%60:02d}" if duration > 0 else "00:00"
+        
+        # Форматируем время начала
+        time_part = "неизв"
+        if start_time:
+            try:
+                if 'T' in start_time:
+                    time_part = start_time.split('T')[1][:5]
+                elif ' ' in start_time:
+                    parts = start_time.split(' ')
+                    if len(parts) >= 2:
+                        time_part = parts[1][:5]
+            except:
+                pass
+        
+        # Формируем текст сообщения
+        if is_incoming:
+            if is_answered:
+                text = f"🔄 Восстановленный входящий звонок\n💰{formatted_phone}"
+                if main_extension and is_internal_number(main_extension):
+                    text += f"\n☎️{main_extension}"
+                text += f"\n⏰Начало звонка {time_part}"
+                text += f"\n⌛ Длительность: {duration_text}"
+                if call_url:
+                    text += f'\n🔉<a href="{call_url}">Запись разговора</a>'
+            else:
+                text = f"🔄 Восстановленный пропущенный входящий\n💰{formatted_phone}"
+                if main_extension and is_internal_number(main_extension):
+                    text += f"\n☎️{main_extension}"
+                text += f"\n⏰Начало звонка {time_part}"
+                text += f"\n⌛ Дозванивался: {duration_text}"
+        else:
+            # Исходящий звонок
+            if is_answered:
+                text = f"🔄 Восстановленный исходящий звонок"
+                if main_extension and is_internal_number(main_extension):
+                    text += f"\n☎️{main_extension}"
+                text += f"\n💰{formatted_phone}"
+                text += f"\n⏰Начало звонка {time_part}"
+                text += f"\n⌛ Длительность: {duration_text}"
+                if call_url:
+                    text += f'\n🔉<a href="{call_url}">Запись разговора</a>'
+            else:
+                text = f"🔄 Восстановленный неуспешный исходящий"
+                if main_extension and is_internal_number(main_extension):
+                    text += f"\n☎️{main_extension}"
+                text += f"\n💰{formatted_phone}"
+                text += f"\n⏰Начало звонка {time_part}"
+                text += f"\n⌛ Дозванивался: {duration_text}"
+        
+        # Отправляем сообщение
+        await bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            parse_mode="HTML"
+        )
+        
+        logger.info(f"✅ Отправлено Telegram сообщение для {call_data['unique_id']} в чат {chat_id}")
+        return True
+        
+    except BadRequest as e:
+        logger.error(f"Ошибка отправки в Telegram для {enterprise_id}: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Критическая ошибка отправки в Telegram для {enterprise_id}: {e}")
+        return False
 
 async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
     """Синхронизация live событий (AlternativeAPIlogs со статусом НЕ ok)"""
@@ -455,6 +612,17 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                     new_events += 1
                                     logger.info(f"✅ Создана recovery запись call_id={call_id} для {unique_id}")
                                     logger.info(f"🔗 UUID ссылка: {call_data['call_url']}")
+                                    
+                                    # 📧 Отправляем уведомление в Telegram
+                                    try:
+                                        telegram_sent = await send_recovery_telegram_message(call_data, ent_id)
+                                        if telegram_sent:
+                                            logger.info(f"📱 Telegram уведомление отправлено для {unique_id}")
+                                        else:
+                                            logger.warning(f"📱 Не удалось отправить Telegram уведомление для {unique_id}")
+                                    except Exception as telegram_error:
+                                        logger.error(f"📱 Ошибка отправки Telegram уведомления для {unique_id}: {telegram_error}")
+                                    
                                 else:
                                     logger.warning(f"Не удалось вставить событие {unique_id}")
                                 
@@ -541,6 +709,17 @@ async def sync_enterprise_data(enterprise_id: str, force_all: bool = False,
                         file_new_events += 1
                         logger.info(f"✅ Создана recovery запись call_id={call_id} для {call_data['unique_id']}")
                         logger.info(f"🔗 UUID ссылка: {call_data['call_url']}")
+                        
+                        # 📧 Отправляем уведомление в Telegram (только для новых записей)
+                        try:
+                            telegram_sent = await send_recovery_telegram_message(call_data, enterprise_id)
+                            if telegram_sent:
+                                logger.info(f"📱 Telegram уведомление отправлено для {call_data['unique_id']}")
+                            else:
+                                logger.warning(f"📱 Не удалось отправить Telegram уведомление для {call_data['unique_id']}")
+                        except Exception as telegram_error:
+                            logger.error(f"📱 Ошибка отправки Telegram уведомления для {call_data['unique_id']}: {telegram_error}")
+                            
                     # Если call_id is None, значит запись уже существует (ON CONFLICT DO NOTHING)
                     
                 except Exception as e:
