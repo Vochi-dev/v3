@@ -254,17 +254,9 @@ def parse_call_data(event: Dict, enterprise_id: str) -> Dict:
     enterprises = get_active_enterprises()
     config = enterprises[enterprise_id]
     
-    # Определяем тип звонка
-    call_type = "incoming" if data.get('CallType') == 1 else "outgoing"
-    
-    # Определяем статус звонка
-    call_status_map = {
-        "0": "answered",
-        "1": "busy", 
-        "2": "no_answer",
-        "3": "failed"
-    }
-    call_status = call_status_map.get(str(data.get('CallStatus', '')), 'unknown')
+    # ИСПРАВЛЕНО: CallType и CallStatus остаются как цифры, как в hangup.py
+    call_type = str(data.get('CallType', '0'))  # Оставляем как строку цифры
+    call_status = str(data.get('CallStatus', '0'))  # Оставляем как строку цифры
     
     # Вычисляем длительность
     try:
@@ -293,8 +285,8 @@ def parse_call_data(event: Dict, enterprise_id: str) -> Dict:
         'trunk': data.get('Trunk'),
         'main_extension': main_extension,
         'extensions_count': len(extensions),
-        'call_type': call_type,
-        'call_status': call_status,
+        'call_type': call_type,  # ИСПРАВЛЕНО: теперь цифра как в hangup.py
+        'call_status': call_status,  # ИСПРАВЛЕНО: теперь цифра как в hangup.py
         'data_source': 'recovery',
         'asterisk_host': config['ip'],
         'raw_data': json.dumps(data),
@@ -479,16 +471,21 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str):
         
         # Формируем сообщение согласно формату из hangup.py
         phone_number = call_data.get('phone_number', '')
-        call_type = call_data.get('call_type', '')
-        call_status = call_data.get('call_status', '')
+        call_type = int(call_data.get('call_type', '0'))  # ИСПРАВЛЕНО: приводим к int
+        call_status = int(call_data.get('call_status', '0'))  # ИСПРАВЛЕНО: приводим к int
         duration = call_data.get('duration', 0)
         start_time = call_data.get('start_time', '')
         main_extension = call_data.get('main_extension', '')
         call_url = call_data.get('call_url', '')
+        trunk = call_data.get('trunk', '')
         
-        # Определяем тип звонка
-        is_incoming = call_type == "incoming"
-        is_answered = call_status == "answered"
+        # ИСПРАВЛЕНО: Правильная логика как в hangup.py
+        # CallType: 0 = входящий, 1 = исходящий, 2 = внутренний
+        # CallStatus: 2 = успешный, остальные = неуспешный
+        is_incoming = call_type == 0
+        is_outgoing = call_type == 1
+        is_internal = call_type == 2
+        is_answered = call_status == 2
         
         # Форматируем номер
         formatted_phone = format_phone_number(phone_number)
@@ -510,11 +507,20 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str):
                 pass
         
         # Формируем текст сообщения
-        if is_incoming:
+        if is_internal:
+            # Внутренние звонки
+            if is_answered:
+                text = f"🔄 Восстановленный успешный внутренний звонок\n☎️{main_extension}➡️\n☎️{formatted_phone}"
+            else:
+                text = f"🔄 Восстановленный неуспешный внутренний звонок\n☎️{main_extension}➡️\n☎️{formatted_phone}"
+        elif is_incoming:
+            # Входящие звонки
             if is_answered:
                 text = f"🔄 Восстановленный входящий звонок\n💰{formatted_phone}"
                 if main_extension and is_internal_number(main_extension):
                     text += f"\n☎️{main_extension}"
+                if trunk:
+                    text += f"\nЛиния: {trunk}"
                 text += f"\n⏰Начало звонка {time_part}"
                 text += f"\n⌛ Длительность: {duration_text}"
                 if call_url:
@@ -523,15 +529,19 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str):
                 text = f"🔄 Восстановленный пропущенный входящий\n💰{formatted_phone}"
                 if main_extension and is_internal_number(main_extension):
                     text += f"\n☎️{main_extension}"
+                if trunk:
+                    text += f"\nЛиния: {trunk}"
                 text += f"\n⏰Начало звонка {time_part}"
                 text += f"\n⌛ Дозванивался: {duration_text}"
         else:
-            # Исходящий звонок
+            # Исходящие звонки
             if is_answered:
                 text = f"🔄 Восстановленный исходящий звонок"
                 if main_extension and is_internal_number(main_extension):
                     text += f"\n☎️{main_extension}"
                 text += f"\n💰{formatted_phone}"
+                if trunk:
+                    text += f"\nЛиния: {trunk}"
                 text += f"\n⏰Начало звонка {time_part}"
                 text += f"\n⌛ Длительность: {duration_text}"
                 if call_url:
@@ -541,6 +551,8 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str):
                 if main_extension and is_internal_number(main_extension):
                     text += f"\n☎️{main_extension}"
                 text += f"\n💰{formatted_phone}"
+                if trunk:
+                    text += f"\nЛиния: {trunk}"
                 text += f"\n⏰Начало звонка {time_part}"
                 text += f"\n⌛ Дозванивался: {duration_text}"
         
