@@ -15,7 +15,8 @@ import base64
 import os
 import random
 import string
-from datetime import datetime, timedelta
+import urllib.parse
+from datetime import datetime, timedelta, timezone
 
 class EWeLinkDevices:
     """Клиент для работы с устройствами eWeLink"""
@@ -28,6 +29,9 @@ class EWeLinkDevices:
         self.access_token = None
         self.refresh_token = None
         self.region = 'eu'
+        
+        # Автоматически загружаем токены при инициализации
+        self.load_credentials()
         
     def save_tokens(self, access_token, refresh_token, expires_in=7200):
         """Сохраняет токены в файл"""
@@ -98,12 +102,13 @@ class EWeLinkDevices:
         ).decode()
         
         # Создаем OAuth2 URL
+        redirect_url = "https://bot.vochi.by/ewelink-callback/"
         oauth_url = (
             f"https://c2ccdn.coolkit.cc/oauth/index.html"
             f"?clientId={self.app_id}"
             f"&seq={seq}"
-            f"&authorization={signature}"
-            f"&redirectUrl=https://httpbin.org/get"
+            f"&authorization={urllib.parse.quote(signature)}"
+            f"&redirectUrl={urllib.parse.quote(redirect_url)}"
             f"&grantType=authorization_code"
             f"&state={state}"
             f"&nonce={nonce}"
@@ -128,7 +133,7 @@ class EWeLinkDevices:
         
         data = {
             'code': code,
-            'redirectUrl': 'https://httpbin.org/get',
+            'redirectUrl': 'https://bot.vochi.by/ewelink-callback/',
             'grantType': 'authorization_code'
         }
         
@@ -420,6 +425,99 @@ class EWeLinkDevices:
                 print("❌ Не удалось проверить обновленный статус")
         
         return False
+
+    def load_credentials(self):
+        """Загружает сохраненные токены из файла"""
+        try:
+            with open(self.token_file, 'r') as f:
+                tokens = json.load(f)
+                self.access_token = tokens.get('access_token')
+                self.refresh_token = tokens.get('refresh_token')
+                self.region = tokens.get('region', 'eu')
+                
+                # Проверяем срок действия токена
+                expires_at_str = tokens.get('expires_at')
+                if expires_at_str:
+                    expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
+                    # ИСПРАВЛЕНО: используем timezone-aware datetime для сравнения
+                    now = datetime.now(timezone.utc)
+                    if expires_at.tzinfo is None:
+                        expires_at = expires_at.replace(tzinfo=timezone.utc)
+                    
+                    if now >= expires_at:
+                        print(f"⏰ Токен истек: {expires_at}. Попытка обновления...")
+                        if self.refresh_access_token():
+                            print("✅ Токен успешно обновлен!")
+                        else:
+                            print("❌ Не удалось обновить токен. Требуется повторная авторизация.")
+                            return False
+                
+                return True
+        except FileNotFoundError:
+            print(f"❌ Файл токенов {self.token_file} не найден")
+            return False
+        except Exception as e:
+            print(f"❌ Ошибка загрузки токенов: {e}")
+            return False
+
+    def refresh_access_token(self):
+        """Обновляет access_token с помощью refresh_token"""
+        if not self.refresh_token:
+            print("❌ Нет refresh_token для обновления")
+            return False
+        
+        print("🔄 Обновляем access_token через refresh_token...")
+        
+        # API эндпоинт для обновления токена (для региона EU)
+        base_urls = {
+            'eu': 'https://eu-apia.coolkit.cc',
+            'us': 'https://us-apia.coolkit.cc', 
+            'as': 'https://as-apia.coolkit.cc'
+        }
+        
+        base_url = base_urls.get(self.region, base_urls['eu'])
+        url = f"{base_url}/v2/user/refresh"
+        
+        headers = {
+            'Authorization': f'Bearer {self.refresh_token}',
+            'Content-Type': 'application/json',
+            'X-CK-Appid': self.app_id
+        }
+        
+        data = {
+            "rt": self.refresh_token  # ИСПРАВЛЕНО: используем 'rt' вместо 'refreshToken'
+        }
+        
+        try:
+            response = requests.post(url, headers=headers, json=data, timeout=10)
+            print(f"🔄 Ответ сервера: {response.status_code}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f"📦 Данные ответа: {result}")
+                
+                if result.get('error') == 0 and 'data' in result:
+                    data = result['data']
+                    self.access_token = data.get('accessToken')
+                    new_refresh_token = data.get('refreshToken')
+                    
+                    if new_refresh_token:
+                        self.refresh_token = new_refresh_token
+                    
+                    # Сохраняем новые токены
+                    self.save_tokens(self.access_token, self.refresh_token)
+                    print("✅ Токен успешно обновлен и сохранен!")
+                    return True
+                else:
+                    print(f"❌ Ошибка в ответе API: {result}")
+                    return False
+            else:
+                print(f"❌ HTTP ошибка: {response.status_code} - {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Ошибка при обновлении токена: {e}")
+            return False
 
 def main():
     """Основная функция"""
