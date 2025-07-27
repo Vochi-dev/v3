@@ -11,15 +11,20 @@
 - Автоматическая выгрузка записей из локальных хранилищ
 """
 
+import asyncio
+import os
+import time
+import subprocess
+import uuid
+import logging
+import psycopg2
+import shutil
+from datetime import datetime, timedelta
+from typing import Optional, Dict, List
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List, Dict
-from datetime import datetime, timedelta
-import logging
-import os
-import asyncio
-import psycopg2
 
 # Импорт нашего S3 клиента
 try:
@@ -63,6 +68,15 @@ app = FastAPI(
     title="Call Download Service",
     description="Сервис для управления записями телефонных разговоров",
     version="1.0.0"
+)
+
+# Добавляем CORS middleware для работы с браузером
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # В продакшене лучше указать конкретные домены
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.on_event("startup")
@@ -186,6 +200,7 @@ async def root():
             "/recordings/search",
             "/recordings/upload", 
             "/recordings/download/{enterprise_number}/{call_id}",
+            "/recordings/force-download/{enterprise_number}",
             "/recordings/stats",
             "/health"
         ]
@@ -645,6 +660,240 @@ async def cleanup_old_recordings(days_to_keep: int = Query(90, description="Ко
     except Exception as e:
         logger.error(f"Ошибка очистки старых записей: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка очистки: {str(e)}")
+
+@app.post("/recordings/force-download/{enterprise_number}")
+async def force_download_all_recordings(
+    enterprise_number: str,
+    background_tasks: BackgroundTasks
+):
+    """Принудительное скачивание ВСЕХ записей с хоста предприятия"""
+    logger.info(f"🚀 Запуск принудительного скачивания всех записей для предприятия {enterprise_number}")
+    
+    # Проверяем что предприятие существует в БД
+    try:
+        conn = psycopg2.connect(
+            host="localhost",
+            database="postgres",
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT number, name, name2, ip FROM enterprises WHERE number = %s AND active = true", (enterprise_number,))
+            result = cursor.fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Предприятие {enterprise_number} не найдено или неактивно")
+                
+            enterprise_data = {
+                "number": result[0],
+                "name": result[1],
+                "name2": result[2] or result[0],  # fallback to number if name2 is empty
+                "ip": result[3]
+            }
+            
+    except Exception as e:
+        logger.error(f"Ошибка получения данных предприятия {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка БД: {str(e)}")
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    
+    # Запускаем скачивание в фоновом режиме
+    background_tasks.add_task(
+        download_all_recordings_task,
+        enterprise_data
+    )
+    
+    return {
+        "success": True,
+        "message": f"Принудительное скачивание всех записей запущено для предприятия {enterprise_data['name']} ({enterprise_number})",
+        "enterprise_number": enterprise_number,
+        "enterprise_name": enterprise_data['name'],
+        "enterprise_ip": enterprise_data['ip'],
+        "started_at": datetime.now().isoformat(),
+        "note": "Процесс выполняется в фоновом режиме. Проверить статус можно в логах сервиса."
+    }
+
+async def download_all_recordings_task(enterprise_data: dict):
+    """Фоновая задача для принудительного скачивания всех записей с хоста предприятия"""
+    enterprise_number = enterprise_data['number']
+    enterprise_name = enterprise_data['name']
+    enterprise_ip = enterprise_data['ip']
+    name2 = enterprise_data['name2']
+    
+    logger.info(f"📥 Начинаем скачивание всех записей для {enterprise_name} ({enterprise_number}) с хоста {enterprise_ip}")
+    
+    # Константы для подключения к Asterisk серверам
+    ASTERISK_PORT = "5059"
+    ASTERISK_USER = "root"
+    ASTERISK_PASSWORD = "5atx9Ate@pbx"
+    
+    temp_dir = f"/tmp/force_download_{enterprise_number}_{int(time.time())}"
+    
+    try:
+        # Создаем временную директорию
+        os.makedirs(temp_dir, exist_ok=True)
+        logger.info(f"📁 Создана временная директория: {temp_dir}")
+        
+        # 1. Получаем список всех .wav файлов на сервере (АСИНХРОННО)
+        cmd_list = [
+            'sshpass', '-p', ASTERISK_PASSWORD,
+            'ssh', '-p', ASTERISK_PORT, '-o', 'StrictHostKeyChecking=no',
+            f'{ASTERISK_USER}@{enterprise_ip}',
+            'find /var/spool/asterisk/monitor -name "*.wav" -type f'
+        ]
+        
+        logger.info(f"🔍 Получаем список файлов с сервера {enterprise_ip}...")
+        
+        # Используем асинхронный subprocess
+        process = await asyncio.create_subprocess_exec(
+            *cmd_list,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        try:
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=60)
+        except asyncio.TimeoutError:
+            process.kill()
+            logger.error(f"❌ Таймаут при получении списка файлов с {enterprise_ip}")
+            return
+        
+        if process.returncode != 0:
+            logger.error(f"❌ Ошибка получения списка файлов: {stderr.decode()}")
+            return
+            
+        files = [f.strip() for f in stdout.decode().strip().split('\n') if f.strip().endswith('.wav')]
+        
+        if not files:
+            logger.info(f"⚠️ Файлы .wav не найдены на сервере {enterprise_ip}")
+            return
+            
+        total_files = len(files)
+        logger.info(f"📊 Найдено {total_files} файлов для скачивания")
+        
+        # 2. Скачиваем файлы
+        downloaded_count = 0
+        uploaded_count = 0
+        
+        for i, remote_file in enumerate(files, 1):
+            filename = os.path.basename(remote_file)
+            local_file = os.path.join(temp_dir, filename)
+            
+            try:
+                # Скачиваем файл через scp (АСИНХРОННО)
+                scp_cmd = [
+                    'sshpass', '-p', ASTERISK_PASSWORD,
+                    'scp', '-P', ASTERISK_PORT, '-o', 'StrictHostKeyChecking=no',
+                    f'{ASTERISK_USER}@{enterprise_ip}:{remote_file}',
+                    local_file
+                ]
+                
+                # Используем асинхронный subprocess для scp
+                process = await asyncio.create_subprocess_exec(
+                    *scp_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                
+                try:
+                    stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30)
+                except asyncio.TimeoutError:
+                    process.kill()
+                    logger.warning(f"⚠️ [{i}/{total_files}] Таймаут при скачивании: {filename}")
+                    continue
+                
+                if process.returncode == 0 and os.path.exists(local_file):
+                    downloaded_count += 1
+                    logger.info(f"📥 [{i}/{total_files}] Скачан: {filename}")
+                    
+                    # 3. Загружаем в S3 (уже асинхронно)
+                    if s3_client and await upload_file_to_s3(local_file, filename, name2):
+                        uploaded_count += 1
+                        logger.info(f"☁️ [{i}/{total_files}] Загружен в S3: {filename}")
+                    
+                    # Удаляем локальный файл
+                    os.remove(local_file)
+                    
+                else:
+                    logger.warning(f"⚠️ [{i}/{total_files}] Не удалось скачать: {filename}")
+                    if stderr:
+                        logger.error(f"Ошибка scp: {stderr.decode()}")
+                    
+            except Exception as e:
+                logger.error(f"❌ [{i}/{total_files}] Ошибка обработки {filename}: {e}")
+                continue
+        
+        logger.info(f"✅ Завершено скачивание для {enterprise_name}: скачано {downloaded_count}/{total_files}, загружено в S3 {uploaded_count}")
+        
+    except Exception as e:
+        logger.error(f"❌ Критическая ошибка скачивания для {enterprise_name}: {e}")
+        
+    finally:
+        # Очищаем временную директорию
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+            logger.info(f"🧹 Удалена временная директория: {temp_dir}")
+
+async def upload_file_to_s3(local_file_path: str, filename: str, name2: str) -> bool:
+    """Загружает файл в S3 хранилище"""
+    if not s3_client:
+        return False
+        
+    try:
+        # Извлекаем unique_id из имени файла
+        unique_id = filename.replace('.wav', '')
+        
+        # Конвертируем WAV в MP3 если нужно
+        file_to_upload = local_file_path
+        temp_files_to_cleanup = []
+        
+        if local_file_path.endswith('.wav'):
+            mp3_file_path = s3_client._convert_wav_to_mp3(local_file_path)
+            if mp3_file_path != local_file_path:
+                file_to_upload = mp3_file_path
+                temp_files_to_cleanup.append(mp3_file_path)
+        
+        # Генерируем UUID для ссылки
+        uuid_token = str(uuid.uuid4())
+        
+        # ИСПРАВЛЕНО: Используем оригинальное имя файла вместо UUID
+        base_filename = filename.replace('.wav', '.mp3')
+        
+        # Формируем путь S3 с оригинальным именем
+        now = datetime.now()
+        object_key = f"CallRecords/{name2}/{now.year}/{now.month:02d}/{base_filename}"
+        
+        # Загружаем в S3
+        s3_client.s3_client.upload_file(
+            file_to_upload,
+            s3_client.bucket_name,
+            object_key,
+            ExtraArgs={
+                'Metadata': {
+                    'unique-id': unique_id,
+                    'upload-timestamp': datetime.utcnow().isoformat(),
+                    'uuid-token': uuid_token,
+                    'source': 'force-download',
+                    'original-filename': filename
+                },
+                'ContentType': 'audio/mpeg'
+            }
+        )
+        
+        logger.info(f"✅ Файл загружен в S3 с оригинальным именем: {object_key}")
+        
+        # Очищаем временные файлы
+        for temp_file in temp_files_to_cleanup:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Ошибка загрузки {filename} в S3: {e}")
+        return False
 
 async def cleanup_local_file(file_path: str):
     """Фоновая задача удаления локального файла после загрузки в S3"""

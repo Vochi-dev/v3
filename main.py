@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from fastapi.logger import logger as fastapi_logger
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.services.database import (
@@ -110,6 +111,15 @@ fastapi_logger.addHandler(main_handler)
 
 # --- Создаём FastAPI с debug=True для расширенного логирования ---
 app = FastAPI(debug=True)
+
+# Добавляем CORS middleware для корректной работы с браузером
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # В продакшене лучше указать конкретные домены
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -442,3 +452,38 @@ async def _dispatch_to_all(handler, body: dict):
         logger.warning(f"Telegram sent successfully but UniqueId is empty for {event_type}")
     
     return {"delivered": results}
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Прокси-эндпоинт для вызова сервиса скачивания записей
+# ────────────────────────────────────────────────────────────────────────────────
+import httpx
+
+@app.post("/api/recordings/force-download/{enterprise_number}")
+async def force_download_recordings(enterprise_number: str):
+    """Прокси-эндпоинт для принудительного скачивания записей с сервиса call_download.py"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"http://localhost:8012/recordings/force-download/{enterprise_number}",
+                timeout=30.0
+            )
+            return response.json()
+    except httpx.TimeoutException:
+        logger.error(f"Timeout calling call_download service for enterprise {enterprise_number}")
+        return {
+            "success": False, 
+            "error": "Timeout - сервис скачивания записей не отвечает"
+        }
+    except httpx.ConnectError:
+        logger.error(f"Connection error calling call_download service for enterprise {enterprise_number}")
+        return {
+            "success": False, 
+            "error": "Сервис скачивания записей недоступен"
+        }
+    except Exception as e:
+        logger.error(f"Error calling call_download service for enterprise {enterprise_number}: {e}")
+        return {
+            "success": False, 
+            "error": f"Ошибка вызова сервиса: {str(e)}"
+        }

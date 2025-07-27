@@ -233,6 +233,7 @@
       <div style="display: flex; gap: 10px; margin-top: 15px;">
         <button class="button" id="adminLoginButton" style="flex: 1;">Войти в админку</button>
         <button class="button" id="deskButton" style="flex: 1; background: #28a745;">Рабочий стол</button>
+        <button class="button" id="downloadButton" style="flex: 1; background: #ff6b35;">Download</button>
       </div>
     </div>
   </div>
@@ -298,6 +299,52 @@
                     const enterpriseName = encodeURIComponent(name);
                     const enterpriseNumber = encodeURIComponent(number);
                     window.open('https://' + window.location.hostname + '/desk/?enterprise=' + enterpriseName + '&number=' + enterpriseNumber, '_blank');
+                };
+
+                // Логика для кнопки "Download"
+                const downloadButton = document.getElementById('downloadButton');
+                downloadButton.onclick = function() {
+                    // Подтверждение действия
+                    if (!confirm(`Вы действительно хотите принудительно скачать ВСЕ записи разговоров с хоста ${name} (${number})?\n\nЭто может занять много времени и ресурсов!`)) {
+                        return;
+                    }
+
+                    // Блокируем кнопку и показываем процесс
+                    downloadButton.disabled = true;
+                    downloadButton.style.background = '#999';
+                    downloadButton.textContent = 'Скачиваю...';
+
+                    // Вызываем API download сервиса для принудительного скачивания
+                    fetch(`https://${window.location.hostname}/recordings/force-download/${number}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Ошибка HTTP: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Download started:', data);
+                        alert(`✅ Принудительное скачивание записей запущено для ${name}!\n\nПроцесс выполняется в фоновом режиме.\nПроверить статус можно в логах сервиса.`);
+                        
+                        // Возвращаем кнопку в исходное состояние
+                        downloadButton.disabled = false;
+                        downloadButton.style.background = '#ff6b35';
+                        downloadButton.textContent = 'Download';
+                    })
+                    .catch(error => {
+                        console.error('Download error:', error);
+                        alert(`❌ Ошибка запуска скачивания: ${error.message}\\n\\nПроверьте работу сервиса call_download.py на порту 8012.`);
+                        
+                        // Возвращаем кнопку в исходное состояние
+                        downloadButton.disabled = false;
+                        downloadButton.style.background = '#ff6b35';
+                        downloadButton.textContent = 'Download';
+                    });
                 };
 
                 modal.style.display = 'block';
