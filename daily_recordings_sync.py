@@ -54,9 +54,11 @@ class DailyRecordingsSync:
     def __init__(self):
         self.s3_client = None
         self.enterprises = []
-        self.total_processed = 0
-        self.total_success = 0
-        self.total_errors = 0
+        self.total_found_on_servers = 0    # Всего найдено файлов на серверах
+        self.total_needed_from_db = 0      # Всего нужно скачать из БД  
+        self.total_downloaded = 0          # Реально скачано файлов
+        self.total_success = 0             # Успешно загружено на S3
+        self.total_errors = 0              # Ошибки загрузки на S3
         
     def print_banner(self):
         """Печатает красивый баннер начала работы"""
@@ -141,16 +143,61 @@ class DailyRecordingsSync:
             logger.error(f"❌ Исключение при подключении к серверу {enterprise['name']}: {e}")
             return False
     
+    async def get_calls_needing_download(self, enterprise: Dict) -> List[str]:
+        """
+        Получает список unique_id звонков которые нужно скачать:
+        - s3_object_key = null (еще не загружены на S3)
+        - call_url не пустой (есть запись)
+        """
+        try:
+            import asyncpg
+            conn = await asyncpg.connect(
+                host="localhost",
+                port=5432,
+                user="postgres", 
+                password="r/Yskqh/ZbZuvjb2b3ahfg==",
+                database="postgres"
+            )
+            
+            logger.info(f"🔍 {enterprise['name']}: ищем записи для скачивания в БД...")
+            
+            # Ищем записи для этого предприятия где есть call_url но нет s3_object_key
+            # ИСПРАВЛЕНО: убран лимит 1000 - обрабатываем ВСЕ нужные записи
+            rows = await conn.fetch("""
+                SELECT unique_id, call_url 
+                FROM calls 
+                WHERE enterprise_id = $1 
+                  AND call_url IS NOT NULL 
+                  AND s3_object_key IS NULL
+                ORDER BY start_time DESC
+            """, enterprise['number'])
+            
+            unique_ids = [row['unique_id'] for row in rows]
+            
+            await conn.close()
+            
+            logger.info(f"📊 {enterprise['name']}: найдено записей для скачивания: {len(unique_ids)}")
+            
+            if unique_ids:
+                logger.info(f"📝 {enterprise['name']}: примеры unique_id: {unique_ids[:3]}")
+            
+            return unique_ids
+            
+        except Exception as e:
+            logger.error(f"❌ {enterprise['name']}: ошибка поиска записей в БД: {e}")
+            return []
+
     def analyze_recordings(self, enterprise: Dict) -> Tuple[int, str]:
-        """Анализирует записи на сервере"""
+        """Анализирует записи на сервере и фильтрует файлы больше 2 КБ"""
         try:
             logger.info(f"📊 Анализируем записи на сервере {enterprise['name']}...")
             
+            # Команда для получения файлов больше 2 КБ (2048 байт)
             cmd = [
                 'sshpass', '-p', ASTERISK_PASSWORD,
                 'ssh', '-o', 'ConnectTimeout=10', '-o', 'StrictHostKeyChecking=no',
                 '-p', ASTERISK_PORT, f'{ASTERISK_USER}@{enterprise["ip"]}',
-                'ls -la /var/spool/asterisk/monitor/*.wav 2>/dev/null | wc -l && du -sh /var/spool/asterisk/monitor/ 2>/dev/null || echo "0 0K"'
+                'find /var/spool/asterisk/monitor/ -name "*.wav" -size +2k 2>/dev/null | wc -l && du -sh /var/spool/asterisk/monitor/ 2>/dev/null || echo "0 0K"'
             ]
             
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -163,7 +210,7 @@ class DailyRecordingsSync:
                     file_count = 0
                 size_info = lines[1] if len(lines) > 1 else "Неизвестно"
                 
-                logger.info(f"📁 {enterprise['name']}: найдено файлов: {file_count}")
+                logger.info(f"📁 {enterprise['name']}: найдено файлов >2KB: {file_count}")
                 logger.info(f"📦 {enterprise['name']}: общий размер: {size_info}")
                 
                 return file_count, size_info
@@ -175,17 +222,17 @@ class DailyRecordingsSync:
             logger.error(f"❌ Исключение при анализе записей {enterprise['name']}: {e}")
             return 0, "Исключение"
     
-    def download_recordings_parallel(self, enterprise: Dict, temp_dir: str) -> bool:
+    def download_recordings_parallel(self, enterprise: Dict, temp_dir: str, needed_unique_ids: List[str]) -> bool:
         """🚀 БЫСТРОЕ ПАРАЛЛЕЛЬНОЕ СКАЧИВАНИЕ - в 3-4 раза быстрее"""
         
-        # 1. Получаем список файлов на сервере
-        logger.info(f"🔍 {enterprise['name']}: получаем список файлов для параллельного скачивания...")
+        # 1. Получаем список файлов на сервере больше 2 КБ
+        logger.info(f"🔍 {enterprise['name']}: получаем список файлов >2KB для параллельного скачивания...")
         
         cmd_list = [
             'sshpass', '-p', ASTERISK_PASSWORD,
             'ssh', '-p', ASTERISK_PORT, '-o', 'StrictHostKeyChecking=no',
             f'{ASTERISK_USER}@{enterprise["ip"]}',
-            'ls -1 /var/spool/asterisk/monitor/*.wav 2>/dev/null'
+            'find /var/spool/asterisk/monitor/ -name "*.wav" -size +2k -printf "%f\\n" 2>/dev/null'
         ]
         
         try:
@@ -193,31 +240,42 @@ class DailyRecordingsSync:
             if result.returncode != 0:
                 return False
                 
-            files = [f.strip().split('/')[-1] for f in result.stdout.strip().split('\n') if f.strip().endswith('.wav')]
+            server_files = [f.strip() for f in result.stdout.strip().split('\n') if f.strip().endswith('.wav')]
             
-            if not files:
-                logger.info(f"⚠️ {enterprise['name']}: нет файлов для скачивания")
+            if not server_files:
+                logger.info(f"⚠️ {enterprise['name']}: нет файлов >2KB для скачивания")
+                return True
+            
+            # 2. Фильтруем файлы по списку needed_unique_ids из БД
+            needed_files = []
+            for unique_id in needed_unique_ids:
+                wav_file = f"{unique_id}.wav"
+                if wav_file in server_files:
+                    needed_files.append(wav_file)
+            
+            if not needed_files:
+                logger.info(f"⚠️ {enterprise['name']}: нет файлов из БД для скачивания (найдено на сервере: {len(server_files)}, нужно из БД: {len(needed_unique_ids)})")
                 return True
                 
-            total_files = len(files)
-            logger.info(f"📁 {enterprise['name']}: найдено файлов: {total_files}")
+            total_files = len(needed_files)
+            logger.info(f"📁 {enterprise['name']}: найдено файлов для скачивания: {total_files} (из {len(server_files)} на сервере)")
             
         except Exception as e:
             logger.error(f"❌ {enterprise['name']}: ошибка получения списка файлов: {e}")
             return False
         
-        # 2. Разделяем файлы на группы для параллельной загрузки
+        # 3. Разделяем нужные файлы на группы для параллельной загрузки
         files_per_thread = max(1, total_files // MAX_PARALLEL_THREADS)
         file_groups = []
         
         for i in range(0, total_files, files_per_thread):
-            group = files[i:i + files_per_thread]
+            group = needed_files[i:i + files_per_thread]
             file_groups.append(group)
         
         actual_threads = min(len(file_groups), MAX_PARALLEL_THREADS)
         logger.info(f"🚀 {enterprise['name']}: запускаем {actual_threads} потоков скачивания")
         
-        # 3. Функция скачивания для одного потока
+        # 4. Функция скачивания для одного потока
         def download_group(group_files: List[str], thread_id: int) -> Dict:
             group_size = len(group_files)
             
@@ -262,7 +320,7 @@ class DailyRecordingsSync:
             
             return {'success_count': success_count}
         
-        # 4. Запускаем параллельное скачивание
+        # 5. Запускаем параллельное скачивание
         total_start_time = time.time()
         
         with ThreadPoolExecutor(max_workers=actual_threads) as executor:
@@ -279,12 +337,15 @@ class DailyRecordingsSync:
                 except Exception as e:
                     logger.error(f"❌ {enterprise['name']}: исключение в потоке: {e}")
         
-        # 5. Проверяем результат
+        # 6. Проверяем результат
         total_time = int(time.time() - total_start_time)
         final_files = len([f for f in os.listdir(temp_dir) if f.endswith('.wav')])
         
         logger.info(f"✅ {enterprise['name']}: параллельное скачивание завершено за {total_time} сек")
         logger.info(f"📊 {enterprise['name']}: файлов скачано: {final_files}/{total_files}")
+        
+        # Обновляем общую статистику скачанных файлов
+        self.total_downloaded += final_files
         
         if total_time > 0:
             speed = (final_files / total_time) * 60
@@ -292,52 +353,82 @@ class DailyRecordingsSync:
         
         return final_files > 0
 
-    def download_recordings(self, enterprise: Dict, file_count: int) -> bool:
-        """Скачивает все записи с сервера предприятия"""
-        if file_count == 0:
+    async def download_recordings(self, enterprise: Dict, needed_unique_ids: List[str]) -> bool:
+        """Скачивает только нужные записи с сервера предприятия"""
+        if not needed_unique_ids:
             logger.info(f"⚠️ {enterprise['name']}: нет записей для скачивания")
             return True
             
         try:
             temp_dir = os.path.join(TEMP_BASE_DIR, enterprise['number'])
-            logger.info(f"📥 {enterprise['name']}: начинаем скачивание {file_count} файлов...")
+            logger.info(f"📥 {enterprise['name']}: начинаем скачивание {len(needed_unique_ids)} файлов...")
             
             # Создаем временную папку
             os.makedirs(temp_dir, exist_ok=True)
             logger.info(f"📁 {enterprise['name']}: временная папка: {temp_dir}")
             
             # 🚀 ПРОВЕРЯЕМ: использовать ли параллельное скачивание?
-            if ENABLE_PARALLEL_DOWNLOAD and file_count >= 50:  # Для больших предприятий
+            if ENABLE_PARALLEL_DOWNLOAD and len(needed_unique_ids) >= 50:  # Для больших предприятий
                 logger.info(f"🚀 {enterprise['name']}: используем параллельное скачивание ({MAX_PARALLEL_THREADS} потоков)")
-                return self.download_recordings_parallel(enterprise, temp_dir)
+                return self.download_recordings_parallel(enterprise, temp_dir, needed_unique_ids)
             
             # Обычное последовательное скачивание (для небольших предприятий)
             logger.info(f"📥 {enterprise['name']}: используем обычное скачивание")
             
-            # Команда rsync для скачивания
-            cmd = [
-                'sshpass', '-p', ASTERISK_PASSWORD,
-                'rsync', '-avz', '--progress',
-                '-e', f'ssh -p {ASTERISK_PORT} -o StrictHostKeyChecking=no',
-                f'{ASTERISK_USER}@{enterprise["ip"]}:/var/spool/asterisk/monitor/*.wav',
-                f'{temp_dir}/'
-            ]
-            
+            success_count = 0
             start_time = time.time()
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10800)  # 180 минут таймаут
-            end_time = time.time()
             
+            # Скачиваем каждый нужный файл отдельно
+            for i, unique_id in enumerate(needed_unique_ids, 1):
+                try:
+                    wav_file = f"{unique_id}.wav"
+                    
+                    # Проверяем что файл существует и больше 2KB на сервере
+                    check_cmd = [
+                        'sshpass', '-p', ASTERISK_PASSWORD,
+                        'ssh', '-p', ASTERISK_PORT, '-o', 'StrictHostKeyChecking=no',
+                        f'{ASTERISK_USER}@{enterprise["ip"]}',
+                        f'find /var/spool/asterisk/monitor/ -name "{wav_file}" -size +2k 2>/dev/null'
+                    ]
+                    
+                    check_result = subprocess.run(check_cmd, capture_output=True, text=True, timeout=10)
+                    if check_result.returncode != 0 or not check_result.stdout.strip():
+                        logger.warning(f"⚠️ {enterprise['name']} [{i}/{len(needed_unique_ids)}]: файл {wav_file} не найден или <2KB")
+                        continue
+                    
+                    # Скачиваем файл
+                    cmd = [
+                        'sshpass', '-p', ASTERISK_PASSWORD,
+                        'rsync', '-avz',
+                        '-e', f'ssh -p {ASTERISK_PORT} -o StrictHostKeyChecking=no',
+                        f'{ASTERISK_USER}@{enterprise["ip"]}:/var/spool/asterisk/monitor/{wav_file}',
+                        f'{temp_dir}/'
+                    ]
+                    
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # 5 мин на файл
+                    
+                    if result.returncode == 0:
+                        local_file = os.path.join(temp_dir, wav_file)
+                        if os.path.exists(local_file):
+                            success_count += 1
+                            if i % 10 == 0:
+                                logger.info(f"📥 {enterprise['name']}: скачано {success_count}/{i} файлов")
+                    else:
+                        logger.error(f"❌ {enterprise['name']} [{i}/{len(needed_unique_ids)}]: ошибка скачивания {wav_file}")
+                        
+                except Exception as e:
+                    logger.error(f"❌ {enterprise['name']} [{i}/{len(needed_unique_ids)}]: исключение при скачивании {unique_id}: {e}")
+            
+            end_time = time.time()
             download_time = int(end_time - start_time)
             
-            if result.returncode == 0:
-                # Проверяем количество скачанных файлов
-                downloaded_files = len([f for f in os.listdir(temp_dir) if f.endswith('.wav')])
-                logger.info(f"✅ {enterprise['name']}: скачивание завершено за {download_time} сек")
-                logger.info(f"📁 {enterprise['name']}: скачано файлов: {downloaded_files}")
-                return True
-            else:
-                logger.error(f"❌ {enterprise['name']}: ошибка скачивания: {result.stderr}")
-                return False
+            logger.info(f"✅ {enterprise['name']}: скачивание завершено за {download_time} сек")
+            logger.info(f"📁 {enterprise['name']}: скачано файлов: {success_count}/{len(needed_unique_ids)}")
+            
+            # Обновляем общую статистику скачанных файлов
+            self.total_downloaded += success_count
+            
+            return success_count > 0
                 
         except Exception as e:
             logger.error(f"❌ {enterprise['name']}: исключение при скачивании: {e}")
@@ -386,13 +477,11 @@ class DailyRecordingsSync:
                     if upload_result:
                         file_url, object_key, uuid_token, recording_duration = upload_result
                         
-                        # Формируем безопасную публичную ссылку
-                        public_call_url = f"/recordings/file/{uuid_token}"
-                        
-                        # Сохраняем в БД
+                        # ИСПРАВЛЕНО: НЕ меняем call_url! Сохраняем только S3 данные
+                        # Сохраняем в БД только S3 информацию, call_url остается неизменным
                         db_success = await update_call_recording_info(
                             call_unique_id=call_unique_id,
-                            call_url=public_call_url,
+                            call_url="",  # Игнорируется функцией
                             s3_object_key=object_key,
                             uuid_token=uuid_token,
                             recording_duration=recording_duration
@@ -522,9 +611,14 @@ class DailyRecordingsSync:
             logger.error(f"❌ Ошибка при очистке временных файлов: {e}")
     
     def print_final_report(self, start_time: float):
-        """Печатает финальный отчет"""
+        """Печатает финальный отчет с правильной статистикой"""
         end_time = time.time()
         total_time = int(end_time - start_time)
+        
+        # ИСПРАВЛЕНО: правильная статистика
+        download_success_rate = (self.total_downloaded / max(self.total_needed_from_db, 1)) * 100
+        upload_success_rate = (self.total_success / max(self.total_downloaded, 1)) * 100
+        overall_success_rate = (self.total_success / max(self.total_needed_from_db, 1)) * 100
         
         report = f"""
 {'='*80}
@@ -533,15 +627,24 @@ class DailyRecordingsSync:
 📅 Время завершения: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 ⏱️  Общее время: {total_time} сек ({total_time//60} мин {total_time%60} сек)
 🏢 Предприятий обработано: {len(self.enterprises)}
-📁 Всего файлов: {self.total_processed}
-✅ Успешно загружено: {self.total_success}
-❌ Ошибок: {self.total_errors}
-📈 Успешность: {self.total_success/max(self.total_processed,1)*100:.1f}%
+
+📊 ДЕТАЛЬНАЯ СТАТИСТИКА:
+  📁 Найдено на серверах (>2KB): {self.total_found_on_servers}
+  🎯 Нужно скачать из БД: {self.total_needed_from_db}
+  📥 Реально скачано: {self.total_downloaded}
+  ✅ Загружено на S3: {self.total_success}
+  ❌ Ошибок загрузки: {self.total_errors}
+
+📈 ПОКАЗАТЕЛИ ЭФФЕКТИВНОСТИ:
+  🔄 Скачивание: {download_success_rate:.1f}% ({self.total_downloaded}/{self.total_needed_from_db})
+  ☁️  Загрузка S3: {upload_success_rate:.1f}% ({self.total_success}/{self.total_downloaded})
+  🎯 Общая успешность: {overall_success_rate:.1f}% ({self.total_success}/{self.total_needed_from_db})
+
 📊 Лог файл: {log_filename}
 {'='*80}
 """
         print(report)
-        logger.info(f"ЗАВЕРШЕНА ЕЖЕДНЕВНАЯ ЗАГРУЗКА: {self.total_success}/{self.total_processed} файлов за {total_time} сек")
+        logger.info(f"ЗАВЕРШЕНА ЕЖЕДНЕВНАЯ ЗАГРУЗКА: {self.total_success}/{self.total_needed_from_db} файлов (общий успех {overall_success_rate:.1f}%) за {total_time} сек")
     
     async def run(self):
         """Основная функция ежедневной загрузки"""
@@ -592,11 +695,18 @@ class DailyRecordingsSync:
                         logger.error(f"❌ {enterprise['name']}: пропускаем из-за ошибки подключения")
                         continue
                     
-                    # Анализ записей
-                    file_count, size_info = self.analyze_recordings(enterprise)
+                    # Получаем список записей из БД, которые нужно скачать
+                    needed_unique_ids = await self.get_calls_needing_download(enterprise)
+                    if not needed_unique_ids:
+                        logger.info(f"⚠️ {enterprise['name']}: нет записей для скачивания из БД")
+                        continue
                     
-                    # Скачивание записей
-                    if not self.download_recordings(enterprise, file_count):
+                    # Анализ записей на сервере
+                    server_file_count, size_info = self.analyze_recordings(enterprise)
+                    logger.info(f"📊 {enterprise['name']}: на сервере {server_file_count} файлов >2KB, в БД нужно скачать {len(needed_unique_ids)}")
+                    
+                    # Скачивание только нужных записей
+                    if not await self.download_recordings(enterprise, needed_unique_ids):
                         logger.error(f"❌ {enterprise['name']}: пропускаем из-за ошибки скачивания")
                         continue
                     
@@ -604,11 +714,13 @@ class DailyRecordingsSync:
                     success_count, error_count = await self.process_and_upload_recordings(enterprise)
                     
                     # Обновляем статистику
-                    self.total_processed += file_count
+                    self.total_found_on_servers += server_file_count
+                    self.total_needed_from_db += len(needed_unique_ids)
+                    # total_downloaded обновляется в download_recordings
                     self.total_success += success_count
                     self.total_errors += error_count
                     
-                    logger.info(f"✅ {enterprise['name']}: завершено ({success_count}/{file_count} успешно)")
+                    logger.info(f"✅ {enterprise['name']}: завершено ({success_count}/{len(needed_unique_ids)} успешно)")
                     
                 except Exception as e:
                     logger.error(f"❌ {enterprise['name']}: критическая ошибка: {e}")
