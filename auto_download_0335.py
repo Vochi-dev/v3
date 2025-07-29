@@ -200,15 +200,10 @@ async def process_and_upload_recordings() -> Tuple[int, int]:
                 if upload_result:
                     file_url, object_key, uuid_token, recording_duration = upload_result
                     
-                    # Формируем безопасную публичную ссылку
-                    public_call_url = f"/recordings/file/{uuid_token}"
-                    
-                    # Сохраняем в БД
+                    # Сохраняем в БД (НЕ меняя call_url и uuid_token)
                     db_success = await update_call_recording_info(
                         call_unique_id=call_unique_id,
-                        call_url=public_call_url,
                         s3_object_key=object_key,
-                        uuid_token=uuid_token,
                         recording_duration=recording_duration
                     )
                     

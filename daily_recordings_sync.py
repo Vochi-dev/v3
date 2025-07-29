@@ -477,13 +477,11 @@ class DailyRecordingsSync:
                     if upload_result:
                         file_url, object_key, uuid_token, recording_duration = upload_result
                         
-                        # ИСПРАВЛЕНО: НЕ меняем call_url! Сохраняем только S3 данные
-                        # Сохраняем в БД только S3 информацию, call_url остается неизменным
+                        # ИСПРАВЛЕНО: НЕ меняем call_url и uuid_token! Сохраняем только S3 данные
+                        # Сохраняем в БД только S3 информацию, call_url и uuid_token остаются неизменными
                         db_success = await update_call_recording_info(
                             call_unique_id=call_unique_id,
-                            call_url="",  # Игнорируется функцией
                             s3_object_key=object_key,
-                            uuid_token=uuid_token,
                             recording_duration=recording_duration
                         )
                         
@@ -525,9 +523,23 @@ class DailyRecordingsSync:
             recording_duration = self.s3_client.get_audio_duration(mp3_file)
             if recording_duration is None:
                 recording_duration = 0
+            
+            # ИСПРАВЛЕНО: Получаем существующий UUID из call_url вместо генерации нового!
+            from app.services.postgres import get_call_recording_info
+            call_info = await get_call_recording_info(call_unique_id)
+            
+            if not call_info or not call_info.get('call_url'):
+                logger.error(f"❌ Не найден call_url для звонка {call_unique_id}")
+                return None
                 
-            # Генерируем UUID токен
-            uuid_token = str(uuid.uuid4())
+            # Извлекаем UUID из существующей ссылки
+            call_url = call_info['call_url']
+            if '/recordings/file/' in call_url:
+                uuid_token = call_url.split('/recordings/file/')[-1]
+                logger.info(f"✅ Используем существующий UUID: {uuid_token} из {call_url}")
+            else:
+                logger.error(f"❌ Неверный формат call_url: {call_url}")
+                return None
             
             # Создаем правильный путь с name2
             call_date = datetime.now()

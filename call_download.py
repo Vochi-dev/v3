@@ -594,13 +594,11 @@ async def upload_recording(request: UploadRequest, background_tasks: BackgroundT
             
             logger.info(f"✅ Файл загружен в S3: {object_key}")
             
-            # Сохраняем информацию в БД
+            # Сохраняем информацию в БД (НЕ меняя call_url и uuid_token)
             if DB_AVAILABLE:
                 db_success = await update_call_recording_info(
                     call_unique_id=request.call_unique_id,
-                    call_url=existing_call_url,
                     s3_object_key=object_key,
-                    uuid_token=existing_uuid,
                     recording_duration=recording_duration
                 )
                 

@@ -660,16 +660,14 @@ async def update_gsm_line(line_id: int, line_name: Optional[str], phone_number: 
 
 # ============== ФУНКЦИИ ДЛЯ РАБОТЫ С ЗАПИСЯМИ ЗВОНКОВ ==============
 
-async def update_call_recording_info(call_unique_id: str, call_url: str, s3_object_key: str, uuid_token: str, recording_duration: int) -> bool:
+async def update_call_recording_info(call_unique_id: str, s3_object_key: str, recording_duration: int) -> bool:
     """
     Обновляет информацию о записи звонка в таблице calls
-    ВАЖНО: НЕ ИЗМЕНЯЕТ call_url! Оригинальная ссылка должна остаться неизменной!
+    ВАЖНО: НЕ ИЗМЕНЯЕТ call_url и uuid_token! Оригинальные значения остаются неизменными!
     
     Args:
         call_unique_id: Уникальный ID звонка
-        call_url: URL записи (игнорируется - оригинальная ссылка не меняется)
         s3_object_key: Ключ объекта в S3
-        uuid_token: UUID токен для безопасной ссылки
         recording_duration: Длительность записи в секундах
         
     Returns:
@@ -677,14 +675,14 @@ async def update_call_recording_info(call_unique_id: str, call_url: str, s3_obje
     """
     try:
         async with _pool.acquire() as conn:
-            # ИСПРАВЛЕНО: НЕ обновляем call_url, только S3 данные!
+            # ИСПРАВЛЕНО: НЕ обновляем call_url И uuid_token! Только S3 данные!
             result = await conn.execute(
                 """
                 UPDATE calls 
-                SET s3_object_key = $1, uuid_token = $2, recording_duration = $3
-                WHERE unique_id = $4
+                SET s3_object_key = $1, recording_duration = $2
+                WHERE unique_id = $3
                 """,
-                s3_object_key, uuid_token, recording_duration, call_unique_id
+                s3_object_key, recording_duration, call_unique_id
             )
             
             # Проверяем что обновлена хотя бы одна строка
