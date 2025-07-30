@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Список всех сервисов в порядке зависимости
-SERVICES=("admin" "dial" "111" "plan" "sms" "download" "goip" "desk" "call")
+SERVICES=("admin" "dial" "111" "plan" "sms" "sms_send" "download" "goip" "desk" "call")
 
 case "${1:-restart}" in
   start)
@@ -270,6 +270,7 @@ case "${1:-restart}" in
     echo "Порты сервисов:"
     echo "  111 (main): 8000"
     echo "  sms: 8002"
+    echo "  sms_send: 8013"
     echo "  admin: 8004"
     echo "  dial: 8005"  
     echo "  plan: 8006"
