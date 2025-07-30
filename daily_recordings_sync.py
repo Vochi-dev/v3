@@ -50,6 +50,9 @@ TEMP_BASE_DIR = "/tmp/daily_recordings_sync"
 ENABLE_PARALLEL_DOWNLOAD = True  # ✅ ВКЛЮЧЕНО: исправлена логика rsync
 MAX_PARALLEL_THREADS = 4         # Количество потоков (рекомендуется 4)
 
+# 🎯 Настройки параллельной обработки предприятий 
+MAX_PARALLEL_ENTERPRISES = 5     # Количество предприятий обрабатываемых одновременно
+
 class DailyRecordingsSync:
     def __init__(self):
         self.s3_client = None
@@ -59,21 +62,33 @@ class DailyRecordingsSync:
         self.total_downloaded = 0          # Реально скачано файлов
         self.total_success = 0             # Успешно загружено на S3
         self.total_errors = 0              # Ошибки загрузки на S3
+        self.total_skipped = 0             # Пропущено (уже загружено)
         
     def print_banner(self):
         """Печатает красивый баннер начала работы"""
         banner = f"""
 {'='*80}
-🤖 ЕЖЕДНЕВНАЯ АВТОМАТИЧЕСКАЯ ЗАГРУЗКА ЗАПИСЕЙ РАЗГОВОРОВ
+🚀 ЕЖЕДНЕВНАЯ АВТОМАТИЧЕСКАЯ ЗАГРУЗКА ЗАПИСЕЙ РАЗГОВОРОВ
 {'='*80}
 📅 Время запуска: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+⚙️  Версия: Оптимизированная с ПАРАЛЛЕЛЬНОЙ обработкой
 🎯 Загрузка с предприятий где parameter_option_3 = true
 📁 Структура S3: CallRecords/{{name2}}/год/месяц/
 🔗 Безопасные ссылки: /recordings/file/{{uuid_token}}
+🛡️ Защита от дублирования: проверка s3_object_key перед загрузкой
+
+🚀 ПАРАЛЛЕЛЬНАЯ ОБРАБОТКА:
+   ⚡ Предприятий одновременно: {MAX_PARALLEL_ENTERPRISES}
+   🔄 Потоков скачивания на предприятие: {MAX_PARALLEL_THREADS}
+   💾 Параллельных загрузок на S3: 10 одновременно
+   ⏱️ Таймаут скачивания файла: 60 сек (было 300)
+   📈 Ожидаемое ускорение: до 10x
+
+📊 Лог файл: {log_filename}
 {'='*80}
 """
         print(banner)
-        logger.info("СТАРТ ЕЖЕДНЕВНОЙ АВТОМАТИЧЕСКОЙ ЗАГРУЗКИ ЗАПИСЕЙ")
+        logger.info("🚀 СТАРТ ЕЖЕДНЕВНОЙ АВТОМАТИЧЕСКОЙ ЗАГРУЗКИ С ПАРАЛЛЕЛЬНОЙ ОБРАБОТКОЙ")
     
     async def get_enterprises_list(self) -> List[Dict]:
         """Получает список предприятий с parameter_option_3 = true"""
@@ -296,7 +311,7 @@ class DailyRecordingsSync:
                         f'{thread_dir}/'
                     ]
                     
-                    result = subprocess.run(cmd_rsync, capture_output=True, text=True, timeout=300)  # 5 мин на файл
+                    result = subprocess.run(cmd_rsync, capture_output=True, text=True, timeout=60)  # 1 мин на файл
                     
                     if result.returncode == 0:
                         # Проверяем что файл скачался
@@ -405,7 +420,7 @@ class DailyRecordingsSync:
                         f'{temp_dir}/'
                     ]
                     
-                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # 5 мин на файл
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)  # 1 мин на файл
                     
                     if result.returncode == 0:
                         local_file = os.path.join(temp_dir, wav_file)
@@ -455,16 +470,24 @@ class DailyRecordingsSync:
                 
             logger.info(f"🎵 {enterprise['name']}: найдено WAV файлов для обработки: {total_files}")
             
-            success_count = 0
-            error_count = 0
+            # 🚀 ПАРАЛЛЕЛЬНАЯ загрузка на S3 - исправлена основная проблема!
+            logger.info(f"🚀 {enterprise['name']}: начинаем ПАРАЛЛЕЛЬНУЮ загрузку {total_files} файлов на S3...")
             
-            for i, wav_file in enumerate(wav_files, 1):
+            # Создаем задачи для параллельной обработки всех файлов
+            async def process_single_file(wav_file: str, file_index: int) -> Tuple[bool, str]:
+                """Обрабатывает один файл параллельно"""
                 try:
-                    # Извлекаем call_unique_id из имени файла
                     call_unique_id = wav_file.replace('.wav', '')
                     wav_path = os.path.join(temp_dir, wav_file)
                     
-                    logger.info(f"📤 {enterprise['name']} [{i}/{total_files}] Обрабатываем: {call_unique_id}")
+                    logger.info(f"📤 {enterprise['name']} [{file_index}/{total_files}] Обрабатываем: {call_unique_id}")
+                    
+                    # 🛡️ ЗАЩИТА ОТ ДУБЛИРОВАНИЯ: проверяем что файл еще не загружен
+                    from app.services.postgres import get_call_recording_info
+                    call_info = await get_call_recording_info(call_unique_id)
+                    if call_info and call_info.get('s3_object_key'):
+                        logger.info(f"⚠️ {enterprise['name']} [{file_index}/{total_files}] Пропускаем {call_unique_id} - уже загружен на S3")
+                        return False, call_unique_id  # Не ошибка, но и не успех
                     
                     # Создаем правильный объект для S3 клиента с name2
                     upload_result = await self.upload_recording_with_name2(
@@ -478,7 +501,6 @@ class DailyRecordingsSync:
                         file_url, object_key, uuid_token, recording_duration = upload_result
                         
                         # ИСПРАВЛЕНО: НЕ меняем call_url и uuid_token! Сохраняем только S3 данные
-                        # Сохраняем в БД только S3 информацию, call_url и uuid_token остаются неизменными
                         db_success = await update_call_recording_info(
                             call_unique_id=call_unique_id,
                             s3_object_key=object_key,
@@ -486,22 +508,61 @@ class DailyRecordingsSync:
                         )
                         
                         if db_success:
-                            success_count += 1
-                            logger.info(f"✅ {enterprise['name']} [{i}/{total_files}] Успешно: {call_unique_id} (UUID: {uuid_token})")
+                            logger.info(f"✅ {enterprise['name']} [{file_index}/{total_files}] Успешно: {call_unique_id} (UUID: {uuid_token})")
+                            return True, call_unique_id
                         else:
-                            error_count += 1
-                            logger.error(f"❌ {enterprise['name']} [{i}/{total_files}] Ошибка БД: {call_unique_id}")
+                            logger.error(f"❌ {enterprise['name']} [{file_index}/{total_files}] Ошибка БД: {call_unique_id}")
+                            return False, call_unique_id
                     else:
-                        error_count += 1
-                        logger.error(f"❌ {enterprise['name']} [{i}/{total_files}] Ошибка загрузки: {call_unique_id}")
-                        
-                    # Прогресс каждые 10 файлов
-                    if i % 10 == 0:
-                        logger.info(f"📊 {enterprise['name']}: прогресс: {i}/{total_files} ({i/total_files*100:.1f}%)")
+                        logger.error(f"❌ {enterprise['name']} [{file_index}/{total_files}] Ошибка загрузки: {call_unique_id}")
+                        return False, call_unique_id
                         
                 except Exception as e:
+                    logger.error(f"❌ {enterprise['name']} [{file_index}/{total_files}] Исключение при обработке {wav_file}: {e}")
+                    return False, wav_file.replace('.wav', '')
+            
+            # Создаем семафор для ограничения одновременных загрузок (чтобы не перегрузить S3)
+            upload_semaphore = asyncio.Semaphore(10)  # Максимум 10 одновременных загрузок
+            
+            async def process_with_semaphore(wav_file: str, file_index: int) -> Tuple[bool, str]:
+                async with upload_semaphore:
+                    return await process_single_file(wav_file, file_index)
+            
+            # Запускаем ВСЕ файлы параллельно!
+            tasks = [
+                process_with_semaphore(wav_file, i+1) 
+                for i, wav_file in enumerate(wav_files)
+            ]
+            
+            # Ждем завершения всех загрузок
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Подсчитываем результаты
+            success_count = 0
+            error_count = 0
+            skipped_count = 0
+            
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    logger.error(f"❌ {enterprise['name']}: исключение при обработке файла {i+1}: {result}")
                     error_count += 1
-                    logger.error(f"❌ {enterprise['name']} [{i}/{total_files}] Исключение при обработке {wav_file}: {e}")
+                else:
+                    success, call_id = result
+                    if success:
+                        success_count += 1
+                    elif call_id:  # False но с call_id означает "пропущен"
+                        skipped_count += 1
+                    else:
+                        error_count += 1
+                
+                # Прогресс каждые 50 файлов для параллельной обработки
+                if (i + 1) % 50 == 0:
+                    logger.info(f"📊 {enterprise['name']}: обработано {i+1}/{total_files} файлов ({(i+1)/total_files*100:.1f}%)")
+            
+            logger.info(f"📊 {enterprise['name']}: успешно {success_count}, ошибок {error_count}, пропущено {skipped_count}")
+            
+            # Обновляем глобальную статистику пропущенных
+            self.total_skipped += skipped_count
             
             return success_count, error_count
             
@@ -645,6 +706,7 @@ class DailyRecordingsSync:
   🎯 Нужно скачать из БД: {self.total_needed_from_db}
   📥 Реально скачано: {self.total_downloaded}
   ✅ Загружено на S3: {self.total_success}
+  ⚠️ Пропущено (уже загружено): {self.total_skipped}
   ❌ Ошибок загрузки: {self.total_errors}
 
 📈 ПОКАЗАТЕЛИ ЭФФЕКТИВНОСТИ:
@@ -658,8 +720,48 @@ class DailyRecordingsSync:
         print(report)
         logger.info(f"ЗАВЕРШЕНА ЕЖЕДНЕВНАЯ ЗАГРУЗКА: {self.total_success}/{self.total_needed_from_db} файлов (общий успех {overall_success_rate:.1f}%) за {total_time} сек")
     
+    async def process_single_enterprise(self, enterprise: Dict, semaphore: asyncio.Semaphore) -> Tuple[int, int, int, int]:
+        """Обрабатывает одно предприятие (для параллельного выполнения)"""
+        async with semaphore:  # Ограничиваем количество одновременных соединений
+            logger.info(f"\n{'='*60}")
+            logger.info(f"🏢 НАЧИНАЕМ ОБРАБОТКУ: {enterprise['number']} ({enterprise['name']})")
+            logger.info(f"📁 name2: {enterprise['name2']} → IP: {enterprise['ip']}")
+            logger.info(f"{'='*60}")
+            
+            try:
+                # Проверка подключения
+                if not self.check_server_connection(enterprise):
+                    logger.error(f"❌ {enterprise['name']}: пропускаем из-за ошибки подключения")
+                    return 0, 0, 0, 0  # server_files, needed_files, success, errors
+                
+                # Получаем список записей из БД, которые нужно скачать
+                needed_unique_ids = await self.get_calls_needing_download(enterprise)
+                if not needed_unique_ids:
+                    logger.info(f"⚠️ {enterprise['name']}: нет записей для скачивания из БД")
+                    return 0, 0, 0, 0
+                
+                # Анализ записей на сервере
+                server_file_count, size_info = self.analyze_recordings(enterprise)
+                logger.info(f"📊 {enterprise['name']}: на сервере {server_file_count} файлов >2KB, в БД нужно скачать {len(needed_unique_ids)}")
+                
+                # Скачивание только нужных записей
+                if not await self.download_recordings(enterprise, needed_unique_ids):
+                    logger.error(f"❌ {enterprise['name']}: пропускаем из-за ошибки скачивания")
+                    return server_file_count, len(needed_unique_ids), 0, 0
+                
+                # Обработка и загрузка в S3
+                success_count, error_count = await self.process_and_upload_recordings(enterprise)
+                
+                logger.info(f"✅ {enterprise['name']}: завершено ({success_count}/{len(needed_unique_ids)} успешно)")
+                
+                return server_file_count, len(needed_unique_ids), success_count, error_count
+                
+            except Exception as e:
+                logger.error(f"❌ {enterprise['name']}: критическая ошибка: {e}")
+                return 0, 0, 0, 0
+
     async def run(self):
-        """Основная функция ежедневной загрузки"""
+        """Основная функция ежедневной загрузки с параллельной обработкой предприятий"""
         start_time = time.time()
         
         try:
@@ -694,49 +796,34 @@ class DailyRecordingsSync:
             # 4. Создание базовой временной папки
             os.makedirs(TEMP_BASE_DIR, exist_ok=True)
             
-            # 5. Обработка каждого предприятия
-            for enterprise in self.enterprises:
-                logger.info(f"\n{'='*60}")
-                logger.info(f"🏢 НАЧИНАЕМ ОБРАБОТКУ: {enterprise['number']} ({enterprise['name']})")
-                logger.info(f"📁 name2: {enterprise['name2']} → IP: {enterprise['ip']}")
-                logger.info(f"{'='*60}")
-                
-                try:
-                    # Проверка подключения
-                    if not self.check_server_connection(enterprise):
-                        logger.error(f"❌ {enterprise['name']}: пропускаем из-за ошибки подключения")
-                        continue
-                    
-                    # Получаем список записей из БД, которые нужно скачать
-                    needed_unique_ids = await self.get_calls_needing_download(enterprise)
-                    if not needed_unique_ids:
-                        logger.info(f"⚠️ {enterprise['name']}: нет записей для скачивания из БД")
-                        continue
-                    
-                    # Анализ записей на сервере
-                    server_file_count, size_info = self.analyze_recordings(enterprise)
-                    logger.info(f"📊 {enterprise['name']}: на сервере {server_file_count} файлов >2KB, в БД нужно скачать {len(needed_unique_ids)}")
-                    
-                    # Скачивание только нужных записей
-                    if not await self.download_recordings(enterprise, needed_unique_ids):
-                        logger.error(f"❌ {enterprise['name']}: пропускаем из-за ошибки скачивания")
-                        continue
-                    
-                    # Обработка и загрузка в S3
-                    success_count, error_count = await self.process_and_upload_recordings(enterprise)
-                    
-                    # Обновляем статистику
-                    self.total_found_on_servers += server_file_count
-                    self.total_needed_from_db += len(needed_unique_ids)
-                    # total_downloaded обновляется в download_recordings
-                    self.total_success += success_count
-                    self.total_errors += error_count
-                    
-                    logger.info(f"✅ {enterprise['name']}: завершено ({success_count}/{len(needed_unique_ids)} успешно)")
-                    
-                except Exception as e:
-                    logger.error(f"❌ {enterprise['name']}: критическая ошибка: {e}")
+            # 5. 🚀 ПАРАЛЛЕЛЬНАЯ обработка предприятий
+            logger.info(f"🚀 НАЧИНАЕМ ПАРАЛЛЕЛЬНУЮ ОБРАБОТКУ {len(self.enterprises)} ПРЕДПРИЯТИЙ")
+            logger.info(f"⚡ Максимум одновременно: {MAX_PARALLEL_ENTERPRISES} предприятий")
+            logger.info(f"{'='*80}")
+            
+            # Создаем семафор для ограничения количества одновременных соединений
+            semaphore = asyncio.Semaphore(MAX_PARALLEL_ENTERPRISES)
+            
+            # Запускаем все предприятия параллельно
+            tasks = [
+                self.process_single_enterprise(enterprise, semaphore) 
+                for enterprise in self.enterprises
+            ]
+            
+            # Ждем завершения всех задач
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Собираем статистику
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    logger.error(f"❌ Исключение при обработке предприятия {self.enterprises[i]['name']}: {result}")
                     continue
+                    
+                server_files, needed_files, success, errors = result
+                self.total_found_on_servers += server_files
+                self.total_needed_from_db += needed_files
+                self.total_success += success
+                self.total_errors += errors
             
             # 6. Финальный отчет
             self.print_final_report(start_time)
