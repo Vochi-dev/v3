@@ -82,7 +82,7 @@ async def login(request: Request, password: str = Form(...)):
     resp.set_cookie(
         "auth", "1",
         httponly=True,
-        secure=True,  # Только HTTPS
+        secure=True,  # HTTPS (автоматическое перенаправление)  
         samesite="lax",  # Защита от CSRF
         max_age=2592000,  # 30 дней в секундах
     )
@@ -1591,3 +1591,5 @@ async def get_reboot_events_today(request: Request):
             'success': False,
             'error': str(e)
         }, status_code=500)
+
+

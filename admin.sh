@@ -2,10 +2,10 @@
 
 # Скрипт для управления сервисом админки предприятий
 
-APP_MODULE="main:app"
+APP_MODULE="enterprise_admin_service:app"
 PID_FILE="/var/run/enterprise_admin_service.pid"
 LOG_FILE="/var/log/enterprise_admin_service.log"
-HOST="0.0.0.0"
+HOST="127.0.0.1"
 PORT="8004"
 
 # Путь к uvicorn внутри venv
