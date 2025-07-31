@@ -45,6 +45,12 @@ class UserUpdate(BaseModel):
     patronymic: Optional[str] = None
     personal_phone: Optional[str] = None
     internal_phones: Optional[List[str]] = None
+    # Поля ролей
+    is_admin: bool = False
+    is_employee: bool = True
+    is_marketer: bool = False
+    is_spec1: bool = False
+    is_spec2: bool = False
 
 class UserCreate(UserUpdate):
     pass
@@ -655,12 +661,14 @@ async def create_user(enterprise_number: str, user_data: UserCreate):
             # Шаг 2: Создание пользователя
             new_user_id = await conn.fetchval(
                 """
-                INSERT INTO users (enterprise_number, email, first_name, last_name, patronymic, personal_phone, status)
-                VALUES ($1, $2, $3, $4, $5, $6, 'active')
+                INSERT INTO users (enterprise_number, email, first_name, last_name, patronymic, personal_phone, status,
+                                 is_admin, is_employee, is_marketer, is_spec1, is_spec2)
+                VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $8, $9, $10, $11)
                 RETURNING id
                 """,
                 enterprise_number, user_data.email, user_data.first_name, user_data.last_name,
-                user_data.patronymic, user_data.personal_phone
+                user_data.patronymic, user_data.personal_phone,
+                user_data.is_admin, user_data.is_employee, user_data.is_marketer, user_data.is_spec1, user_data.is_spec2
             )
 
             # Шаг 3: Привязка внутренних номеров
@@ -737,7 +745,8 @@ async def get_user_details_for_edit(enterprise_number: str, user_id: int, curren
 
     try:
         user_query = """
-            SELECT id, email, first_name, last_name, patronymic, personal_phone
+            SELECT id, email, first_name, last_name, patronymic, personal_phone,
+                   is_admin, is_employee, is_marketer, is_spec1, is_spec2
             FROM users
             WHERE id = $1 AND enterprise_number = $2;
         """
@@ -787,8 +796,12 @@ async def update_user(enterprise_number: str, user_id: int, user_data: UserUpdat
                 raise HTTPException(status_code=400, detail="Пользователь с таким внешним номером телефона уже существует.")
 
         await conn.execute(
-            "UPDATE users SET email = $1, first_name = $2, last_name = $3, patronymic = $4, personal_phone = $5 WHERE id = $6 AND enterprise_number = $7",
-            user_data.email, user_data.first_name, user_data.last_name, user_data.patronymic, user_data.personal_phone, user_id, enterprise_number
+            """UPDATE users SET email = $1, first_name = $2, last_name = $3, patronymic = $4, personal_phone = $5,
+               is_admin = $6, is_employee = $7, is_marketer = $8, is_spec1 = $9, is_spec2 = $10
+               WHERE id = $11 AND enterprise_number = $12""",
+            user_data.email, user_data.first_name, user_data.last_name, user_data.patronymic, user_data.personal_phone,
+            user_data.is_admin, user_data.is_employee, user_data.is_marketer, user_data.is_spec1, user_data.is_spec2,
+            user_id, enterprise_number
         )
         if user_data.internal_phones is not None:
             async with conn.transaction():

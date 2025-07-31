@@ -180,6 +180,7 @@ async def get_services_status(request: Request):
             "sms": {"port": 8002, "script": "sms.sh", "app": "goip_sms_service"},
             "sms_send": {"port": 8013, "script": "sms_send.sh", "app": "send_service_sms"},
             "send_user_sms": {"port": 8014, "script": "send_user_sms.sh", "app": "send_user_sms"},
+            "auth": {"port": 8015, "script": "auth.sh", "app": "auth"},
             "download": {"port": 8007, "script": "download.sh", "app": "download"},
             "goip": {"port": 8008, "script": "goip.sh", "app": "goip_service"},
             "desk": {"port": 8011, "script": "desk.sh", "app": "desk"},

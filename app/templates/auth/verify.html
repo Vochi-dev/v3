@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ввод кода - Vochi CRM</title>
+    
+    <!-- Favicon and App Icons -->
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="/static/apple-touch-icon.png">
+    <link rel="manifest" href="/static/site.webmanifest">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .auth-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            margin: 20px;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            color: #2563eb;
+            font-weight: bold;
+            font-size: 2rem;
+            margin: 0;
+        }
+        
+        .logo p {
+            color: #6b7280;
+            margin: 5px 0 0 0;
+            font-size: 0.9rem;
+        }
+        
+        .code-input {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 0.5rem;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        
+        .code-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .btn-auth {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-weight: 600;
+            color: white;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-auth:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            color: white;
+        }
+        
+        .btn-auth:disabled {
+            background: #9ca3af;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-secondary-auth {
+            background: transparent;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 10px;
+            font-weight: 600;
+            color: #667eea;
+            width: 100%;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        
+        .btn-secondary-auth:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .alert {
+            border-radius: 8px;
+            border: none;
+        }
+        
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+        
+        .footer-text {
+            text-align: center;
+            margin-top: 30px;
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+        
+        .email-info {
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .email-info strong {
+            color: #2563eb;
+        }
+        
+        .countdown {
+            font-weight: bold;
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-card">
+        <div class="logo">
+            <h1>🔐 Vochi CRM</h1>
+            <p>Подтверждение входа</p>
+        </div>
+        
+        <div class="email-info">
+            <p>Код отправлен на email:</p>
+            <strong id="emailDisplay">{{ email }}</strong>
+        </div>
+        
+        <form id="verifyForm">
+            <input type="hidden" id="email" name="email" value="{{ email }}">
+            
+            <div class="mb-3">
+                <input type="text" class="form-control code-input" id="code" name="code" 
+                       placeholder="000000" maxlength="6" pattern="[0-9]{6}" required
+                       autocomplete="one-time-code">
+            </div>
+            
+            <button type="submit" id="submitBtn" class="btn btn-auth">
+                <span id="submitText">Войти</span>
+                <div id="submitSpinner" class="spinner-border spinner-border-sm ms-2" role="status" style="display: none;">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+            </button>
+            
+            <button type="button" id="resendBtn" class="btn btn-secondary-auth">
+                <span id="resendText">Отправить код повторно</span>
+                <span id="countdown" class="countdown" style="display: none;"></span>
+            </button>
+        </form>
+        
+        <div id="messageArea" style="margin-top: 20px;"></div>
+        
+        <div class="footer-text">
+            <p>Введите 6-значный код из email или SMS</p>
+            <p><a href="/" style="color: #667eea; text-decoration: none;">← Вернуться к вводу email</a></p>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        const form = document.getElementById('verifyForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitText = document.getElementById('submitText');
+        const submitSpinner = document.getElementById('submitSpinner');
+        const resendBtn = document.getElementById('resendBtn');
+        const resendText = document.getElementById('resendText');
+        const countdown = document.getElementById('countdown');
+        const messageArea = document.getElementById('messageArea');
+        const codeInput = document.getElementById('code');
+        const emailInput = document.getElementById('email');
+        
+        let resendCountdown = 60; // 60 секунд до возможности повторной отправки
+        let countdownInterval;
+        
+        function showMessage(message, type = 'info') {
+            const alertClass = type === 'error' ? 'alert-danger' : type === 'success' ? 'alert-success' : 'alert-info';
+            messageArea.innerHTML = `
+                <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+        }
+        
+        function setLoading(loading) {
+            submitBtn.disabled = loading;
+            if (loading) {
+                submitText.textContent = 'Проверка...';
+                submitSpinner.style.display = 'inline-block';
+            } else {
+                submitText.textContent = 'Войти';
+                submitSpinner.style.display = 'none';
+            }
+        }
+        
+        function startResendCountdown() {
+            resendBtn.disabled = true;
+            resendText.style.display = 'none';
+            countdown.style.display = 'inline';
+            
+            countdownInterval = setInterval(() => {
+                countdown.textContent = `Повторить через ${resendCountdown}с`;
+                resendCountdown--;
+                
+                if (resendCountdown < 0) {
+                    clearInterval(countdownInterval);
+                    resendBtn.disabled = false;
+                    resendText.style.display = 'inline';
+                    countdown.style.display = 'none';
+                    resendText.textContent = 'Отправить код повторно';
+                    resendCountdown = 60;
+                }
+            }, 1000);
+        }
+        
+        // Автоматический ввод только цифр
+        codeInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/[^0-9]/g, '');
+            e.target.value = value;
+            
+            // Автоматическая отправка при вводе 6 цифр
+            if (value.length === 6) {
+                form.dispatchEvent(new Event('submit'));
+            }
+        });
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = emailInput.value.trim();
+            const code = codeInput.value.trim();
+            
+            if (!email || !code) {
+                showMessage('Введите код из email или SMS', 'error');
+                return;
+            }
+            
+            if (code.length !== 6) {
+                showMessage('Код должен содержать 6 цифр', 'error');
+                return;
+            }
+            
+            setLoading(true);
+            messageArea.innerHTML = '';
+            
+            try {
+                const formData = new FormData();
+                formData.append('email', email);
+                formData.append('code', code);
+                
+                const response = await fetch('/verify-code', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('✅ Код принят! Перенаправление...', 'success');
+                    
+                    // Устанавливаем cookie с токеном сессии
+                    document.cookie = `session_token=${data.session_token}; path=/; max-age=86400; secure; samesite=strict`;
+                    
+                    // Перенаправляем на рабочий стол
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1500);
+                    
+                } else {
+                    showMessage(data.detail || 'Неверный код', 'error');
+                    codeInput.value = '';
+                    codeInput.focus();
+                }
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    showMessage('❌ Сервис временно недоступен. Попробуйте позже.', 'error');
+                } else {
+                    showMessage('❌ Произошла ошибка. Попробуйте еще раз.', 'error');
+                }
+                codeInput.value = '';
+                codeInput.focus();
+            } finally {
+                setLoading(false);
+            }
+        });
+        
+        resendBtn.addEventListener('click', async () => {
+            const email = emailInput.value.trim();
+            if (!email) {
+                showMessage('Email не указан', 'error');
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('email', email);
+                
+                const response = await fetch('/send-code', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('✅ Код отправлен повторно', 'success');
+                    startResendCountdown();
+                } else {
+                    showMessage(data.message || 'Ошибка отправки кода', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showMessage('❌ Произошла ошибка при отправке кода', 'error');
+            }
+        });
+        
+        // Запускаем обратный отсчет при загрузке страницы
+        startResendCountdown();
+        
+        // Автофокус на поле кода
+        codeInput.focus();
+        
+        // Если нет email в URL, перенаправляем на главную
+        const urlParams = new URLSearchParams(window.location.search);
+        const emailFromUrl = urlParams.get('email');
+        if (emailFromUrl) {
+            emailInput.value = emailFromUrl;
+            document.getElementById('emailDisplay').textContent = emailFromUrl;
+        } else if (!emailInput.value) {
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html> 

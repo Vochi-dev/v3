@@ -10,7 +10,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
-from fastapi import FastAPI, HTTPException, Request, Query
+from fastapi import FastAPI, HTTPException, Request, Query, Cookie
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -205,6 +205,84 @@ def format_call_time(call_time) -> str:
     else:
         return f"{call_time_local.strftime('%d.%m.%Y')} {time_str}"
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ФУНКЦИИ АВТОРИЗАЦИИ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def get_user_from_session(session_token: str) -> Optional[Dict]:
+    """Получить пользователя по токену сессии"""
+    if not session_token:
+        return None
+    
+    conn = await get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        # Получаем активную сессию
+        session = await conn.fetchrow(
+            """SELECT s.user_id, s.enterprise_number, s.expires_at,
+                      u.email, u.first_name, u.last_name, u.is_admin, 
+                      u.is_employee, u.is_marketer, u.is_spec1, u.is_spec2
+               FROM user_sessions s
+               JOIN users u ON s.user_id = u.id
+               WHERE s.session_token = $1 AND s.expires_at > NOW()""",
+            session_token
+        )
+        
+        if not session:
+            return None
+        
+        return {
+            "user_id": session["user_id"],
+            "enterprise_number": session["enterprise_number"],
+            "email": session["email"],
+            "first_name": session["first_name"],
+            "last_name": session["last_name"],
+            "is_admin": session["is_admin"],
+            "is_employee": session["is_employee"],
+            "is_marketer": session["is_marketer"],
+            "is_spec1": session["is_spec1"],
+            "is_spec2": session["is_spec2"]
+        }
+    except Exception as e:
+        logger.error(f"Ошибка получения пользователя: {e}")
+        return None
+    finally:
+        await conn.close()
+
+def generate_header_buttons(user: Optional[Dict]) -> str:
+    """Генерация кнопок в header в зависимости от ролей пользователя"""
+    if not user:
+        return ""
+    
+    buttons = []
+    
+    # Администратор - кнопка "Панель администратора"
+    if user.get("is_admin"):
+        buttons.append("""
+            <a href="#" onclick="openAdminPanel()" class="header-btn admin-btn">
+                👤 Панель администратора
+            </a>
+        """)
+    
+    # Маркетолог - кнопка "Статистика"
+    if user.get("is_marketer"):
+        buttons.append("""
+            <a href="#" onclick="openStatistics()" class="header-btn stats-btn">
+                📊 Статистика
+            </a>
+        """)
+    
+    if buttons:
+        return f"""
+            <div class="header-buttons">
+                {''.join(buttons)}
+            </div>
+        """
+    
+    return ""
+
 @app.on_event("startup")
 async def startup_event():
     """Событие запуска сервиса"""
@@ -219,11 +297,15 @@ async def shutdown_event():
 @app.get("/", response_class=HTMLResponse)
 async def root(
     enterprise: str = Query(None, description="Название предприятия"),
-    number: str = Query(None, description="Номер предприятия")
+    number: str = Query(None, description="Номер предприятия"),
+    session_token: str = Cookie(None)
 ):
     """Корневой эндпоинт - возвращает HTML страницу рабочего стола"""
     enterprise_name = enterprise or "Предприятие"
     enterprise_number = number or "0000"
+    
+    # Проверяем авторизацию пользователя
+    user = await get_user_from_session(session_token)
     
     # Формируем заголовок в формате "номер-название"
     full_title = f"{enterprise_number}-{enterprise_name}"
@@ -344,10 +426,50 @@ async def root(
         .header {{ 
             display: flex; 
             align-items: center; 
+            justify-content: space-between;
             background-color: #343a40; 
             color: white; 
             padding: 0.5rem 1rem; 
             border-bottom: 1px solid #ddd; 
+        }}
+        .header-left {{
+            display: flex;
+            align-items: center;
+        }}
+        .header-buttons {{
+            display: flex;
+            gap: 0.5rem;
+        }}
+        .header-btn {{
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            border: none;
+            cursor: pointer;
+        }}
+        .header-btn:hover {{
+            background-color: #0056b3;
+            color: white;
+            text-decoration: none;
+        }}
+        .admin-btn {{
+            background-color: #28a745;
+        }}
+        .admin-btn:hover {{
+            background-color: #1e7e34;
+        }}
+        .stats-btn {{
+            background-color: #ffc107;
+            color: #212529;
+        }}
+        .stats-btn:hover {{
+            background-color: #e0a800;
+            color: #212529;
         }}
         .header img {{ 
             height: 32px; 
@@ -472,8 +594,11 @@ async def root(
 </head>
 <body>
     <div class="header">
-        <img src="/static/logo.jpg" alt="Логотип">
-        <h1>{full_title} Рабочий стол</h1>
+        <div class="header-left">
+            <img src="/static/logo.jpg" alt="Логотип">
+            <h1>{full_title} Рабочий стол</h1>
+        </div>
+        {generate_header_buttons(user)}
     </div>
     
     <div class="container">
@@ -494,6 +619,19 @@ async def root(
             </table>
         </div>
     </div>
+    
+    <script>
+        function openAdminPanel() {{
+            const urlParams = new URLSearchParams(window.location.search);
+            const enterpriseNumber = urlParams.get('number') || '0000';
+            const adminUrl = '/enterprise/' + enterpriseNumber + '/dashboard';
+            window.open(adminUrl, '_blank');
+        }}
+        
+        function openStatistics() {{
+            alert('📊 Раздел статистики находится в разработке');
+        }}
+    </script>
 </body>
 </html>
     """

@@ -449,7 +449,25 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div>
                             <div class="form-group"><label for="userEmail">Логин/Email</label><input type="email" id="userEmail" name="email" required></div>
-                            <div class="form-group"><label>Роли</label><div><input type="checkbox" id="roleAdmin" name="is_admin" value="true"><label for="roleAdmin">Администратор</label><input type="checkbox" id="roleEmployee" name="is_employee" value="true" checked><label for="roleEmployee">Сотрудник</label></div></div>
+                            <div class="form-group">
+                                <label>Роли</label>
+                                <div style="margin-top: 5px; display: grid; grid-template-columns: auto auto; gap: 5px; align-items: center; max-width: 150px;">
+                                    <span>Администратор</span>
+                                    <input type="checkbox" id="roleAdmin" name="is_admin" value="true">
+                                    
+                                    <span>Сотрудник</span>
+                                    <input type="checkbox" id="roleEmployee" name="is_employee" value="true" checked>
+                                    
+                                    <span>Маркетолог</span>
+                                    <input type="checkbox" id="roleMarketer" name="is_marketer" value="true">
+                                    
+                                    <span>Spec1</span>
+                                    <input type="checkbox" id="roleSpec1" name="is_spec1" value="true">
+                                    
+                                    <span>Spec2</span>
+                                    <input type="checkbox" id="roleSpec2" name="is_spec2" value="true">
+                                </div>
+                            </div>
                             <div class="form-group"><label for="userLastName">Фамилия</label><input type="text" id="userLastName" name="last_name" required></div>
                             <div class="form-group"><label for="userFirstName">Имя</label><input type="text" id="userFirstName" name="first_name" required></div>
                             <div class="form-group"><label for="userPatronymic">Отчество</label><input type="text" id="userPatronymic" name="patronymic"></div>
@@ -691,6 +709,36 @@
         const departmentsModal = document.getElementById('departments-modal');
         const departmentFormModal = document.getElementById('department-form-modal');
         const schemaModal = document.getElementById('schema-modal');
+
+        // --- Role Management Logic ---
+        const setupRoleLogic = () => {
+            const adminRole = document.getElementById('roleAdmin');
+            const otherRoles = ['roleEmployee', 'roleMarketer', 'roleSpec1', 'roleSpec2'];
+            
+            adminRole.addEventListener('change', function() {
+                if (this.checked) {
+                    // Если выбран Администратор - отключаем и снимаем остальные роли
+                    otherRoles.forEach(roleId => {
+                        const roleElement = document.getElementById(roleId);
+                        roleElement.checked = false;
+                        roleElement.disabled = true;
+                    });
+                } else {
+                    // Если Администратор не выбран - включаем остальные роли
+                    otherRoles.forEach(roleId => {
+                        document.getElementById(roleId).disabled = false;
+                    });
+                    // Автоматически ставим Сотрудника если ничего не выбрано
+                    const anyChecked = otherRoles.some(roleId => document.getElementById(roleId).checked);
+                    if (!anyChecked) {
+                        document.getElementById('roleEmployee').checked = true;
+                    }
+                }
+            });
+        };
+
+        // Инициализируем логику ролей
+        setupRoleLogic();
 
         // --- Event Delegation ---
         document.body.addEventListener('click', async (e) => {
@@ -1153,6 +1201,20 @@
             createUserForm.reset();
             document.getElementById('deleteUserBtn').style.display = 'none';
             document.getElementById('internalNumbersList').innerHTML = '';
+            
+            // Устанавливаем роли по умолчанию для нового пользователя
+            document.getElementById('roleAdmin').checked = false;
+            document.getElementById('roleEmployee').checked = true; // По умолчанию Сотрудник
+            document.getElementById('roleMarketer').checked = false;
+            document.getElementById('roleSpec1').checked = false;
+            document.getElementById('roleSpec2').checked = false;
+            
+            // Включаем все роли (не заблокированы администратором)
+            const otherRoles = ['roleEmployee', 'roleMarketer', 'roleSpec1', 'roleSpec2'];
+            otherRoles.forEach(roleId => {
+                document.getElementById(roleId).disabled = false;
+            });
+            
             openModal(createUserModal);
             initIti();
             iti.setNumber("+");
@@ -1187,6 +1249,26 @@
                     user.internal_phones.forEach(phone => {
                         // Создаем структуру, которую форма поймет при отправке
                         listContainer.innerHTML += `<div><input type="hidden" name="internal_phones" value="${phone}">${phone}</div>`;
+                    });
+                }
+                
+                // Заполняем чекбоксы ролей
+                document.getElementById('roleAdmin').checked = user.is_admin || false;
+                document.getElementById('roleEmployee').checked = user.is_employee || false;
+                document.getElementById('roleMarketer').checked = user.is_marketer || false;
+                document.getElementById('roleSpec1').checked = user.is_spec1 || false;
+                document.getElementById('roleSpec2').checked = user.is_spec2 || false;
+                
+                // Применяем логику ролей после заполнения
+                if (user.is_admin) {
+                    const otherRoles = ['roleEmployee', 'roleMarketer', 'roleSpec1', 'roleSpec2'];
+                    otherRoles.forEach(roleId => {
+                        document.getElementById(roleId).disabled = true;
+                    });
+                } else {
+                    const otherRoles = ['roleEmployee', 'roleMarketer', 'roleSpec1', 'roleSpec2'];
+                    otherRoles.forEach(roleId => {
+                        document.getElementById(roleId).disabled = false;
                     });
                 }
                 
@@ -1225,6 +1307,13 @@
             const data = Object.fromEntries(formData.entries());
             data.personal_phone = iti.getNumber();
             data.internal_phones = formData.getAll('internal_phones');
+            
+            // Добавляем значения чекбоксов ролей (так как unchecked checkbox не попадает в FormData)
+            data.is_admin = document.getElementById('roleAdmin').checked;
+            data.is_employee = document.getElementById('roleEmployee').checked;
+            data.is_marketer = document.getElementById('roleMarketer').checked;
+            data.is_spec1 = document.getElementById('roleSpec1').checked;
+            data.is_spec2 = document.getElementById('roleSpec2').checked;
             
             const url = currentEditingUser ? `/enterprise/${enterpriseNumber}/users/${currentEditingUser.id}` : `/enterprise/${enterpriseNumber}/users`;
             const method = currentEditingUser ? 'PUT' : 'POST';
