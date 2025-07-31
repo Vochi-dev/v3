@@ -25,6 +25,9 @@ from telegram.error import TelegramError
 import jwt
 import uuid
 import aiohttp
+import requests
+import json
+import re
 
 from app.config import ADMIN_PASSWORD, DB_PATH, JWT_SECRET_KEY
 from app.services.db import get_connection
@@ -115,6 +118,187 @@ async def admin_dashboard(request: Request):
                 "error": str(e)
             }
         )
+
+
+# ——————————————————————————————————————————————————————————————————————————
+# Proxy для получения баланса WebSMS
+# ——————————————————————————————————————————————————————————————————————————
+
+@router.get("/proxy-balance", response_class=JSONResponse)
+async def proxy_websms_balance(request: Request):
+    """Proxy для получения баланса WebSMS от сервиса SMS (порт 8013)"""
+    require_login(request)
+    
+    try:
+        # Делаем запрос к SMS сервису на localhost:8013
+        response = requests.get(
+            "http://localhost:8013/balance",
+            timeout=10,
+            headers={'Accept': 'application/json'}
+        )
+        
+        if response.status_code == 200:
+            # Возвращаем JSON ответ как есть
+            return response.json()
+        else:
+            logger.warning(f"SMS service balance request failed with status {response.status_code}")
+            return {
+                "success": False,
+                "error": f"SMS service returned status {response.status_code}"
+            }
+            
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error connecting to SMS service for balance: {e}")
+        return {
+            "success": False,
+            "error": "Unable to connect to SMS service"
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error in proxy_websms_balance: {e}")
+        return {
+            "success": False,
+            "error": "Internal server error"
+        }
+
+
+# ——————————————————————————————————————————————————————————————————————————
+# Управление сервисами системы
+# ——————————————————————————————————————————————————————————————————————————
+
+@router.get("/services", response_class=JSONResponse)
+async def get_services_status(request: Request):
+    """Получение статуса всех сервисов из all.sh"""
+    require_login(request)
+    
+    try:
+        # Определяем сервисы и их порты (из all.sh)
+        services_info = {
+            "admin": {"port": 8004, "script": "admin.sh", "app": "admin"},
+            "dial": {"port": 8005, "script": "dial.sh", "app": "dial"},
+            "111": {"port": 8000, "script": "111.sh", "app": "main"},
+            "plan": {"port": 8006, "script": "plan.sh", "app": "plan"},
+            "sms": {"port": 8002, "script": "sms.sh", "app": "goip_sms_service"},
+            "sms_send": {"port": 8013, "script": "sms_send.sh", "app": "send_service_sms"},
+            "send_user_sms": {"port": 8014, "script": "send_user_sms.sh", "app": "send_user_sms"},
+            "download": {"port": 8007, "script": "download.sh", "app": "download"},
+            "goip": {"port": 8008, "script": "goip.sh", "app": "goip_service"},
+            "desk": {"port": 8011, "script": "desk.sh", "app": "desk"},
+            "call": {"port": 8012, "script": "call.sh", "app": "call"},
+                    "reboot": {"port": 8009, "script": "reboot.sh", "app": "reboot.py"},
+        "ewelink": {"port": 8010, "script": "ewelink.sh", "app": "ewelink_api"}
+        }
+        
+        services = []
+        
+        for service_name, info in services_info.items():
+            try:
+                # Проверяем статус сервиса
+                status = "unknown"
+                
+                if info["port"]:
+                    # Проверяем по порту - более надежный метод
+                    netstat_result = subprocess.run(
+                        ["netstat", "-tlnp"], 
+                        capture_output=True, 
+                        text=True, 
+                        timeout=5
+                    )
+                    # Проверяем и 0.0.0.0 и 127.0.0.1 привязки
+                    port_pattern = f":{info['port']}"
+                    port_found = port_pattern in netstat_result.stdout
+                    
+                    # Дополнительная проверка по процессу для download (может не показывать порт сразу)
+                    if not port_found and service_name == "download":
+                        ps_result = subprocess.run(
+                            ["ps", "aux"], 
+                            capture_output=True, 
+                            text=True, 
+                            timeout=5
+                        )
+                        if "uvicorn download:app" in ps_result.stdout:
+                            status = "running"
+                        else:
+                            status = "stopped" 
+                    else:
+                        status = "running" if port_found else "stopped"
+                else:
+                    # Для сервисов без порта проверяем по процессу
+                    ps_result = subprocess.run(
+                        ["ps", "aux"], 
+                        capture_output=True, 
+                        text=True, 
+                        timeout=5
+                    )
+                    # Используем более гибкий поиск процесса
+                    if service_name == "reboot" and "reboot.py" in ps_result.stdout:
+                        status = "running"
+                    elif service_name == "ewelink" and "ewelink_api" in ps_result.stdout:
+                        status = "running"
+                    elif info["app"] in ps_result.stdout:
+                        status = "running"
+                    else:
+                        status = "stopped"
+                
+                services.append({
+                    "name": service_name,
+                    "script": info["script"],
+                    "app": info["app"],
+                    "port": info["port"],
+                    "status": status
+                })
+                
+            except Exception as e:
+                logger.error(f"Error checking status for service {service_name}: {e}")
+                services.append({
+                    "name": service_name,
+                    "script": info["script"],
+                    "app": info["app"],
+                    "port": info["port"],
+                    "status": "error"
+                })
+        
+        # Сортируем сервисы по номеру порта (сначала с портами, потом без портов)
+        services.sort(key=lambda x: (x["port"] is None, x["port"] if x["port"] is not None else 9999))
+        
+        return {
+            "success": True,
+            "services": services
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting services status: {e}")
+        return {
+            "success": False,
+            "error": "Failed to get services status"
+        }
+
+
+
+@router.post("/services/{service_name}/action", response_class=JSONResponse)
+async def control_service(service_name: str, request: Request):
+    """Управление сервисом (stop/restart)"""
+    # require_login(request)  # ОТКЛЮЧЕНО
+    
+    try:
+        # Получаем действие из JSON body
+        body = await request.json()
+        action = body.get("action")
+        
+        if action not in ["stop", "restart"]:
+            return {"success": False, "error": "Invalid action"}
+        
+        # Просто выполняем команду
+        script_path = f"./{service_name}.sh"
+        result = subprocess.run([script_path, action], capture_output=True, text=True, cwd="/root/asterisk-webhook")
+        
+        return {
+            "success": result.returncode == 0,
+            "message": f"{service_name} {action} completed",
+            "output": result.stdout if result.returncode == 0 else result.stderr
+        }
+            
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 # ——————————————————————————————————————————————————————————————————————————
