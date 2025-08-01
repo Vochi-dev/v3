@@ -314,7 +314,7 @@ app.add_middleware(AuthMiddleware)
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     """Главная страница - перенаправление на авторизацию пользователей"""
-    return RedirectResponse(url="http://localhost:8015/", status_code=302)
+    return RedirectResponse(url="/user-auth/", status_code=302)
 
 @app.post("/start")
 async def asterisk_start(body: dict = Body(...), request: Request = None):

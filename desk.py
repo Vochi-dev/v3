@@ -310,6 +310,13 @@ async def root(
     # Формируем заголовок в формате "номер-название"
     full_title = f"{enterprise_number}-{enterprise_name}"
     
+    # Добавляем ФИО пользователя, если авторизован
+    if user and user.get('first_name') and user.get('last_name'):
+        user_full_name = f"{user['last_name']} {user['first_name']}"
+        header_title = f"{full_title} | {user_full_name}"
+    else:
+        header_title = full_title
+    
     # Получаем данные звонков и владельцев номеров
     calls_data = await get_latest_hangup_calls(enterprise_number, 200)
     extension_owners = await get_extension_owners(enterprise_number)
@@ -405,7 +412,7 @@ async def root(
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>{full_title} Рабочий стол</title>
+    <title>{header_title}</title>
     
     <!-- Favicon and App Icons -->
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
@@ -596,7 +603,7 @@ async def root(
     <div class="header">
         <div class="header-left">
             <img src="/static/logo.jpg" alt="Логотип">
-            <h1>{full_title} Рабочий стол</h1>
+            <h1>{header_title}</h1>
         </div>
         {generate_header_buttons(user)}
     </div>

@@ -492,12 +492,49 @@ async def get_mobiles():
 
 @app.get("/enterprise/{enterprise_number}/dashboard", response_class=HTMLResponse)
 async def enterprise_dashboard(request: Request, enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+    logger.info(f"DASHBOARD: Запрос дашборда для предприятия {enterprise_number}")
     if enterprise_number != current_enterprise:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Доступ запрещен")
     enterprise = await get_enterprise_by_number_from_db(enterprise_number)
     if not enterprise:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Предприятие не найдено")
-    return templates.TemplateResponse("enterprise_admin/dashboard.html", {"request": request, "enterprise": enterprise})
+    
+    # Получаем данные пользователя
+    user = None
+    session_token = request.cookies.get("session_token")
+    logger.info(f"DASHBOARD: session_token = {session_token}")
+    
+    if session_token:
+        conn = await get_db_connection()
+        if conn:
+            try:
+                # Ищем пользователя в новой системе авторизации
+                user_row = await conn.fetchrow("""
+                    SELECT u.id, u.first_name, u.last_name, u.email, u.enterprise_number
+                    FROM user_sessions s 
+                    JOIN users u ON s.user_id = u.id 
+                    WHERE s.session_token = $1 AND s.expires_at > NOW()
+                """, session_token)
+                
+                if user_row:
+                    user = dict(user_row)
+                    logger.info(f"DASHBOARD: Найден пользователь из user_sessions: {user}")
+                else:
+                    logger.info(f"DASHBOARD: Пользователь не найден в user_sessions для токена {session_token}")
+            except Exception as e:
+                logger.error(f"DASHBOARD: Ошибка при получении пользователя: {e}")
+            finally:
+                await conn.close()
+    else:
+        logger.info("DASHBOARD: session_token отсутствует в cookies")
+    
+    logger.info(f"DASHBOARD: Передаю в шаблон: enterprise={enterprise}, user={user}")
+    
+    return templates.TemplateResponse("enterprise_admin/dashboard.html", {
+        "request": request, 
+        "enterprise": enterprise,
+        "user": user
+    })
 
 @app.get("/enterprise/{enterprise_number}/users", response_class=JSONResponse)
 async def get_enterprise_users(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
@@ -536,7 +573,10 @@ async def get_enterprise_users(enterprise_number: str, current_enterprise: str =
                     u.personal_phone AS phone_number,
                     'user' AS line_type,
                     COALESCE(pis.incoming_schema_names, ARRAY[]::varchar[]) AS incoming_schema_names,
-                    NULL AS outgoing_schema_name
+                    NULL AS outgoing_schema_name,
+                    NULL AS ip_registration,
+                    NULL AS role,
+                    NULL AS department
                 FROM users u
                 LEFT JOIN personal_incoming_schemas pis ON u.id = pis.user_id
                 WHERE u.enterprise_number = $1 AND u.personal_phone IS NOT NULL
@@ -553,7 +593,17 @@ async def get_enterprise_users(enterprise_number: str, current_enterprise: str =
                     uip.phone_number,
                     'internal' AS line_type,
                     COALESCE(iis.incoming_schema_names, ARRAY[]::varchar[]) AS incoming_schema_names,
-                    ds.schema_name AS outgoing_schema_name
+                    ds.schema_name AS outgoing_schema_name,
+                    NULL AS ip_registration,
+                    CASE 
+                        WHEN u.is_admin THEN 'Администратор'
+                        WHEN u.is_employee THEN 'Сотрудник'
+                        WHEN u.is_marketer THEN 'Маркетолог'
+                        WHEN u.is_spec1 THEN 'Spec1'
+                        WHEN u.is_spec2 THEN 'Spec2'
+                        ELSE 'Не указано'
+                    END AS role,
+                    u.department
                 FROM user_internal_phones uip
                 LEFT JOIN users u ON uip.user_id = u.id
                 LEFT JOIN dial_schemas ds ON uip.outgoing_schema_id = ds.schema_id
@@ -582,6 +632,8 @@ async def get_enterprise_users(enterprise_number: str, current_enterprise: str =
                     "user_id": user_id,
                     "full_name": record['full_name'],
                     "email": record['email'],
+                    "role": record.get('role', 'Не указано'),
+                    "department": record.get('department', ''),
                     "lines": []
                 }
             
@@ -589,7 +641,10 @@ async def get_enterprise_users(enterprise_number: str, current_enterprise: str =
                 "phone_number": record['phone_number'],
                 "line_type": record['line_type'],
                 "incoming_schema_names": record['incoming_schema_names'] or [],
-                "outgoing_schema_name": record['outgoing_schema_name']
+                "outgoing_schema_name": record['outgoing_schema_name'],
+                "ip_registration": record.get('ip_registration'),
+                "role": record.get('role', 'Не указано'),
+                "department": record.get('department', '')
             })
 
         logger.info(f"Найдено {len(users_data)} пользователей для предприятия {enterprise_number}")

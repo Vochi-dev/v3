@@ -232,6 +232,11 @@ async def login_page(request: Request):
     """Стартовая страница - ввод email"""
     return templates.TemplateResponse("login.html", {"request": request})
 
+@app.get("/user-auth/", response_class=HTMLResponse)
+async def user_auth_page(request: Request):
+    """Страница авторизации пользователей через nginx"""
+    return templates.TemplateResponse("login.html", {"request": request})
+
 @app.post("/send-code", response_class=JSONResponse)
 async def send_code(request: Request, email: str = Form(...)):
     """Отправка кода авторизации на email и SMS"""
@@ -318,7 +323,7 @@ async def verify_code(request: Request, email: str = Form(...), code: str = Form
         
         # Получаем пользователя
         user = await conn.fetchrow(
-            "SELECT id, enterprise_number FROM users WHERE email = $1",
+            "SELECT id, enterprise_number, first_name, last_name FROM users WHERE email = $1",
             email
         )
         
@@ -332,6 +337,7 @@ async def verify_code(request: Request, email: str = Form(...), code: str = Form
         )
         
         enterprise_name = enterprise['name'] if enterprise else "Предприятие"
+        user_full_name = f"{user['last_name']} {user['first_name']}"
         
         # Создаем сессию
         session_token = generate_session_token()
@@ -349,7 +355,7 @@ async def verify_code(request: Request, email: str = Form(...), code: str = Form
         logger.info(f"✅ Успешная авторизация для {email}, user_id: {user['id']}")
         
         # Формируем правильный URL для перенаправления на Рабочий стол
-        redirect_url = f"{DESK_SERVICE_URL}/?enterprise={enterprise_name}&number={user['enterprise_number']}"
+        redirect_url = f"{DESK_SERVICE_URL}/?enterprise={enterprise_name}&number={user['enterprise_number']}&user={user_full_name}"
         
         return JSONResponse({
             "success": True,

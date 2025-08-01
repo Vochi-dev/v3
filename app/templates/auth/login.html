@@ -174,7 +174,7 @@
                 const formData = new FormData();
                 formData.append('email', email);
                 
-                const response = await fetch('/send-code', {
+                const response = await fetch('/user-auth/send-code', {
                     method: 'POST',
                     body: formData
                 });
@@ -193,7 +193,7 @@
                     
                     // Перенаправляем на страницу ввода кода
                     setTimeout(() => {
-                        window.location.href = `/verify?email=${encodeURIComponent(email)}`;
+                        window.location.href = `/user-auth/verify?email=${encodeURIComponent(email)}`;
                     }, 2000);
                     
                 } else {

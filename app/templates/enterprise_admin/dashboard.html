@@ -18,7 +18,11 @@
 </head>
 <body>
     <div class="container mt-4">
-        <h1>Панель управления предприятием "{{ enterprise.name }}"</h1>
+        <h1>Панель управления предприятием "{{ enterprise.name }}"
+        {% if user and user.first_name and user.last_name %}
+            | {{ user.last_name }} {{ user.first_name }}
+        {% endif %}
+        </h1>
         <p>Номер предприятия: {{ enterprise.number }}</p>
         <hr>
         <div class="d-grid gap-2 d-md-flex justify-content-md-start">

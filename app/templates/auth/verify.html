@@ -281,7 +281,7 @@
                 formData.append('email', email);
                 formData.append('code', code);
                 
-                const response = await fetch('/verify-code', {
+                const response = await fetch('/user-auth/verify-code', {
                     method: 'POST',
                     body: formData
                 });
