@@ -2117,5 +2117,126 @@ async def get_phone_config_data(enterprise_number: str, current_enterprise: str 
     finally:
         await conn.close()
 
+@app.get("/admin/check-internal-phones-ip/{enterprise_number}", response_class=JSONResponse)
+async def check_internal_phones_ip(enterprise_number: str):
+    """Получение IP адресов регистрации внутренних линий для конкретного предприятия"""
+    import asyncio
+    from datetime import datetime
+    
+    try:
+        # Получаем информацию о предприятии
+        conn = await get_db_connection()
+        if not conn:
+            raise HTTPException(status_code=500, detail="DB connection failed")
+        
+        try:
+            enterprise_query = "SELECT ip FROM enterprises WHERE number = $1"
+            enterprise_record = await conn.fetchrow(enterprise_query, enterprise_number)
+            
+            if not enterprise_record:
+                return JSONResponse({'success': False, 'error': 'Enterprise not found'}, status_code=404)
+                
+            enterprise_ip = enterprise_record['ip']
+            if not enterprise_ip:
+                return JSONResponse({'success': False, 'error': 'Enterprise IP not configured'}, status_code=400)
+            
+            # SSH команда для получения детальной информации о SIP peers
+            cmd = [
+                'sshpass', '-p', '5atx9Ate@pbx',
+                'ssh', 
+                '-o', 'ConnectTimeout=5',
+                '-o', 'StrictHostKeyChecking=no',
+                '-o', 'UserKnownHostsFile=/dev/null',
+                '-o', 'LogLevel=ERROR',
+                '-p', '5059',
+                f'root@{enterprise_ip}',
+                'timeout 15 asterisk -rx "sip show peers"'
+            ]
+            
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=15.0)
+                
+                if process.returncode != 0:
+                    error_output = stderr.decode('utf-8', errors='ignore')
+                    return JSONResponse({
+                        'success': False, 
+                        'error': f'SSH command failed: {error_output.strip() or "Unknown error"}'
+                    }, status_code=500)
+                
+                # Парсим вывод команды sip show peers
+                output = stdout.decode('utf-8', errors='ignore')
+                lines = output.strip().split('\n')
+                
+                internal_phones = {}
+                
+                for line in lines:
+                    # Пропускаем заголовки и служебные строки
+                    if 'Name/username' in line or 'sip peers' in line or not line.strip():
+                        continue
+                    
+                    # Парсим строку: "150/150         (Unspecified)    D  No         No             0    UNREACHABLE"
+                    # или: "151/151         192.168.1.100    D  Yes        Yes            0    OK (1 ms)"
+                    parts = line.split()
+                    if len(parts) < 6:
+                        continue
+                    
+                    name_part = parts[0]  # Например: "150/150"
+                    ip_part = parts[1] if len(parts) > 1 else "(Unspecified)"
+                    
+                    # Извлекаем номер внутренней линии
+                    peer_name = name_part.split('/')[0]
+                    
+                    # Проверяем, что это внутренняя линия (3-значная, кроме 301/302)
+                    if len(peer_name) == 3 and peer_name.isdigit() and peer_name not in ['301', '302']:
+                        # Определяем статус регистрации
+                        status = 'online' if ' OK ' in line else 'offline'
+                        
+                        # Извлекаем IP адрес
+                        if ip_part == '(Unspecified)' or ip_part == 'Unspecified':
+                            ip_address = None
+                        else:
+                            # IP может быть в формате "192.168.1.100:5060" или просто "192.168.1.100"
+                            ip_address = ip_part.split(':')[0]
+                        
+                        internal_phones[peer_name] = {
+                            'phone_number': peer_name,
+                            'ip_address': ip_address,
+                            'status': status,
+                            'raw_line': line.strip()
+                        }
+                
+                logger.info(f"Found {len(internal_phones)} internal phones for enterprise {enterprise_number}")
+                
+                return JSONResponse({
+                    'success': True,
+                    'enterprise_number': enterprise_number,
+                    'enterprise_ip': enterprise_ip,
+                    'internal_phones': internal_phones,
+                    'total_found': len(internal_phones),
+                    'checked_at': datetime.now().isoformat()
+                })
+                
+            except asyncio.TimeoutError:
+                return JSONResponse({
+                    'success': False, 
+                    'error': 'SSH connection timeout'
+                }, status_code=500)
+                
+        finally:
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"Error checking internal phones IP for enterprise {enterprise_number}: {e}", exc_info=True)
+        return JSONResponse({
+            'success': False,
+            'error': str(e)
+        }, status_code=500)
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8004) 
