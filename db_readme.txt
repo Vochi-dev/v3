@@ -223,4 +223,4 @@ vochi/call-recordings/2025/07/23/0387/call_1753256669.wav
     ```bash
     # Каждый день в 23:00 выгружать записи в S3 и удалять локальные
     0 23 * * * cd /root/asterisk-webhook && python3 scripts/daily_backup_to_s3.py >> logs/s3_backup.log 2>&1
-    ``` 
+    ``` ...
