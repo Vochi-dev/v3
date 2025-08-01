@@ -17,6 +17,28 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import httpx
 
+# Импорт для email
+import smtplib
+from email.message import EmailMessage
+from pathlib import Path
+import sys
+import os
+from dotenv import load_dotenv
+
+# Загружаем переменные из .env
+load_dotenv()
+
+# Добавляем путь к app для импорта
+sys.path.append(str(Path(__file__).parent))
+
+# Настройки email из .env файла
+EMAIL_HOST = os.getenv("EMAIL_HOST", "mailbe04.hoster.by")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "bot@vochi.by")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "G#2$9fpBcL")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
+EMAIL_FROM = os.getenv("EMAIL_FROM") or EMAIL_HOST_USER
+
 # ══════════════════════════════════════════════════════════════════════════════
 # КОНФИГУРАЦИЯ
 # ══════════════════════════════════════════════════════════════════════════════
@@ -103,10 +125,34 @@ def generate_session_token() -> str:
 async def send_email_code(email: str, code: str) -> bool:
     """Отправка кода на email"""
     try:
-        # TODO: Интегрировать с существующим email сервисом
-        logger.info(f"📧 Email код для {email}: {code}")
+        msg = EmailMessage()
+        msg['Subject'] = "Код авторизации Vochi CRM"
+        msg['From'] = EMAIL_FROM
+        msg['To'] = email
+        msg.set_content(f"""Здравствуйте!
+
+Ваш код авторизации в системе Vochi CRM: {code}
+
+Код действителен в течение 10 минут.
+
+Если вы не запрашивали авторизацию, просто проигнорируйте это письмо.
+
+---
+С уважением,
+Команда Vochi CRM
+""")
+
+        # Отправляем email синхронно в отдельном потоке
+        def send_sync():
+            with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as server:
+                if EMAIL_USE_TLS:
+                    server.starttls()
+                server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
+                server.send_message(msg)
         
-        # Пока просто логируем, позже интегрируем с email сервисом
+        await asyncio.get_event_loop().run_in_executor(None, send_sync)
+        
+        logger.info(f"📧 Email код отправлен на {email}")
         return True
         
     except Exception as e:
@@ -129,11 +175,11 @@ async def send_sms_code(phone: str, code: str) -> bool:
             
             if response.status_code == 200:
                 data = response.json()
-                if data.get("status") == "success":
+                if data.get("success") == True:
                     logger.info(f"📱 SMS код отправлен на {phone}")
                     return True
                 else:
-                    logger.error(f"Ошибка SMS API: {data.get('message')}")
+                    logger.error(f"Ошибка SMS API: {data.get('error', data.get('message', 'Unknown error'))}")
                     return False
             else:
                 logger.error(f"Ошибка SMS сервиса: {response.status_code}")
@@ -279,6 +325,14 @@ async def verify_code(request: Request, email: str = Form(...), code: str = Form
         if not user:
             raise HTTPException(status_code=404, detail="Пользователь не найден")
         
+        # Получаем данные предприятия для формирования URL
+        enterprise = await conn.fetchrow(
+            "SELECT name FROM enterprises WHERE number = $1",
+            user['enterprise_number']
+        )
+        
+        enterprise_name = enterprise['name'] if enterprise else "Предприятие"
+        
         # Создаем сессию
         session_token = generate_session_token()
         expires_at = datetime.now() + timedelta(hours=SESSION_EXPIRY_HOURS)
@@ -294,10 +348,13 @@ async def verify_code(request: Request, email: str = Form(...), code: str = Form
         
         logger.info(f"✅ Успешная авторизация для {email}, user_id: {user['id']}")
         
+        # Формируем правильный URL для перенаправления на Рабочий стол
+        redirect_url = f"{DESK_SERVICE_URL}/?enterprise={enterprise_name}&number={user['enterprise_number']}"
+        
         return JSONResponse({
             "success": True,
             "session_token": session_token,
-            "redirect_url": f"{DESK_SERVICE_URL}/"
+            "redirect_url": redirect_url
         })
         
     except HTTPException:

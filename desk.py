@@ -624,8 +624,28 @@ async def root(
         function openAdminPanel() {{
             const urlParams = new URLSearchParams(window.location.search);
             const enterpriseNumber = urlParams.get('number') || '0000';
-            const adminUrl = '/enterprise/' + enterpriseNumber + '/dashboard';
-            window.open(adminUrl, '_blank');
+            
+            // Получаем токен авторизации через главный admin сервис
+            fetch(`https://bot.vochi.by/admin/generate-auth-token/${{enterpriseNumber}}`)
+            .then(response => {{
+                if (!response.ok) {{
+                    throw new Error('Ошибка получения токена авторизации');
+                }}
+                return response.json();
+            }})
+            .then(data => {{
+                if (data.token) {{
+                    // Переходим на enterprise admin сервис с токеном
+                    const adminUrl = `https://bot.vochi.by/auth/${{data.token}}`;
+                    window.open(adminUrl, '_blank');
+                }} else {{
+                    alert('Не удалось получить токен для входа в админпанель');
+                }}
+            }})
+            .catch(error => {{
+                console.error('Ошибка авторизации:', error);
+                alert('Произошла ошибка при входе в админпанель');
+            }});
         }}
         
         function openStatistics() {{

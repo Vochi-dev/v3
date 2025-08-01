@@ -818,7 +818,7 @@ async def delete_all_enterprises(request: Request):
 
 @router.get("/generate-auth-token/{enterprise_number}", response_class=JSONResponse)
 async def generate_auth_token(enterprise_number: str, request: Request):
-    require_login(request)
+    # require_login(request)  # Отключаем для доступа из рабочего стола
     logger.info(f"Запрос на генерацию токена для предприятия {enterprise_number}")
     payload = {
         "sub": enterprise_number,

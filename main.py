@@ -3,8 +3,11 @@ import asyncio
 from logging.handlers import RotatingFileHandler
 import os
 import json
+from functools import wraps
+from typing import Optional, Dict, Callable
 
-from fastapi import FastAPI, Request, Body, HTTPException, status, Form
+import asyncpg
+from fastapi import FastAPI, Request, Body, HTTPException, status, Form, Cookie
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -201,11 +204,117 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             )
             raise
 
+# ══════════════════════════════════════════════════════════════════════════════
+# АВТОРИЗАЦИЯ И MIDDLEWARE
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Конфигурация БД для авторизации
+AUTH_DB_CONFIG = {
+    "host": "localhost",
+    "port": 5432,
+    "user": "postgres", 
+    "password": "r/Yskqh/ZbZuvjb2b3ahfg==",
+    "database": "postgres"
+}
+
+# Маршруты, которые не требуют авторизации
+PUBLIC_ROUTES = {
+    "/", "/admin", "/admin/login", "/admin/dashboard", "/admin/enterprises",
+    "/health", "/docs", "/redoc", "/openapi.json",
+    "/start", "/dial", "/bridge", "/hangup",  # Asterisk webhooks
+    "/bridge_create", "/bridge_leave", "/bridge_destroy", "/new_callerid"
+}
+
+async def get_user_from_session_token(session_token: str) -> Optional[Dict]:
+    """Получить пользователя по токену сессии"""
+    if not session_token:
+        return None
+    
+    try:
+        conn = await asyncpg.connect(**AUTH_DB_CONFIG)
+        session = await conn.fetchrow(
+            """SELECT s.user_id, s.enterprise_number, s.expires_at,
+                      u.email, u.first_name, u.last_name, u.is_admin, 
+                      u.is_employee, u.is_marketer, u.is_spec1, u.is_spec2
+               FROM user_sessions s
+               JOIN users u ON s.user_id = u.id
+               WHERE s.session_token = $1 AND s.expires_at > NOW()""",
+            session_token
+        )
+        await conn.close()
+        
+        if not session:
+            return None
+        
+        return {
+            "user_id": session["user_id"],
+            "enterprise_number": session["enterprise_number"],
+            "email": session["email"],
+            "first_name": session["first_name"],
+            "last_name": session["last_name"],
+            "is_admin": session["is_admin"],
+            "is_employee": session["is_employee"],
+            "is_marketer": session["is_marketer"],
+            "is_spec1": session["is_spec1"],
+            "is_spec2": session["is_spec2"]
+        }
+    except Exception as e:
+        logger.error(f"Ошибка получения пользователя из сессии: {e}")
+        return None
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    """Middleware для проверки авторизации пользователей"""
+    
+    async def dispatch(self, request: Request, call_next):
+        # Проверяем, требует ли маршрут авторизации
+        path = str(request.url.path)
+        
+        # Публичные маршруты не требуют авторизации
+        if any(path.startswith(route) for route in PUBLIC_ROUTES):
+            return await call_next(request)
+        
+        # Для остальных маршрутов проверяем авторизацию
+        session_token = request.cookies.get("session_token")
+        user = await get_user_from_session_token(session_token)
+        
+        if not user:
+            # Пользователь не авторизован - перенаправляем на главную
+            return RedirectResponse(url="/", status_code=302)
+        
+        # Добавляем пользователя в state запроса
+        request.state.user = user
+        
+        return await call_next(request)
+
+def require_auth(func: Callable) -> Callable:
+    """Декоратор для обязательной авторизации в endpoint'ах"""
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        # Ищем объект Request в аргументах
+        request = None
+        for arg in args:
+            if isinstance(arg, Request):
+                request = arg
+                break
+        
+        if not request:
+            raise HTTPException(status_code=500, detail="Request object not found")
+        
+        # Проверяем наличие пользователя в state
+        user = getattr(request.state, 'user', None)
+        if not user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        return await func(*args, **kwargs)
+    return wrapper
+
 app.add_middleware(LoggingMiddleware)
+app.add_middleware(AuthMiddleware)
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return RedirectResponse(url="/admin/enterprises")
+    """Главная страница - перенаправление на авторизацию пользователей"""
+    return RedirectResponse(url="http://localhost:8015/", status_code=302)
 
 @app.post("/start")
 async def asterisk_start(body: dict = Body(...), request: Request = None):
