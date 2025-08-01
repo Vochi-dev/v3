@@ -54,7 +54,7 @@ DB_CONFIG = {
 
 # Services configuration
 SEND_SMS_SERVICE_URL = "http://localhost:8013"
-DESK_SERVICE_URL = "http://localhost:8011"
+DESK_SERVICE_URL = "https://bot.vochi.by/desk"
 
 # Auth configuration
 CODE_LENGTH = 6
@@ -323,7 +323,7 @@ async def verify_code(request: Request, email: str = Form(...), code: str = Form
         
         # Получаем пользователя
         user = await conn.fetchrow(
-            "SELECT id, enterprise_number, first_name, last_name FROM users WHERE email = $1",
+            "SELECT id, enterprise_number, first_name, last_name, is_admin, is_marketer FROM users WHERE email = $1",
             email
         )
         
@@ -355,7 +355,7 @@ async def verify_code(request: Request, email: str = Form(...), code: str = Form
         logger.info(f"✅ Успешная авторизация для {email}, user_id: {user['id']}")
         
         # Формируем правильный URL для перенаправления на Рабочий стол
-        redirect_url = f"{DESK_SERVICE_URL}/?enterprise={enterprise_name}&number={user['enterprise_number']}&user={user_full_name}"
+        redirect_url = f"{DESK_SERVICE_URL}/?enterprise={enterprise_name}&number={user['enterprise_number']}&user={user_full_name}&is_admin={user['is_admin']}&is_marketer={user['is_marketer']}"
         
         return JSONResponse({
             "success": True,

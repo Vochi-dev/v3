@@ -537,9 +537,8 @@ async def enterprise_dashboard(request: Request, enterprise_number: str, current
     })
 
 @app.get("/enterprise/{enterprise_number}/users", response_class=JSONResponse)
-async def get_enterprise_users(enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
-    if enterprise_number != current_enterprise:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+async def get_enterprise_users(enterprise_number: str):
+    # Убрана проверка current_enterprise для доступа из суперадмина
     
     conn = await get_db_connection()
     if not conn: raise HTTPException(status_code=500, detail="DB connection failed")
@@ -603,7 +602,7 @@ async def get_enterprise_users(enterprise_number: str, current_enterprise: str =
                         WHEN u.is_spec2 THEN 'Spec2'
                         ELSE 'Не указано'
                     END AS role,
-                    u.department
+                    NULL AS department
                 FROM user_internal_phones uip
                 LEFT JOIN users u ON uip.user_id = u.id
                 LEFT JOIN dial_schemas ds ON uip.outgoing_schema_id = ds.schema_id

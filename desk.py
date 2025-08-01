@@ -298,6 +298,9 @@ async def shutdown_event():
 async def root(
     enterprise: str = Query(None, description="Название предприятия"),
     number: str = Query(None, description="Номер предприятия"),
+    user_full_name_param: str = Query(None, alias="user", description="ФИО пользователя из авторизации"),
+    is_admin: bool = Query(False, description="Флаг администратора"),
+    is_marketer: bool = Query(False, description="Флаг маркетолога"),
     session_token: str = Cookie(None)
 ):
     """Корневой эндпоинт - возвращает HTML страницу рабочего стола"""
@@ -307,12 +310,26 @@ async def root(
     # Проверяем авторизацию пользователя
     user = await get_user_from_session(session_token)
     
+    # Если нет сессии, но есть параметры из авторизации - создаем объект user
+    if not user and user_full_name_param:
+        user = {
+            "is_admin": is_admin,
+            "is_marketer": is_marketer,
+            "first_name": None,
+            "last_name": None
+        }
+    
     # Формируем заголовок в формате "номер-название"
     full_title = f"{enterprise_number}-{enterprise_name}"
     
     # Добавляем ФИО пользователя, если авторизован
+    user_full_name = None
     if user and user.get('first_name') and user.get('last_name'):
         user_full_name = f"{user['last_name']} {user['first_name']}"
+    elif user_full_name_param:  # Используем ФИО из URL параметра (после авторизации)
+        user_full_name = user_full_name_param
+    
+    if user_full_name:
         header_title = f"{full_title} | {user_full_name}"
     else:
         header_title = full_title

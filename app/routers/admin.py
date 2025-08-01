@@ -1594,3 +1594,4 @@ async def get_reboot_events_today(request: Request):
         }, status_code=500)
 
 
+
