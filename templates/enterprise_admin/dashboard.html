@@ -298,7 +298,11 @@
 <body>
     <div class="header">
         <img src="/static/logo.jpg" alt="Логотип">
-        <h1>{{ enterprise.number }}-{{ enterprise.name }} Панель администратора</h1>
+        <h1>{{ enterprise.number }}-{{ enterprise.name }} Панель администратора
+        {% if user and user.first_name and user.last_name %}
+        | {{ user.last_name }} {{ user.first_name }}
+        {% endif %}
+        </h1>
     </div>
     <div class="container">
         <a href="/dial/?enterprise={{ enterprise.number }}" class="btn btn-primary">Входящие схемы</a>

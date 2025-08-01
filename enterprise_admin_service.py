@@ -491,10 +491,9 @@ async def get_mobiles():
 # ——————————————————————————————————————————————————————————————————————————
 
 @app.get("/enterprise/{enterprise_number}/dashboard", response_class=HTMLResponse)
-async def enterprise_dashboard(request: Request, enterprise_number: str, current_enterprise: str = Depends(get_current_enterprise)):
+async def enterprise_dashboard(request: Request, enterprise_number: str):
     logger.info(f"DASHBOARD: Запрос дашборда для предприятия {enterprise_number}")
-    if enterprise_number != current_enterprise:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Доступ запрещен")
+    # Убрана проверка current_enterprise для доступа из user авторизации
     enterprise = await get_enterprise_by_number_from_db(enterprise_number)
     if not enterprise:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Предприятие не найдено")
@@ -508,7 +507,7 @@ async def enterprise_dashboard(request: Request, enterprise_number: str, current
         conn = await get_db_connection()
         if conn:
             try:
-                # Ищем пользователя в новой системе авторизации
+                # Сначала ищем в user_sessions (user авторизация)
                 user_row = await conn.fetchrow("""
                     SELECT u.id, u.first_name, u.last_name, u.email, u.enterprise_number
                     FROM user_sessions s 
@@ -520,7 +519,29 @@ async def enterprise_dashboard(request: Request, enterprise_number: str, current
                     user = dict(user_row)
                     logger.info(f"DASHBOARD: Найден пользователь из user_sessions: {user}")
                 else:
-                    logger.info(f"DASHBOARD: Пользователь не найден в user_sessions для токена {session_token}")
+                    # Если не найден в user_sessions, ищем в sessions (super admin)
+                    logger.info(f"DASHBOARD: Пользователь не найден в user_sessions, проверяем sessions (super admin)")
+                    session_row = await conn.fetchrow("""
+                        SELECT session_token FROM sessions 
+                        WHERE session_token = $1 AND created_at > NOW() - INTERVAL '24 hours'
+                    """, session_token)
+                    
+                    if session_row:
+                        # Для super admin'а - берем данные пользователя по enterprise_number
+                        admin_user_row = await conn.fetchrow("""
+                            SELECT u.id, u.first_name, u.last_name, u.email, u.enterprise_number
+                            FROM users u 
+                            WHERE u.enterprise_number = $1 AND u.is_admin = true
+                            LIMIT 1
+                        """, enterprise_number)
+                        
+                        if admin_user_row:
+                            user = dict(admin_user_row)
+                            logger.info(f"DASHBOARD: Найден admin пользователь из sessions: {user}")
+                        else:
+                            logger.info(f"DASHBOARD: Admin пользователь не найден для предприятия {enterprise_number}")
+                    else:
+                        logger.info(f"DASHBOARD: Токен не найден ни в user_sessions, ни в sessions")
             except Exception as e:
                 logger.error(f"DASHBOARD: Ошибка при получении пользователя: {e}")
             finally:
