@@ -70,12 +70,39 @@ case "${1:-restart}" in
       echo "   ❌ Ошибка запуска ewelink_api.py"
     fi
     
-    # Запуск всех Telegram-ботов
-    echo "   ▶ Запускаем все Telegram-боты..."
-    if ./start_bots.sh; then
-      echo "   ✅ Telegram-боты запущены"
+    # Ожидание готовности Telegram Auth сервиса
+    echo "   ⏳ Ожидаем готовности Telegram Auth сервиса (порт 8016)..."
+    sleep 3
+    
+    # Проверка доступности сервиса
+    max_attempts=30
+    attempt=1
+    while [ $attempt -le $max_attempts ]; do
+      if curl -s http://localhost:8016/ > /dev/null 2>&1; then
+        echo "   ✅ Telegram Auth сервис готов"
+        break
+      else
+        echo "   ⏳ Попытка $attempt/$max_attempts - ждем готовности сервиса..."
+        sleep 2
+        attempt=$((attempt + 1))
+      fi
+    done
+    
+    if [ $attempt -gt $max_attempts ]; then
+      echo "   ❌ Telegram Auth сервис не готов - пропускаем запуск ботов"
     else
-      echo "   ❌ Ошибка запуска Telegram-ботов"
+      # Запуск всех Telegram-ботов
+      echo "   ▶ Запускаем все Telegram-боты..."
+      if ./start_bots.sh; then
+        echo "   ✅ Telegram-боты запущены"
+        sleep 5
+        # Проверяем результат
+        BOT_COUNT=$(ps aux | grep "app/telegram/bot.py" | grep -v grep | wc -l)
+        EXPECTED_COUNT=$(PGPASSWORD='r/Yskqh/ZbZuvjb2b3ahfg==' psql -U postgres -d postgres -t -c "SELECT COUNT(*) FROM enterprises WHERE bot_token IS NOT NULL AND bot_token != '';" 2>/dev/null || echo "?")
+        echo "   📊 Запущено ботов: $BOT_COUNT из $EXPECTED_COUNT"
+      else
+        echo "   ❌ Ошибка запуска Telegram-ботов"
+      fi
     fi
     
     echo "🎉 Все сервисы запущены!"
