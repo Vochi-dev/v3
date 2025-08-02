@@ -4,38 +4,38 @@ import sys
 import argparse
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.enums import ParseMode
-from aiogram.filters import Command
-from aiogram.client.default import DefaultBotProperties
-from aiogram.exceptions import TelegramAPIError
+from aiogram.utils.exceptions import TelegramAPIError
 
-from app.services.db import get_bot_token_by_number, get_enterprise_name_by_number  # 👈 добавлено
+from app.services.db import get_enterprise_name_by_number, get_all_bot_tokens
 
 logger = logging.getLogger(__name__)
 
 # 🔴 Удалено: def load_bot_token(...)
 
 async def run_bot(enterprise_number: str):
-    BOT_TOKEN = await get_bot_token_by_number(enterprise_number)  # 👈 получаем токен из базы
+    # Получаем все токены и находим нужный
+    all_tokens = await get_all_bot_tokens()
+    BOT_TOKEN = all_tokens.get(enterprise_number)
+    
     if not BOT_TOKEN:
         logger.error(f"No bot token found for enterprise {enterprise_number}")
         sys.exit(1)
 
-    bot = Bot(
-        token=BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-    )
-    dp = Dispatcher()
-
-    @dp.message(Command(commands=["start"]))
-    async def cmd_start(message: types.Message):
-        name = await get_enterprise_name_by_number(enterprise_number)  # 👈 получаем имя компании
-        if not name:
-            name = enterprise_number
-        await message.answer(f"Бот компании {name} запущен. Техподдержка @VochiSupport")
+    bot = Bot(token=BOT_TOKEN)
+    
+    # ✅ СОЗДАЕМ DISPATCHER С AUTH SUPPORT (aiogram 2.x)
+    from aiogram import Dispatcher
+    from aiogram.contrib.fsm_storage.memory import MemoryStorage
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    from telegram_auth_handler_v2 import register_auth_handlers
+    
+    dp = Dispatcher(bot, storage=MemoryStorage())
+    register_auth_handlers(dp)
 
     try:
-        logger.info(f"Bot for enterprise {enterprise_number} started.")
+        logger.info(f"Bot for enterprise {enterprise_number} started with AUTH support.")
         await dp.start_polling(bot)
     except TelegramAPIError as e:
         logger.error(f"Telegram API error: {e}")

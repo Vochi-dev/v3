@@ -251,12 +251,82 @@ async def get_user_from_session(session_token: str) -> Optional[Dict]:
     finally:
         await conn.close()
 
-def generate_header_buttons(user: Optional[Dict]) -> str:
-    """Генерация кнопок в header в зависимости от ролей пользователя"""
-    if not user:
-        return ""
+async def get_enterprise_bot_data(enterprise_number: str) -> Optional[Dict]:
+    """Получить данные бота предприятия (bot_token, название)"""
+    if not enterprise_number or enterprise_number == "0000":
+        return None
     
+    conn = await get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        enterprise = await conn.fetchrow(
+            "SELECT number, name, bot_token FROM enterprises WHERE number = $1",
+            enterprise_number
+        )
+        if enterprise:
+            enterprise_dict = dict(enterprise)
+            # Добавляем username бота
+            if enterprise_dict.get("bot_token"):
+                enterprise_dict["bot_username"] = await get_bot_username(enterprise_dict["bot_token"])
+            return enterprise_dict
+        return None
+    except Exception as e:
+        logger.error(f"Ошибка получения данных предприятия: {e}")
+        return None
+    finally:
+        await conn.close()
+
+async def get_bot_username(bot_token: str) -> str:
+    """Получить username бота через Telegram API"""
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://api.telegram.org/bot{bot_token}/getMe",
+                timeout=10
+            )
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("ok"):
+                    return data["result"]["username"]
+    except Exception as e:
+        logger.error(f"Ошибка получения username бота: {e}")
+    
+    return "unknown_bot"  # fallback
+
+def generate_header_buttons(user: Optional[Dict], enterprise_bot: Optional[Dict] = None) -> str:
+    """Генерация кнопок в header в зависимости от ролей пользователя"""
+    # Убираем проверку на user - кнопка Telegram должна показываться всем
     buttons = []
+    
+    # Кнопка Telegram-бота (для всех пользователей)
+    if enterprise_bot and enterprise_bot.get("bot_token"):
+        # Используем заранее полученный username
+        bot_username = enterprise_bot.get("bot_username", "unknown_bot")
+        enterprise_name = enterprise_bot.get("name", "Предприятие")
+        user_id = user.get("user_id", "") if user else ""
+        enterprise_number = enterprise_bot.get("number", "")
+        
+        # Формируем ссылку на бота с параметрами авторизации
+        telegram_link = f"https://t.me/{bot_username}?start=auth_{user_id}_{enterprise_number}"
+        
+        buttons.append(f"""
+            <a href="{telegram_link}" target="_blank" class="header-btn telegram-btn">
+                📱 Telegram-бот {enterprise_name}
+            </a>
+        """)
+    
+    # Если пользователь не авторизован, показываем только Telegram-бота
+    if not user:
+        if buttons:
+            return f"""
+                <div class="header-buttons">
+                    {''.join(buttons)}
+                </div>
+            """
+        return ""
     
     # Администратор - кнопка "Панель администратора"
     if user.get("is_admin"):
@@ -334,9 +404,10 @@ async def root(
     else:
         header_title = full_title
     
-    # Получаем данные звонков и владельцев номеров
+    # Получаем данные звонков, владельцев номеров и данные предприятия
     calls_data = await get_latest_hangup_calls(enterprise_number, 200)
     extension_owners = await get_extension_owners(enterprise_number)
+    enterprise_bot = await get_enterprise_bot_data(enterprise_number)
     
     # Формируем HTML для таблицы звонков
     calls_html = ""
@@ -481,6 +552,12 @@ async def root(
             color: white;
             text-decoration: none;
         }}
+        .telegram-btn {{
+            background-color: #0088cc;
+        }}
+        .telegram-btn:hover {{
+            background-color: #006399;
+        }}
         .admin-btn {{
             background-color: #28a745;
         }}
@@ -622,7 +699,7 @@ async def root(
             <img src="/static/logo.jpg" alt="Логотип">
             <h1>{header_title}</h1>
         </div>
-        {generate_header_buttons(user)}
+        {generate_header_buttons(user, enterprise_bot)}
     </div>
     
     <div class="container">

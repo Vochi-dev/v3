@@ -2259,5 +2259,70 @@ async def check_internal_phones_ip(enterprise_number: str):
             'error': str(e)
         }, status_code=500)
 
+@app.get("/telegram-users")
+async def get_telegram_users():
+    """Получить список пользователей с Telegram-авторизацией"""
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection error")
+    
+    try:
+        users = await conn.fetch("""
+            SELECT u.id, u.email, u.first_name, u.last_name, u.enterprise_number,
+                   u.telegram_authorized, u.telegram_tg_id, u.personal_phone,
+                   e.name as enterprise_name
+            FROM users u
+            JOIN enterprises e ON u.enterprise_number = e.number
+            WHERE u.telegram_authorized = TRUE
+            ORDER BY u.enterprise_number, u.last_name, u.first_name
+        """)
+        
+        return [dict(user) for user in users]
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения Telegram пользователей: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
+    finally:
+        await conn.close()
+
+@app.post("/revoke-telegram-auth/{user_id}")
+async def revoke_telegram_auth(user_id: int):
+    """Отзыв Telegram-авторизации пользователя (для админов)"""
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection error")
+    
+    try:
+        # Получаем telegram_tg_id перед удалением
+        user = await conn.fetchrow(
+            "SELECT telegram_tg_id FROM users WHERE id = $1", user_id
+        )
+        
+        if not user or not user['telegram_tg_id']:
+            return {"success": False, "message": "Пользователь не авторизован в Telegram"}
+        
+        # Сбрасываем авторизацию
+        await conn.execute("""
+            UPDATE users 
+            SET telegram_authorized = FALSE,
+                telegram_tg_id = NULL,
+                telegram_auth_code = NULL,
+                telegram_auth_expires = NULL
+            WHERE id = $1
+        """, user_id)
+        
+        # Удаляем из telegram_users
+        await conn.execute("""
+            DELETE FROM telegram_users WHERE tg_id = $1
+        """, user['telegram_tg_id'])
+        
+        return {"success": True, "message": "Telegram-авторизация отозвана"}
+        
+    except Exception as e:
+        logger.error(f"Ошибка отзыва Telegram-авторизации: {e}")
+        return {"success": False, "message": "Ошибка сервера"}
+    finally:
+        await conn.close()
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8004) 

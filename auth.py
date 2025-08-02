@@ -398,6 +398,62 @@ async def health_check():
     return {"status": "ok", "service": "auth", "timestamp": datetime.now().isoformat()}
 
 # ══════════════════════════════════════════════════════════════════════════════
+# TELEGRAM AUTH ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/send-telegram-auth-code", response_class=JSONResponse)
+async def send_telegram_auth_code(
+    email: str = Form(...), 
+    code: str = Form(...),
+    enterprise_name: str = Form(...)
+):
+    """
+    Endpoint для отправки email кода из telegram_auth_service
+    """
+    try:
+        subject = f"Код авторизации Telegram-бота {enterprise_name}"
+        
+        message_body = f"""Здравствуйте!
+
+Ваш код авторизации в Telegram-боте предприятия "{enterprise_name}":
+
+🔑 {code}
+
+Код действует 10 минут.
+
+Если вы не запрашивали авторизацию, просто проигнорируйте это сообщение.
+
+С уважением,
+Команда Vochi CRM"""
+
+        msg = EmailMessage()
+        msg['Subject'] = subject
+        msg['From'] = EMAIL_FROM
+        msg['To'] = email
+        msg.set_content(message_body)
+
+        def send_sync():
+            with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as server:
+                server.ehlo()
+                if EMAIL_USE_TLS:
+                    server.starttls()
+                    server.ehlo()
+                server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
+                server.send_message(msg)
+        
+        await asyncio.get_event_loop().run_in_executor(None, send_sync)
+        
+        logger.info(f"📧 Telegram auth код отправлен на {email}")
+        return {"success": True, "message": "Email отправлен"}
+        
+    except Exception as e:
+        logger.error(f"Ошибка отправки Telegram auth email: {e}")
+        return JSONResponse(
+            status_code=500, 
+            content={"success": False, "error": str(e)}
+        )
+
+# ══════════════════════════════════════════════════════════════════════════════
 # ФОНОВЫЕ ЗАДАЧИ
 # ══════════════════════════════════════════════════════════════════════════════
 

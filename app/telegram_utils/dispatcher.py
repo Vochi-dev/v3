@@ -31,6 +31,18 @@ async def create_dispatcher(bot: Bot) -> Dispatcher:
 
     # --- регистрируем Router онбординга ---
     dp.include_router(create_onboarding_router())
+    
+    # --- регистрируем Router авторизации ---
+    try:
+        # Импортируем наш auth handler
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        from telegram_auth_handler import create_auth_router
+        dp.include_router(create_auth_router())
+        logger.info(f"Auth router добавлен для предприятия {enterprise_id}")
+    except Exception as e:
+        logger.warning(f"Не удалось загрузить auth router: {e}")
 
     return dp
 
