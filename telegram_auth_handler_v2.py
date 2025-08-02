@@ -13,6 +13,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.filters import Text, Command
+import asyncpg
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,13 @@ def register_auth_handlers(dp: Dispatcher, enterprise_number: str):
                 f"🎯 Используйте кнопку ниже для доступа к полному CRM интерфейсу:\n\n"
                 f"📞 Техподдержка: @VochiSupport",
                 reply_markup=keyboard
+            )
+            
+            # Устанавливаем Menu Button для быстрого доступа к Mini App
+            await setup_menu_button(
+                bot=message.bot, 
+                chat_id=message.chat.id, 
+                enterprise_name=enterprise_name
             )
         else:
             # Пользователь НЕ авторизован - предлагаем авторизацию
@@ -188,6 +196,13 @@ def register_auth_handlers(dp: Dispatcher, enterprise_number: str):
                             f"📞 Техподдержка: @VochiSupport",
                             reply_markup=keyboard
                         )
+                        
+                        # Устанавливаем Menu Button для быстрого доступа к Mini App
+                        await setup_menu_button(
+                            bot=message.bot, 
+                            chat_id=message.chat.id, 
+                            enterprise_name=enterprise_name
+                        )
                     else:
                         await message.answer(f"❌ {result['message']}")
                 else:
@@ -267,4 +282,50 @@ async def check_user_authorization(telegram_id: int) -> bool:
                 return result.get("authorized", False)
     except:
         pass
+    return False
+
+async def setup_menu_button(bot: Bot, chat_id: int = None, enterprise_name: str = "CRM"):
+    """Установить постоянную Menu Button для доступа к Mini App"""
+    try:
+        # Подготавливаем данные для Menu Button
+        menu_button_data = {
+            "type": "web_app",
+            "text": f"🎯 {enterprise_name}",
+            "web_app": {
+                "url": "https://bot.vochi.by/miniapp/"
+            }
+        }
+        
+        # Формируем URL для API
+        if chat_id:
+            # Для конкретного пользователя
+            api_url = f"https://api.telegram.org/bot{bot._token}/setChatMenuButton"
+            params = {
+                "chat_id": chat_id,
+                "menu_button": menu_button_data
+            }
+        else:
+            # Для всех пользователей (глобально)
+            api_url = f"https://api.telegram.org/bot{bot._token}/setChatMenuButton"
+            params = {
+                "menu_button": menu_button_data
+            }
+        
+        # Отправляем запрос к Telegram API
+        async with httpx.AsyncClient() as client:
+            response = await client.post(api_url, json=params, timeout=10)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("ok"):
+                    logger.info(f"Menu Button установлена успешно для chat_id: {chat_id or 'все пользователи'}")
+                    return True
+                else:
+                    logger.warning(f"Ошибка установки Menu Button: {result.get('description')}")
+            else:
+                logger.error(f"HTTP ошибка при установке Menu Button: {response.status_code}")
+                
+    except Exception as e:
+        logger.error(f"Исключение при установке Menu Button: {e}")
+    
     return False
