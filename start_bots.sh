@@ -22,12 +22,12 @@ fi
 
 echo "[$(date)] Запускаем ботов..." >> "$LOG_FILE"
 
-# --- Вытаскиваем список enterprise_number с непустым bot_token ---
-enterprise_numbers=$(sqlite3 "$DB_PATH" "SELECT number FROM enterprises WHERE bot_token IS NOT NULL AND bot_token != '';")
+# --- Вытаскиваем список enterprise_number с непустым bot_token из PostgreSQL ---
+enterprise_numbers=$(PGPASSWORD='r/Yskqh/ZbZuvjb2b3ahfg==' psql -U postgres -d postgres -t -c "SELECT number FROM enterprises WHERE bot_token IS NOT NULL AND bot_token != '';" | xargs)
 
 for number in $enterprise_numbers; do
   echo "[$(date)] Запуск бота для предприятия $number" >> "$LOG_FILE"
-  nohup python3 "$BOT_SCRIPT" --enterprise "$number" >> "$LOG_FILE" 2>&1 &
+  nohup env PYTHONPATH=/root/asterisk-webhook python3 "$BOT_SCRIPT" --enterprise "$number" >> "$LOG_FILE" 2>&1 &
 done
 
 sleep 3

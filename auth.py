@@ -405,7 +405,8 @@ async def health_check():
 async def send_telegram_auth_code(
     email: str = Form(...), 
     code: str = Form(...),
-    enterprise_name: str = Form(...)
+    enterprise_name: str = Form(...),
+    bot_username: str = Form("")
 ):
     """
     Endpoint для отправки email кода из telegram_auth_service
@@ -413,13 +414,18 @@ async def send_telegram_auth_code(
     try:
         subject = f"Код авторизации Telegram-бота {enterprise_name}"
         
+        # Формируем ссылку на бота если есть username
+        bot_link_text = ""
+        if bot_username and bot_username != "unknown_bot":
+            bot_link_text = f"\n\n🤖 Ссылка на бот: https://t.me/{bot_username}"
+
         message_body = f"""Здравствуйте!
 
 Ваш код авторизации в Telegram-боте предприятия "{enterprise_name}":
 
 🔑 {code}
 
-Код действует 10 минут.
+Код действует 10 минут.{bot_link_text}
 
 Если вы не запрашивали авторизацию, просто проигнорируйте это сообщение.
 

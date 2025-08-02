@@ -36,11 +36,44 @@ from app.services.enterprise import send_message_to_bot
 from app.services.database import update_enterprise
 from app.services.fail2ban import get_banned_ips, get_banned_count
 from app.services.postgres import get_all_enterprises as get_all_enterprises_postgresql, get_pool
+import asyncpg
+from telegram import Bot
+from telegram.error import TelegramError
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
 logger = logging.getLogger("admin")
 logger.setLevel(logging.DEBUG)
+
+# Функция для подключения к PostgreSQL
+async def get_postgres_connection():
+    """Создание подключения к PostgreSQL"""
+    try:
+        connection = await asyncpg.connect(
+            host="localhost",
+            port=5432,
+            user="postgres", 
+            password="r/Yskqh/ZbZuvjb2b3ahfg==",
+            database="postgres"
+        )
+        return connection
+    except Exception as e:
+        logger.error(f"Ошибка подключения к PostgreSQL: {e}")
+        return None
+
+async def send_telegram_notification(telegram_id: int, bot_token: str, message: str) -> bool:
+    """Отправка уведомления пользователю в Telegram"""
+    if not telegram_id or not bot_token:
+        return False
+        
+    try:
+        bot = Bot(token=bot_token)
+        await bot.send_message(chat_id=telegram_id, text=message)
+        logger.info(f"📱 Telegram уведомление отправлено пользователю {telegram_id}")
+        return True
+    except TelegramError as e:
+        logger.error(f"Ошибка отправки Telegram уведомления: {e}")
+        return False
 
 # Create a handler for log_action.txt
 log_action_handler = logging.FileHandler("log_action.txt")
@@ -1594,5 +1627,181 @@ async def get_reboot_events_today(request: Request):
             'error': str(e)
         }, status_code=500)
 
+# ============================================
+# TELEGRAM ПОЛЬЗОВАТЕЛИ
+# ============================================
 
+@router.get("/telegram-users-by-enterprise/{enterprise_number}")
+async def get_telegram_users_by_enterprise(enterprise_number: str):
+    """Получить Telegram-пользователей конкретного предприятия"""
+    conn = await get_postgres_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection error")
+    
+    try:
+        users = await conn.fetch("""
+            SELECT u.id, u.email, u.first_name, u.last_name,
+                   u.telegram_authorized, u.telegram_tg_id, u.telegram_auth_blocked,
+                   u.personal_phone, u.created_at,
+                   CASE 
+                       WHEN u.telegram_authorized THEN u.created_at
+                       ELSE NULL
+                   END as telegram_auth_date
+            FROM users u
+            WHERE u.enterprise_number = $1
+            ORDER BY u.telegram_authorized DESC, u.last_name, u.first_name
+        """, enterprise_number)
+        
+        return {
+            "success": True,
+            "enterprise_number": enterprise_number,
+            "users": [dict(user) for user in users]
+        }
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения Telegram пользователей для {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
+    finally:
+        await conn.close()
+
+@router.post("/revoke-telegram-auth/{user_id}")
+async def revoke_telegram_auth_admin(user_id: int):
+    """Отзыв Telegram-авторизации пользователя (для суперадмина)"""
+    conn = await get_postgres_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection error")
+    
+    try:
+        # Получаем данные пользователя и предприятия перед удалением
+        user = await conn.fetchrow("""
+            SELECT u.telegram_tg_id, u.email, u.enterprise_number, e.bot_token, e.name as enterprise_name
+            FROM users u
+            JOIN enterprises e ON u.enterprise_number = e.number
+            WHERE u.id = $1
+        """, user_id)
+        
+        if not user:
+            return {"success": False, "message": "Пользователь не найден"}
+        
+        if not user['telegram_tg_id']:
+            return {"success": False, "message": "Пользователь не авторизован в Telegram"}
+        
+        # Сбрасываем авторизацию
+        await conn.execute("""
+            UPDATE users 
+            SET telegram_authorized = FALSE,
+                telegram_tg_id = NULL,
+                telegram_auth_code = NULL,
+                telegram_auth_expires = NULL
+            WHERE id = $1
+        """, user_id)
+        
+        # Удаляем из telegram_users (если есть такая таблица)
+        try:
+            await conn.execute("""
+                DELETE FROM telegram_users WHERE tg_id = $1
+            """, user['telegram_tg_id'])
+        except:
+            # Таблица может не существовать, игнорируем ошибку
+            pass
+        
+        # Отправляем уведомление пользователю
+        notification_text = f"""⛔️ Ваша авторизация в Telegram-боте предприятия "{user['enterprise_name']}" была отозвана администратором.
+
+Для повторной авторизации обратитесь к администратору предприятия."""
+        
+        await send_telegram_notification(
+            telegram_id=user['telegram_tg_id'],
+            bot_token=user['bot_token'],
+            message=notification_text
+        )
+        
+        logger.info(f"Отозвана Telegram-авторизация для пользователя {user['email']} (ID: {user_id})")
+        return {"success": True, "message": "Telegram-авторизация отозвана"}
+        
+    except Exception as e:
+        logger.error(f"Ошибка отзыва Telegram-авторизации: {e}")
+        return {"success": False, "message": "Ошибка сервера"}
+    finally:
+        await conn.close()
+
+@router.post("/block-telegram-auth/{user_id}")
+async def block_telegram_auth(user_id: int, blocked: bool = Form(...)):
+    """Блокировка/разблокировка Telegram-авторизации пользователя"""
+    conn = await get_postgres_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection error")
+    
+    try:
+        # Получаем данные пользователя и предприятия
+        user_data = await conn.fetchrow("""
+            SELECT u.telegram_tg_id, u.email, u.enterprise_number, u.telegram_authorized,
+                   e.bot_token, e.name as enterprise_name
+            FROM users u
+            JOIN enterprises e ON u.enterprise_number = e.number
+            WHERE u.id = $1
+        """, user_id)
+        
+        if not user_data:
+            return {"success": False, "message": "Пользователь не найден"}
+        
+        # Обновляем статус блокировки
+        result = await conn.execute("""
+            UPDATE users 
+            SET telegram_auth_blocked = $1
+            WHERE id = $2
+        """, blocked, user_id)
+        
+        if result == "UPDATE 0":
+            return {"success": False, "message": "Пользователь не найден"}
+        
+        # Если блокируем и пользователь был авторизован - отзываем авторизацию
+        if blocked and user_data['telegram_authorized'] and user_data['telegram_tg_id']:
+            await conn.execute("""
+                UPDATE users 
+                SET telegram_authorized = FALSE,
+                    telegram_auth_code = NULL,
+                    telegram_auth_expires = NULL
+                WHERE id = $1
+            """, user_id)
+            
+            # Удаляем из telegram_users
+            try:
+                await conn.execute("""
+                    DELETE FROM telegram_users WHERE tg_id = $1
+                """, user_data['telegram_tg_id'])
+            except:
+                pass
+        
+        # Отправляем уведомление пользователю
+        if user_data['telegram_tg_id'] and user_data['bot_token']:
+            if blocked:
+                notification_text = f"""🚫 Ваш аккаунт заблокирован для использования Telegram-бота предприятия "{user_data['enterprise_name']}".
+
+Обратитесь к администратору предприятия для разблокировки."""
+            else:
+                notification_text = f"""✅ Ваш аккаунт разблокирован для использования Telegram-бота предприятия "{user_data['enterprise_name']}".
+
+Для авторизации введите команду /start или сразу напишите ваш корпоративный email."""
+            
+            await send_telegram_notification(
+                telegram_id=user_data['telegram_tg_id'],
+                bot_token=user_data['bot_token'],
+                message=notification_text
+            )
+        
+        action = "заблокирована" if blocked else "разблокирована"
+        logger.info(f"Telegram-авторизация {action} для пользователя ID: {user_id}")
+        
+        return {
+            "success": True, 
+            "message": f"Telegram-авторизация {action}",
+            "blocked": blocked
+        }
+        
+    except Exception as e:
+        logger.error(f"Ошибка блокировки Telegram-авторизации: {e}")
+        return {"success": False, "message": "Ошибка сервера"}
+    finally:
+        await conn.close()
 

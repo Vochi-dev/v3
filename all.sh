@@ -70,11 +70,25 @@ case "${1:-restart}" in
       echo "   ❌ Ошибка запуска ewelink_api.py"
     fi
     
+    # Запуск всех Telegram-ботов
+    echo "   ▶ Запускаем все Telegram-боты..."
+    if ./start_bots.sh; then
+      echo "   ✅ Telegram-боты запущены"
+    else
+      echo "   ❌ Ошибка запуска Telegram-ботов"
+    fi
+    
     echo "🎉 Все сервисы запущены!"
     ;;
 
   stop)
     echo "🛑 Остановка всех сервисов..."
+    
+    # Сначала останавливаем все Telegram-боты
+    echo "   ▶ Останавливаем все Telegram-боты..."
+    pkill -f "app.telegram.bot" || true
+    sleep 2
+    echo "   ✅ Telegram-боты остановлены"
     
     # Останавливаем сервисы в обратном порядке
     for ((i=${#SERVICES[@]}-1; i>=0; i--)); do
@@ -105,6 +119,13 @@ case "${1:-restart}" in
     
     # Остановка всех сервисов
     echo "🛑 Останавливаем все сервисы..."
+    
+    # Сначала останавливаем все Telegram-боты
+    echo "   ▶ Останавливаем все Telegram-боты..."
+    pkill -f "app.telegram.bot" || true
+    sleep 2
+    echo "   ✅ Telegram-боты остановлены"
+    
     for ((i=${#SERVICES[@]}-1; i>=0; i--)); do
       service="${SERVICES[i]}"
       echo "   ▶ Останавливаем ${service}.sh..."
@@ -176,6 +197,14 @@ case "${1:-restart}" in
       echo "   ❌ Ошибка запуска ewelink_api.py"
     fi
     
+    # Запуск всех Telegram-ботов
+    echo "   ▶ Запускаем все Telegram-боты..."
+    if ./start_bots.sh; then
+      echo "   ✅ Telegram-боты запущены"
+    else
+      echo "   ❌ Ошибка запуска Telegram-ботов"
+    fi
+    
     echo "🎉 Все сервисы перезапущены!"
     ;;
 
@@ -236,6 +265,17 @@ case "${1:-restart}" in
     else
       echo "   ❌ ewelink_api.py не запущен"
     fi
+    
+    # --- Статус Telegram-ботов ---
+    echo "🔍 Telegram-боты:"
+    BOT_COUNT=$(ps aux | grep "app/telegram/bot.py" | grep -v grep | wc -l)
+    TOTAL_ENTERPRISES=$(PGPASSWORD='r/Yskqh/ZbZuvjb2b3ahfg==' psql -U postgres -d postgres -t -c "SELECT COUNT(*) FROM enterprises WHERE bot_token IS NOT NULL AND bot_token != '';" 2>/dev/null || echo "?")
+    echo "   📊 Запущено ботов: ${BOT_COUNT} из ${TOTAL_ENTERPRISES}"
+    if [[ "$BOT_COUNT" -gt 0 ]]; then
+      echo "   ✅ Telegram-боты работают"
+    else
+      echo "   ❌ Telegram-боты не запущены"
+    fi
     ;;
 
   build)
@@ -266,6 +306,7 @@ case "${1:-restart}" in
     echo ""
     echo "Сервисы: ${SERVICES[*]}"
     echo "Фронт: dial_frontend (npm run build)"
+    echo "Telegram-боты: start_bots.sh (все предприятия)"
     echo ""
     echo "Порты сервисов:"
 echo "  111 (main): 8000"
@@ -281,6 +322,8 @@ echo "  admin: 8004"
     echo "  reboot: 8009"
     echo "  ewelink: 8010"
     echo "  call: 8012"
+    echo ""
+    echo "Telegram-боты: динамическое количество (по числу предприятий)"
     exit 1
     ;;
 esac 

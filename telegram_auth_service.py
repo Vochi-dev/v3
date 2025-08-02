@@ -94,6 +94,23 @@ def generate_auth_code() -> str:
     """Генерация 6-значного кода"""
     return ''.join(random.choices(string.digits, k=6))
 
+async def get_bot_username(bot_token: str) -> str:
+    """Получить username бота через Telegram API"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://api.telegram.org/bot{bot_token}/getMe",
+                timeout=10
+            )
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("ok"):
+                    return data["result"]["username"]
+    except Exception as e:
+        logger.error(f"Ошибка получения username бота: {e}")
+    
+    return "unknown_bot"  # fallback
+
 async def get_user_by_email_and_enterprise(email: str, enterprise_number: str) -> Optional[Dict]:
     """Получение пользователя по email и номеру предприятия"""
     conn = await get_db_connection()
@@ -101,6 +118,7 @@ async def get_user_by_email_and_enterprise(email: str, enterprise_number: str) -
         query = """
         SELECT u.id, u.email, u.first_name, u.last_name, u.personal_phone, 
                u.enterprise_number, u.telegram_authorized, u.telegram_tg_id,
+               u.telegram_auth_blocked,
                e.name as enterprise_name, e.bot_token, e.chat_id
         FROM users u
         JOIN enterprises e ON u.enterprise_number = e.number
@@ -192,7 +210,7 @@ async def verify_and_authorize_user(email: str, code: str, telegram_id: int) -> 
     finally:
         await conn.close()
 
-async def send_auth_code_email(email: str, code: str, enterprise_name: str) -> bool:
+async def send_auth_code_email(email: str, code: str, enterprise_name: str, bot_username: str = "") -> bool:
     """Отправка кода авторизации на email"""
     try:
         async with httpx.AsyncClient() as client:
@@ -201,7 +219,8 @@ async def send_auth_code_email(email: str, code: str, enterprise_name: str) -> b
                 data={  # Используем data вместо json для Form данных
                     "email": email,
                     "code": code,
-                    "enterprise_name": enterprise_name
+                    "enterprise_name": enterprise_name,
+                    "bot_username": bot_username
                 },
                 timeout=10
             )
@@ -210,10 +229,18 @@ async def send_auth_code_email(email: str, code: str, enterprise_name: str) -> b
         logger.error(f"Ошибка отправки email: {e}")
         return False
 
-async def send_auth_code_sms(phone: str, code: str, enterprise_name: str) -> bool:
+async def send_auth_code_sms(phone: str, code: str, enterprise_name: str, bot_username: str = "") -> bool:
     """Отправка кода авторизации на SMS"""
     if not phone:
         return True  # Если телефона нет - не отправляем, но не считаем ошибкой
+    
+    # Формируем текст SMS с ссылкой на бота
+    bot_link = f"https://t.me/{bot_username}" if bot_username and bot_username != "unknown_bot" else ""
+    
+    if bot_link:
+        sms_text = f"Код авторизации Telegram-бота {enterprise_name}: {code}. Бот: {bot_link}. Код действует 10 минут."
+    else:
+        sms_text = f"Код авторизации Telegram-бота {enterprise_name}: {code}. Действует 10 минут."
         
     try:
         async with httpx.AsyncClient() as client:
@@ -221,7 +248,7 @@ async def send_auth_code_sms(phone: str, code: str, enterprise_name: str) -> boo
                 f"{SMS_SERVICE_URL}/send",
                 json={
                     "phone": phone,
-                    "text": f"Код авторизации Telegram-бота {enterprise_name}: {code}. Действует 10 минут.",
+                    "text": sms_text,
                     "sender": "Vochi-CRM"
                 },
                 timeout=10
@@ -263,6 +290,28 @@ async def start_telegram_auth_flow(request: TelegramAuthRequest):
                 message="Пользователь с таким email не найден в данном предприятии"
             )
         
+        # Проверяем, не заблокирована ли Telegram-авторизация
+        if user.get('telegram_auth_blocked'):
+            # Отправляем уведомление о блокировке
+            blocked_notification = f"""🚫 Ваш аккаунт заблокирован для использования Telegram-бота предприятия "{user['enterprise_name']}".
+
+Обратитесь к администратору предприятия для разблокировки."""
+            
+            try:
+                from telegram import Bot
+                from telegram.error import TelegramError
+                
+                bot = Bot(token=user['bot_token'])
+                await bot.send_message(chat_id=request.telegram_id, text=blocked_notification)
+                logger.info(f"📱 Уведомление о блокировке отправлено пользователю {request.telegram_id}")
+            except Exception as e:
+                logger.error(f"Ошибка отправки уведомления о блокировке: {e}")
+            
+            return TelegramAuthResponse(
+                success=False,
+                message="Telegram-авторизация заблокирована администратором"
+            )
+        
         # Проверяем, не авторизован ли уже
         if user.get('telegram_authorized'):
             return TelegramAuthResponse(
@@ -281,9 +330,12 @@ async def start_telegram_auth_flow(request: TelegramAuthRequest):
                 message="Ошибка сохранения кода авторизации"
             )
         
+        # Получаем username бота для ссылки
+        bot_username = await get_bot_username(user['bot_token']) if user.get('bot_token') else ""
+        
         # Отправляем код на email и SMS параллельно
-        email_task = send_auth_code_email(request.email, code, user['enterprise_name'])
-        sms_task = send_auth_code_sms(user.get('personal_phone'), code, user['enterprise_name'])
+        email_task = send_auth_code_email(request.email, code, user['enterprise_name'], bot_username)
+        sms_task = send_auth_code_sms(user.get('personal_phone'), code, user['enterprise_name'], bot_username)
         
         email_sent, sms_sent = await asyncio.gather(email_task, sms_task)
         

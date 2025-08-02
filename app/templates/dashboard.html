@@ -234,6 +234,29 @@
         <button class="button" id="adminLoginButton" style="flex: 1;">Войти в админку</button>
         <button class="button" id="deskButton" style="flex: 1; background: #28a745;">Рабочий стол</button>
         <button class="button" id="downloadButton" style="flex: 1; background: #ff6b35;">Download</button>
+        <button class="button" id="telegramUsersButton" style="flex: 1; background: #0088cc;">📱 Telegram</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно для Telegram пользователей -->
+  <div id="telegramModal" class="modal">
+    <div class="modal-content" style="max-width: 900px; max-height: 80vh; overflow-y: auto;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <h2 id="telegramModalTitle">Telegram-пользователи</h2>
+        <div>
+          <button onclick="refreshTelegramUsers()" style="padding: 5px 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 10px;">
+            🔄 Обновить
+          </button>
+          <span class="close-button" onclick="closeTelegramModal()">&times;</span>
+        </div>
+      </div>
+      
+      <div id="telegramUsersContainer">
+        <div style="text-align: center; padding: 20px;">
+          <div style="display: inline-block; width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+          <p>Загрузка...</p>
+        </div>
       </div>
     </div>
   </div>
@@ -347,6 +370,12 @@
                         downloadButton.style.background = '#ff6b35';
                         downloadButton.textContent = 'Download';
                     });
+                };
+
+                // Логика для кнопки "📱 Telegram"
+                const telegramUsersButton = document.getElementById('telegramUsersButton');
+                telegramUsersButton.onclick = function() {
+                    openTelegramUsersModal(number, name);
                 };
 
                 modal.style.display = 'block';
@@ -918,6 +947,181 @@
         startLiveEventsMonitoring();
         startRebootEventsMonitoring();
     });
+
+    // ============================================
+    // TELEGRAM USERS MODAL
+    // ============================================
+    
+    // Глобальные переменные для текущей модалки
+    let currentEnterpriseNumber = null;
+    let currentEnterpriseName = null;
+
+    function openTelegramUsersModal(enterpriseNumber, enterpriseName) {
+        currentEnterpriseNumber = enterpriseNumber;
+        currentEnterpriseName = enterpriseName;
+        
+        const telegramModal = document.getElementById('telegramModal');
+        const telegramModalTitle = document.getElementById('telegramModalTitle');
+        
+        telegramModalTitle.textContent = `Telegram-пользователи: ${enterpriseName}`;
+        
+        // Показываем модалку с загрузкой
+        telegramModal.style.display = 'block';
+        
+        // Загружаем данные
+        loadTelegramUsersData(enterpriseNumber);
+    }
+    
+    function loadTelegramUsersData(enterpriseNumber) {
+        const telegramUsersContainer = document.getElementById('telegramUsersContainer');
+        
+        // Показываем загрузку
+        telegramUsersContainer.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+                <div style="display: inline-block; width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <p>Загрузка...</p>
+            </div>
+        `;
+        
+        // Загружаем данные
+        fetch(`/admin/telegram-users-by-enterprise/${enterpriseNumber}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderTelegramUsers(data.users, enterpriseNumber);
+                } else {
+                    telegramUsersContainer.innerHTML = `<p style="color: red;">Ошибка загрузки: ${data.message || 'Неизвестная ошибка'}</p>`;
+                }
+            })
+            .catch(error => {
+                console.error('Telegram users error:', error);
+                telegramUsersContainer.innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
+            });
+    }
+    
+    function refreshTelegramUsers() {
+        if (currentEnterpriseNumber) {
+            loadTelegramUsersData(currentEnterpriseNumber);
+        }
+    }
+    
+    function renderTelegramUsers(users, enterpriseNumber) {
+        const container = document.getElementById('telegramUsersContainer');
+        
+        if (users.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #666;">Пользователи не найдены</p>';
+            return;
+        }
+        
+        let html = `
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left;">ФИО</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left;">Email</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">Статус</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">Дата авторизации</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">Заблокирован</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        users.forEach(user => {
+            const fullName = `${user.last_name || ''} ${user.first_name || ''}`.trim() || 'Не указано';
+            const isAuthorized = user.telegram_authorized;
+            const isBlocked = user.telegram_auth_blocked;
+            const authDate = user.telegram_auth_date ? new Date(user.telegram_auth_date).toLocaleDateString() : '—';
+            
+            html += `
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">${fullName}</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">${user.email}</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">
+                        <span style="color: ${isAuthorized ? '#28a745' : '#dc3545'};">
+                            ${isAuthorized ? '✅ Авторизован' : '❌ Не авторизован'}
+                        </span>
+                    </td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">${authDate}</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">
+                        <input type="checkbox" ${isBlocked ? 'checked' : ''} 
+                               onchange="toggleTelegramAuthBlock(${user.id}, this.checked)"
+                               title="Заблокировать/разблокировать Telegram-авторизацию">
+                    </td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">
+                        ${isAuthorized ? 
+                            `<button onclick="revokeTelegramAuth(${user.id})" 
+                                     style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer;">
+                                Отозвать
+                             </button>` : 
+                            '<span style="color: #6c757d;">—</span>'
+                        }
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+    
+    function closeTelegramModal() {
+        document.getElementById('telegramModal').style.display = 'none';
+    }
+    
+    function revokeTelegramAuth(userId) {
+        if (!confirm('Отозвать Telegram-авторизацию пользователя?')) return;
+        
+        fetch(`/admin/revoke-telegram-auth/${userId}`, {
+            method: 'POST',
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Telegram-авторизация отозвана');
+                // Перезагружаем только данные в модалке
+                refreshTelegramUsers();
+            } else {
+                alert(`❌ Ошибка: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            console.error('Revoke error:', error);
+            alert('❌ Ошибка отзыва авторизации');
+        });
+    }
+    
+    function toggleTelegramAuthBlock(userId, blocked) {
+        const formData = new FormData();
+        formData.append('blocked', blocked);
+        
+        fetch(`/admin/block-telegram-auth/${userId}`, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const action = blocked ? 'заблокирована' : 'разблокирована';
+                alert(`✅ Telegram-авторизация ${action}`);
+                // Перезагружаем данные в модалке
+                refreshTelegramUsers();
+            } else {
+                alert(`❌ Ошибка: ${data.message}`);
+                // Возвращаем чекбокс в исходное состояние
+                event.target.checked = !blocked;
+            }
+        })
+        .catch(error => {
+            console.error('Block error:', error);
+            alert('❌ Ошибка изменения блокировки');
+            // Возвращаем чекбокс в исходное состояние
+            event.target.checked = !blocked;
+        });
+    }
   </script>
 
 </body>
