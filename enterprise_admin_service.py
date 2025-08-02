@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import shutil
 import httpx
+import subprocess
 
 from app.config import JWT_SECRET_KEY, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT
 
@@ -2323,6 +2324,113 @@ async def revoke_telegram_auth(user_id: int):
         return {"success": False, "message": "Ошибка сервера"}
     finally:
         await conn.close()
+
+@app.get("/services", response_class=JSONResponse)
+async def get_services_status():
+    """Получение статуса всех сервисов из all.sh"""
+    try:
+        # Определяем сервисы и их порты (из all.sh)
+        services_info = {
+            "admin": {"port": 8004, "script": "admin.sh", "app": "admin"},
+            "dial": {"port": 8005, "script": "dial.sh", "app": "dial"},
+            "111": {"port": 8000, "script": "111.sh", "app": "main"},
+            "plan": {"port": 8006, "script": "plan.sh", "app": "plan"},
+            "sms": {"port": 8002, "script": "sms.sh", "app": "goip_sms_service"},
+            "sms_send": {"port": 8013, "script": "sms_send.sh", "app": "send_service_sms"},
+            "send_user_sms": {"port": 8014, "script": "send_user_sms.sh", "app": "send_user_sms"},
+            "auth": {"port": 8015, "script": "auth.sh", "app": "auth"},
+            "telegram": {"port": 8016, "script": "telegram.sh", "app": "telegram_auth_service"},
+            "download": {"port": 8007, "script": "download.sh", "app": "download"},
+            "goip": {"port": 8008, "script": "goip.sh", "app": "goip_service"},
+            "desk": {"port": 8011, "script": "desk.sh", "app": "desk"},
+            "call": {"port": 8012, "script": "call.sh", "app": "call"},
+            "miniapp": {"port": 8017, "script": "miniapp.sh", "app": "miniapp_service"},
+            "reboot": {"port": 8009, "script": "reboot.sh", "app": "reboot.py"},
+            "ewelink": {"port": 8010, "script": "ewelink.sh", "app": "ewelink_api"}
+        }
+        
+        services = []
+        
+        for service_name, info in services_info.items():
+            try:
+                # Проверяем статус сервиса
+                status = "unknown"
+                
+                if info["port"]:
+                    # Проверяем по порту - более надежный метод
+                    netstat_result = subprocess.run(
+                        ["netstat", "-tlnp"], 
+                        capture_output=True, 
+                        text=True, 
+                        timeout=5
+                    )
+                    # Проверяем и 0.0.0.0 и 127.0.0.1 привязки
+                    port_pattern = f":{info['port']}"
+                    port_found = port_pattern in netstat_result.stdout
+                    
+                    # Дополнительная проверка по процессу для download (может не показывать порт сразу)
+                    if not port_found and service_name == "download":
+                        ps_result = subprocess.run(
+                            ["ps", "aux"], 
+                            capture_output=True, 
+                            text=True, 
+                            timeout=5
+                        )
+                        if "uvicorn download:app" in ps_result.stdout:
+                            status = "running"
+                        else:
+                            status = "stopped" 
+                    else:
+                        status = "running" if port_found else "stopped"
+                else:
+                    # Для сервисов без порта проверяем по процессу
+                    ps_result = subprocess.run(
+                        ["ps", "aux"], 
+                        capture_output=True, 
+                        text=True, 
+                        timeout=5
+                    )
+                    # Используем более гибкий поиск процесса
+                    if service_name == "reboot" and "reboot.py" in ps_result.stdout:
+                        status = "running"
+                    elif service_name == "ewelink" and "ewelink_api" in ps_result.stdout:
+                        status = "running"
+                    elif info["app"] in ps_result.stdout:
+                        status = "running"
+                    else:
+                        status = "stopped"
+                
+                services.append({
+                    "name": service_name,
+                    "script": info["script"],
+                    "port": info["port"],
+                    "app": info["app"],
+                    "status": status
+                })
+                
+            except subprocess.TimeoutExpired:
+                services.append({
+                    "name": service_name,
+                    "script": info["script"],
+                    "port": info["port"],
+                    "app": info["app"],
+                    "status": "timeout"
+                })
+            except Exception as e:
+                logger.error(f"Ошибка проверки сервиса {service_name}: {e}")
+                services.append({
+                    "name": service_name,
+                    "script": info["script"],
+                    "port": info["port"],
+                    "app": info["app"],
+                    "status": "error"
+                })
+        
+        return {"success": True, "services": services}
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения статуса сервисов: {e}")
+        return {"success": False, "message": "Ошибка сервера"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8004) 

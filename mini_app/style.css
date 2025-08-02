@@ -1,0 +1,393 @@
+/* Reset и базовые стили */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    color: var(--tg-theme-text-color, #222222);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+.container {
+    max-width: 100%;
+    margin: 0 auto;
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    min-height: 100vh;
+}
+
+/* Заголовок */
+.header {
+    background: linear-gradient(135deg, var(--tg-theme-button-color, #2481cc), var(--tg-theme-button-color, #1a73b8));
+    color: var(--tg-theme-button-text-color, #ffffff);
+    padding: 20px 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.user-info h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.user-info div {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* Навигация */
+.navigation {
+    display: flex;
+    background-color: var(--tg-theme-secondary-bg-color, #f7f8fa);
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    padding: 0 8px;
+}
+
+.nav-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 12px 8px;
+    font-size: 14px;
+    color: var(--tg-theme-hint-color, #888888);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.nav-btn.active {
+    color: var(--tg-theme-button-color, #2481cc);
+    border-bottom-color: var(--tg-theme-button-color, #2481cc);
+    font-weight: 600;
+}
+
+.nav-btn:hover {
+    background-color: var(--tg-theme-bg-color, #ffffff);
+}
+
+/* Основной контент */
+.content {
+    padding: 0;
+}
+
+.section {
+    display: none;
+    min-height: calc(100vh - 140px);
+}
+
+.section.active {
+    display: block;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.section-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.refresh-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    padding: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.refresh-btn:hover {
+    background-color: var(--tg-theme-secondary-bg-color, #f7f8fa);
+}
+
+/* Фильтры */
+.filter-bar {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    background-color: var(--tg-theme-secondary-bg-color, #f7f8fa);
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.filter-bar select,
+.filter-bar input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    border-radius: 8px;
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    color: var(--tg-theme-text-color, #222222);
+    font-size: 14px;
+}
+
+/* Список звонков */
+.calls-list {
+    padding: 0;
+}
+
+.call-item {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.call-item:hover {
+    background-color: var(--tg-theme-secondary-bg-color, #f7f8fa);
+}
+
+.call-icon {
+    font-size: 24px;
+    margin-right: 12px;
+    width: 40px;
+    text-align: center;
+}
+
+.call-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.call-phone {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--tg-theme-text-color, #222222);
+    margin-bottom: 4px;
+}
+
+.call-meta {
+    font-size: 12px;
+    color: var(--tg-theme-hint-color, #888888);
+    display: flex;
+    gap: 12px;
+}
+
+.call-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.play-btn {
+    background: var(--tg-theme-button-color, #2481cc);
+    color: var(--tg-theme-button-text-color, #ffffff);
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.play-btn:hover {
+    opacity: 0.8;
+}
+
+.play-btn:disabled {
+    background: var(--tg-theme-hint-color, #cccccc);
+    cursor: not-allowed;
+}
+
+/* Клиенты */
+.clients-list {
+    padding: 0;
+}
+
+#client-search {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    border-radius: 8px;
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    color: var(--tg-theme-text-color, #222222);
+    font-size: 16px;
+}
+
+.client-item {
+    padding: 16px;
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    background-color: var(--tg-theme-bg-color, #ffffff);
+}
+
+.client-name {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.client-phone {
+    font-size: 14px;
+    color: var(--tg-theme-hint-color, #888888);
+    margin-bottom: 8px;
+}
+
+.client-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--tg-theme-hint-color, #888888);
+}
+
+/* Статистика */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 16px;
+    padding: 16px;
+}
+
+.stat-card {
+    background-color: var(--tg-theme-secondary-bg-color, #f7f8fa);
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.stat-number {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--tg-theme-button-color, #2481cc);
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--tg-theme-hint-color, #888888);
+    font-weight: 500;
+}
+
+/* Модальное окно */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+
+.modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    background-color: var(--tg-theme-secondary-bg-color, #f7f8fa);
+}
+
+.modal-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--tg-theme-hint-color, #888888);
+    padding: 4px;
+}
+
+.modal-body {
+    padding: 16px;
+}
+
+.audio-info {
+    margin-top: 16px;
+    font-size: 14px;
+}
+
+.audio-info div {
+    margin-bottom: 8px;
+}
+
+/* Загрузка и сообщения */
+.loading,
+.info-message,
+.error-message {
+    text-align: center;
+    padding: 40px 20px;
+    font-size: 14px;
+    color: var(--tg-theme-hint-color, #888888);
+}
+
+.error-message {
+    color: #d93025;
+}
+
+/* Анимации */
+.call-item,
+.client-item {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Респонсивность */
+@media (max-width: 480px) {
+    .filter-bar {
+        flex-direction: column;
+    }
+    
+    .call-meta {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Темная тема */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1a1a1a;
+        color: #ffffff;
+    }
+}

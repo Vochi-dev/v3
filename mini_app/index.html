@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vochi CRM Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Заголовок с информацией о пользователе -->
+        <header class="header">
+            <div class="user-info">
+                <h1>🎯 Vochi CRM</h1>
+                <div id="user-name">Загрузка...</div>
+                <div id="enterprise-name">Загрузка предприятия...</div>
+            </div>
+        </header>
+
+        <!-- Навигация -->
+        <nav class="navigation">
+            <button class="nav-btn active" onclick="showCalls()">📞 Звонки</button>
+            <button class="nav-btn" onclick="showClients()">👥 Клиенты</button>
+            <button class="nav-btn" onclick="showStats()">📊 Статистика</button>
+        </nav>
+
+        <!-- Основной контент -->
+        <main class="content">
+            <!-- Секция звонков -->
+            <div id="calls-section" class="section active">
+                <div class="section-header">
+                    <h2>📞 Последние звонки</h2>
+                    <button class="refresh-btn" onclick="refreshCalls()">🔄</button>
+                </div>
+                
+                <div class="filter-bar">
+                    <select id="filter-type">
+                        <option value="all">Все звонки</option>
+                        <option value="incoming">Входящие</option>
+                        <option value="outgoing">Исходящие</option>
+                    </select>
+                    <input type="date" id="filter-date" onchange="filterCalls()">
+                </div>
+
+                <div id="calls-list" class="calls-list">
+                    <div class="loading">🔄 Загрузка звонков...</div>
+                </div>
+            </div>
+
+            <!-- Секция клиентов -->
+            <div id="clients-section" class="section">
+                <div class="section-header">
+                    <h2>👥 Клиенты</h2>
+                    <input type="text" id="client-search" placeholder="🔍 Поиск по номеру или имени" oninput="searchClients()">
+                </div>
+                <div id="clients-list" class="clients-list">
+                    <div class="info-message">🔍 Введите номер телефона или имя для поиска</div>
+                </div>
+            </div>
+
+            <!-- Секция статистики -->
+            <div id="stats-section" class="section">
+                <div class="section-header">
+                    <h2>📊 Статистика</h2>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-calls">-</div>
+                        <div class="stat-label">Всего звонков</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="successful-calls">-</div>
+                        <div class="stat-label">Успешных</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="avg-duration">-</div>
+                        <div class="stat-label">Средняя длительность</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Модальное окно для прослушивания записи -->
+        <div id="audio-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-title">🎵 Запись разговора</h3>
+                    <button class="close-btn" onclick="closeAudioModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <audio id="audio-player" controls style="width: 100%; margin: 10px 0;">
+                        Ваш браузер не поддерживает аудио.
+                    </audio>
+                    <div id="audio-info" class="audio-info">
+                        <div><strong>Номер:</strong> <span id="audio-phone"></span></div>
+                        <div><strong>Дата:</strong> <span id="audio-date"></span></div>
+                        <div><strong>Длительность:</strong> <span id="audio-duration"></span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -219,8 +219,9 @@ async def get_services_status(request: Request):
             "goip": {"port": 8008, "script": "goip.sh", "app": "goip_service"},
             "desk": {"port": 8011, "script": "desk.sh", "app": "desk"},
             "call": {"port": 8012, "script": "call.sh", "app": "call"},
-                    "reboot": {"port": 8009, "script": "reboot.sh", "app": "reboot.py"},
-        "ewelink": {"port": 8010, "script": "ewelink.sh", "app": "ewelink_api"}
+            "miniapp": {"port": 8017, "script": "miniapp.sh", "app": "miniapp_service"},
+            "reboot": {"port": 8009, "script": "reboot.sh", "app": "reboot.py"},
+            "ewelink": {"port": 8010, "script": "ewelink.sh", "app": "ewelink_api"}
         }
         
         services = []

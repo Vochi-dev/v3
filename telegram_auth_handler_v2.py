@@ -58,12 +58,23 @@ def register_auth_handlers(dp: Dispatcher, enterprise_number: str):
         is_authorized = await check_user_authorization(user_id)
         
         if is_authorized:
-            # Пользователь уже авторизован - приветствие
+            # Пользователь уже авторизован - приветствие с кнопкой Mini App
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+            
+            # Создаем кнопку для открытия Mini App
+            web_app_button = InlineKeyboardButton(
+                text="🎯 Открыть CRM",
+                web_app=WebAppInfo(url="https://bot.vochi.by/miniapp/")
+            )
+            keyboard = InlineKeyboardMarkup().add(web_app_button)
+            
             await message.answer(
                 f"✅ Добро пожаловать в Telegram-бот предприятия {enterprise_name}!\n\n"
                 f"Вы уже авторизованы в системе.\n"
                 f"Здесь вы будете получать уведомления о звонках и других событиях.\n\n"
-                f"📞 Техподдержка: @VochiSupport"
+                f"🎯 Используйте кнопку ниже для доступа к полному CRM интерфейсу:\n\n"
+                f"📞 Техподдержка: @VochiSupport",
+                reply_markup=keyboard
             )
         else:
             # Пользователь НЕ авторизован - предлагаем авторизацию
@@ -156,6 +167,15 @@ def register_auth_handlers(dp: Dispatcher, enterprise_number: str):
                         enterprise_name = await get_enterprise_name(user_data["enterprise_number"])
                         user_name = result["data"]["full_name"]
                         
+                        # Создаем кнопку для открытия Mini App
+                        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+                        
+                        web_app_button = InlineKeyboardButton(
+                            text="🎯 Открыть CRM",
+                            web_app=WebAppInfo(url="https://bot.vochi.by/miniapp/")
+                        )
+                        keyboard = InlineKeyboardMarkup().add(web_app_button)
+                        
                         await message.answer(
                             f"🎉 Авторизация успешна!\n\n"
                             f"Добро пожаловать, {user_name}!\n"
@@ -164,7 +184,9 @@ def register_auth_handlers(dp: Dispatcher, enterprise_number: str):
                             f"📞 Входящих и исходящих звонках\n"
                             f"📋 Важных событиях системы\n"
                             f"📊 Отчетах и статистике\n\n"
-                            f"📞 Техподдержка: @VochiSupport"
+                            f"🎯 Используйте кнопку ниже для доступа к полному CRM интерфейсу:\n\n"
+                            f"📞 Техподдержка: @VochiSupport",
+                            reply_markup=keyboard
                         )
                     else:
                         await message.answer(f"❌ {result['message']}")
