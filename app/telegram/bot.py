@@ -32,7 +32,11 @@ async def run_bot(enterprise_number: str):
     from telegram_auth_handler_v2 import register_auth_handlers
     
     dp = Dispatcher(bot, storage=MemoryStorage())
-    register_auth_handlers(dp)
+    
+    # Сохраняем enterprise_number в dispatcher для доступа из handlers
+    dp['enterprise_number'] = enterprise_number
+    
+    register_auth_handlers(dp, enterprise_number)
 
     try:
         logger.info(f"Bot for enterprise {enterprise_number} started with AUTH support.")

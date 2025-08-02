@@ -489,6 +489,42 @@ async def startup_event():
     await init_database()
     logger.info("Telegram Auth Service started successfully on port 8016")
 
+@app.post("/get_enterprise_by_token")
+async def get_enterprise_by_token(request: dict):
+    """Получить номер предприятия по токену бота"""
+    try:
+        bot_token = request.get("bot_token")
+        if not bot_token:
+            raise HTTPException(status_code=400, detail="Bot token обязателен")
+        
+        # Подключение к базе данных
+        conn = await asyncpg.connect(**DB_CONFIG)
+        try:
+            # Поиск предприятия по bot_token
+            result = await conn.fetchrow(
+                "SELECT number FROM enterprises WHERE bot_token = $1",
+                bot_token
+            )
+            
+            if result:
+                return {
+                    "success": True,
+                    "enterprise_number": result["number"]
+                }
+            else:
+                return {
+                    "success": False,
+                    "enterprise_number": None,
+                    "message": "Предприятие с таким bot_token не найдено"
+                }
+                
+        finally:
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"Ошибка получения enterprise_number: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка сервера: {str(e)}")
+
 if __name__ == "__main__":
     logger.info("Starting Telegram Auth Service on port 8016...")
     uvicorn.run(
