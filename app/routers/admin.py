@@ -195,7 +195,91 @@ async def proxy_websms_balance(request: Request):
 
 
 # ——————————————————————————————————————————————————————————————————————————
-# Управление сервисами системы
+# SSL Сертификат информация
+# ——————————————————————————————————————————————————————————————————————————
+
+@router.get("/ssl-cert-info", response_class=JSONResponse)
+async def get_ssl_cert_info(request: Request):
+    """Получение информации о SSL сертификате"""
+    require_login(request)
+    
+    try:
+        import subprocess
+        import datetime
+        
+        # Получаем информацию о сертификате через openssl
+        result = subprocess.run([
+            'openssl', 's_client', '-connect', 'bot.vochi.by:443', 
+            '-servername', 'bot.vochi.by'
+        ], input='', capture_output=True, text=True, timeout=10)
+        
+        if result.returncode != 0:
+            raise Exception("Failed to connect to SSL endpoint")
+        
+        # Парсим дату истечения из вывода openssl
+        cert_result = subprocess.run([
+            'openssl', 'x509', '-noout', '-dates'
+        ], input=result.stdout, capture_output=True, text=True, timeout=5)
+        
+        if cert_result.returncode != 0:
+            raise Exception("Failed to parse certificate dates")
+        
+        # Извлекаем дату истечения
+        for line in cert_result.stdout.split('\n'):
+            if 'notAfter=' in line:
+                expiry_str = line.split('notAfter=')[1].strip()
+                # Парсим дату в формате: Nov  1 11:07:12 2025 GMT
+                expiry_date = datetime.datetime.strptime(expiry_str, '%b %d %H:%M:%S %Y %Z')
+                
+                # Вычисляем дни до истечения
+                now = datetime.datetime.utcnow()
+                days_left = (expiry_date - now).days
+                
+                # Определяем статус
+                if days_left < 7:
+                    status = "critical"
+                    status_text = "Критично"
+                    color = "#dc3545"
+                elif days_left < 30:
+                    status = "warning" 
+                    status_text = "Внимание"
+                    color = "#ffc107"
+                else:
+                    status = "ok"
+                    status_text = "В норме"
+                    color = "#28a745"
+                
+                return {
+                    "success": True,
+                    "cert": {
+                        "domain": "bot.vochi.by",
+                        "expires": expiry_str,
+                        "expires_formatted": expiry_date.strftime('%d.%m.%Y'),
+                        "days_left": days_left,
+                        "status": status,
+                        "status_text": status_text,
+                        "color": color
+                    }
+                }
+        
+        raise Exception("Could not find certificate expiry date")
+            
+    except subprocess.TimeoutExpired:
+        logger.error("SSL certificate check timed out")
+        return {
+            "success": False,
+            "error": "Certificate check timeout"
+        }
+    except Exception as e:
+        logger.error(f"Error checking SSL certificate: {e}")
+        return {
+            "success": False,
+            "error": "Unable to check SSL certificate"
+        }
+
+
+# ——————————————————————————————————————————————————————————————————————————
+# Управление сервисами системы  
 # ——————————————————————————————————————————————————————————————————————————
 
 @router.get("/services", response_class=JSONResponse)

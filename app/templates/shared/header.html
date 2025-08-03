@@ -301,6 +301,17 @@
                     <span style="color: #6c757d;">🔄 Загрузка...</span>
                 </div>
             </div>
+
+            <!-- Блок SSL сертификата -->
+            <div style="background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #495057; display: flex; align-items: center;">
+                    <span style="margin-right: 0.5rem;">🔐</span>
+                    <span id="sslCertTitle">SSL Сертификат</span>
+                </h4>
+                <div id="sslCertContent" style="font-size: 1.1rem;">
+                    <span style="color: #6c757d;">🔄 Загрузка...</span>
+                </div>
+            </div>
             
             <!-- Таблица управления сервисами -->
             <div style="background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
@@ -591,6 +602,55 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
+        // Функция загрузки информации о SSL сертификате
+        async function loadSSLCertInfo() {
+            const certContent = document.getElementById('sslCertContent');
+            
+            try {
+                // Показываем индикатор загрузки
+                certContent.innerHTML = '<span style="color: #6c757d;">🔄 Загрузка...</span>';
+                
+                // Запрос к SSL endpoint
+                const response = await fetch('/admin/ssl-cert-info', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.cert) {
+                    const cert = data.cert;
+                    const statusIcon = cert.status === 'critical' ? '🚨' : 
+                                      cert.status === 'warning' ? '⚠️' : '✅';
+                    
+                    certContent.innerHTML = `
+                        <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="color: ${cert.color}; font-weight: 600; font-size: 1.2rem;">${statusIcon} ${cert.status_text}</span>
+                        </div>
+                        <div style="font-size: 0.95rem; color: #6c757d;">
+                            <div>Истекает: <strong>${cert.expires_formatted}</strong></div>
+                            <div>Осталось: <strong style="color: ${cert.color};">${cert.days_left} дней</strong></div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error('Неверный формат ответа');
+                }
+                
+            } catch (error) {
+                console.error('Ошибка загрузки SSL сертификата:', error);
+                certContent.innerHTML = `
+                    <span style="color: #dc3545;">❌ Недоступно</span>
+                    <span style="color: #6c757d; margin-left: 0.5rem; font-size: 0.9rem;">(проверка недоступна)</span>
+                `;
+            }
+        }
+
         // Функция загрузки списка сервисов
         async function loadServicesList() {
             const container = document.getElementById('servicesTableContainer');
@@ -772,8 +832,9 @@ document.addEventListener('DOMContentLoaded', function() {
         openServiceModalBtn.addEventListener('click', (e) => {
             e.preventDefault();
             serviceModal.style.display = 'block';
-            // Загружаем баланс и список сервисов при открытии модалки
+            // Загружаем баланс, SSL сертификат и список сервисов при открытии модалки
             loadWebSMSBalance();
+            loadSSLCertInfo();
             loadServicesList();
         });
 
@@ -785,6 +846,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const refreshServicesBtn = document.getElementById('refreshServicesBtn');
         if (refreshServicesBtn) {
             refreshServicesBtn.addEventListener('click', () => {
+                loadWebSMSBalance();
+                loadSSLCertInfo();
                 loadServicesList();
             });
         }
