@@ -278,6 +278,94 @@ async def get_ssl_cert_info(request: Request):
         }
 
 
+@router.get("/disk-space-info", response_class=JSONResponse)
+async def get_disk_space_info(request: Request):
+    """Получение информации о дисковом пространстве"""
+    require_login(request)
+    
+    try:
+        import subprocess
+        
+        # Получаем информацию о диске через df
+        result = subprocess.run([
+            'df', '-h', '/'
+        ], capture_output=True, text=True, timeout=5)
+        
+        if result.returncode != 0:
+            raise Exception("Failed to get disk space information")
+        
+        # Парсим вывод df
+        lines = result.stdout.strip().split('\n')
+        if len(lines) < 2:
+            raise Exception("Invalid df output format")
+        
+        # Берем вторую строку (первая - заголовки)
+        disk_line = lines[1].split()
+        if len(disk_line) < 6:
+            raise Exception("Invalid disk information format")
+        
+        filesystem = disk_line[0]
+        total_size = disk_line[1]
+        used_size = disk_line[2]
+        available_size = disk_line[3]
+        usage_percent_str = disk_line[4]
+        mount_point = disk_line[5]
+        
+        # Извлекаем процент использования
+        usage_percent = int(usage_percent_str.rstrip('%'))
+        
+        # Определяем статус на основе использования
+        if usage_percent >= 90:
+            status = "critical"
+            status_text = "Критично"
+            color = "#dc3545"
+            icon = "🚨"
+        elif usage_percent >= 80:
+            status = "warning"
+            status_text = "Внимание"
+            color = "#ffc107"
+            icon = "⚠️"
+        elif usage_percent >= 70:
+            status = "caution"
+            status_text = "Осторожно"
+            color = "#fd7e14"
+            icon = "📊"
+        else:
+            status = "ok"
+            status_text = "В норме"
+            color = "#28a745"
+            icon = "✅"
+        
+        return {
+            "success": True,
+            "disk": {
+                "filesystem": filesystem,
+                "mount_point": mount_point,
+                "total_size": total_size,
+                "used_size": used_size,
+                "available_size": available_size,
+                "usage_percent": usage_percent,
+                "status": status,
+                "status_text": status_text,
+                "color": color,
+                "icon": icon
+            }
+        }
+            
+    except subprocess.TimeoutExpired:
+        logger.error("Disk space check timed out")
+        return {
+            "success": False,
+            "error": "Disk space check timeout"
+        }
+    except Exception as e:
+        logger.error(f"Error checking disk space: {e}")
+        return {
+            "success": False,
+            "error": "Unable to check disk space"
+        }
+
+
 # ——————————————————————————————————————————————————————————————————————————
 # Управление сервисами системы  
 # ——————————————————————————————————————————————————————————————————————————
