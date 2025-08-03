@@ -118,10 +118,219 @@ def ssh_originate_call(host_ip: str, from_ext: str, to_phone: str) -> Tuple[bool
         logger.error(f"Ошибка SSH на {host_ip}: {e}")
         return False, f"SSH error: {str(e)}"
 
+def ssh_get_active_channels(host_ip: str) -> Tuple[bool, str]:
+    """Получение списка активных каналов через SSH CLI"""
+    try:
+        cli_command = 'asterisk -rx "core show channels concise"'
+        
+        ssh_command = [
+            'sshpass', '-p', ASTERISK_CONFIG['ssh_password'],
+            'ssh', '-p', str(ASTERISK_CONFIG['ssh_port']),
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'ConnectTimeout=10',
+            f"{ASTERISK_CONFIG['ssh_user']}@{host_ip}",
+            cli_command
+        ]
+        
+        result = subprocess.run(
+            ssh_command,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            return True, result.stdout.strip()
+        else:
+            return False, result.stderr.strip() if result.stderr else "Command failed"
+            
+    except Exception as e:
+        logger.error(f"Ошибка получения каналов с {host_ip}: {e}")
+        return False, f"Error: {str(e)}"
+
+def ssh_monitor_call(host_ip: str, monitor_from: str, target_channel: str, action: str) -> Tuple[bool, str]:
+    """Инициация мониторинга звонка через SSH CLI"""
+    try:
+        # Определяем флаги ChanSpy по типу действия
+        spy_flags = {
+            "09": "bq",      # Подслушивание (spy)
+            "01": "bqw",     # Суфлирование (whisper)  
+            "02": "Bbqw"     # Вмешательство (barge)
+        }
+        
+        flags = spy_flags.get(action, "bq")
+        
+        # Формируем команду мониторинга
+        cli_command = f'asterisk -rx "channel originate LOCAL/{monitor_from}@inoffice application ChanSpy {target_channel},{flags}"'
+        
+        ssh_command = [
+            'sshpass', '-p', ASTERISK_CONFIG['ssh_password'],
+            'ssh', '-p', str(ASTERISK_CONFIG['ssh_port']),
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'ConnectTimeout=10',
+            f"{ASTERISK_CONFIG['ssh_user']}@{host_ip}",
+            cli_command
+        ]
+        
+        action_names = {"09": "подслушивание", "01": "суфлирование", "02": "вмешательство"}
+        action_name = action_names.get(action, "мониторинг")
+        
+        logger.info(f"🎧 SSH мониторинг ({action_name}) к {host_ip}: {monitor_from} -> {target_channel}")
+        
+        # Выполняем SSH команду
+        result = subprocess.run(
+            ssh_command,
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
+        
+        if result.returncode == 0:
+            logger.info(f"✅ Мониторинг инициирован на {host_ip}: {action_name} для {target_channel}")
+            return True, f"Monitoring initiated successfully: {action_name} for {target_channel}"
+        else:
+            error_msg = result.stderr.strip() if result.stderr else "Unknown SSH error"
+            logger.error(f"❌ SSH ошибка мониторинга на {host_ip}: {error_msg}")
+            return False, f"SSH monitoring failed: {error_msg}"
+            
+    except subprocess.TimeoutExpired:
+        logger.error(f"Таймаут SSH мониторинга к {host_ip}")
+        return False, f"SSH monitoring timeout to {host_ip}"
+    except Exception as e:
+        logger.error(f"Ошибка SSH мониторинга на {host_ip}: {e}")
+        return False, f"SSH monitoring error: {str(e)}"
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "service": "asterisk-call-management", "port": 8018}
+
+@app.get("/api/monitor")
+async def monitor_call(
+    action: str = Query(..., description="Тип мониторинга: 09 (подслушивание), 01 (суфлирование), 02 (вмешательство)"),
+    target: str = Query(..., description="Номер для мониторинга"),
+    monitor_from: str = Query(..., description="Номер, который будет мониторить"),
+    clientId: str = Query(..., description="Client ID (secret из enterprises)")
+):
+    """
+    Инициация мониторинга активного звонка
+    
+    Параметры:
+    - action: тип мониторинга
+      - "09": подслушивание (spy)
+      - "01": суфлирование (whisper) 
+      - "02": вмешательство (barge)
+    - target: номер который мониторим (например: 150)
+    - monitor_from: номер который будет мониторить (например: 151)
+    - clientId: secret из таблицы enterprises
+    
+    Пример:
+    GET /api/monitor?action=09&target=150&monitor_from=151&clientId=eb7ba607633a47af8edc9b8d257d29e4
+    """
+    
+    start_time = time.time()
+    
+    try:
+        logger.info(f"🎧 Запрос на мониторинг: action={action}, target={target}, monitor_from={monitor_from}, clientId={clientId[:8]}...")
+        
+        # Валидация параметров
+        if not action or not target or not monitor_from or not clientId:
+            raise HTTPException(
+                status_code=400, 
+                detail="Все параметры обязательны: action, target, monitor_from, clientId"
+            )
+        
+        if action not in ["09", "01", "02"]:
+            raise HTTPException(
+                status_code=400, 
+                detail="action должен быть: 09 (подслушивание), 01 (суфлирование), 02 (вмешательство)"
+            )
+        
+        # Подключение к БД
+        conn = await get_db_connection()
+        
+        try:
+            # Проверяем clientId
+            enterprise_info = await validate_client_secret(clientId, conn)
+            
+            if not enterprise_info:
+                logger.warning(f"❌ Неверный clientId: {clientId}")
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Invalid clientId"
+                )
+            
+            logger.info(f"✅ Клиент авторизован: {enterprise_info['name']} ({enterprise_info['enterprise_number']})")
+            
+            # Проверяем наличие host_ip
+            host_ip = enterprise_info.get("host_ip")
+            if not host_ip:
+                logger.error(f"❌ Не указан host_ip для предприятия {enterprise_info['enterprise_number']}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail="Host IP not configured for this enterprise"
+                )
+            
+            # Проверяем активные каналы на target номере
+            channels_success, channels_data = ssh_get_active_channels(host_ip)
+            
+            if not channels_success:
+                logger.error(f"❌ Не удалось получить список каналов: {channels_data}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Cannot get active channels: {channels_data}"
+                )
+            
+            # Ищем канал target номера
+            target_channel = f"SIP/{target}"
+            
+            # Проверяем есть ли активные каналы с этим номером
+            if channels_data and target not in channels_data:
+                logger.warning(f"🔍 Target {target} не найден в активных каналах. Продолжаем с SIP/{target}")
+            
+            # Инициируем мониторинг
+            success, message = ssh_monitor_call(host_ip, monitor_from, target_channel, action)
+            
+            if success:
+                response_time = round((time.time() - start_time) * 1000, 2)
+                
+                action_names = {"09": "подслушивание", "01": "суфлирование", "02": "вмешательство"}
+                action_name = action_names.get(action, "мониторинг")
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "success": True,
+                        "message": message,
+                        "action": action,
+                        "action_name": action_name,
+                        "target": target,
+                        "monitor_from": monitor_from,
+                        "target_channel": target_channel,
+                        "enterprise": enterprise_info['name'],
+                        "enterprise_number": enterprise_info['enterprise_number'],
+                        "host_ip": host_ip,
+                        "response_time_ms": response_time
+                    }
+                )
+            else:
+                logger.error(f"❌ Ошибка инициации мониторинга: {message}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Monitoring initiation failed: {message}"
+                )
+                
+        finally:
+            await conn.close()
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Неожиданная ошибка мониторинга: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 @app.get("/api/makecallexternal")
 async def make_call_external(
