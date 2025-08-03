@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Список всех сервисов в порядке зависимости
-SERVICES=("admin" "dial" "111" "plan" "sms" "sms_send" "send_user_sms" "auth" "telegram" "download" "goip" "desk" "call" "miniapp")
+SERVICES=("admin" "dial" "111" "plan" "sms" "sms_send" "send_user_sms" "auth" "telegram" "download" "goip" "desk" "call" "miniapp" "asterisk")
 
 case "${1:-restart}" in
   start)
@@ -350,6 +350,7 @@ echo "  admin: 8004"
     echo "  ewelink: 8010"
     echo "  call: 8012"
     echo "  miniapp: 8017"
+    echo "  asterisk: 8018"
     echo ""
     echo "Telegram-боты: динамическое количество (по числу предприятий)"
     exit 1

@@ -220,6 +220,7 @@ async def get_services_status(request: Request):
             "desk": {"port": 8011, "script": "desk.sh", "app": "desk"},
             "call": {"port": 8012, "script": "call.sh", "app": "call"},
             "miniapp": {"port": 8017, "script": "miniapp.sh", "app": "miniapp_service"},
+            "asterisk": {"port": 8018, "script": "asterisk.sh", "app": "asterisk"},
             "reboot": {"port": 8009, "script": "reboot.sh", "app": "reboot.py"},
             "ewelink": {"port": 8010, "script": "ewelink.sh", "app": "ewelink_api"}
         }
