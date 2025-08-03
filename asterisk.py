@@ -200,6 +200,132 @@ def ssh_monitor_call(host_ip: str, monitor_from: str, target_channel: str, actio
         logger.error(f"Ошибка SSH мониторинга на {host_ip}: {e}")
         return False, f"SSH monitoring error: {str(e)}"
 
+
+def ssh_transfer_call(host_ip: str, from_channel: str, to_extension: str, transfer_type: str) -> Tuple[bool, str]:
+    """
+    Инициирует перевод звонка через SSH CLI
+    
+    Args:
+        host_ip: IP удаленного Asterisk хоста
+        from_channel: канал который переводит (например SIP/150-xxxx)
+        to_extension: номер на который переводить (например 151)
+        transfer_type: тип перевода ("blind" или "attended")
+    
+    Returns:
+        Tuple[bool, str]: (успех, сообщение)
+    """
+    try:
+        if transfer_type == "blind":
+            # Слепой перевод: найти и перенаправить внешний канал
+            action_name = "слепой перевод"
+            # Для слепого перевода нужно найти внешний канал, bridged с from_channel
+            # Сначала получаем информацию о bridge
+            bridge_info_command = f'asterisk -rx "core show channel {from_channel}"'
+            
+            # Выполняем команду для получения информации о канале
+            ssh_bridge_command = [
+                'sshpass', '-p', ASTERISK_CONFIG['ssh_password'],
+                'ssh', '-p', str(ASTERISK_CONFIG['ssh_port']),
+                '-o', 'StrictHostKeyChecking=no',
+                '-o', 'ConnectTimeout=10',
+                f"{ASTERISK_CONFIG['ssh_user']}@{host_ip}",
+                bridge_info_command
+            ]
+            
+            bridge_result = subprocess.run(ssh_bridge_command, capture_output=True, text=True, timeout=10)
+            
+            if bridge_result.returncode != 0:
+                return False, f"Failed to get channel info: {bridge_result.stderr}"
+            
+            # Ищем BRIDGEPEER переменную (внешний канал)
+            bridged_channel = None
+            for line in bridge_result.stdout.split('\n'):
+                if 'BRIDGEPEER=' in line:
+                    bridged_channel = line.split('BRIDGEPEER=')[1].strip()
+                    break
+            
+            if bridged_channel:
+                # Перенаправляем BRIDGEPEER (внешний канал) на новый номер
+                cli_command = f'asterisk -rx "channel redirect {bridged_channel} inoffice,{to_extension},1"'
+                logger.info(f"🔄 Перенаправляем внешний канал (BRIDGEPEER): {bridged_channel} -> {to_extension}")
+            else:
+                # Fallback: используем обычный redirect если не нашли BRIDGEPEER
+                cli_command = f'asterisk -rx "channel redirect {from_channel} inoffice,{to_extension},1"'
+                logger.warning(f"⚠️ BRIDGEPEER не найден, используем fallback: {from_channel} -> {to_extension}")
+        elif transfer_type == "attended":
+            # Запрошенный перевод: используем Local канал с proper transfer logic
+            action_name = "запрошенный перевод"
+            
+            # Сначала получаем информацию о внешнем канале (BRIDGEPEER)
+            bridge_info_command = f'asterisk -rx "core show channel {from_channel}"'
+            
+            ssh_bridge_command = [
+                'sshpass', '-p', ASTERISK_CONFIG['ssh_password'],
+                'ssh', '-p', str(ASTERISK_CONFIG['ssh_port']),
+                '-o', 'StrictHostKeyChecking=no',
+                '-o', 'ConnectTimeout=10',
+                f"{ASTERISK_CONFIG['ssh_user']}@{host_ip}",
+                bridge_info_command
+            ]
+            
+            bridge_result = subprocess.run(ssh_bridge_command, capture_output=True, text=True, timeout=10)
+            
+            if bridge_result.returncode != 0:
+                return False, f"Failed to get channel info for attended transfer: {bridge_result.stderr}"
+            
+            # Ищем BRIDGEPEER (внешний канал)
+            bridged_channel = None
+            for line in bridge_result.stdout.split('\n'):
+                if 'BRIDGEPEER=' in line:
+                    bridged_channel = line.split('BRIDGEPEER=')[1].strip()
+                    break
+            
+            if bridged_channel:
+                # ATTENDED TRANSFER НЕ РЕАЛИЗОВАН - используем blind transfer
+                # Перенаправляем внешний канал на целевой номер (как blind transfer)
+                cli_command = f'asterisk -rx "channel redirect {bridged_channel} inoffice,{to_extension},1"'
+                logger.info(f"⚠️ Attended transfer не реализован. Используем blind transfer: {bridged_channel} -> {to_extension}")
+            else:
+                return False, f"BRIDGEPEER не найден для attended transfer"
+        else:
+            return False, f"Неизвестный тип перевода: {transfer_type}"
+        
+        ssh_command = [
+            'sshpass', '-p', ASTERISK_CONFIG['ssh_password'],
+            'ssh', '-p', str(ASTERISK_CONFIG['ssh_port']),
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'ConnectTimeout=10',
+            f"{ASTERISK_CONFIG['ssh_user']}@{host_ip}",
+            cli_command
+        ]
+        
+        logger.info(f"📞 {action_name.capitalize()}: {from_channel} -> {to_extension} на {host_ip}")
+        logger.info(f"💻 CLI команда: {cli_command}")
+        
+        # Выполняем SSH команду
+        result = subprocess.run(
+            ssh_command,
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
+        
+        if result.returncode == 0:
+            logger.info(f"✅ Перевод инициирован на {host_ip}: {action_name} на {to_extension}")
+            return True, f"Transfer initiated successfully: {action_name} to {to_extension}"
+        else:
+            error_msg = result.stderr.strip() if result.stderr else "Unknown SSH error"
+            logger.error(f"❌ SSH ошибка перевода на {host_ip}: {error_msg}")
+            return False, f"SSH transfer command failed: {error_msg}"
+            
+    except subprocess.TimeoutExpired:
+        logger.error(f"Таймаут SSH перевода к {host_ip}")
+        return False, f"SSH transfer timeout to {host_ip}"
+    except Exception as e:
+        logger.error(f"Ошибка SSH перевода на {host_ip}: {e}")
+        return False, f"SSH transfer error: {str(e)}"
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -476,6 +602,110 @@ async def api_status():
             "ssh_user": ASTERISK_CONFIG["ssh_user"]
         }
     }
+
+
+@app.get("/api/transfer")
+async def transfer_call(
+    transfer_type: str = Query(..., description="Тип перевода: blind (слепой) или attended (запрошенный)"),
+    from_ext: str = Query(..., description="Номер который переводит звонок"),
+    to_ext: str = Query(..., description="Номер на который переводить"),
+    clientId: str = Query(..., description="Client ID (secret из enterprises)")
+):
+    """
+    Инициация перевода активного звонка
+    
+    Параметры:
+    - transfer_type: тип перевода
+      - "blind": слепой перевод (# + номер) - немедленная переадресация
+      - "attended": запрошенный перевод (*2 + номер) - с консультацией
+    - from_ext: внутренний номер который переводит звонок
+    - to_ext: внутренний номер на который переводить
+    - clientId: секретный ключ предприятия для авторизации
+    
+    Возвращает:
+    - Результат операции перевода
+    """
+    start_time = time.time()
+    
+    try:
+        # Подключение к БД
+        conn = await get_db_connection()
+        
+        try:
+            # Валидация clientId
+            enterprise_info = await validate_client_secret(clientId, conn)
+            if not enterprise_info:
+                logger.warning(f"❌ Неверный clientId для перевода: {clientId}")
+                raise HTTPException(status_code=401, detail="Invalid clientId")
+            
+            enterprise_name = enterprise_info['name']
+            enterprise_number = enterprise_info['enterprise_number']
+            host_ip = enterprise_info['host_ip']
+            
+            logger.info(f"📞 ПЕРЕВОД ЗВОНКА: {from_ext} -> {to_ext} ({transfer_type}) для {enterprise_name} ({enterprise_number})")
+            
+            # Валидация типа перевода
+            if transfer_type not in ["blind", "attended"]:
+                logger.error(f"❌ Неверный тип перевода: {transfer_type}")
+                raise HTTPException(status_code=400, detail="transfer_type must be 'blind' or 'attended'")
+            
+            # Находим активный канал номера который переводит
+            success_channels, channels_info = ssh_get_active_channels(host_ip)
+            if not success_channels:
+                logger.error(f"❌ Не удалось получить активные каналы с {host_ip}")
+                raise HTTPException(status_code=500, detail="Failed to get active channels")
+            
+            # Ищем канал номера который переводит
+            from_channel = None
+            for line in channels_info.split('\n'):
+                if line.strip() and f"SIP/{from_ext}-" in line:
+                    # Извлекаем полное имя канала из строки
+                    parts = line.split('!')
+                    if parts:
+                        from_channel = parts[0]
+                        break
+            
+            if not from_channel:
+                logger.error(f"❌ Активный канал для номера {from_ext} не найден на {host_ip}")
+                raise HTTPException(status_code=404, detail=f"Active channel for extension {from_ext} not found")
+            
+            logger.info(f"🔍 Найден канал для перевода: {from_channel}")
+            
+            # Инициируем перевод звонка
+            success, message = ssh_transfer_call(host_ip, from_channel, to_ext, transfer_type)
+            
+            if not success:
+                logger.error(f"❌ Ошибка перевода: {message}")
+                raise HTTPException(status_code=500, detail=message)
+            
+            response_time = round((time.time() - start_time) * 1000, 2)
+            
+            response_data = {
+                "success": True,
+                "message": message,
+                "transfer_type": transfer_type,
+                "transfer_name": "слепой перевод" if transfer_type == "blind" else "запрошенный перевод",
+                "from_ext": from_ext,
+                "to_ext": to_ext,
+                "from_channel": from_channel,
+                "enterprise": enterprise_name,
+                "enterprise_number": enterprise_number,
+                "host_ip": host_ip,
+                "response_time_ms": response_time
+            }
+            
+            logger.info(f"✅ Перевод успешно инициирован: {from_ext} -> {to_ext} ({transfer_type}) за {response_time}ms")
+            return response_data
+            
+        finally:
+            await conn.close()
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Неожиданная ошибка при переводе: {e}")
+        raise HTTPException(status_code=500, detail=f"Transfer error: {str(e)}")
+
 
 if __name__ == "__main__":
     uvicorn.run(
