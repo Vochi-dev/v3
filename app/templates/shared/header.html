@@ -291,36 +291,39 @@
         <span class="close-btn" id="closeServiceModalBtn">&times;</span>
         <h2>🚧 Сервисы системы</h2>
         <div class="modal-body">
-            <!-- Блок баланса WebSMS -->
-            <div style="background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                <h4 style="margin: 0 0 0.5rem 0; color: #495057; display: flex; align-items: center;">
-                    <span style="margin-right: 0.5rem;">💰</span>
-                    <span id="websmsBalanceTitle">Баланс WebSMS.by</span>
-                </h4>
-                <div id="websmsBalanceContent" style="font-size: 1.1rem;">
-                    <span style="color: #6c757d;">🔄 Загрузка...</span>
+            <!-- Контейнер для мониторинговых блоков в горизонтальном ряду -->
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                <!-- Блок баланса WebSMS -->
+                <div style="background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 0.75rem; flex: 1; min-width: 200px;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: #495057; display: flex; align-items: center; font-size: 0.95rem;">
+                        <span style="margin-right: 0.4rem;">💰</span>
+                        <span id="websmsBalanceTitle">Баланс WebSMS.by</span>
+                    </h4>
+                    <div id="websmsBalanceContent" style="font-size: 1rem;">
+                        <span style="color: #6c757d;">🔄 Загрузка...</span>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Блок SSL сертификата -->
-            <div style="background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                <h4 style="margin: 0 0 0.5rem 0; color: #495057; display: flex; align-items: center;">
-                    <span style="margin-right: 0.5rem;">🔐</span>
-                    <span id="sslCertTitle">SSL Сертификат</span>
-                </h4>
-                <div id="sslCertContent" style="font-size: 1.1rem;">
-                    <span style="color: #6c757d;">🔄 Загрузка...</span>
+                <!-- Блок SSL сертификата -->
+                <div style="background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 0.75rem; flex: 1; min-width: 200px;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: #495057; display: flex; align-items: center; font-size: 0.95rem;">
+                        <span style="margin-right: 0.4rem;">🔐</span>
+                        <span id="sslCertTitle">SSL Сертификат</span>
+                    </h4>
+                    <div id="sslCertContent" style="font-size: 1rem;">
+                        <span style="color: #6c757d;">🔄 Загрузка...</span>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Блок дискового пространства -->
-            <div style="background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                <h4 style="margin: 0 0 0.5rem 0; color: #495057; display: flex; align-items: center;">
-                    <span style="margin-right: 0.5rem;">💾</span>
-                    <span id="diskSpaceTitle">Дисковое пространство</span>
-                </h4>
-                <div id="diskSpaceContent" style="font-size: 1.1rem;">
-                    <span style="color: #6c757d;">🔄 Загрузка...</span>
+                <!-- Блок дискового пространства -->
+                <div style="background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 0.75rem; flex: 1; min-width: 200px;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: #495057; display: flex; align-items: center; font-size: 0.95rem;">
+                        <span style="margin-right: 0.4rem;">💾</span>
+                        <span id="diskSpaceTitle">Дисковое пространство</span>
+                    </h4>
+                    <div id="diskSpaceContent" style="font-size: 1rem;">
+                        <span style="color: #6c757d;">🔄 Загрузка...</span>
+                    </div>
                 </div>
             </div>
             
