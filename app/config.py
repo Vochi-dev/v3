@@ -69,3 +69,12 @@ if not all(required_vars):
 # Добавляем новые переменные
 POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://user:password@host:port/dbname")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "a_very_secret_key_that_should_be_changed")
+
+# Конфигурация БД для asyncpg
+DB_CONFIG = {
+    "user": POSTGRES_USER,
+    "password": POSTGRES_PASSWORD,
+    "database": POSTGRES_DB,
+    "host": POSTGRES_HOST,
+    "port": POSTGRES_PORT,
+}
