@@ -14,18 +14,20 @@
 """
 
 import asyncio
+import os
 import json
 import logging
 import sys
 import time
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 import aiohttp
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+import asyncpg
 
 # =============================================================================
 # КОНФИГУРАЦИЯ
@@ -485,8 +487,82 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Глобальный экземпляр клиента
+# Глобальные объекты
 retailcrm_client = None
+
+# Параметры подключения к PostgreSQL (безопасно, без импорта app.config)
+PG_HOST = os.environ.get("POSTGRES_HOST", "127.0.0.1")
+PG_PORT = int(os.environ.get("POSTGRES_PORT", 5432))
+PG_USER = os.environ.get("POSTGRES_USER", "postgres")
+PG_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "r/Yskqh/ZbZuvjb2b3ahfg==")
+PG_DB = os.environ.get("POSTGRES_DB", "postgres")
+
+pg_pool: Optional[asyncpg.pool.Pool] = None
+
+# Простейшие метрики
+STATS: Dict[str, int] = {
+    "db_reads": 0,
+    "db_writes": 0,
+}
+
+async def init_pg_pool() -> None:
+    global pg_pool
+    if pg_pool is None:
+        pg_pool = await asyncpg.create_pool(
+            host=PG_HOST,
+            port=PG_PORT,
+            user=PG_USER,
+            password=PG_PASSWORD,
+            database=PG_DB,
+            min_size=1,
+            max_size=10,
+        )
+        logger.info("✅ PostgreSQL pool initialized for retailcrm service")
+
+async def close_pg_pool() -> None:
+    global pg_pool
+    if pg_pool is not None:
+        await pg_pool.close()
+        pg_pool = None
+        logger.info("✅ PostgreSQL pool closed for retailcrm service")
+
+async def fetch_retailcrm_config(enterprise_number: str) -> Dict[str, Any]:
+    """Читает из enterprises.integrations_config JSONB -> 'retailcrm' для юнита.
+    Возвращает пустой dict, если данных нет.
+    """
+    if pg_pool is None:
+        await init_pg_pool()
+    assert pg_pool is not None
+    query = (
+        "SELECT integrations_config -> 'retailcrm' AS cfg "
+        "FROM enterprises WHERE number = $1"
+    )
+    async with pg_pool.acquire() as conn:
+        row = await conn.fetchrow(query, enterprise_number)
+        STATS["db_reads"] += 1
+    if not row or row["cfg"] is None:
+        return {}
+    return dict(row["cfg"])  # asyncpg возвращает JSONB как dict
+
+async def upsert_retailcrm_config(enterprise_number: str, config: Dict[str, Any]) -> Dict[str, Any]:
+    """Обновляет ключ retailcrm в integrations_config указанного юнита (merge)."""
+    if pg_pool is None:
+        await init_pg_pool()
+    assert pg_pool is not None
+
+    # Обновляем только ключ retailcrm, не затирая остальной JSONB
+    query = (
+        "UPDATE enterprises "
+        "SET integrations_config = COALESCE(integrations_config, '{}'::jsonb) || jsonb_build_object('retailcrm', $2::jsonb) "
+        "WHERE number = $1 "
+        "RETURNING integrations_config -> 'retailcrm' AS cfg"
+    )
+    async with pg_pool.acquire() as conn:
+        row = await conn.fetchrow(query, enterprise_number, config)
+        STATS["db_writes"] += 1
+    if not row:
+        raise HTTPException(status_code=404, detail="Enterprise not found")
+    return dict(row["cfg"]) if row["cfg"] is not None else {}
 
 @app.on_event("startup")
 async def startup_event():
@@ -494,12 +570,21 @@ async def startup_event():
     global retailcrm_client
     logger.info("🚀 Запуск RetailCRM Integration Service")
     logger.info(f"🏪 RetailCRM URL: {RETAILCRM_CONFIG['base_url']}")
+    # Инициализируем пул PostgreSQL
+    try:
+        await init_pg_pool()
+    except Exception as e:
+        logger.error(f"❌ Не удалось инициализировать PostgreSQL pool: {e}")
     
 
 @app.on_event("shutdown") 
 async def shutdown_event():
     """Очистка при остановке сервиса"""
     logger.info("🛑 Остановка RetailCRM Integration Service")
+    try:
+        await close_pg_pool()
+    except Exception as e:
+        logger.error(f"❌ Ошибка закрытия PostgreSQL pool: {e}")
 
 
 # =============================================================================
@@ -516,6 +601,47 @@ async def root():
         "phase": "1 - API Testing",
         "retailcrm_url": RETAILCRM_CONFIG["base_url"]
     }
+
+
+# =============================================================================
+# СИСТЕМНЫЕ ENDPOINTS: health, stats
+# =============================================================================
+
+@app.get("/health")
+async def health() -> Dict[str, Any]:
+    """Простой healthcheck сервиса retailcrm."""
+    return {"status": "ok"}
+
+
+@app.get("/stats")
+async def stats() -> Dict[str, Any]:
+    """Базовые метрики сервиса retailcrm."""
+    pool_status: Dict[str, Any] = {"initialized": pg_pool is not None}
+    return {
+        "db": pool_status,
+        "counters": STATS,
+        "service": "retailcrm",
+    }
+
+
+# =============================================================================
+# БАЗОВЫЕ API ДЛЯ КОНФИГУРАЦИЙ (namespace /api/config)
+# =============================================================================
+
+@app.get("/api/config/{enterprise_number}")
+async def api_get_config(enterprise_number: str) -> Dict[str, Any]:
+    cfg = await fetch_retailcrm_config(enterprise_number)
+    return {"enterprise_number": enterprise_number, "config": cfg}
+
+
+class RetailCRMConfigBody(BaseModel):
+    config: Dict[str, Any]
+
+
+@app.put("/api/config/{enterprise_number}")
+async def api_put_config(enterprise_number: str, body: RetailCRMConfigBody) -> Dict[str, Any]:
+    updated = await upsert_retailcrm_config(enterprise_number, body.config)
+    return {"enterprise_number": enterprise_number, "config": updated}
 
 
 @app.get("/test/credentials")

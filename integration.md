@@ -87,13 +87,13 @@ location /retailcrm/api/ {
 ## План работ (RetailCRM → мультиюнит)
 
 1) Бэкенд retailcrm.py
-- [ ] Ввести пространства маршрутов: `/retailcrm-admin/` (UI), `/api/...` (REST)
-- [ ] Реализовать CRUD конфигов по `enterprise_number` (JSONB + валидация)
+- [x] Ввести пространства маршрутов: `/retailcrm-admin/` (UI), `/api/...` (REST)
+- [x] Реализовать CRUD конфигов по `enterprise_number` (JSONB + валидация)
+- [x] Метрики `/health`, `/stats`
 - [ ] Кэш конфигов, инвалидация при сохранении, TTL
 - [ ] Эндпоинт `/api/events` (dial/bridge/hangup/download): очередь/фоновые задачи
 - [ ] Эндпоинт `/api/smart-redirect` с вызовом RetailCRM и интеграцией с `asterisk.py`
 - [ ] Логи в `integration_logs` (успех/ошибка, краткое сообщение, пэйлоады)
-- [ ] Метрики `/health`, `/stats`
 
 2) UI retailcrm-admin
 - [ ] Страницы: Подключение, Настройки, Логи, Тест подключения
