@@ -61,39 +61,83 @@ start() {
 }
 
 stop() {
-    if [ ! -f "$PID_FILE" ]; then
-        echo "⚠️ PID файл не найден. Сервис $SERVICE_NAME не запущен"
+    # Поиск процессов по PID-файлу или вручную запущенных
+    FOUND_PIDS=""
+    
+    if [ -f "$PID_FILE" ]; then
+        PID=$(cat "$PID_FILE")
+        if ps -p "$PID" > /dev/null 2>&1; then
+            FOUND_PIDS="$PID"
+            echo "🔍 Найден процесс из PID-файла: $PID"
+        else
+            echo "⚠️ PID из файла ($PID) не активен, удаляем файл"
+            rm -f "$PID_FILE"
+        fi
+    fi
+    
+    # Дополнительный поиск процессов retailcrm по имени
+    MANUAL_PIDS=$(pgrep -f "python.*retailcrm\.py" || true)
+    if [ -n "$MANUAL_PIDS" ]; then
+        echo "🔍 Найдены вручную запущенные процессы retailcrm: $MANUAL_PIDS"
+        FOUND_PIDS="$FOUND_PIDS $MANUAL_PIDS"
+    fi
+    
+    # Поиск uvicorn процессов на порту 8019
+    UVICORN_PIDS=$(pgrep -f "uvicorn.*retailcrm.*8019" || true)
+    if [ -n "$UVICORN_PIDS" ]; then
+        echo "🔍 Найдены uvicorn процессы на порту 8019: $UVICORN_PIDS"
+        FOUND_PIDS="$FOUND_PIDS $UVICORN_PIDS"
+    fi
+    
+    # Удаляем дубликаты и пустые значения
+    FOUND_PIDS=$(echo $FOUND_PIDS | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ')
+    
+    if [ -z "$FOUND_PIDS" ]; then
+        echo "⚠️ Процессы $SERVICE_NAME не найдены"
         return 1
     fi
 
-    PID=$(cat "$PID_FILE")
-    
-    if ps -p "$PID" > /dev/null 2>&1; then
-        echo "🛑 Остановка $SERVICE_NAME (PID: $PID)..."
-        kill "$PID"
-        
-        # Ждем завершения процесса
-        for i in {1..10}; do
-            if ! ps -p "$PID" > /dev/null 2>&1; then
-                break
-            fi
-            sleep 1
-        done
-        
-        # Принудительная остановка если нужно
+    # Остановка всех найденных процессов
+    echo "🛑 Остановка $SERVICE_NAME (PIDs: $FOUND_PIDS)..."
+    for PID in $FOUND_PIDS; do
         if ps -p "$PID" > /dev/null 2>&1; then
-            echo "🔥 Принудительная остановка..."
-            kill -9 "$PID"
+            echo "   Останавливаем PID $PID..."
+            kill "$PID"
         fi
-        
-        rm -f "$PID_FILE"
-        echo "✅ Сервис $SERVICE_NAME остановлен"
-        return 0
-    else
-        echo "⚠️ Процесс с PID $PID не найден"
-        rm -f "$PID_FILE"
-        return 1
+    done
+    
+    # Ждем завершения процессов
+    for i in {1..10}; do
+        STILL_RUNNING=""
+        for PID in $FOUND_PIDS; do
+            if ps -p "$PID" > /dev/null 2>&1; then
+                STILL_RUNNING="$STILL_RUNNING $PID"
+            fi
+        done
+        if [ -z "$STILL_RUNNING" ]; then
+            break
+        fi
+        sleep 1
+    done
+    
+    # Принудительная остановка если нужно
+    STILL_RUNNING=""
+    for PID in $FOUND_PIDS; do
+        if ps -p "$PID" > /dev/null 2>&1; then
+            STILL_RUNNING="$STILL_RUNNING $PID"
+        fi
+    done
+    
+    if [ -n "$STILL_RUNNING" ]; then
+        echo "🔥 Принудительная остановка процессов: $STILL_RUNNING"
+        for PID in $STILL_RUNNING; do
+            kill -9 "$PID" || true
+        done
     fi
+    
+    rm -f "$PID_FILE"
+    echo "✅ Сервис $SERVICE_NAME остановлен"
+    return 0
 }
 
 status() {

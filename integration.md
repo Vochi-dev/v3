@@ -90,7 +90,8 @@ location /retailcrm/api/ {
 - [x] Ввести пространства маршрутов: `/retailcrm-admin/` (UI), `/api/...` (REST)
 - [x] Реализовать CRUD конфигов по `enterprise_number` (JSONB + валидация)
 - [x] Метрики `/health`, `/stats`
-- [ ] Кэш конфигов, инвалидация при сохранении, TTL
+- [x] Кэш конфигов, инвалидация при сохранении, TTL
+- [x] Эндпоинты управления кэшем: `/api/config-cache/refresh/{enterprise_number}`, `/api/config-cache/refresh-all`, `/api/config-cache/active-enterprises`
 - [ ] Эндпоинт `/api/events` (dial/bridge/hangup/download): очередь/фоновые задачи
 - [ ] Эндпоинт `/api/smart-redirect` с вызовом RetailCRM и интеграцией с `asterisk.py`
 - [ ] Логи в `integration_logs` (успех/ошибка, краткое сообщение, пэйлоады)
@@ -124,13 +125,14 @@ location /retailcrm/api/ {
   - [ ] Anti‑stampede (single‑flight) при промахах кэша
   - [ ] Метрики hit/miss, время загрузки из БД
 
-- [ ] Кэш полных конфигов в `retailcrm.py`
-  - [ ] Структура: `enterprise_number -> {api_url, api_key, enabled, опции, маппинги, ...}`
-  - [ ] Ленивый прогрев по первому запросу + фоновый фулл‑refresh каждые 180–300 сек
+- [x] Кэш полных конфигов в `retailcrm.py`
+  - [x] Структура: `enterprise_number -> {api_url, api_key, enabled, опции, маппинги, ...}`
+  - [x] Ленивый прогрев по первому запросу + фоновый фулл‑refresh каждые 180–300 сек
   - [ ] Принудительная инвалидация по `LISTEN/NOTIFY` при изменении настроек
-  - [ ] TTL 60–120 сек (страховка), атомарный swap кэша, чтения без блокировок
+  - [x] TTL 60–120 сек (страховка), атомарный swap кэша, чтения без блокировок
   - [ ] Ограничение конкурентности при загрузке / внешних вызовах (семафоры per enterprise)
-  - [ ] Метрики hit/miss, глубина очереди фоновых задач, error_rate к CRM
+  - [x] Метрики hit/miss, размер кэша, expiring
+  - [x] Эндпоинты `/api/config-cache/*` и `/api/active-enterprises`
 
 - [ ] Неблокирующая обработка событий в call‑сервисах
   - [ ] Моментальный ответ 200 удалённому хосту после чтения кэша
@@ -163,3 +165,64 @@ location /retailcrm/api/ {
 - `retailcrm.py` (8019) становится эталонным мультиюнитным сервисом с UI и полным циклом интеграции.
 - Кэширование — по месту: матрица включённости в call‑сервисах, полный конфиг в CRM‑сервисе.
 - Общий агрегирующий сервис не нужен; масштабирование — добавлением новых CRM‑сервисов.
+
+---
+
+## Фактический статус (оперативно)
+
+- UI `retailcrm-admin` работает: страница открывается, заголовок формируется из `enterprises.name`, подключён favicon.
+- Форма отправляет запросы на относительные пути под тем же префиксом:
+  - `PUT /retailcrm-admin/api/config/{enterprise_number}` — сохранение конфига в `enterprises.integrations_config`.
+  - `POST /retailcrm-admin/api/register/{enterprise_number}` — регистрация модуля "Vochi‑CRM" в RetailCRM через `/integration-modules/{code}/edit`.
+- Логирование приведено к фактической схеме `integration_logs` (общая таблица):
+  - Поля: `enterprise_number`, `integration_type`, `event_type`, `request_data`, `response_data`, `status` (success|error), `error_message`, `created_at`.
+  - Пишется событие `event_type=register_module` при каждой попытке регистрации.
+- Кэш: реализован кэш конфигов с TTL и фоновым full‑refresh. Исправлена ошибка чтения JSONB (возврат значения без принудительного `dict(...)`).
+
+### Troubleshooting: кнопка «Сохранить и зарегистрировать» даёт 400/422
+
+Симптомы:
+- В браузере при POST `/retailcrm-admin/api/register/{enterprise}` отображается ошибка: 400 или 422.
+- В `logs/retailcrm.log` встречаются записи:
+  - `Input value "integrationModule" contains a non-scalar value` — отправлялся объект вместо JSON‑строки в поле `integrationModule`.
+  - `logo: Logo image must be svg` — логотип не в SVG.
+  - `baseUrl: This value should not be blank` — отсутствует `baseUrl`.
+- Либо 422 от самого сервиса: `JSON decode error` (тело запроса не распарсилось).
+
+Причины:
+- Одновременно работали две версии процесса на 8019. Старая версия отвечала с устаревшим payload (JPG‑логотип, без `baseUrl`, с `actions`).
+- На стороне UI/бэкенда могла попасться ситуация с пустым/некорректным JSON‑телом (422) — сервер не доходил до вызова RetailCRM.
+
+Как проверить быстро:
+- Убедиться, что один процесс слушает 8019: `ss -ltnp '( sport = :8019 )'`.
+- Снять хвост `logs/retailcrm.log` и проверить последнюю попытку регистрации: статус 200/201 означает, что payload корректен (SVG + `baseUrl`, без `actions`, `integrationModule` — JSON‑строка).
+
+Исправления, применённые в сервисе:
+- Payload регистрации приведён к требованиям RetailCRM: SVG‑логотип, обязательный `baseUrl`, поле `actions` удалено, `integrationModule` передаётся как JSON‑строка внутри form‑data.
+- Эндпоинт админки принимает как JSON, так и form‑data; защищён от 422 при пустом/битом теле.
+
+Чек‑лист восстановления:
+1) Перезапустить сервисы `./all.sh restart` и убедиться, что на 8019 один процесс.
+2) Открыть `/retailcrm-admin/?enterprise_number=XXXX` и нажать «Сохранить и зарегистрировать».
+3) Проверить:
+   - `enterprises.integrations_config->retailcrm` обновился (домен, ключ, enabled).
+   - В `integration_logs` появилась запись `event_type=register_module` со статусом и ответом RetailCRM.
+   - В `logs/retailcrm.log` последняя попытка даёт 200/201.
+
+Что подтверждено сейчас по среде:
+
+- В БД у юнита `0367` в `integrations_config->retailcrm` всё ещё старый тестовый конфиг (`test.com/test123`) — это значит, что клик "Сохранить и зарегистрировать" не дошёл до актуальных эндпоинтов сохранения/регистрации.
+- В `integration_logs` за последние 2 часа отсутствуют записи по `integration_type='retailcrm'` и `event_type='register_module'` — т.е. вызов регистрации не выполнялся.
+- В логах сервиса ранее был 500 на `/retailcrm-admin/` из‑за `.format()` и фигурных скобок; это устранено. Также наблюдалась ошибка фонового рефреша кэша (сообщение вида `dictionary update sequence...`) — причина исправлена в коде, требуется перезапуск, чтобы ошибка исчезла из логов.
+
+Блокирующий момент:
+
+- Требуется перезапуск сервисов (`./all.sh restart`) для применения последних изменений (`/retailcrm-admin/api/*`, корректная запись в `integration_logs`, фикс кэша). Без этого UI работает, но POST‑маршруты страницы могут указывать на отсутствующие в текущем процессе обработчики, поэтому сохранение и регистрация фактически не происходят и в БД/логах не отражаются.
+
+Следующие шаги после перезапуска:
+
+1) На странице `retailcrm-admin` снова нажать «Сохранить и зарегистрировать».
+2) Проверить:
+   - `enterprises.integrations_config->retailcrm` обновился домен+ключ.
+   - В `integration_logs` появилась запись `event_type=register_module` со `status=success|error` и деталями ответа RetailCRM.
+3) При `success=true` модуль "Vochi‑CRM" должен отобразиться в кабинете RetailCRM; при ошибке — текст ошибки виден в `error_message` и логах сервиса.

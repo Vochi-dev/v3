@@ -25,7 +25,8 @@ from typing import Dict, List, Optional, Any, Tuple
 import aiohttp
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import asyncpg
 
@@ -289,7 +290,7 @@ class RetailCRMClient:
                             response_time=response_time,
                             endpoint=endpoint
                         )
-                    
+
         except asyncio.TimeoutError:
             response_time = time.time() - start_time
             logger.error(f"⏰ Request timeout after {response_time:.3f}s")
@@ -308,6 +309,17 @@ class RetailCRMClient:
                 response_time=response_time,
                 endpoint=endpoint
             )
+
+    # =========================================================================
+    # 0. Регистрация/редактирование телефонии через Integration Modules API
+    # =========================================================================
+
+    async def upsert_integration_module(self, code: str, integration_module: Dict[str, Any]) -> RetailCRMResponse:
+        """Создать/обновить модуль интеграции (телефонию). POST /integration-modules/{code}/edit"""
+        endpoint = f"/integration-modules/{code}/edit"
+        # RetailCRM ожидает scalar field, содержащий JSON строку
+        data = {"integrationModule": json.dumps(integration_module)}
+        return await self._make_request("POST", endpoint, data=data)
     
     # =========================================================================
     # 1. БАЗОВЫЕ API МЕТОДЫ
@@ -487,6 +499,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Статика (favicon, логотипы) — используем общую папку проекта
+STATIC_DIR = "/root/asterisk-webhook/static"
+if os.path.isdir(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 # Глобальные объекты
 retailcrm_client = None
 
@@ -499,11 +516,42 @@ PG_DB = os.environ.get("POSTGRES_DB", "postgres")
 
 pg_pool: Optional[asyncpg.pool.Pool] = None
 
+# Конфиг кэша
+CACHE_TTL_SECONDS: int = int(os.environ.get("RETAILCRM_CACHE_TTL", 120))
+CACHE_REFRESH_INTERVAL_SECONDS: int = int(os.environ.get("RETAILCRM_CACHE_REFRESH", 300))
+
+# Кэш конфигов: enterprise_number -> (config_dict, expires_at_epoch)
+CONFIG_CACHE: Dict[str, Tuple[Dict[str, Any], float]] = {}
+
+# Управление фоновым обновлением кэша
+_cache_refresher_task: Optional[asyncio.Task] = None
+_cache_refresher_stop_event: Optional[asyncio.Event] = None
+
 # Простейшие метрики
 STATS: Dict[str, int] = {
     "db_reads": 0,
     "db_writes": 0,
+    "cache_hits": 0,
+    "cache_misses": 0,
+    "cache_refreshes": 0,
 }
+
+def _normalize_json(value: Any) -> Dict[str, Any]:
+    """Безопасно приводит JSON/JSONB значение из БД к dict.
+    Допускает типы: dict (возвращается как есть), str (парсится как JSON),
+    None (пустой dict). Для прочих типов возвращает пустой dict.
+    """
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+    return {}
 
 async def init_pg_pool() -> None:
     global pg_pool
@@ -526,6 +574,94 @@ async def close_pg_pool() -> None:
         pg_pool = None
         logger.info("✅ PostgreSQL pool closed for retailcrm service")
 
+
+async def ensure_integration_logs_table() -> None:
+    """Создаёт таблицу логов интеграций по актуальной схеме, если её нет.
+
+    Актуальная схема (единая для интеграций):
+      - enterprise_number TEXT
+      - integration_type TEXT
+      - event_type TEXT
+      - request_data JSONB
+      - response_data JSONB
+      - status TEXT ('success' | 'error')
+      - error_message TEXT
+      - created_at TIMESTAMPTZ DEFAULT now()
+    """
+    if pg_pool is None:
+        await init_pg_pool()
+    assert pg_pool is not None
+    sql = (
+        """
+        CREATE TABLE IF NOT EXISTS integration_logs (
+            id SERIAL PRIMARY KEY,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            enterprise_number TEXT NOT NULL,
+            integration_type TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            request_data JSONB,
+            response_data JSONB,
+            status TEXT NOT NULL,
+            error_message TEXT
+        );
+        """
+    )
+    async with pg_pool.acquire() as conn:
+        await conn.execute(sql)
+
+
+async def write_integration_log(
+    enterprise_number: str,
+    event_type: str,
+    request_data: Dict[str, Any],
+    response_data: Optional[Dict[str, Any]],
+    status_ok: bool,
+    error_message: Optional[str] = None,
+    integration_type: str = "retailcrm",
+) -> None:
+    """Запись события интеграции в БД с поддержкой обеих схем.
+
+    Основная попытка — актуальная схема (event_type/request_data/response_data/status/error_message).
+    Фолбэк — старая схема (action/payload/response/success/error), если таблица создана ранее.
+    """
+    assert pg_pool is not None
+    status_str = "success" if status_ok else "error"
+    try:
+        sql_new = (
+            "INSERT INTO integration_logs(enterprise_number, integration_type, event_type, request_data, response_data, status, error_message) "
+            "VALUES($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7)"
+        )
+        async with pg_pool.acquire() as conn:
+            await conn.execute(
+                sql_new,
+                enterprise_number,
+                integration_type,
+                event_type,
+                json.dumps(request_data),
+                json.dumps(response_data or {}),
+                status_str,
+                error_message,
+            )
+    except Exception as e_new:
+        try:
+            sql_old = (
+                "INSERT INTO integration_logs(enterprise_number, integration_type, action, payload, response, success, error) "
+                "VALUES($1, $2, $3, $4::jsonb, $5::jsonb, $6::boolean, $7)"
+            )
+            async with pg_pool.acquire() as conn:
+                await conn.execute(
+                    sql_old,
+                    enterprise_number,
+                    integration_type,
+                    event_type,
+                    json.dumps(request_data),
+                    json.dumps(response_data or {}),
+                    status_ok,
+                    error_message,
+                )
+        except Exception as e_old:
+            logger.error(f"❌ Не удалось записать лог интеграции (new='{e_new}', old='{e_old}')")
+
 async def fetch_retailcrm_config(enterprise_number: str) -> Dict[str, Any]:
     """Читает из enterprises.integrations_config JSONB -> 'retailcrm' для юнита.
     Возвращает пустой dict, если данных нет.
@@ -540,9 +676,9 @@ async def fetch_retailcrm_config(enterprise_number: str) -> Dict[str, Any]:
     async with pg_pool.acquire() as conn:
         row = await conn.fetchrow(query, enterprise_number)
         STATS["db_reads"] += 1
-    if not row or row["cfg"] is None:
+    if not row:
         return {}
-    return dict(row["cfg"])  # asyncpg возвращает JSONB как dict
+    return _normalize_json(row["cfg"])  
 
 async def upsert_retailcrm_config(enterprise_number: str, config: Dict[str, Any]) -> Dict[str, Any]:
     """Обновляет ключ retailcrm в integrations_config указанного юнита (merge)."""
@@ -558,11 +694,86 @@ async def upsert_retailcrm_config(enterprise_number: str, config: Dict[str, Any]
         "RETURNING integrations_config -> 'retailcrm' AS cfg"
     )
     async with pg_pool.acquire() as conn:
-        row = await conn.fetchrow(query, enterprise_number, config)
+        row = await conn.fetchrow(query, enterprise_number, json.dumps(config))
         STATS["db_writes"] += 1
     if not row:
         raise HTTPException(status_code=404, detail="Enterprise not found")
-    return dict(row["cfg"]) if row["cfg"] is not None else {}
+    updated_cfg = _normalize_json(row["cfg"]) 
+    # Обновляем кэш немедленно (инвалидация)
+    try:
+        CONFIG_CACHE[enterprise_number] = (updated_cfg, time.time() + CACHE_TTL_SECONDS)
+        STATS["cache_refreshes"] += 1
+    except Exception:
+        pass
+    return updated_cfg
+
+# =============================================================================
+# КЭШ: утилиты и фоновый рефреш
+# =============================================================================
+
+def _is_cache_entry_valid(entry: Tuple[Dict[str, Any], float]) -> bool:
+    if not entry:
+        return False
+    _, expires_at = entry
+    return time.time() < expires_at
+
+async def get_config_cached(enterprise_number: str) -> Dict[str, Any]:
+    entry = CONFIG_CACHE.get(enterprise_number)
+    if entry and _is_cache_entry_valid(entry):
+        STATS["cache_hits"] += 1
+        return entry[0]
+    STATS["cache_misses"] += 1
+    cfg = await fetch_retailcrm_config(enterprise_number)
+    CONFIG_CACHE[enterprise_number] = (cfg, time.time() + CACHE_TTL_SECONDS)
+    return cfg
+
+async def list_active_enterprises() -> List[str]:
+    """Список enterprise_number, у которых включен retailcrm.enabled=true."""
+    if pg_pool is None:
+        await init_pg_pool()
+    assert pg_pool is not None
+    query = (
+        "SELECT number FROM enterprises "
+        "WHERE integrations_config ? 'retailcrm' "
+        "AND (integrations_config->'retailcrm'->>'enabled') = 'true'"
+    )
+    async with pg_pool.acquire() as conn:
+        rows = await conn.fetch(query)
+        STATS["db_reads"] += 1
+    return [r["number"] for r in rows]
+
+async def refresh_cache_for(enterprise_number: str) -> Dict[str, Any]:
+    cfg = await fetch_retailcrm_config(enterprise_number)
+    CONFIG_CACHE[enterprise_number] = (cfg, time.time() + CACHE_TTL_SECONDS)
+    STATS["cache_refreshes"] += 1
+    return cfg
+
+async def refresh_cache_full() -> Dict[str, Any]:
+    """Полный рефреш кэша для всех активных юнитов."""
+    result: Dict[str, Any] = {"refreshed": [], "skipped": []}
+    try:
+        active = await list_active_enterprises()
+        for num in active:
+            await refresh_cache_for(num)
+            result["refreshed"].append(num)
+    except Exception as e:
+        logger.error(f"❌ Ошибка полного рефреша кэша: {e}")
+    return result
+
+async def _cache_refresher_loop(stop_event: asyncio.Event) -> None:
+    logger.info(
+        f"🌀 Запуск фонового обновления кэша: every {CACHE_REFRESH_INTERVAL_SECONDS}s, TTL={CACHE_TTL_SECONDS}s"
+    )
+    try:
+        while not stop_event.is_set():
+            await refresh_cache_full()
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=CACHE_REFRESH_INTERVAL_SECONDS)
+            except asyncio.TimeoutError:
+                pass
+    except asyncio.CancelledError:
+        logger.info("🛑 Остановка фонового обновления кэша")
+        raise
 
 @app.on_event("startup")
 async def startup_event():
@@ -575,12 +786,37 @@ async def startup_event():
         await init_pg_pool()
     except Exception as e:
         logger.error(f"❌ Не удалось инициализировать PostgreSQL pool: {e}")
-    
+    # Создаём таблицу логов заранее
+    try:
+        await ensure_integration_logs_table()
+    except Exception as e:
+        logger.error(f"❌ Не удалось подготовить таблицу логов интеграций: {e}")
+    # Стартуем фоновый рефрешер кэша
+    try:
+        global _cache_refresher_task, _cache_refresher_stop_event
+        _cache_refresher_stop_event = asyncio.Event()
+        _cache_refresher_task = asyncio.create_task(_cache_refresher_loop(_cache_refresher_stop_event))
+        logger.info("✅ Фоновый рефрешер кэша запущен")
+    except Exception as e:
+        logger.error(f"❌ Не удалось запустить фоновый рефрешер кэша: {e}")
 
 @app.on_event("shutdown") 
 async def shutdown_event():
     """Очистка при остановке сервиса"""
     logger.info("🛑 Остановка RetailCRM Integration Service")
+    # Останавливаем фоновый рефрешер кэша
+    try:
+        global _cache_refresher_task, _cache_refresher_stop_event
+        if _cache_refresher_stop_event is not None:
+            _cache_refresher_stop_event.set()
+        if _cache_refresher_task is not None:
+            _cache_refresher_task.cancel()
+            try:
+                await _cache_refresher_task
+            except asyncio.CancelledError:
+                pass
+    except Exception as e:
+        logger.error(f"❌ Ошибка остановки рефрешера кэша: {e}")
     try:
         await close_pg_pool()
     except Exception as e:
@@ -617,9 +853,14 @@ async def health() -> Dict[str, Any]:
 async def stats() -> Dict[str, Any]:
     """Базовые метрики сервиса retailcrm."""
     pool_status: Dict[str, Any] = {"initialized": pg_pool is not None}
+    # Сводка по кэшу
+    cache_size = len(CONFIG_CACHE)
+    now_ts = time.time()
+    cache_expiring = sum(1 for _, exp in CONFIG_CACHE.values() if exp <= now_ts)
     return {
         "db": pool_status,
         "counters": STATS,
+        "cache": {"size": cache_size, "expiring": cache_expiring, "ttl": CACHE_TTL_SECONDS},
         "service": "retailcrm",
     }
 
@@ -630,7 +871,8 @@ async def stats() -> Dict[str, Any]:
 
 @app.get("/api/config/{enterprise_number}")
 async def api_get_config(enterprise_number: str) -> Dict[str, Any]:
-    cfg = await fetch_retailcrm_config(enterprise_number)
+    # Возвращаем из кэша (лениво прогреваем)
+    cfg = await get_config_cached(enterprise_number)
     return {"enterprise_number": enterprise_number, "config": cfg}
 
 
@@ -643,6 +885,314 @@ async def api_put_config(enterprise_number: str, body: RetailCRMConfigBody) -> D
     updated = await upsert_retailcrm_config(enterprise_number, body.config)
     return {"enterprise_number": enterprise_number, "config": updated}
 
+
+# =============================================================================
+# API для управления кэшем (namespace /api/config-cache)
+# =============================================================================
+
+@app.post("/api/config-cache/refresh/{enterprise_number}")
+async def api_refresh_cache_for(enterprise_number: str) -> Dict[str, Any]:
+    cfg = await refresh_cache_for(enterprise_number)
+    return {"enterprise_number": enterprise_number, "config": cfg, "refreshed": True}
+
+
+@app.post("/api/config-cache/refresh-all")
+async def api_refresh_cache_all() -> Dict[str, Any]:
+    res = await refresh_cache_full()
+    return {"result": res}
+
+
+@app.get("/api/config-cache/active-enterprises")
+async def api_active_enterprises() -> Dict[str, Any]:
+    active = await list_active_enterprises()
+    return {"active_enterprises": active, "count": len(active)}
+
+
+# =============================================================================
+# Регистрация/редактирование телефонии по заданию (POST /api/register/{enterprise_number})
+# =============================================================================
+
+class RegisterBody(BaseModel):
+    domain: str
+    api_key: str
+    enabled: bool = True
+
+
+@app.post("/api/register/{enterprise_number}")
+async def api_register_module(enterprise_number: str, body: RegisterBody) -> Dict[str, Any]:
+    """Сохраняет домен/API‑key в БД и регистрирует модуль в RetailCRM (integration-modules)."""
+    domain = body.domain.rstrip('/')
+    api_key = body.api_key
+    enabled = body.enabled
+
+    # 1) Сохранить конфиг
+    saved_cfg = await upsert_retailcrm_config(enterprise_number, {
+        "domain": domain,
+        "api_key": api_key,
+        "enabled": enabled,
+    })
+
+    # 2) Подготовить полезную нагрузку для RetailCRM
+    code = "vochi-telephony"
+    make_call_url = f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm/make-call"
+    change_status_url = f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm/status"
+    integration_module = {
+        "code": code,
+        "active": enabled,
+        "name": "Vochi-CRM",
+        # Требование RetailCRM: logo должен быть SVG
+        "logo": "https://bot.vochi.by/static/img/vochi_logo.svg",
+        # Требование RetailCRM: baseUrl обязателен
+        "baseUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}",
+        "clientId": enterprise_number,
+        "accountUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm-admin/?enterprise_number={enterprise_number}",
+        # Поле actions убираем — RetailCRM ругается на неверный выбор
+        "allowEdit": False,
+        "configuration": {
+            "makeCallUrl": make_call_url,
+            "changeUserStatusUrl": change_status_url,
+        }
+    }
+
+    # 3) Вызвать RetailCRM API под переданным доменом и ключом
+    cfg = {
+        "base_url": domain if domain.startswith("http") else f"https://{domain}",
+        "api_key": api_key,
+        "api_version": "v5",
+        "timeout": 30,
+    }
+    try:
+        async with RetailCRMClient(cfg) as client:
+            resp = await client.upsert_integration_module(code, integration_module)
+            await write_integration_log(
+                enterprise_number,
+                "register_module",
+                {"domain": cfg["base_url"], "module": integration_module},
+                (resp.data if resp and resp.data else None),
+                resp.success,
+                resp.error,
+            )
+            if not resp.success:
+                raise HTTPException(status_code=400, detail=resp.error or "RetailCRM error")
+            return {"success": True, "result": resp.data or {}}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await write_integration_log(
+            enterprise_number,
+            "register_module",
+            {"domain": cfg["base_url"], "module": integration_module},
+            None,
+            False,
+            str(e),
+        )
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# DUPLICATE ROUTES UNDER /retailcrm-admin/ PREFIX FOR BROWSER RELATIVE CALLS
+# =============================================================================
+
+@app.get("/retailcrm-admin/api/config/{enterprise_number}")
+async def admin_api_get_config(enterprise_number: str) -> Dict[str, Any]:
+    return await api_get_config(enterprise_number)
+
+
+@app.put("/retailcrm-admin/api/config/{enterprise_number}")
+async def admin_api_put_config(enterprise_number: str, body: RetailCRMConfigBody) -> Dict[str, Any]:
+    return await api_put_config(enterprise_number, body)
+
+
+@app.post("/retailcrm-admin/api/register/{enterprise_number}")
+async def admin_api_register_module(enterprise_number: str, request: Request) -> Dict[str, Any]:
+    """Обёртка для UI: принимает как JSON, так и form-data; избегает 422 на битом JSON.
+
+    Ожидаемые поля: domain (str), api_key (str), enabled (bool)
+    """
+    payload: Dict[str, Any] = {}
+    # 1) Пытаемся прочитать как JSON
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            payload = {}
+    except Exception:
+        payload = {}
+    # 2) Фолбэк: form-data (например, если фронт шлёт форму или сломан JSON)
+    if not payload:
+        try:
+            form = await request.form()
+            def _to_bool(v: Any) -> bool:
+                if v is None:
+                    return True
+                s = str(v).strip().lower()
+                return s in ("1", "true", "on", "yes")
+            payload = {
+                "domain": form.get("domain", ""),
+                "api_key": form.get("api_key", ""),
+                "enabled": _to_bool(form.get("enabled", "true")),
+            }
+        except Exception:
+            payload = {}
+    # 3) Валидация через pydantic
+    try:
+        body = RegisterBody(**payload)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid body: {e}")
+    return await api_register_module(enterprise_number, body)
+# =============================================================================
+# UI: страница администрирования RetailCRM (форма домена/API-ключа)
+# =============================================================================
+
+ADMIN_PAGE_HTML = """
+<!doctype html>
+<html lang=\"ru\">
+<head>
+  <meta charset=\"utf-8\">
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+  <title>{title}</title>
+  <link rel=\"icon\" href=\"./favicon.ico\"> 
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background:#0b1728; color:#e7eef8; }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 28px; }
+    h1 { font-size: 24px; margin: 0 0 18px; }
+    .card { background:#0f2233; border:1px solid #1b3350; border-radius:12px; padding:22px; }
+    label { display:block; margin:12px 0 8px; color:#a8c0e0; font-size:14px; }
+    input[type=text], input[type=url] { width:100%; padding:12px 14px; border-radius:10px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:16px; }
+    .row { display:flex; gap:16px; flex-wrap: wrap; }
+    .row > div { flex:1 1 320px; }
+    .actions { margin-top:20px; display:flex; align-items:center; gap:16px; }
+    .btn { background:#2563eb; color:#fff; border:none; padding:12px 18px; border-radius:10px; cursor:pointer; font-size:16px; }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+    input[type=checkbox] { width:20px; height:20px; accent-color:#2563eb; }
+    .hint { color:#8fb3da; font-size:13px; margin-top:6px; }
+    .success { color:#4ade80; }
+    .error { color:#f87171; }
+  </style>
+</head>
+<body>
+  <div class=\"wrap\">
+    <h1>{header}</h1>
+    <div class=\"card\">
+      <div class=\"row\">
+        <div>
+          <label>Адрес домена</label>
+        <input id=\"domain\" type=\"url\" placeholder=\"demo.retailcrm.ru\" />
+        </div>
+        <div>
+          <label>API Key</label>
+          <input id=\"apiKey\" type=\"text\" placeholder=\"xxxxxxxx\" />
+        </div>
+      </div>
+      <div class=\"actions\">
+      <label><input id=\"enabled\" type=\"checkbox\" /> Активен?</label>
+        <button id=\"saveBtn\" class=\"btn\">Сохранить и зарегистрировать</button>
+        <span id=\"msg\" class=\"hint\"></span>
+      </div>
+    </div>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
+"""
+
+
+# JS для страницы администрирования (вынесен во внешний файл на случай CSP)
+ADMIN_PAGE_JS = r"""
+(function(){
+  try {
+    const qs = new URLSearchParams(location.search);
+    const enterprise = qs.get('enterprise_number');
+    const titleBase = document.title;
+
+    async function load() {
+      try {
+        const r = await fetch(`./api/config/${enterprise}`);
+        const j = await r.json();
+        const cfg = (j.config||{});
+        const domainEl = document.getElementById('domain');
+        const apiKeyEl = document.getElementById('apiKey');
+        const enabledEl = document.getElementById('enabled');
+        if (domainEl) domainEl.value = cfg.domain || '';
+        if (apiKeyEl) apiKeyEl.value = cfg.api_key || '';
+        if (enabledEl) enabledEl.checked = !!cfg.enabled;
+      } catch(e) { console.warn('load() error', e); }
+    }
+
+    async function save() {
+      const domain = (document.getElementById('domain')||{}).value?.trim?.() || '';
+      const apiKey = (document.getElementById('apiKey')||{}).value?.trim?.() || '';
+      const enabled = !!((document.getElementById('enabled')||{}).checked);
+      const btn = document.getElementById('saveBtn');
+      const msg = document.getElementById('msg');
+      if (msg) { msg.textContent=''; msg.className='hint'; }
+      if (btn) btn.disabled = true;
+      try {
+        let r = await fetch(`./api/config/${enterprise}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({config: {domain, api_key: apiKey, enabled}}) });
+        if(!r.ok) throw new Error('Ошибка сохранения конфига');
+        r = await fetch(`./api/register/${enterprise}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({domain, api_key: apiKey, enabled}) });
+        const jr = await r.json();
+        if(!jr.success) throw new Error(jr.error||'Ошибка регистрации');
+        if (msg) { msg.textContent='Сохранено'; msg.className='hint success'; }
+      } catch(e) {
+        if (msg) { msg.textContent= 'Ошибка: '+ e.message; msg.className='hint error'; }
+      } finally {
+        if (btn) btn.disabled=false;
+      }
+    }
+
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) saveBtn.addEventListener('click', save);
+    load();
+  } catch (e) { console.error('Admin JS init error', e); }
+})();
+"""
+
+
+@app.get("/retailcrm-admin/", response_class=HTMLResponse)
+async def retailcrm_admin_page(enterprise_number: str) -> HTMLResponse:
+    """Простая UI‑страница администрирования для ввода домена и API‑ключа."""
+    # Получим имя предприятия для заголовка
+    name = enterprise_number
+    try:
+        if pg_pool is None:
+            await init_pg_pool()
+        async with pg_pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT name FROM enterprises WHERE number=$1", enterprise_number)
+            if row:
+                name = row["name"]
+    except Exception:
+        pass
+    title = f"{name} RetailCRM"
+    # Избегаем .format() из-за фигурных скобок в CSS/JS — заменяем только нужные плейсхолдеры
+    html = (
+        ADMIN_PAGE_HTML
+        .replace("{title}", title)
+        .replace("{header}", title)
+    )
+    return HTMLResponse(content=html)
+
+
+@app.get("/retailcrm-admin/favicon.ico")
+async def retailcrm_admin_favicon():
+    """Отдаёт favicon для страницы администрирования.
+    Сначала пытается взять из общей статики проекта, иначе отдаёт пустой ответ.
+    """
+    try:
+        candidate_paths = []
+        if os.path.isdir(STATIC_DIR):
+            candidate_paths.append(os.path.join(STATIC_DIR, "favicon.ico"))
+            candidate_paths.append(os.path.join(STATIC_DIR, "img", "favicon.ico"))
+        for p in candidate_paths:
+            if os.path.isfile(p):
+                return FileResponse(p, media_type="image/x-icon")
+    except Exception:
+        pass
+    return Response(status_code=204)
+
+
+@app.get("/retailcrm-admin/app.js")
+async def retailcrm_admin_js():
+    return Response(content=ADMIN_PAGE_JS, media_type="application/javascript")
 
 @app.get("/test/credentials")
 async def test_credentials():
