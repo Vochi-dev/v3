@@ -321,6 +321,16 @@ class RetailCRMClient:
         data = {"integrationModule": json.dumps(integration_module)}
         return await self._make_request("POST", endpoint, data=data)
     
+    async def deactivate_integration_module(self, code: str, integration_module: Dict[str, Any]) -> RetailCRMResponse:
+        """Деактивировать модуль интеграции (установить active: false). POST /integration-modules/{code}/edit"""
+        # Копируем модуль и устанавливаем active: false
+        deactivated_module = integration_module.copy()
+        deactivated_module["active"] = False
+        
+        endpoint = f"/integration-modules/{code}/edit"
+        data = {"integrationModule": json.dumps(deactivated_module)}
+        return await self._make_request("POST", endpoint, data=data)
+    
     # =========================================================================
     # 1. БАЗОВЫЕ API МЕТОДЫ
     # =========================================================================
@@ -680,6 +690,36 @@ async def fetch_retailcrm_config(enterprise_number: str) -> Dict[str, Any]:
         return {}
     return _normalize_json(row["cfg"])  
 
+async def delete_retailcrm_config(enterprise_number: str) -> bool:
+    """Удаляет конфигурацию RetailCRM для предприятия (устанавливает integrations_config->retailcrm в NULL)"""
+    if pg_pool is None:
+        await init_pg_pool()
+    assert pg_pool is not None
+    
+    query = """
+        UPDATE enterprises 
+        SET integrations_config = 
+            CASE 
+                WHEN integrations_config IS NULL THEN NULL
+                ELSE integrations_config - 'retailcrm'
+            END
+        WHERE number = $1
+        RETURNING integrations_config
+    """
+    
+    try:
+        async with pg_pool.acquire() as conn:
+            row = await conn.fetchrow(query, enterprise_number)
+            if row is not None:
+                # Инвалидируем кэш
+                if enterprise_number in CONFIG_CACHE:
+                    del CONFIG_CACHE[enterprise_number]
+                return True
+            return False
+    except Exception as e:
+        logger.error(f"❌ Ошибка удаления конфига RetailCRM для {enterprise_number}: {e}")
+        return False
+
 async def upsert_retailcrm_config(enterprise_number: str, config: Dict[str, Any]) -> Dict[str, Any]:
     """Обновляет ключ retailcrm в integrations_config указанного юнита (merge)."""
     if pg_pool is None:
@@ -988,6 +1028,79 @@ async def api_register_module(enterprise_number: str, body: RegisterBody) -> Dic
         )
         raise HTTPException(status_code=500, detail=str(e))
 
+async def api_delete_integration(enterprise_number: str) -> Dict[str, Any]:
+    """Удаляет интеграцию RetailCRM: очищает БД и деактивирует модуль в RetailCRM."""
+    
+    # 1) Получаем текущий конфиг для доступа к RetailCRM
+    current_config = await fetch_retailcrm_config(enterprise_number)
+    
+    # 2) Удаляем конфиг из БД
+    deleted = await delete_retailcrm_config(enterprise_number)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Конфигурация не найдена")
+    
+    # 3) Если есть домен и API-ключ, пытаемся деактивировать модуль в RetailCRM
+    domain = current_config.get("domain")
+    api_key = current_config.get("api_key")
+    
+    if domain and api_key:
+        try:
+            cfg = {
+                "base_url": domain if domain.startswith("http") else f"https://{domain}",
+                "api_key": api_key,
+                "api_version": "v5",
+                "timeout": 30,
+            }
+            
+            # Получаем текущий модуль для деактивации
+            code = "vochi-telephony"
+            integration_module = {
+                "code": code,
+                "active": False,  # Деактивируем
+                "name": "Vochi-CRM",
+                "logo": "https://bot.vochi.by/static/img/vochi_logo.svg",
+                "baseUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}",
+                "clientId": enterprise_number,
+                "accountUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm-admin/?enterprise_number={enterprise_number}",
+                "allowEdit": False,
+                "configuration": {
+                    "makeCallUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm/make-call",
+                    "changeUserStatusUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm/status",
+                }
+            }
+            
+            async with RetailCRMClient(cfg) as client:
+                resp = await client.deactivate_integration_module(code, integration_module)
+                
+                await write_integration_log(
+                    enterprise_number,
+                    "delete_module",
+                    {"domain": cfg["base_url"], "module": integration_module},
+                    (resp.data if resp and resp.data else None),
+                    resp.success,
+                    resp.error,
+                )
+                
+                if not resp.success:
+                    logger.warning(f"⚠️ Не удалось деактивировать модуль в RetailCRM: {resp.error}")
+                    # Не поднимаем ошибку, так как конфиг уже удален из БД
+                else:
+                    logger.info(f"✅ Модуль интеграции деактивирован в RetailCRM для {enterprise_number}")
+                    
+        except Exception as e:
+            logger.warning(f"⚠️ Ошибка деактивации модуля в RetailCRM: {e}")
+            await write_integration_log(
+                enterprise_number,
+                "delete_module",
+                {"domain": domain, "error": str(e)},
+                None,
+                False,
+                str(e),
+            )
+            # Не поднимаем ошибку, так как конфиг уже удален из БД
+    
+    return {"success": True, "message": "Интеграция удалена"}
+
 
 # =============================================================================
 # DUPLICATE ROUTES UNDER /retailcrm-admin/ PREFIX FOR BROWSER RELATIVE CALLS
@@ -1001,6 +1114,11 @@ async def admin_api_get_config(enterprise_number: str) -> Dict[str, Any]:
 @app.put("/retailcrm-admin/api/config/{enterprise_number}")
 async def admin_api_put_config(enterprise_number: str, body: RetailCRMConfigBody) -> Dict[str, Any]:
     return await api_put_config(enterprise_number, body)
+
+
+@app.delete("/retailcrm-admin/api/config/{enterprise_number}")
+async def admin_api_delete_config(enterprise_number: str) -> Dict[str, Any]:
+    return await api_delete_integration(enterprise_number)
 
 
 @app.post("/retailcrm-admin/api/register/{enterprise_number}")
@@ -1084,8 +1202,9 @@ ADMIN_PAGE_HTML = """
         </div>
       </div>
       <div class=\"actions\">
-      <label><input id=\"enabled\" type=\"checkbox\" /> Активен?</label>
+        <label><input id=\"enabled\" type=\"checkbox\" /> Активен?</label>
         <button id=\"saveBtn\" class=\"btn\">Сохранить и зарегистрировать</button>
+        <button id=\"deleteBtn\" class=\"btn\" style=\"background:#dc2626; margin-left:auto;\">Удалить интеграцию</button>
         <span id=\"msg\" class=\"hint\"></span>
       </div>
     </div>
@@ -1140,8 +1259,35 @@ ADMIN_PAGE_JS = r"""
       }
     }
 
+    async function deleteIntegration() {
+      const btn = document.getElementById('deleteBtn');
+      const msg = document.getElementById('msg');
+      if (!confirm('Вы уверены, что хотите удалить интеграцию? Это действие нельзя отменить.')) return;
+      if (msg) { msg.textContent=''; msg.className='hint'; }
+      if (btn) btn.disabled = true;
+      try {
+        const r = await fetch(`./api/config/${enterprise}`, { method:'DELETE', headers:{'Content-Type':'application/json'} });
+        const jr = await r.json();
+        if(!jr.success) throw new Error(jr.error||'Ошибка удаления');
+        if (msg) { msg.textContent='Интеграция удалена'; msg.className='hint success'; }
+        // Очищаем форму
+        const domainEl = document.getElementById('domain');
+        const apiKeyEl = document.getElementById('apiKey');
+        const enabledEl = document.getElementById('enabled');
+        if (domainEl) domainEl.value = '';
+        if (apiKeyEl) apiKeyEl.value = '';
+        if (enabledEl) enabledEl.checked = false;
+      } catch(e) {
+        if (msg) { msg.textContent= 'Ошибка: '+ e.message; msg.className='hint error'; }
+      } finally {
+        if (btn) btn.disabled=false;
+      }
+    }
+
     const saveBtn = document.getElementById('saveBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
     if (saveBtn) saveBtn.addEventListener('click', save);
+    if (deleteBtn) deleteBtn.addEventListener('click', deleteIntegration);
     load();
   } catch (e) { console.error('Admin JS init error', e); }
 })();
