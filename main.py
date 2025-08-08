@@ -273,6 +273,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if any(path.startswith(route) for route in PUBLIC_ROUTES):
             return await call_next(request)
         
+        # Специальная обработка для RetailCRM админки
+        if path.startswith("/retailcrm-admin/"):
+            return await self.handle_retailcrm_admin_auth(request, call_next)
+        
         # Для остальных маршрутов проверяем авторизацию
         session_token = request.cookies.get("session_token")
         user = await get_user_from_session_token(session_token)
@@ -284,6 +288,47 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Добавляем пользователя в state запроса
         request.state.user = user
         
+        return await call_next(request)
+    
+    async def handle_retailcrm_admin_auth(self, request: Request, call_next):
+        """Обработка авторизации для RetailCRM админки через JWT токены."""
+        # Получаем токен из параметров запроса
+        token = request.query_params.get("token")
+        enterprise_number = request.query_params.get("enterprise_number")
+        
+        if token and enterprise_number:
+            # Проверяем токен через RetailCRM сервис
+            try:
+                import jwt
+                JWT_SECRET_KEY = "vochi-retailcrm-secret-key-2025"  # Совпадает с retailcrm.py
+                JWT_ALGORITHM = "HS256"
+                
+                payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+                if (payload.get("source") == "retailcrm" and 
+                    payload.get("enterprise_number") == enterprise_number):
+                    
+                    # Создаём временного пользователя-админа для RetailCRM админки
+                    temp_user = {
+                        "id": f"retailcrm_admin_{enterprise_number}",
+                        "enterprise_number": enterprise_number,
+                        "source": "retailcrm_token",
+                        "is_retailcrm_admin": True
+                    }
+                    request.state.user = temp_user
+                    return await call_next(request)
+            except Exception:
+                pass  # Токен неверный, продолжаем стандартную авторизацию
+        
+        # Фолбэк: стандартная авторизация через session_token
+        session_token = request.cookies.get("session_token")
+        user = await get_user_from_session_token(session_token)
+        
+        if not user:
+            # Пользователь не авторизован - перенаправляем на главную
+            return RedirectResponse(url="/", status_code=302)
+        
+        # Добавляем пользователя в state запроса
+        request.state.user = user
         return await call_next(request)
 
 def require_auth(func: Callable) -> Callable:

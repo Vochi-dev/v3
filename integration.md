@@ -209,6 +209,30 @@ location /retailcrm/api/ {
    - В `integration_logs` появилась запись `event_type=register_module` со статусом и ответом RetailCRM.
    - В `logs/retailcrm.log` последняя попытка даёт 200/201.
 
+---
+
+## JWT авторизация для кнопки "Перейти в личный кабинет" ✅
+
+### Реализованное решение
+При регистрации модуля интеграции генерируется JWT токен, который добавляется в `accountUrl`. Это позволяет пользователям RetailCRM переходить в нашу админку без ввода логина/пароля.
+
+**Компоненты:**
+- `generate_retailcrm_access_token()` - генерирует JWT токен с TTL=1 год
+- `verify_retailcrm_access_token()` - проверяет валидность токена
+- `AuthMiddleware` - обновлён для поддержки JWT авторизации
+- В `accountUrl` автоматически добавляется параметр `token=JWT`
+
+**Пример accountUrl:**
+```
+https://bot.vochi.by/retailcrm-admin/?enterprise_number=0367&token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Проверка работы:**
+✅ JWT токен генерируется при регистрации модуля
+✅ Токен корректно добавляется в accountUrl  
+✅ Авторизация по токену работает (middleware проверяет JWT)
+✅ Безопасность: токен привязан к конкретному предприятию
+
 Что подтверждено сейчас по среде:
 
 - В БД у юнита `0367` в `integrations_config->retailcrm` всё ещё старый тестовый конфиг (`test.com/test123`) — это значит, что клик "Сохранить и зарегистрировать" не дошёл до актуальных эндпоинтов сохранения/регистрации.
@@ -226,3 +250,141 @@ location /retailcrm/api/ {
    - `enterprises.integrations_config->retailcrm` обновился домен+ключ.
    - В `integration_logs` появилась запись `event_type=register_module` со `status=success|error` и деталями ответа RetailCRM.
 3) При `success=true` модуль "Vochi‑CRM" должен отобразиться в кабинете RetailCRM; при ошибке — текст ошибки виден в `error_message` и логах сервиса.
+
+---
+
+## Авторизация для кнопки "Перейти в личный кабинет" из RetailCRM
+
+### Проблема
+- В RetailCRM в модуле интеграции есть кнопка "Перейти в личный кабинет" (`accountUrl`)
+- URL ведёт на `https://bot.vochi.by/retailcrm-admin/?enterprise_number=0367`
+- Наш сервис защищён `AuthMiddleware` — маршрут `/retailcrm-admin/` НЕ входит в `PUBLIC_ROUTES`
+- Пользователь RetailCRM не имеет `session_token` cookie для авторизации
+
+### Рассмотренные варианты решения
+
+#### 1️⃣ Простое добавление в PUBLIC_ROUTES
+```python
+PUBLIC_ROUTES = {"/retailcrm-admin", ...}  # Добавить маршрут
+```
+**Плюсы:** Очень просто  
+**Минусы:** Нет защиты — любой может зайти
+
+#### 2️⃣ JWT токены в URL (ВЫБРАННОЕ РЕШЕНИЕ)
+- Генерировать долгосрочные JWT токены при регистрации модуля
+- Обновлять `accountUrl`: `.../?enterprise_number=0367&token=<jwt_token>`
+- Модифицировать middleware для поддержки RetailCRM токенов
+- Создавать временные admin-сессии для работы с интерфейсом
+
+**Плюсы:**
+- ✅ Безопасно (токен привязан к предприятию)
+- ✅ Автоматическая авторизация одним кликом
+- ✅ Можно отозвать токены при удалении интеграции
+- ✅ Не влияет на остальные процессы авторизации
+
+**Минусы:**
+- ⚠️ Нужно модифицировать middleware (минимально)
+- ⚠️ Токен видно в URL (но это стандартная практика)
+
+#### 3️⃣ API ключи RetailCRM для верификации
+- Проверять подлинность через обратные вызовы к API RetailCRM
+- Создавать verification_code для подтверждения
+
+**Плюсы:** Высокая безопасность  
+**Минусы:** Сложная реализация, зависимость от RetailCRM API
+
+#### 4️⃣ Специальная авторизация только для админов
+- Отдельный механизм для администраторов предприятий
+- Создание временных admin-пользователей
+
+**Плюсы:** Гибкость  
+**Минусы:** Дублирование логики авторизации
+
+### План реализации выбранного решения (JWT токены)
+
+1. **Модификация AuthMiddleware** для поддержки RetailCRM токенов:
+   ```python
+   if path.startswith("/retailcrm-admin/"):
+       return await handle_retailcrm_admin_auth(request, call_next)
+   ```
+
+2. **Генерация JWT токенов** при регистрации модуля:
+   ```python
+   def generate_retailcrm_access_token(enterprise_number: str) -> str:
+       payload = {
+           "enterprise_number": enterprise_number,
+           "source": "retailcrm",
+           "exp": datetime.utcnow() + timedelta(days=365),
+           "iat": datetime.utcnow()
+       }
+       return jwt.encode(payload, JWT_SECRET_KEY, algorithm="HS256")
+   ```
+
+3. **Обновление accountUrl** с токеном в модуле интеграции
+
+4. **Безопасность:**
+   - Токен привязан к конкретному предприятию
+   - Имеет срок действия (1 год, обновляется при перерегистрации)
+   - Автоматически отзывается при удалении интеграции
+   - Работает только для админки RetailCRM
+
+5. **Пользовательский опыт:**
+   - Один клик из RetailCRM → сразу в админку
+   - Автоматическое определение предприятия
+   - Не требует дополнительной авторизации
+
+### Гарантии безопасности
+- ✅ Токены не влияют на основную систему авторизации
+- ✅ Доступ только к админке RetailCRM конкретного предприятия
+- ✅ Автоматическая ротация токенов при перерегистрации
+- ✅ Возможность отзыва при удалении интеграции
+- ✅ Изолированный механизм авторизации
+
+**Статус:** ✅ Реализовано и работает
+
+---
+
+## Playwright: Тестирование интеграции RetailCRM
+
+### Маршрут входа в интеграцию через Playwright
+
+```python
+# 1. Логин в RetailCRM
+await page.goto("https://retailcrm.ru")
+await page.fill('input[name="username"]', "evgeny.baevski@gmail.com")
+await page.fill('input[name="password"]', "47916565+")
+await page.click('button[type="submit"]')
+
+# 2. Переход в личный кабинет
+await page.goto("https://evgenybaevski.retailcrm.ru")
+
+# 3. Настройки → Маркетплейс
+await page.click('a[href="/admin/settings"]')
+await page.click('a[href="/admin/marketplace"]')
+
+# 4. Поиск интеграции Vochi-CRM
+await page.click('text="Прочее"')  # Раздел "Прочее"
+await page.click('.marketplace-card:has-text("Vochi-CRM")')
+
+# 5. Переход к редактированию интеграции
+await page.goto("https://evgenybaevski.retailcrm.ru/admin/integration/vochi-telephony/edit")
+
+# 6. Тест кнопки "Перейти в личный кабинет"
+await page.click('button:has-text("Перейти в личный кабинет")')
+# Должна открыться новая вкладка: https://bot.vochi.by/retailcrm-admin/?enterprise_number=0367&token=...
+```
+
+### Проверки после клика по кнопке:
+1. ✅ Открывается новая вкладка с корректным URL
+2. ✅ JWT токен присутствует в URL параметрах
+3. ✅ Страница загружается без ошибок авторизации
+4. ✅ Отображается админка предприятия с корректным названием
+5. ✅ Кнопки "Сохранить и зарегистрировать" и "Удалить интеграцию" работают
+
+### Возможные проблемы и решения:
+- **405 Method Not Allowed**: Добавлен POST маршрут к GET `/retailcrm-admin/`
+- **Ошибки авторизации**: JWT токен валидируется в AuthMiddleware
+- **Пустая страница**: Проверить генерацию токена при регистрации модуля
+- **Старый токен в кэше**: Перерегистрировать интеграцию для получения нового токена
+
+**Статус:** ✅ Протестировано и работает

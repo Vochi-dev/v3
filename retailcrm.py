@@ -19,7 +19,8 @@ import json
 import logging
 import sys
 import time
-from datetime import datetime
+import jwt
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 
 import aiohttp
@@ -42,6 +43,10 @@ RETAILCRM_CONFIG = {
     "api_version": "v5",
     "timeout": 30
 }
+
+# JWT конфигурация для токенов доступа RetailCRM
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "vochi-retailcrm-secret-key-2025")
+JWT_ALGORITHM = "HS256"
 
 # Настройки логирования
 logging.basicConfig(
@@ -976,6 +981,9 @@ async def api_register_module(enterprise_number: str, body: RegisterBody) -> Dic
     code = "vochi-telephony"
     make_call_url = f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm/make-call"
     change_status_url = f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm/status"
+    # Генерируем токен доступа для RetailCRM
+    access_token = generate_retailcrm_access_token(enterprise_number)
+    
     integration_module = {
         "code": code,
         "active": enabled,
@@ -985,7 +993,7 @@ async def api_register_module(enterprise_number: str, body: RegisterBody) -> Dic
         # Требование RetailCRM: baseUrl обязателен
         "baseUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}",
         "clientId": enterprise_number,
-        "accountUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm-admin/?enterprise_number={enterprise_number}",
+        "accountUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm-admin/?enterprise_number={enterprise_number}&token={access_token}",
         # Поле actions убираем — RetailCRM ругается на неверный выбор
         "allowEdit": False,
         "configuration": {
@@ -1054,6 +1062,7 @@ async def api_delete_integration(enterprise_number: str) -> Dict[str, Any]:
             
             # Получаем текущий модуль для деактивации
             code = "vochi-telephony"
+            # Для деактивации токен не нужен, так как интеграция удаляется
             integration_module = {
                 "code": code,
                 "active": False,  # Деактивируем
@@ -1100,6 +1109,33 @@ async def api_delete_integration(enterprise_number: str) -> Dict[str, Any]:
             # Не поднимаем ошибку, так как конфиг уже удален из БД
     
     return {"success": True, "message": "Интеграция удалена"}
+
+
+# =============================================================================
+# JWT АВТОРИЗАЦИЯ ДЛЯ RETAILCRM
+# =============================================================================
+
+def generate_retailcrm_access_token(enterprise_number: str) -> str:
+    """Генерирует JWT токен для доступа к админке RetailCRM из внешнего интерфейса."""
+    payload = {
+        "enterprise_number": enterprise_number,
+        "source": "retailcrm",
+        "exp": datetime.utcnow() + timedelta(days=365),  # Долгосрочный токен
+        "iat": datetime.utcnow()
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+def verify_retailcrm_access_token(token: str) -> Optional[str]:
+    """Проверяет JWT токен и возвращает enterprise_number или None."""
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        if payload.get("source") == "retailcrm":
+            return payload.get("enterprise_number")
+    except jwt.ExpiredSignatureError:
+        logger.warning("JWT токен истёк")
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"Неверный JWT токен: {e}")
+    return None
 
 
 # =============================================================================
@@ -1157,6 +1193,68 @@ async def admin_api_register_module(enterprise_number: str, request: Request) ->
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid body: {e}")
     return await api_register_module(enterprise_number, body)
+
+@app.post("/retailcrm-admin/api/refresh-managers/{enterprise_number}")
+async def admin_api_refresh_managers(enterprise_number: str) -> Dict[str, Any]:
+    """Получить список менеджеров из RetailCRM для автозаполнения маппингов"""
+    try:
+        # Получаем конфигурацию для предприятия
+        config_dict = await fetch_retailcrm_config(enterprise_number)
+        if not config_dict or not config_dict.get("enabled"):
+            raise HTTPException(status_code=404, detail="RetailCRM integration not configured or disabled")
+        
+        api_url = config_dict.get("domain", "").strip()
+        api_key = config_dict.get("api_key", "").strip()
+        
+        if not api_url or not api_key:
+            raise HTTPException(status_code=400, detail="RetailCRM credentials not configured")
+        
+        # Создаем клиент RetailCRM
+        client_config = {
+            "base_url": api_url,
+            "api_key": api_key,
+            "api_version": "v5", 
+            "timeout": 10
+        }
+        
+        async with RetailCRMClient(client_config) as client:
+            # Получаем список пользователей
+            response = await client.get_users()
+            
+            if not response.success:
+                logger.error(f"❌ Failed to fetch users from RetailCRM: {response.error}")
+                raise HTTPException(status_code=400, detail=f"RetailCRM API error: {response.error}")
+            
+            # Обрабатываем ответ и извлекаем пользователей
+            users_data = response.data or {}
+            users = users_data.get("users", [])
+            
+            # Фильтруем только активных пользователей и форматируем для UI
+            active_users = []
+            for user in users:
+                if user.get("active", False) and user.get("status", "") == "free":
+                    active_users.append({
+                        "id": user.get("id"),
+                        "firstName": user.get("firstName", ""),
+                        "lastName": user.get("lastName", ""), 
+                        "email": user.get("email", ""),
+                        "groups": user.get("groups", [])
+                    })
+            
+            logger.info(f"✅ Fetched {len(active_users)} active managers from RetailCRM for enterprise {enterprise_number}")
+            
+            return {
+                "success": True,
+                "users": active_users,
+                "total": len(active_users)
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error refreshing managers for enterprise {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
 # =============================================================================
 # UI: страница администрирования RetailCRM (форма домена/API-ключа)
 # =============================================================================
@@ -1203,13 +1301,21 @@ ADMIN_PAGE_HTML = """
       </div>
       <div class=\"actions\">
         <label><input id=\"enabled\" type=\"checkbox\" /> Активен?</label>
-        <button id=\"saveBtn\" class=\"btn\">Сохранить и зарегистрировать</button>
-        <button id=\"deleteBtn\" class=\"btn\" style=\"background:#dc2626; margin-left:auto;\">Удалить интеграцию</button>
+        <button id=\"saveBtn\" type=\"button\" class=\"btn\">Сохранить и зарегистрировать</button>
+        <button id=\"refreshBtn\" type=\"button\" class=\"btn\" style=\"background:#059669;\">Обновить</button>
+        <button id=\"deleteBtn\" type=\"button\" class=\"btn\" style=\"background:#dc2626; margin-left:auto;\">Удалить интеграцию</button>
         <span id=\"msg\" class=\"hint\"></span>
       </div>
     </div>
+    
+    <!-- Блок отображения пользователей RetailCRM -->
+    <div class=\"card\" id=\"usersCard\" style=\"display:none;\">
+      <h2 style=\"margin:0 0 15px 0; font-size:24px; color:#1f2937;\">Менеджеры RetailCRM</h2>
+      <div id=\"usersList\"></div>
+      <div id=\"usersLoading\" style=\"display:none; color:#8fb3da; font-style:italic;\">Загрузка пользователей...</div>
+    </div>
   </div>
-  <script src="./app.js"></script>
+  <script src="./app.js?v=202508081700"></script>
 </body>
 </html>
 """
@@ -1284,19 +1390,129 @@ ADMIN_PAGE_JS = r"""
       }
     }
 
+
+
+    // Функция отображения пользователей в специальном блоке
+    function displayUsers(users) {
+      const usersCard = document.getElementById('usersCard');
+      const usersList = document.getElementById('usersList');
+      
+      if (!users || users.length === 0) {
+        if (usersCard) usersCard.style.display = 'none';
+        return;
+      }
+      
+      let html = '';
+      users.forEach(user => {
+        const groups = user.groups ? user.groups.map(g => g.name).join(', ') : '';
+        html += `
+          <div style="border:1px solid #e5e7eb; border-radius:8px; padding:15px; margin-bottom:10px; background:#f9fafb;">
+            <div style="font-size:18px; font-weight:600; color:#1f2937; margin-bottom:5px;">
+              ${user.firstName} ${user.lastName}
+            </div>
+            <div style="color:#6b7280; margin-bottom:3px;">ID: ${user.id} • ${user.email}</div>
+            ${groups ? `<div style="color:#6b7280; font-size:14px;">Группы: ${groups}</div>` : ''}
+          </div>
+        `;
+      });
+      
+      if (usersList) usersList.innerHTML = html;
+      if (usersCard) usersCard.style.display = 'block';
+    }
+
+    // Функция загрузки пользователей (обновленная)
+    async function loadUsers() {
+      const usersLoading = document.getElementById('usersLoading');
+      const msg = document.getElementById('msg');
+      
+      if (usersLoading) usersLoading.style.display = 'block';
+      
+      try {
+        const r = await fetch(`./api/refresh-managers/${enterprise}`, { 
+          method:'POST', 
+          headers:{'Content-Type':'application/json'} 
+        });
+        const jr = await r.json();
+        
+        if (usersLoading) usersLoading.style.display = 'none';
+        
+        if(!jr.success) throw new Error(jr.error||'Ошибка получения менеджеров');
+        
+        const users = jr.users || [];
+        displayUsers(users);
+        
+        console.log('RetailCRM managers loaded:', users);
+        
+      } catch(e) {
+        if (usersLoading) usersLoading.style.display = 'none';
+        console.error('Error loading users:', e);
+        // Показываем ошибку только если явно нет конфигурации
+        if (e.message && !e.message.includes('not configured')) {
+          if (msg) { 
+            msg.textContent = 'Ошибка загрузки пользователей: ' + e.message; 
+            msg.className = 'hint error'; 
+          }
+        }
+      }
+    }
+
+    // Обновленная функция refreshManagers - теперь просто обновляет отображение
+    async function refreshManagers() {
+      const btn = document.getElementById('refreshBtn');
+      const msg = document.getElementById('msg');
+      
+      if (msg) { msg.textContent=''; msg.className='hint'; }
+      if (btn) btn.disabled = true;
+      
+      try {
+        await loadUsers();
+        if (msg) { 
+          msg.textContent = 'Список менеджеров обновлен'; 
+          msg.className = 'hint success'; 
+        }
+      } catch(e) {
+        if (msg) { 
+          msg.textContent = 'Ошибка обновления: ' + e.message; 
+          msg.className = 'hint error'; 
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
     const saveBtn = document.getElementById('saveBtn');
     const deleteBtn = document.getElementById('deleteBtn');
-    if (saveBtn) saveBtn.addEventListener('click', save);
-    if (deleteBtn) deleteBtn.addEventListener('click', deleteIntegration);
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (saveBtn) saveBtn.addEventListener('click', (e) => { e.preventDefault(); save(); });
+    if (deleteBtn) deleteBtn.addEventListener('click', (e) => { e.preventDefault(); deleteIntegration(); });
+    if (refreshBtn) refreshBtn.addEventListener('click', (e) => { e.preventDefault(); refreshManagers(); });
     load();
+    
+    // Автоматически загружаем пользователей при открытии страницы
+    setTimeout(() => {
+      loadUsers();
+    }, 500); // Небольшая задержка чтобы сначала загрузилась конфигурация
   } catch (e) { console.error('Admin JS init error', e); }
 })();
 """
 
 
 @app.get("/retailcrm-admin/", response_class=HTMLResponse)
-async def retailcrm_admin_page(enterprise_number: str) -> HTMLResponse:
-    """Простая UI‑страница администрирования для ввода домена и API‑ключа."""
+@app.post("/retailcrm-admin/", response_class=HTMLResponse)
+async def retailcrm_admin_page(enterprise_number: str, token: str = None) -> HTMLResponse:
+    """Простая UI‑страница администрирования для ввода домена и API‑ключа.
+    
+    Поддерживает авторизацию через JWT токен из RetailCRM.
+    """
+    # Проверяем JWT токен, если он предоставлен
+    if token:
+        verified_enterprise = verify_retailcrm_access_token(token)
+        if not verified_enterprise:
+            raise HTTPException(status_code=403, detail="Неверный или истёкший токен доступа")
+        if verified_enterprise != enterprise_number:
+            raise HTTPException(status_code=403, detail="Токен не подходит для этого предприятия")
+        logger.info(f"🔑 Авторизация через RetailCRM токен для предприятия {enterprise_number}")
+    
     # Получим имя предприятия для заголовка
     name = enterprise_number
     try:
