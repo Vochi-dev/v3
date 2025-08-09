@@ -760,6 +760,17 @@ async def upsert_retailcrm_config(enterprise_number: str, config: Dict[str, Any]
         STATS["cache_refreshes"] += 1
     except Exception:
         pass
+    
+    # Инвалидируем кэш интеграций для этого предприятия
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"http://localhost:8020/cache/invalidate/{enterprise_number}") as cache_response:
+                if cache_response.status == 200:
+                    logger.info(f"✅ Integration cache invalidated for {enterprise_number}")
+                else:
+                    logger.warning(f"⚠️ Failed to invalidate cache for {enterprise_number}: {cache_response.status}")
+    except Exception as cache_error:
+        logger.warning(f"⚠️ Cache invalidation error for {enterprise_number}: {cache_error}")
     return updated_cfg
 
 async def save_user_extensions_to_db(enterprise_number: str, user_extensions: Dict[str, str]) -> bool:
@@ -799,6 +810,17 @@ async def save_user_extensions_to_db(enterprise_number: str, user_extensions: Di
             STATS["cache_refreshes"] += 1
         except Exception:
             pass
+        
+        # Инвалидируем кэш интеграций для этого предприятия
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(f"http://localhost:8020/cache/invalidate/{enterprise_number}") as cache_response:
+                    if cache_response.status == 200:
+                        logger.info(f"✅ Integration cache invalidated for {enterprise_number}")
+                    else:
+                        logger.warning(f"⚠️ Failed to invalidate cache for {enterprise_number}: {cache_response.status}")
+        except Exception as cache_error:
+            logger.warning(f"⚠️ Cache invalidation error for {enterprise_number}: {cache_error}")
         
         logger.info(f"✅ Saved {len(user_extensions)} user extensions to DB for enterprise {enterprise_number}")
         return True
