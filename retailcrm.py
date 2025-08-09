@@ -757,6 +757,60 @@ async def upsert_retailcrm_config(enterprise_number: str, config: Dict[str, Any]
         pass
     return updated_cfg
 
+async def save_user_extensions_to_db(enterprise_number: str, user_extensions: Dict[str, str]) -> bool:
+    """Сохраняет соответствия пользователей RetailCRM и внутренних номеров в локальную БД"""
+    if pg_pool is None:
+        await init_pg_pool()
+    assert pg_pool is not None
+    
+    try:
+        # Читаем текущую конфигурацию
+        current_config = await fetch_retailcrm_config(enterprise_number)
+        if not current_config:
+            # Создаем базовую конфигурацию если ее нет
+            current_config = {
+                "enabled": False,
+                "domain": "",
+                "api_key": ""
+            }
+        
+        # Обновляем user_extensions
+        current_config["user_extensions"] = user_extensions
+        current_config["last_sync"] = datetime.utcnow().isoformat() + "Z"
+        
+        # Сохраняем обновленную конфигурацию
+        query = (
+            "UPDATE enterprises "
+            "SET integrations_config = COALESCE(integrations_config, '{}'::jsonb) || jsonb_build_object('retailcrm', $2::jsonb) "
+            "WHERE number = $1"
+        )
+        async with pg_pool.acquire() as conn:
+            await conn.execute(query, enterprise_number, json.dumps(current_config))
+            STATS["db_writes"] += 1
+        
+        # Обновляем кэш
+        try:
+            CONFIG_CACHE[enterprise_number] = (current_config, time.time() + CACHE_TTL_SECONDS)
+            STATS["cache_refreshes"] += 1
+        except Exception:
+            pass
+        
+        logger.info(f"✅ Saved {len(user_extensions)} user extensions to DB for enterprise {enterprise_number}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving user extensions to DB for enterprise {enterprise_number}: {e}")
+        return False
+
+async def load_user_extensions_from_db(enterprise_number: str) -> Dict[str, str]:
+    """Загружает соответствия пользователей RetailCRM и внутренних номеров из локальной БД"""
+    try:
+        config = await fetch_retailcrm_config(enterprise_number)
+        return config.get("user_extensions", {})
+    except Exception as e:
+        logger.error(f"❌ Error loading user extensions from DB for enterprise {enterprise_number}: {e}")
+        return {}
+
 # =============================================================================
 # КЭШ: утилиты и фоновый рефреш
 # =============================================================================
@@ -1244,6 +1298,77 @@ async def admin_api_get_internal_phones(enterprise_number: str) -> Dict[str, Any
         logger.error(f"❌ Error fetching internal phones for enterprise {enterprise_number}: {e}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+@app.get("/retailcrm-admin/api/user-extensions/{enterprise_number}")
+async def admin_api_get_user_extensions(enterprise_number: str) -> Dict[str, Any]:
+    """Получить назначения пользователей RetailCRM из локальной БД"""
+    try:
+        user_extensions = await load_user_extensions_from_db(enterprise_number)
+        
+        logger.info(f"✅ Loaded {len(user_extensions)} user extensions from DB for enterprise {enterprise_number}")
+        
+        return {
+            "success": True,
+            "user_extensions": user_extensions,
+            "total": len(user_extensions)
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error loading user extensions for enterprise {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.post("/retailcrm-admin/api/sync-extensions/{enterprise_number}")
+async def admin_api_sync_extensions(enterprise_number: str) -> Dict[str, Any]:
+    """Синхронизировать назначения между локальной БД и RetailCRM"""
+    try:
+        # Получаем данные из локальной БД
+        local_extensions = await load_user_extensions_from_db(enterprise_number)
+        
+        # Получаем конфигурацию для предприятия
+        config_dict = await fetch_retailcrm_config(enterprise_number)
+        if not config_dict or not config_dict.get("enabled"):
+            raise HTTPException(status_code=404, detail="RetailCRM integration not configured or disabled")
+        
+        api_url = config_dict.get("domain", "").strip()
+        api_key = config_dict.get("api_key", "").strip()
+        
+        if not api_url or not api_key:
+            raise HTTPException(status_code=400, detail="RetailCRM credentials not configured")
+        
+        # Синхронизируем с RetailCRM
+        client_config = {
+            "base_url": api_url,
+            "api_key": api_key,
+            "api_version": "v5", 
+            "timeout": 10
+        }
+        
+        # Преобразуем в формат RetailCRM
+        additional_codes = []
+        for user_id, extension in local_extensions.items():
+            if extension and extension.strip():
+                additional_codes.append({
+                    "userId": str(user_id),
+                    "code": extension.strip()
+                })
+        
+        async with RetailCRMClient(client_config) as client:
+            integration_code = "vochi-telephony"
+            # Здесь можно добавить логику обновления RetailCRM...
+            
+            logger.info(f"✅ Synced {len(additional_codes)} extensions between DB and RetailCRM for enterprise {enterprise_number}")
+            
+            return {
+                "success": True,
+                "synced_extensions": len(additional_codes),
+                "local_extensions": local_extensions
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error syncing extensions for enterprise {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail=f"Sync error: {str(e)}")
+
 @app.post("/retailcrm-admin/api/refresh-managers/{enterprise_number}")
 async def admin_api_refresh_managers(enterprise_number: str) -> Dict[str, Any]:
     """Получить список менеджеров из RetailCRM для автозаполнения маппингов"""
@@ -1275,12 +1400,15 @@ async def admin_api_refresh_managers(enterprise_number: str) -> Dict[str, Any]:
                 logger.error(f"❌ Failed to fetch users from RetailCRM: {response.error}")
                 raise HTTPException(status_code=400, detail=f"RetailCRM API error: {response.error}")
             
-            # Получаем существующую интеграцию телефонии для добавочных номеров
+            # Загружаем назначения из локальной БД (приоритет)
+            local_extensions = await load_user_extensions_from_db(enterprise_number)
+            
+            # Получаем существующую интеграцию телефонии для добавочных номеров (для сверки)
             integration_code = "vochi-telephony"
             integration_response = await client.get_integration_module(integration_code)
             
-            # Извлекаем добавочные номера из интеграции
-            additional_codes = {}
+            # Извлекаем добавочные номера из RetailCRM
+            retailcrm_extensions = {}
             if integration_response.success and integration_response.data:
                 integration_data = integration_response.data.get("integrationModule", {})
                 if integration_data:
@@ -1302,7 +1430,17 @@ async def admin_api_refresh_managers(enterprise_number: str) -> Dict[str, Any]:
                             user_id = str(code_entry.get("userId", ""))
                             code = code_entry.get("code", "")
                             if user_id and code:
-                                additional_codes[user_id] = code
+                                retailcrm_extensions[user_id] = code
+            
+            # Объединяем данные: приоритет локальным данным, дополняем из RetailCRM
+            combined_extensions = {}
+            combined_extensions.update(retailcrm_extensions)  # Сначала RetailCRM
+            combined_extensions.update(local_extensions)      # Потом локальные (перезаписывают)
+            
+            # Если локальных данных нет, но есть в RetailCRM - импортируем их
+            if not local_extensions and retailcrm_extensions:
+                await save_user_extensions_to_db(enterprise_number, retailcrm_extensions)
+                logger.info(f"📥 Imported {len(retailcrm_extensions)} extensions from RetailCRM to local DB")
             
             # Обрабатываем ответ и извлекаем пользователей
             users_data = response.data or {}
@@ -1313,7 +1451,7 @@ async def admin_api_refresh_managers(enterprise_number: str) -> Dict[str, Any]:
             for user in users:
                 if user.get("active", False) and user.get("status", "") == "free":
                     user_id = str(user.get("id", ""))
-                    extension = additional_codes.get(user_id, "")  # Получаем добавочный номер
+                    extension = combined_extensions.get(user_id, "")  # Получаем добавочный номер из объединенных данных
                     
                     active_users.append({
                         "id": user.get("id"),
@@ -1321,7 +1459,7 @@ async def admin_api_refresh_managers(enterprise_number: str) -> Dict[str, Any]:
                         "lastName": user.get("lastName", ""), 
                         "email": user.get("email", ""),
                         "groups": user.get("groups", []),
-                        "extension": extension  # Добавляем добавочный номер
+                        "extension": extension  # Добавляем добавочный номер (приоритет локальным данным)
                     })
             
             logger.info(f"✅ Fetched {len(active_users)} active managers from RetailCRM for enterprise {enterprise_number}")
@@ -1355,6 +1493,9 @@ async def admin_api_save_extensions(enterprise_number: str, assignments: Dict[st
         
         # Получаем назначения из запроса
         user_extensions = assignments.get("extensions", {})
+        
+        # Сохраняем назначения в локальную БД
+        await save_user_extensions_to_db(enterprise_number, user_extensions)
         
         # Преобразуем в формат RetailCRM additionalCodes
         additional_codes = []

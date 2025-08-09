@@ -38,13 +38,41 @@ location /retailcrm/api/ {
 {
   "retailcrm": {
     "enabled": true,
-    "api_url": "https://example.retailcrm.ru",
+    "domain": "https://example.retailcrm.ru",
     "api_key": "<secret>",
-    "client_id": "vochi-asterisk",
-    "user_mappings": {"151": 16, "152": 18}
+    "user_extensions": {
+      "19": "150",    
+      "18": "151",    
+      "22": null      
+    },
+    "last_sync": "2025-01-09T19:20:00Z"
   }
 }
 ```
+
+### Структура хранения назначений добавочных номеров
+
+В поле `user_extensions` хранятся соответствия между ID пользователей RetailCRM и внутренними номерами:
+
+**Формат:** `{"retailcrm_user_id": "internal_number"}`
+
+- **Ключ**: ID пользователя в RetailCRM (строка)
+- **Значение**: Внутренний номер из таблицы `user_internal_phones` или `null` для снятия назначения
+
+**Примеры:**
+- `"19": "150"` - пользователь RetailCRM с ID=19 назначен на номер 150
+- `"18": "151"` - пользователь RetailCRM с ID=18 назначен на номер 151  
+- `"22": null` - номер снят с пользователя (или можно удалить запись)
+
+**Логика уникальности:**
+- Один номер может принадлежать только одному менеджеру
+- При переназначении номера предыдущее назначение автоматически удаляется
+- При сохранении проверяется уникальность номеров
+
+**Синхронизация с RetailCRM:**
+- Данные дублируются в RetailCRM через `integrations.telephony.additionalCodes`
+- При сохранении назначений обновляется как наша БД, так и RetailCRM
+- RetailCRM формат: `[{"userId": "19", "code": "150"}, {"userId": "18", "code": "151"}]`
 
 ## Роли и ответственность retailcrm.py (8019)
 
@@ -395,6 +423,108 @@ PUBLIC_ROUTES = {"/retailcrm-admin", ...}  # Добавить маршрут
 - **Кэш браузера**: версия JS обновлена до `app.js?v=202508091830`
 
 **Статус:** ✅ Реализовано и работает
+
+---
+
+## ✅ Локальное хранение соответствий в БД
+
+### Проблема
+Нужно решить где хранить таблицу соответствий между ID пользователей RetailCRM и внутренними номерами для обеспечения:
+- Быстрого доступа при загрузке UI
+- Консистентности данных
+- Возможности восстановления при сбоях RetailCRM
+
+### Выбранное решение: JSONB в `enterprises.integrations_config`
+
+Храним соответствия в том же JSONB поле где уже находится конфигурация RetailCRM:
+
+```json
+{
+  "retailcrm": {
+    "domain": "https://evgenybaevski.retailcrm.ru",
+    "api_key": "NsX6ZE1W6C8vOkkcNm2NBNLzwVJxLNvl",
+    "enabled": true,
+    "user_extensions": {
+      "19": "150",    
+      "18": "151",    
+      "22": "152"
+    },
+    "last_sync": "2025-01-09T19:20:00Z"
+  }
+}
+```
+
+### Преимущества выбранного подхода
+
+✅ **Транзакционность**: Все изменения конфигурации интеграции в одной транзакции
+✅ **Простота**: Не нужны дополнительные таблицы и JOIN'ы
+✅ **Консистентность**: Данные интеграции в одном месте
+✅ **Backup/Restore**: Легко экспортировать/импортировать всю конфигурацию
+✅ **JSONB индексы**: PostgreSQL позволяет эффективно искать по ключам
+✅ **Схема уже готова**: Используем существующее поле без миграций
+
+### Логика работы с данными
+
+1. **При сохранении назначений**:
+   ```python
+   # Обновляем наш JSONB
+   config['user_extensions']['19'] = '150'
+   
+   # Синхронизируем с RetailCRM
+   additional_codes = [{"userId": "19", "code": "150"}]
+   await client.upsert_integration_module(code, {"integrations": {"telephony": {"additionalCodes": additional_codes}}})
+   ```
+
+2. **При загрузке менеджеров**:
+   ```python
+   # Читаем из нашей БД
+   local_extensions = config.get('user_extensions', {})
+   
+   # Читаем из RetailCRM для сверки
+   retailcrm_extensions = await get_additional_codes_from_retailcrm()
+   
+   # Объединяем данные для отображения
+   ```
+
+3. **При конфликтах**:
+   - Приоритет отдается локальным данным (наша БД)
+   - RetailCRM используется для синхронизации и отправки в телефонию
+   - При расхождениях логируем и обновляем RetailCRM
+
+### Структура данных
+
+```sql
+-- В таблице enterprises
+integrations_config JSONB DEFAULT '{}'
+
+-- Пример содержимого
+{
+  "retailcrm": {
+    "domain": "https://evgenybaevski.retailcrm.ru",
+    "api_key": "secret",
+    "enabled": true,
+    "user_extensions": {
+      "19": "150",      -- RetailCRM user_id → internal_number
+      "18": "151",
+      "22": null        -- null = номер снят
+    },
+    "last_sync": "2025-01-09T19:20:00Z",
+    "version": "1.0"
+  }
+}
+```
+
+### API методы для работы с назначениями
+
+1. **Чтение**: `GET /api/user-extensions/{enterprise_number}`
+2. **Сохранение**: `POST /api/save-extensions/{enterprise_number}`
+3. **Синхронизация**: `POST /api/sync-extensions/{enterprise_number}`
+
+### Миграция данных
+
+Данные из RetailCRM `additionalCodes` автоматически импортируются в локальную БД при первом запросе менеджеров. Это обеспечивает плавный переход без потери существующих назначений.
+
+**Статус:** ✅ Спроектировано для реализации
 
 ---
 
