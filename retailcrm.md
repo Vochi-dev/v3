@@ -477,3 +477,116 @@ RETAILCRM_CONFIG = {
 ---
 
 *Документ обновлен 06.08.2025 - ПОЛНАЯ ИНТЕГРАЦИЯ ЗАВЕРШЕНА УСПЕШНО* ✅
+
+## ✅ To‑Do: Тестовая отправка событий звонков (in/out/hangup)
+
+Ниже — минимальный план проверки и готовые curl‑команды для отправки событий в RetailCRM для предприятия `0367` с использованием кэша на 8020 и конфигурации в `enterprises.integrations_config`.
+
+### 0) Предусловия
+- В кэше интеграций 8020 запись активна:
+  - `GET http://localhost:8020/integrations/0367` → `{ "integrations": { "retailcrm": true } }`
+- В БД в `enterprises.integrations_config->retailcrm` заданы `domain`, `api_key`, `enabled: true`, `user_extensions`:
+  - Сейчас в БД: `{"16":"152","18":"151","19":"150"}`
+- В модуле интеграции RetailCRM под `integrations.telephony.additionalCodes` присутствуют те же соответствия:
+  - 16 → 152, 18 → 151, 19 → 150
+
+Сопоставление подтверждено API:
+- `GET /api/v5/integration-modules/vochi-telephony` возвращает `additionalCodes` с 16→152, 18→151, 19→150
+- `GET /api/v5/users?limit=100` возвращает пользователей (IDs: 16,18,19 ...)
+
+Ссылки на документацию (обязательны к учету при тестах):
+- Telephony API v4: события, регистрация, makeCallUrl, changeUserStatusUrl — [документация](https://docs.retailcrm.ru/Developers/API/APIFeatures/TelephonyApiV4#Events)
+- API v5: создание события звонка — [POST /api/v5/telephony/call/event](https://docs.retailcrm.ru/Developers/API/APIVersions/APIv5#post--api-v5-telephony-call-event)
+
+### 1) Экспорт переменных окружения
+
+```bash
+export RC_DOMAIN="https://evgenybaevski.retailcrm.ru"
+export RC_API_KEY="<api_key_из_BД>"   # см. enterprises.integrations_config->retailcrm.api_key
+export RC_CLIENT_ID="0367"            # clientId интеграции (номер предприятия)
+export TEST_PHONE="+375296254070"     # тестовый номер клиента
+export MANAGER_CODE="151"             # добавочный менеджера (например, userId 18 → 151)
+export CALL_ID="test-$(date +%s)"     # уникальный callExternalId для сцепки событий
+```
+
+Проверка активной интеграции в кэше (необязательно):
+```bash
+curl -sS "http://localhost:8020/integrations/${RC_CLIENT_ID}" | python3 -m json.tool
+```
+
+### 2) Быстрая сверка менеджеров и назначений
+
+```bash
+# Пользователи
+curl -sS "${RC_DOMAIN}/api/v5/users?limit=100&apiKey=${RC_API_KEY}" | python3 -m json.tool | head -n 60
+
+# Интеграционный модуль (additionalCodes)
+curl -sS "${RC_DOMAIN}/api/v5/integration-modules/vochi-telephony?apiKey=${RC_API_KEY}" | python3 -m json.tool | grep -A3 -n "additionalCodes"
+```
+
+Ожидаем совпадение с `user_extensions` в БД: 16→152, 18→151, 19→150.
+
+### 3) Отправка событий звонка напрямую в RetailCRM (curl)
+
+По спецификации RetailCRM для `/telephony/call/event` используется `multipart/form-data` c параметрами:
+- `clientId` — код системы (наш `enterprise_number`),
+- `event` — JSON объекта события.
+
+3.1 Входящий звонок (type: "in")
+```bash
+curl -sS -X POST "${RC_DOMAIN}/api/v5/telephony/call/event?apiKey=${RC_API_KEY}" \
+  -F "clientId=${RC_CLIENT_ID}" \
+  -F "event={\"phone\":\"${TEST_PHONE}\",\"type\":\"in\",\"codes\":[\"${MANAGER_CODE}\"],\"callExternalId\":\"${CALL_ID}\"}"
+```
+
+3.2 Исходящий звонок (type: "out")
+```bash
+curl -sS -X POST "${RC_DOMAIN}/api/v5/telephony/call/event?apiKey=${RC_API_KEY}" \
+  -F "clientId=${RC_CLIENT_ID}" \
+  -F "event={\"phone\":\"${TEST_PHONE}\",\"type\":\"out\",\"codes\":[\"${MANAGER_CODE}\"],\"callExternalId\":\"${CALL_ID}\"}"
+```
+
+3.3 Завершение звонка (type: "hangup")
+```bash
+curl -sS -X POST "${RC_DOMAIN}/api/v5/telephony/call/event?apiKey=${RC_API_KEY}" \
+  -F "clientId=${RC_CLIENT_ID}" \
+  -F "event={\"phone\":\"${TEST_PHONE}\",\"type\":\"hangup\",\"callExternalId\":\"${CALL_ID}\"}"
+```
+
+Примечания:
+- Номер `phone` лучше нормализовать к E.164 (`+375...`) без пробелов и дефисов.
+- Для входящего события добавляем `codes` с добавочным менеджера (из `additionalCodes`).
+- Для сцепки событий используем один и тот же `callExternalId`.
+
+### 4) Альтернатива: через локальный сервис `retailcrm.py` (8019)
+
+В сервисе есть тестовый маршрут, отправляющий событие в RetailCRM:
+
+```bash
+curl -sS -X POST "http://localhost:8019/test/call-event" | python3 -m json.tool
+```
+
+А также реализован `GET /retailcrm/make-call` — для Click‑to‑Call из RetailCRM (см. `integrations.telephony.makeCallUrl`).
+
+### 5) Валидация результата в UI RetailCRM
+- Раздел «Звонки»: ожидается появление записи звонка (для `in`/`out`), завершение после `hangup`.
+- Проверить, что при входящем событии всплывающая карточка появляется у менеджера с соответствующим добавочным.
+
+### 6) Логирование и диагностика
+- Локальные логи: `logs/retailcrm.log`, таблица `integration_logs` (`event_type=call_event`).
+- Возможные ошибки:
+  - 404/422 — неверный метод или формат тела (`event` должен быть JSON‑строкой в form‑data).
+  - 401 — несоответствующий `apiKey`/`clientId`.
+  - В `users?limit=` допустимы только 20/50/100.
+
+### 7) Чек‑лист «готово»
+- [ ] Кэш 8020 активен для `0367`
+- [ ] В БД и в RetailCRM `additionalCodes` совпадают (16→152, 18→151, 19→150)
+- [ ] `in` отправлен успешно (HTTP 200, `success:true`)
+- [ ] `out` отправлен успешно
+- [ ] `hangup` отправлен успешно (тем же `callExternalId`)
+- [ ] Запись отображается в разделе «Звонки» RetailCRM
+
+—
+
+Если потребуется, добавим поля записи разговора (`recordUrl`, корректный `Content-Type`) и/или выгрузку истории через `/telephony/calls/upload`.

@@ -1128,6 +1128,20 @@ async def api_register_module(enterprise_number: str, body: RegisterBody) -> Dic
     # Генерируем токен доступа для RetailCRM
     access_token = generate_retailcrm_access_token(enterprise_number)
     
+    # Собираем additionalCodes из локальных назначений, чтобы не обнулять их при регистрации
+    user_extensions = (saved_cfg or {}).get("user_extensions", {}) or {}
+    additional_codes: list[dict] = []
+    try:
+        for uid, ext in user_extensions.items():
+            if ext:
+                try:
+                    uid_int = int(uid)
+                except Exception:
+                    uid_int = uid
+                additional_codes.append({"userId": uid_int, "code": str(ext)})
+    except Exception:
+        additional_codes = []
+
     integration_module = {
         "code": code,
         "active": enabled,
@@ -1145,7 +1159,11 @@ async def api_register_module(enterprise_number: str, body: RegisterBody) -> Dic
             "telephony": {
                 "makeCallUrl": make_call_url,
                 "changeUserStatusUrl": change_status_url,
-                "additionalCodes": [],
+                # Явно объявляем поддержку событий, чтобы UI RetailCRM показывал "Да"
+                "inputEventSupported": True,
+                "outputEventSupported": True,
+                "hangupEventSupported": True,
+                "additionalCodes": additional_codes,
                 "externalPhones": [],
                 "allowEdit": False
             }
