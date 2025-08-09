@@ -336,6 +336,11 @@ class RetailCRMClient:
         data = {"integrationModule": json.dumps(deactivated_module)}
         return await self._make_request("POST", endpoint, data=data)
     
+    async def get_integration_module(self, code: str) -> RetailCRMResponse:
+        """Получить информацию о модуле интеграции по коду. GET /integration-modules/{code}"""
+        endpoint = f"/integration-modules/{code}"
+        return await self._make_request("GET", endpoint)
+    
     # =========================================================================
     # 1. БАЗОВЫЕ API МЕТОДЫ
     # =========================================================================
@@ -1194,6 +1199,51 @@ async def admin_api_register_module(enterprise_number: str, request: Request) ->
         raise HTTPException(status_code=400, detail=f"Invalid body: {e}")
     return await api_register_module(enterprise_number, body)
 
+@app.get("/retailcrm-admin/api/internal-phones/{enterprise_number}")
+async def admin_api_get_internal_phones(enterprise_number: str) -> Dict[str, Any]:
+    """Получить список внутренних номеров предприятия с информацией о владельцах"""
+    try:
+        query = """
+        SELECT 
+            uip.phone_number,
+            u.first_name,
+            u.last_name,
+            u.id as user_id
+        FROM user_internal_phones uip
+        LEFT JOIN users u ON uip.user_id = u.id
+        WHERE uip.enterprise_number = $1
+        ORDER BY uip.phone_number
+        """
+        
+        async with pg_pool.acquire() as conn:
+            rows = await conn.fetch(query, enterprise_number)
+            
+            internal_phones = []
+            for row in rows:
+                phone_info = {
+                    "phone_number": row["phone_number"],
+                    "user_id": row["user_id"],
+                    "owner": None
+                }
+                
+                # Добавляем информацию о владельце если есть
+                if row["user_id"] and row["first_name"] and row["last_name"]:
+                    phone_info["owner"] = f"{row['first_name']} {row['last_name']}"
+                
+                internal_phones.append(phone_info)
+            
+            logger.info(f"✅ Fetched {len(internal_phones)} internal phones for enterprise {enterprise_number}")
+            
+            return {
+                "success": True,
+                "phones": internal_phones,
+                "total": len(internal_phones)
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ Error fetching internal phones for enterprise {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
 @app.post("/retailcrm-admin/api/refresh-managers/{enterprise_number}")
 async def admin_api_refresh_managers(enterprise_number: str) -> Dict[str, Any]:
     """Получить список менеджеров из RetailCRM для автозаполнения маппингов"""
@@ -1225,6 +1275,35 @@ async def admin_api_refresh_managers(enterprise_number: str) -> Dict[str, Any]:
                 logger.error(f"❌ Failed to fetch users from RetailCRM: {response.error}")
                 raise HTTPException(status_code=400, detail=f"RetailCRM API error: {response.error}")
             
+            # Получаем существующую интеграцию телефонии для добавочных номеров
+            integration_code = "vochi-telephony"
+            integration_response = await client.get_integration_module(integration_code)
+            
+            # Извлекаем добавочные номера из интеграции
+            additional_codes = {}
+            if integration_response.success and integration_response.data:
+                integration_data = integration_response.data.get("integrationModule", {})
+                if integration_data:
+                    # Парсим JSON если это строка
+                    if isinstance(integration_data, str):
+                        try:
+                            integration_data = json.loads(integration_data)
+                        except json.JSONDecodeError:
+                            logger.warning("❌ Не удалось распарсить integrationModule JSON")
+                            integration_data = {}
+                    
+                    # Извлекаем additionalCodes
+                    telephony_config = integration_data.get("integrations", {}).get("telephony", {})
+                    codes_list = telephony_config.get("additionalCodes", [])
+                    
+                    # Преобразуем в словарь {userId: code}
+                    for code_entry in codes_list:
+                        if isinstance(code_entry, dict):
+                            user_id = str(code_entry.get("userId", ""))
+                            code = code_entry.get("code", "")
+                            if user_id and code:
+                                additional_codes[user_id] = code
+            
             # Обрабатываем ответ и извлекаем пользователей
             users_data = response.data or {}
             users = users_data.get("users", [])
@@ -1233,12 +1312,16 @@ async def admin_api_refresh_managers(enterprise_number: str) -> Dict[str, Any]:
             active_users = []
             for user in users:
                 if user.get("active", False) and user.get("status", "") == "free":
+                    user_id = str(user.get("id", ""))
+                    extension = additional_codes.get(user_id, "")  # Получаем добавочный номер
+                    
                     active_users.append({
                         "id": user.get("id"),
                         "firstName": user.get("firstName", ""),
                         "lastName": user.get("lastName", ""), 
                         "email": user.get("email", ""),
-                        "groups": user.get("groups", [])
+                        "groups": user.get("groups", []),
+                        "extension": extension  # Добавляем добавочный номер
                     })
             
             logger.info(f"✅ Fetched {len(active_users)} active managers from RetailCRM for enterprise {enterprise_number}")
@@ -1254,6 +1337,108 @@ async def admin_api_refresh_managers(enterprise_number: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"❌ Error refreshing managers for enterprise {enterprise_number}: {e}")
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+@app.post("/retailcrm-admin/api/save-extensions/{enterprise_number}")
+async def admin_api_save_extensions(enterprise_number: str, assignments: Dict[str, Any]) -> Dict[str, Any]:
+    """Сохранить назначения добавочных номеров в RetailCRM"""
+    try:
+        # Получаем конфигурацию для предприятия
+        config_dict = await fetch_retailcrm_config(enterprise_number)
+        if not config_dict or not config_dict.get("enabled"):
+            raise HTTPException(status_code=404, detail="RetailCRM integration not configured or disabled")
+        
+        api_url = config_dict.get("domain", "").strip()
+        api_key = config_dict.get("api_key", "").strip()
+        
+        if not api_url or not api_key:
+            raise HTTPException(status_code=400, detail="RetailCRM credentials not configured")
+        
+        # Получаем назначения из запроса
+        user_extensions = assignments.get("extensions", {})
+        
+        # Преобразуем в формат RetailCRM additionalCodes
+        additional_codes = []
+        for user_id, extension in user_extensions.items():
+            if extension and extension.strip():  # Только если номер не пустой
+                additional_codes.append({
+                    "userId": str(user_id),
+                    "code": extension.strip()
+                })
+        
+        # Получаем существующую конфигурацию интеграции
+        client_config = {
+            "base_url": api_url,
+            "api_key": api_key,
+            "api_version": "v5", 
+            "timeout": 10
+        }
+        
+        async with RetailCRMClient(client_config) as client:
+            # Получаем текущую интеграцию
+            integration_code = "vochi-telephony"
+            integration_response = await client.get_integration_module(integration_code)
+            
+            # Подготавливаем базовую конфигурацию интеграции
+            if integration_response.success and integration_response.data:
+                integration_data = integration_response.data.get("integrationModule", {})
+                if isinstance(integration_data, str):
+                    try:
+                        integration_data = json.loads(integration_data)
+                    except json.JSONDecodeError:
+                        integration_data = {}
+            else:
+                # Создаем базовую конфигурацию если интеграция не найдена
+                integration_data = {
+                    "code": integration_code,
+                    "active": True,
+                    "name": "Vochi-CRM",
+                    "logo": "https://bot.vochi.by/static/img/vochi_logo.svg",
+                    "baseUrl": "https://bot.vochi.by",
+                    "clientId": "vochi-crm-telephony-client",
+                    "integrations": {
+                        "telephony": {
+                            "additionalCodes": [],
+                            "externalPhones": []
+                        }
+                    }
+                }
+            
+            # Убеждаемся что есть все обязательные поля
+            if "clientId" not in integration_data:
+                integration_data["clientId"] = "vochi-crm-telephony-client"
+            if "baseUrl" not in integration_data:
+                integration_data["baseUrl"] = "https://bot.vochi.by"
+            if "logo" not in integration_data:
+                integration_data["logo"] = "https://bot.vochi.by/static/img/vochi_logo.svg"
+            
+            # Обновляем additionalCodes с новыми назначениями
+            if "integrations" not in integration_data:
+                integration_data["integrations"] = {}
+            if "telephony" not in integration_data["integrations"]:
+                integration_data["integrations"]["telephony"] = {}
+            
+            integration_data["integrations"]["telephony"]["additionalCodes"] = additional_codes
+            
+            # Сохраняем обновленную интеграцию
+            save_response = await client.upsert_integration_module(integration_code, integration_data)
+            
+            if not save_response.success:
+                logger.error(f"❌ Failed to save extensions in RetailCRM: {save_response.error}")
+                raise HTTPException(status_code=400, detail=f"RetailCRM API error: {save_response.error}")
+            
+            logger.info(f"✅ Saved {len(additional_codes)} extension assignments in RetailCRM for enterprise {enterprise_number}")
+            
+            return {
+                "success": True,
+                "saved_extensions": len(additional_codes),
+                "assignments": additional_codes
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error saving extensions for enterprise {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 # =============================================================================
 # UI: страница администрирования RetailCRM (форма домена/API-ключа)
@@ -1315,7 +1500,7 @@ ADMIN_PAGE_HTML = """
       <div id=\"usersLoading\" style=\"display:none; color:#8fb3da; font-style:italic;\">Загрузка пользователей...</div>
     </div>
   </div>
-  <script src="./app.js?v=202508081700"></script>
+  <script src="./app.js?v=202508091915"></script>
 </body>
 </html>
 """
@@ -1405,19 +1590,245 @@ ADMIN_PAGE_JS = r"""
       let html = '';
       users.forEach(user => {
         const groups = user.groups ? user.groups.map(g => g.name).join(', ') : '';
+        const extension = user.extension ? `📞 ${user.extension}` : '📞 не назначен';
         html += `
           <div style="border:1px solid #e5e7eb; border-radius:8px; padding:15px; margin-bottom:10px; background:#f9fafb;">
-            <div style="font-size:18px; font-weight:600; color:#1f2937; margin-bottom:5px;">
-              ${user.firstName} ${user.lastName}
+            <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+              <div style="flex:1;">
+                <div style="font-size:18px; font-weight:600; color:#1f2937; margin-bottom:5px;">
+                  ${user.firstName} ${user.lastName}
+                </div>
+                <div style="color:#6b7280; margin-bottom:3px;">ID: ${user.id} • ${user.email}</div>
+                <div style="color:#059669; font-weight:500; margin-bottom:3px;">${extension}</div>
+                ${groups ? `<div style="color:#6b7280; font-size:14px;">Группы: ${groups}</div>` : ''}
+              </div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <select id="extension_${user.id}" style="padding:8px; border:1px solid #d1d5db; border-radius:4px; font-size:14px; min-width:160px; background:white;">
+                  <option value="">Выберите номер...</option>
+                </select>
+                <button id="save_${user.id}" type="button" style="display:none; padding:8px 12px; background:#059669; color:white; border:none; border-radius:4px; font-size:12px; cursor:pointer; white-space:nowrap;" data-user-id="${user.id}">
+                  💾 Сохранить
+                </button>
+              </div>
             </div>
-            <div style="color:#6b7280; margin-bottom:3px;">ID: ${user.id} • ${user.email}</div>
-            ${groups ? `<div style="color:#6b7280; font-size:14px;">Группы: ${groups}</div>` : ''}
           </div>
         `;
       });
       
       if (usersList) usersList.innerHTML = html;
       if (usersCard) usersCard.style.display = 'block';
+      
+      // Добавляем обработчики для кнопок "Сохранить"
+      const saveButtons = document.querySelectorAll('[id^="save_"]');
+      saveButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+          const userId = this.getAttribute('data-user-id');
+          saveExtension(userId);
+        });
+      });
+      
+      // Загружаем внутренние номера для выпадающих списков после добавления в DOM
+      setTimeout(() => {
+        loadInternalPhones(users);
+      }, 100);
+    }
+    
+    // Загрузка внутренних номеров предприятия
+    async function loadInternalPhones(users = []) {
+      try {
+        console.log('loadInternalPhones called');
+        const enterpriseNumber = enterprise;
+        console.log('Enterprise number:', enterpriseNumber);
+        
+        const response = await fetch(`./api/internal-phones/${enterpriseNumber}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Response data:', data);
+          if (data.success && data.phones) {
+            populateExtensionDropdowns(data.phones, users);
+          } else {
+            console.log('Data success or phones missing:', data);
+          }
+        } else {
+          console.error('Response not ok:', response.status);
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки внутренних номеров:', error);
+      }
+    }
+    
+    // Заполнение выпадающих списков номерами
+    function populateExtensionDropdowns(phones, users = []) {
+      console.log('populateExtensionDropdowns called with phones:', phones);
+      const selects = document.querySelectorAll('[id^="extension_"]');
+      console.log('Found selects:', selects.length);
+      
+      selects.forEach((select, index) => {
+        console.log(`Processing select ${index}:`, select.id);
+        const userId = select.id.replace('extension_', '');
+        
+        // Находим текущее назначение пользователя
+        const user = users.find(u => u.id == userId);
+        const currentExtension = user ? user.extension : '';
+        
+        // Очищаем и добавляем базовую опцию
+        select.innerHTML = '<option value="">Выберите номер...</option>';
+        
+        // Добавляем опцию "Без номера" для удаления назначения
+        const removeOption = document.createElement('option');
+        removeOption.value = 'REMOVE';
+        removeOption.textContent = 'Без номера';
+        select.appendChild(removeOption);
+        
+        // Добавляем все номера
+        phones.forEach(phone => {
+          const option = document.createElement('option');
+          option.value = phone.phone_number;
+          
+          // Формируем текст опции с информацией о владельце
+          let optionText = phone.phone_number;
+          if (phone.owner) {
+            optionText += ` (${phone.owner})`;
+          }
+          // Убираем "(свободен)" - просто показываем номер без текста
+          
+          option.textContent = optionText;
+          
+          // Устанавливаем выбранным если это текущее назначение
+          if (currentExtension && phone.phone_number === currentExtension) {
+            option.selected = true;
+            // Показываем кнопку сохранить если есть назначение
+            const saveBtn = document.getElementById(`save_${userId}`);
+            if (saveBtn) {
+              saveBtn.style.display = 'block';
+            }
+          }
+          
+          select.appendChild(option);
+        });
+        
+        console.log(`Added ${phones.length} options to select ${select.id}, current: ${currentExtension}`);
+        
+        // Добавляем обработчик изменения
+        select.addEventListener('change', function() {
+          console.log('Select changed:', this.id, this.value);
+          const userId = this.id.replace('extension_', '');
+          const saveBtn = document.getElementById(`save_${userId}`);
+          
+          // Проверяем на конфликты с другими назначениями
+          if (this.value && this.value !== '' && this.value !== 'REMOVE') {
+            const allSelects = document.querySelectorAll('[id^="extension_"]');
+            let conflictFound = false;
+            
+            allSelects.forEach(otherSelect => {
+              if (otherSelect !== this && otherSelect.value === this.value) {
+                const otherUserId = otherSelect.id.replace('extension_', '');
+                console.log(`⚠️ Конфликт: номер ${this.value} уже выбран пользователем ${otherUserId}`);
+                // Можно добавить визуальное предупреждение
+                conflictFound = true;
+              }
+            });
+            
+            if (conflictFound) {
+              console.log('При сохранении номер будет переназначен');
+            }
+          }
+          
+          if (saveBtn) {
+            // Показываем кнопку если выбран номер или "REMOVE"
+            saveBtn.style.display = (this.value && this.value !== '') ? 'block' : 'none';
+          }
+        });
+      });
+    }
+    
+    // Сохранение назначения добавочного номера
+    async function saveExtension(userId) {
+      try {
+        const select = document.getElementById(`extension_${userId}`);
+        const saveBtn = document.getElementById(`save_${userId}`);
+        
+        if (!select || !select.value) {
+          alert('Пожалуйста, выберите номер или "Без номера"');
+          return;
+        }
+        
+        const enterpriseNumber = enterprise;
+        
+        // Собираем ВСЕ назначения со страницы с проверкой уникальности
+        const extensions = {};
+        const numberToUserMap = {}; // Для отслеживания какой номер кому назначен
+        const allSelects = document.querySelectorAll('[id^="extension_"]');
+        
+        // Первый проход - собираем все назначения
+        allSelects.forEach(sel => {
+          const uid = sel.id.replace('extension_', '');
+          if (sel.value && sel.value.trim() && sel.value.trim() !== 'REMOVE') {
+            const selectedNumber = sel.value.trim();
+            
+            // Если этот номер уже назначен другому пользователю
+            if (numberToUserMap[selectedNumber] && numberToUserMap[selectedNumber] !== uid) {
+              console.log(`Номер ${selectedNumber} переназначается с пользователя ${numberToUserMap[selectedNumber]} на ${uid}`);
+              // Удаляем предыдущее назначение
+              delete extensions[numberToUserMap[selectedNumber]];
+            }
+            
+            // Назначаем номер текущему пользователю
+            extensions[uid] = selectedNumber;
+            numberToUserMap[selectedNumber] = uid;
+          }
+        });
+        
+        console.log('Собранные назначения:', extensions);
+        
+        // Показываем индикатор загрузки
+        if (saveBtn) {
+          saveBtn.textContent = '⏳ Сохранение...';
+          saveBtn.disabled = true;
+        }
+        
+        const response = await fetch(`./api/save-extensions/${enterpriseNumber}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            extensions: extensions
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            // Обновляем список менеджеров
+            await loadUsers();
+            console.log('✅ Добавочный номер сохранен в RetailCRM');
+          } else {
+            throw new Error(data.error || 'Ошибка сохранения');
+          }
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+      } catch (error) {
+        console.error('Ошибка сохранения номера:', error);
+        console.error('❌ Ошибка сохранения:', error.message);
+        
+        // Восстанавливаем кнопку
+        const saveBtn = document.getElementById(`save_${userId}`);
+        if (saveBtn) {
+          saveBtn.textContent = '💾 Сохранить';
+          saveBtn.disabled = false;
+        }
+      }
     }
 
     // Функция загрузки пользователей (обновленная)
