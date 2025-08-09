@@ -816,6 +816,64 @@ async def load_user_extensions_from_db(enterprise_number: str) -> Dict[str, str]
         logger.error(f"❌ Error loading user extensions from DB for enterprise {enterprise_number}: {e}")
         return {}
 
+async def find_enterprise_by_integration_token(client_id: str) -> Optional[Dict[str, Any]]:
+    """Находит предприятие по токену интеграции RetailCRM
+    
+    RetailCRM передает clientId который мы указали при регистрации модуля.
+    Мы регистрируем clientId = enterprise_number, поэтому ищем по номеру предприятия.
+    """
+    if pg_pool is None:
+        await init_pg_pool()
+    assert pg_pool is not None
+    
+    try:
+        # RetailCRM передает clientId = enterprise_number, поэтому ищем по номеру предприятия
+        query = "SELECT number, name, ip, secret FROM enterprises WHERE number = $1 AND active = true"
+        async with pg_pool.acquire() as conn:
+            row = await conn.fetchrow(query, client_id)
+            if row:
+                return {
+                    "number": row["number"],
+                    "name": row["name"], 
+                    "ip": row["ip"],
+                    "secret": row["secret"]
+                }
+        return None
+    except Exception as e:
+        logger.error(f"❌ Error finding enterprise by token {client_id}: {e}")
+        return None
+
+async def call_asterisk_api(code: str, phone: str, client_id: str) -> Dict[str, Any]:
+    """Вызывает asterisk.py API для инициации звонка"""
+    try:
+        asterisk_url = "http://localhost:8018/api/makecallexternal"
+        params = {
+            "code": code,
+            "phone": phone,
+            "clientId": client_id
+        }
+        
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(asterisk_url, params=params) as response:
+                response_text = await response.text()
+                
+                if response.status == 200:
+                    try:
+                        result = json.loads(response_text)
+                        logger.info(f"✅ Asterisk API success: {result}")
+                        return {"success": True, "data": result}
+                    except json.JSONDecodeError:
+                        logger.info(f"✅ Asterisk API success (non-JSON): {response_text}")
+                        return {"success": True, "message": response_text}
+                else:
+                    logger.error(f"❌ Asterisk API error {response.status}: {response_text}")
+                    return {"success": False, "error": f"HTTP {response.status}: {response_text}"}
+                    
+    except Exception as e:
+        logger.error(f"❌ Error calling asterisk API: {e}")
+        return {"success": False, "error": str(e)}
+
 # =============================================================================
 # КЭШ: утилиты и фоновый рефреш
 # =============================================================================
@@ -1060,9 +1118,15 @@ async def api_register_module(enterprise_number: str, body: RegisterBody) -> Dic
         "accountUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm-admin/?enterprise_number={enterprise_number}&token={access_token}",
         # Поле actions убираем — RetailCRM ругается на неверный выбор
         "allowEdit": False,
-        "configuration": {
-            "makeCallUrl": make_call_url,
-            "changeUserStatusUrl": change_status_url,
+        # Настройки телефонии должны быть в integrations.telephony
+        "integrations": {
+            "telephony": {
+                "makeCallUrl": make_call_url,
+                "changeUserStatusUrl": change_status_url,
+                "additionalCodes": [],
+                "externalPhones": [],
+                "allowEdit": False
+            }
         }
     }
 
@@ -1136,9 +1200,15 @@ async def api_delete_integration(enterprise_number: str) -> Dict[str, Any]:
                 "clientId": enterprise_number,
                 "accountUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm-admin/?enterprise_number={enterprise_number}",
                 "allowEdit": False,
-                "configuration": {
-                    "makeCallUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm/make-call",
-                    "changeUserStatusUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm/status",
+                # Настройки телефонии должны быть в integrations.telephony
+                "integrations": {
+                    "telephony": {
+                        "makeCallUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm/make-call",
+                        "changeUserStatusUrl": f"https://{os.environ.get('VOCHI_PUBLIC_HOST', 'bot.vochi.by')}/retailcrm/status",
+                        "additionalCodes": [],
+                        "externalPhones": [],
+                        "allowEdit": False
+                    }
                 }
             }
             
@@ -1425,9 +1495,13 @@ async def admin_api_refresh_managers(enterprise_number: str) -> Dict[str, Any]:
                             logger.warning("❌ Не удалось распарсить integrationModule JSON")
                             integration_data = {}
                     
-                    # Извлекаем additionalCodes
-                    telephony_config = integration_data.get("integrations", {}).get("telephony", {})
-                    codes_list = telephony_config.get("additionalCodes", [])
+                    # Извлекаем additionalCodes (согласно документации - в корне объекта)
+                    codes_list = integration_data.get("additionalCodes", [])
+                    
+                    # Для совместимости проверяем также старую структуру
+                    if not codes_list:
+                        telephony_config = integration_data.get("integrations", {}).get("telephony", {})
+                        codes_list = telephony_config.get("additionalCodes", [])
                     
                     # Преобразуем в словарь {userId: code}
                     for code_entry in codes_list:
@@ -1540,7 +1614,7 @@ async def admin_api_save_extensions(enterprise_number: str, assignments: Dict[st
                     "name": "Vochi-CRM",
                     "logo": "https://bot.vochi.by/static/img/vochi_logo.svg",
                     "baseUrl": "https://bot.vochi.by",
-                    "clientId": "vochi-crm-telephony-client",
+                    "clientId": enterprise_number,
                     "integrations": {
                         "telephony": {
                             "additionalCodes": [],
@@ -1551,19 +1625,18 @@ async def admin_api_save_extensions(enterprise_number: str, assignments: Dict[st
             
             # Убеждаемся что есть все обязательные поля
             if "clientId" not in integration_data:
-                integration_data["clientId"] = "vochi-crm-telephony-client"
+                integration_data["clientId"] = enterprise_number
             if "baseUrl" not in integration_data:
                 integration_data["baseUrl"] = "https://bot.vochi.by"
             if "logo" not in integration_data:
                 integration_data["logo"] = "https://bot.vochi.by/static/img/vochi_logo.svg"
             
-            # Обновляем additionalCodes с новыми назначениями
-            if "integrations" not in integration_data:
-                integration_data["integrations"] = {}
-            if "telephony" not in integration_data["integrations"]:
-                integration_data["integrations"]["telephony"] = {}
+            # Согласно официальной документации RetailCRM - additionalCodes должны быть в корне
+            integration_data["additionalCodes"] = additional_codes
             
-            integration_data["integrations"]["telephony"]["additionalCodes"] = additional_codes
+            # Также добавляем для совместимости в integrations.telephony (если структура существует)
+            if "integrations" in integration_data and "telephony" in integration_data["integrations"]:
+                integration_data["integrations"]["telephony"]["additionalCodes"] = additional_codes
             
             # Сохраняем обновленную интеграцию
             save_response = await client.upsert_integration_module(integration_code, integration_data)
@@ -1573,6 +1646,19 @@ async def admin_api_save_extensions(enterprise_number: str, assignments: Dict[st
                 raise HTTPException(status_code=400, detail=f"RetailCRM API error: {save_response.error}")
             
             logger.info(f"✅ Saved {len(additional_codes)} extension assignments in RetailCRM for enterprise {enterprise_number}")
+            
+            # Получаем обновленный список пользователей для возврата актуальных данных
+            try:
+                fresh_users_result = await admin_api_refresh_managers(enterprise_number)
+                if fresh_users_result.get("success") and fresh_users_result.get("users"):
+                    return {
+                        "success": True,
+                        "saved_extensions": len(additional_codes),
+                        "assignments": additional_codes,
+                        "users": fresh_users_result["users"]  # Возвращаем свежий список пользователей
+                    }
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to refresh users after saving extensions: {e}")
             
             return {
                 "success": True,
@@ -1911,30 +1997,37 @@ ADMIN_PAGE_JS = r"""
         }
         
         const enterpriseNumber = enterprise;
+        const selectedNumber = select.value.trim();
         
-        // Собираем ВСЕ назначения со страницы с проверкой уникальности
+        // Собираем ВСЕ назначения со страницы
         const extensions = {};
-        const numberToUserMap = {}; // Для отслеживания какой номер кому назначен
         const allSelects = document.querySelectorAll('[id^="extension_"]');
         
-        // Первый проход - собираем все назначения
+        // Сначала собираем все назначения кроме текущего пользователя
         allSelects.forEach(sel => {
           const uid = sel.id.replace('extension_', '');
-          if (sel.value && sel.value.trim() && sel.value.trim() !== 'REMOVE') {
-            const selectedNumber = sel.value.trim();
+          if (uid !== userId && sel.value && sel.value.trim() && sel.value.trim() !== 'REMOVE') {
+            const number = sel.value.trim();
             
-            // Если этот номер уже назначен другому пользователю
-            if (numberToUserMap[selectedNumber] && numberToUserMap[selectedNumber] !== uid) {
-              console.log(`Номер ${selectedNumber} переназначается с пользователя ${numberToUserMap[selectedNumber]} на ${uid}`);
-              // Удаляем предыдущее назначение
-              delete extensions[numberToUserMap[selectedNumber]];
+            // Если этот номер совпадает с выбранным пользователем - убираем его у другого
+            if (number === selectedNumber && selectedNumber !== 'REMOVE') {
+              console.log(`🔄 Номер ${selectedNumber} отбирается у пользователя ${uid} для ${userId}`);
+              sel.value = ''; // Сбрасываем визуально
+              // Скрываем кнопку "Сохранить" у этого пользователя
+              const otherSaveBtn = document.getElementById(`save_${uid}`);
+              if (otherSaveBtn) {
+                otherSaveBtn.style.display = 'none';
+              }
+            } else {
+              extensions[uid] = number;
             }
-            
-            // Назначаем номер текущему пользователю
-            extensions[uid] = selectedNumber;
-            numberToUserMap[selectedNumber] = uid;
           }
         });
+        
+        // Добавляем назначение текущего пользователя (если не "Без номера")
+        if (selectedNumber && selectedNumber !== 'REMOVE') {
+          extensions[userId] = selectedNumber;
+        }
         
         console.log('Собранные назначения:', extensions);
         
@@ -1957,8 +2050,18 @@ ADMIN_PAGE_JS = r"""
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
-            // Обновляем список менеджеров
-            await loadUsers();
+            // Если получили обновленный список пользователей, используем его
+            if (data.users && Array.isArray(data.users)) {
+              console.log('📋 Updating UI with fresh user data:', data.users);
+              displayUsers(data.users);
+              // Загружаем внутренние номера для обновления выпадающих списков
+              setTimeout(() => {
+                loadInternalPhones(data.users);
+              }, 100);
+            } else {
+              // Fallback: обновляем список менеджеров традиционным способом
+              await loadUsers();
+            }
             console.log('✅ Добавочный номер сохранен в RetailCRM');
           } else {
             throw new Error(data.error || 'Ошибка сохранения');
@@ -2084,7 +2187,7 @@ async def retailcrm_admin_page(enterprise_number: str, token: str = None) -> HTM
                 name = row["name"]
     except Exception:
         pass
-    title = f"{name}"
+    title = f"{name} RetailCRM"
     # Избегаем .format() из-за фигурных скобок в CSS/JS — заменяем только нужные плейсхолдеры
     html = (
         ADMIN_PAGE_HTML
@@ -2295,22 +2398,67 @@ async def test_real_call():
 @app.get("/retailcrm/make-call")
 async def make_call_webhook(
     clientId: str,
-    code: str, 
     phone: str,
     userId: int,
+    code: str = None,
     externalPhone: str = None
 ):
-    """Webhook для инициации звонка из RetailCRM"""
-    logger.info(f"🔥 Запрос на звонок: code={code}, phone={phone}, userId={userId}")
+    """Webhook для инициации звонка из RetailCRM
+    
+    Параметры:
+    - clientId: токен интеграции RetailCRM
+    - phone: номер телефона для звонка
+    - userId: ID пользователя в RetailCRM
+    - code: добавочный номер (опционально, будет найден по userId)
+    - externalPhone: внешний номер (опционально)
+    """
+    logger.info(f"🔥 RetailCRM Click-to-Call: userId={userId}, phone={phone}, code={code}")
     
     try:
-        # Здесь должна быть логика инициации звонка через Asterisk
-        # Пока возвращаем успех для активации модуля
-        logger.info(f"✅ Звонок инициирован: {phone}")
-        return Response(status_code=200, content="OK")
+        # 1. Находим предприятие по clientId
+        enterprise = await find_enterprise_by_integration_token(clientId)
+        if not enterprise:
+            logger.error(f"❌ Enterprise not found for clientId: {clientId}")
+            return Response(status_code=401, content="Unauthorized: Invalid clientId")
+        
+        logger.info(f"🏢 Found enterprise: {enterprise['name']} ({enterprise['number']})")
+        
+        # 2. Получаем назначения пользователей
+        user_extensions = await load_user_extensions_from_db(enterprise["number"])
+        
+        # 3. Определяем внутренний номер
+        internal_extension = None
+        
+        # Приоритет: параметр code, затем маппинг по userId
+        if code and code.strip():
+            internal_extension = code.strip()
+            logger.info(f"📞 Using provided code: {internal_extension}")
+        else:
+            # Ищем по userId в маппинге
+            internal_extension = user_extensions.get(str(userId))
+            if internal_extension:
+                logger.info(f"📞 Found extension by userId {userId}: {internal_extension}")
+            else:
+                logger.error(f"❌ No extension found for userId {userId}")
+                return Response(status_code=400, content=f"No extension configured for user {userId}")
+        
+        # 4. Вызываем asterisk.py для инициации звонка
+        asterisk_result = await call_asterisk_api(
+            code=internal_extension,
+            phone=phone,
+            client_id=enterprise["secret"]
+        )
+        
+        if asterisk_result["success"]:
+            logger.info(f"✅ Call initiated successfully: {internal_extension} -> {phone}")
+            return Response(status_code=200, content="OK")
+        else:
+            logger.error(f"❌ Asterisk API failed: {asterisk_result.get('error', 'Unknown error')}")
+            return Response(status_code=500, content=f"Call initiation failed: {asterisk_result.get('error', 'Unknown error')}")
+            
     except Exception as e:
-        logger.error(f"❌ Ошибка инициации звонка: {e}")
-        return Response(status_code=500, content="Error")
+        logger.error(f"❌ Error in make_call_webhook: {e}")
+        return Response(status_code=500, content=f"Internal error: {str(e)}")
 
 @app.get("/retailcrm/status")  
 async def status_change_webhook(
