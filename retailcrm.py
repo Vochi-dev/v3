@@ -524,6 +524,11 @@ STATIC_DIR = "/root/asterisk-webhook/static"
 if os.path.isdir(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+# Статика для админки RetailCRM
+APP_STATIC_DIR = "/root/asterisk-webhook/app/static"
+if os.path.isdir(APP_STATIC_DIR):
+    app.mount("/retailcrm-static", StaticFiles(directory=APP_STATIC_DIR), name="retailcrm_static")
+
 # Глобальные объекты
 retailcrm_client = None
 
@@ -1613,7 +1618,10 @@ ADMIN_PAGE_HTML = """
 </head>
 <body>
   <div class=\"wrap\">
-    <h1>{header}</h1>
+    <div style=\"display:flex; align-items:center; margin-bottom:20px;\">
+      <h1 style=\"margin:0; margin-right:15px;\">{header}</h1>
+      <img src=\"/static/Retail-big.png\" alt=\"RetailCRM\" style=\"height:48px; width:auto; background:white; padding:4px; border-radius:4px; border:1px solid #ddd;\">
+    </div>
     <div class=\"card\">
       <div class=\"row\">
         <div>
@@ -1626,7 +1634,7 @@ ADMIN_PAGE_HTML = """
         </div>
       </div>
       <div class=\"actions\">
-        <label><input id=\"enabled\" type=\"checkbox\" /> Активен?</label>
+      <label><input id=\"enabled\" type=\"checkbox\" /> Активен?</label>
         <button id=\"saveBtn\" type=\"button\" class=\"btn\">Сохранить и зарегистрировать</button>
         <button id=\"refreshBtn\" type=\"button\" class=\"btn\" style=\"background:#059669;\">Обновить</button>
         <button id=\"deleteBtn\" type=\"button\" class=\"btn\" style=\"background:#dc2626; margin-left:auto;\">Удалить интеграцию</button>
@@ -1636,10 +1644,10 @@ ADMIN_PAGE_HTML = """
     
     <!-- Блок отображения пользователей RetailCRM -->
     <div class=\"card\" id=\"usersCard\" style=\"display:none;\">
-      <h2 style=\"margin:0 0 15px 0; font-size:24px; color:#1f2937;\">Менеджеры RetailCRM</h2>
+      <h2 style=\"margin:0 0 15px 0; font-size:24px; color:#1f2937;\">Менеджеры</h2>
       <div id=\"usersList\"></div>
       <div id=\"usersLoading\" style=\"display:none; color:#8fb3da; font-style:italic;\">Загрузка пользователей...</div>
-    </div>
+  </div>
   </div>
   <script src="./app.js?v=202508091915"></script>
 </body>
@@ -1649,7 +1657,7 @@ ADMIN_PAGE_HTML = """
 
 # JS для страницы администрирования (вынесен во внешний файл на случай CSP)
 ADMIN_PAGE_JS = r"""
-(function(){
+  (function(){
   try {
     const qs = new URLSearchParams(location.search);
     const enterprise = qs.get('enterprise_number');
@@ -2045,7 +2053,7 @@ ADMIN_PAGE_JS = r"""
       loadUsers();
     }, 500); // Небольшая задержка чтобы сначала загрузилась конфигурация
   } catch (e) { console.error('Admin JS init error', e); }
-})();
+  })();
 """
 
 
@@ -2076,7 +2084,7 @@ async def retailcrm_admin_page(enterprise_number: str, token: str = None) -> HTM
                 name = row["name"]
     except Exception:
         pass
-    title = f"{name} RetailCRM"
+    title = f"{name}"
     # Избегаем .format() из-за фигурных скобок в CSS/JS — заменяем только нужные плейсхолдеры
     html = (
         ADMIN_PAGE_HTML
