@@ -1013,6 +1013,21 @@ async def internal_retailcrm_call_event(request: Request):
             "event": json.dumps(event_payload, ensure_ascii=False),
         })
         logger.info(f"[internal call-event] sent: {event_payload} resp={ev.success}")
+        try:
+            await write_integration_log(
+                enterprise_number=enterprise_number,
+                event_type=f"call_event:{event_payload.get('type','unknown')}",
+                request_data={
+                    "uniqueId": unique_id,
+                    "payload": event_payload,
+                },
+                response_data=(ev.data if ev and ev.data else None),
+                status_ok=bool(ev and ev.success),
+                error_message=(ev.error if ev and ev.error else None),
+            )
+        except Exception:
+            # не мешаем основному потоку при сбое логирования
+            pass
 
         # Кэшируем dial для последующего hangup
         if event_type == "dial":
@@ -1057,6 +1072,20 @@ async def internal_retailcrm_call_event(request: Request):
                 "calls": json.dumps(upload_payload, ensure_ascii=False),
             })
             logger.info(f"[internal calls/upload] sent: {upload_payload} resp={up.success}")
+            try:
+                await write_integration_log(
+                    enterprise_number=enterprise_number,
+                    event_type="calls_upload",
+                    request_data={
+                        "uniqueId": unique_id,
+                        "calls": upload_payload,
+                    },
+                    response_data=(up.data if up and up.data else None),
+                    status_ok=bool(up and up.success),
+                    error_message=(up.error if up and up.error else None),
+                )
+            except Exception:
+                pass
 
     return JSONResponse({"success": True})
 
