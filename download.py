@@ -9,9 +9,11 @@ import json
 import subprocess
 import psycopg2
 import uuid
+from typing import Any
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+import aiohttp
 from pydantic import BaseModel
 import logging
 from telegram import Bot
@@ -29,6 +31,12 @@ app = FastAPI(
     description="Сервис синхронизации данных с удаленных Asterisk серверов",
     version="1.0.0"
 )
+
+# Настройки форвардинга восстановленных событий в Integration Gateway (8020)
+FORWARD_TO_GATEWAY: bool = True
+GATEWAY_URL: str = "http://127.0.0.1:8020/dispatch/call-event"
+FORWARD_TIMEOUT_SEC: int = 2
+FORWARD_RETRIES: int = 1
 
 # Фоновая задача автоматической синхронизации
 async def auto_sync_task():
@@ -368,6 +376,95 @@ def insert_participants_to_db(cursor, call_id: int, extensions: List[str], call_
             call_data['end_time']  # hangup_time
         ))
 
+def insert_integration_log(
+    cursor,
+    enterprise_number: str,
+    event_type: str,
+    request_data: Dict[str, Any],
+    response_data: Optional[Dict[str, Any]],
+    status_ok: bool,
+    error_message: Optional[str] = None,
+    integration_type: str = "gateway",
+):
+    """Пишет лог интеграции в таблицу integration_logs (новая схема),
+    при ошибке пытается fallback в старую схему.
+    """
+    status_str = "success" if status_ok else "error"
+    try:
+        sql_new = (
+            "INSERT INTO integration_logs(enterprise_number, integration_type, event_type, request_data, response_data, status, error_message) "
+            "VALUES(%s, %s, %s, %s::jsonb, %s::jsonb, %s, %s)"
+        )
+        cursor.execute(
+            sql_new,
+            (
+                enterprise_number,
+                integration_type,
+                event_type,
+                json.dumps(request_data, ensure_ascii=False),
+                json.dumps(response_data or {}, ensure_ascii=False),
+                status_str,
+                error_message,
+            ),
+        )
+    except Exception as e_new:
+        try:
+            sql_old = (
+                "INSERT INTO integration_logs(enterprise_number, integration_type, action, payload, response, success, error) "
+                "VALUES(%s, %s, %s, %s::jsonb, %s::jsonb, %s::boolean, %s)"
+            )
+            cursor.execute(
+                sql_old,
+                (
+                    enterprise_number,
+                    integration_type,
+                    event_type,
+                    json.dumps(request_data, ensure_ascii=False),
+                    json.dumps(response_data or {}, ensure_ascii=False),
+                    status_ok,
+                    error_message or str(e_new),
+                ),
+            )
+        except Exception:
+            # Не роняем поток синхронизации из‑за логов
+            pass
+
+async def forward_event_to_gateway(
+    token: str,
+    unique_id: str,
+    raw_event: Dict[str, Any],
+    record_url: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Отправляет событие hangup в Integration Gateway (8020). Возвращает краткий результат.
+    Не поднимает исключений наружу.
+    """
+    payload: Dict[str, Any] = {
+        "token": token,
+        "uniqueId": unique_id,
+        "event_type": "hangup",
+        "raw": raw_event,
+        # Маркер: событие восстановлено из download (для подавления synthetic dial в 8020)
+        "origin": "download",
+    }
+    if record_url:
+        payload["record_url"] = record_url
+
+    attempt = 0
+    last_error: Optional[str] = None
+    while attempt <= FORWARD_RETRIES:
+        attempt += 1
+        try:
+            timeout = aiohttp.ClientTimeout(total=FORWARD_TIMEOUT_SEC)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(GATEWAY_URL, json=payload) as resp:
+                    text = await resp.text()
+                    return {"status": resp.status, "body": text}
+        except Exception as e:
+            last_error = str(e)
+            if attempt > FORWARD_RETRIES:
+                break
+    return {"status": 0, "error": last_error or "unknown error"}
+
 def update_sync_stats(cursor, enterprise_id: str, total_downloaded: int, new_events: int, failed_events: int):
     """Обновить статистику синхронизации"""
     active_enterprises = get_active_enterprises()
@@ -638,6 +735,46 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                 else:
                                     logger.warning(f"Не удалось вставить событие {unique_id}")
                                 
+                                # Форвардинг в Integration Gateway (8020) — как post‑factum hangup
+                                if FORWARD_TO_GATEWAY:
+                                    try:
+                                        forward_result = await forward_event_to_gateway(
+                                            token=call_data["token"],
+                                            unique_id=call_data["unique_id"],
+                                            raw_event=event["data"],
+                                            record_url=(call_data.get("call_url") or None),
+                                        )
+                                        # Лог в integration_logs внутри той же транзакции
+                                        insert_integration_log(
+                                            cursor,
+                                            enterprise_number=ent_id,
+                                            event_type="download_forward:hangup",
+                                            request_data={
+                                                "uniqueId": call_data["unique_id"],
+                                                "has_record_url": bool(call_data.get("call_url")),
+                                                "raw_keys": list((event.get("data") or {}).keys()),
+                                            },
+                                            response_data=forward_result,
+                                            status_ok=bool(forward_result.get("status") and int(forward_result.get("status")) == 200),
+                                            error_message=str(forward_result.get("error")) if forward_result.get("error") else None,
+                                            integration_type="gateway",
+                                        )
+                                    except Exception as fwd_err:
+                                        # Пишем неуспешный лог и продолжаем
+                                        try:
+                                            insert_integration_log(
+                                                cursor,
+                                                enterprise_number=ent_id,
+                                                event_type="download_forward:hangup",
+                                                request_data={"uniqueId": call_data["unique_id"]},
+                                                response_data=None,
+                                                status_ok=False,
+                                                error_message=str(fwd_err),
+                                                integration_type="gateway",
+                                            )
+                                        except Exception:
+                                            pass
+
                                 conn.commit()
                                 
                             except Exception as e:

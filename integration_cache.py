@@ -234,6 +234,24 @@ def guess_direction_and_phone(raw: dict, fallback: Optional[str]) -> tuple[str, 
     # fallback: считаем входящим
     return ("in", normalize_phone_e164(fallback or phone_field or caller or connected))
 
+def pick_internal_code_for_hangup(raw: dict) -> Optional[str]:
+    """Более агрессивный выбор внутреннего кода для события hangup (recovery).
+    Порядок: CallerIDNum → любой из Extensions → ConnectedLineNum → InternalCode.
+    """
+    cand = str(raw.get("CallerIDNum") or "")
+    if _is_internal(cand):
+        return cand
+    for e in (raw.get("Extensions") or []):
+        if _is_internal(str(e)):
+            return str(e)
+    connected = str(raw.get("ConnectedLineNum") or "")
+    if _is_internal(connected):
+        return connected
+    ic = str(raw.get("InternalCode") or "")
+    if _is_internal(ic):
+        return ic
+    return None
+
 class CacheEntry:
     def __init__(self, data: Dict[str, bool]):
         self.data = data
@@ -459,6 +477,7 @@ async def dispatch_call_event(request: Request):
     event_type = body.get("event_type")  # dial|hangup
     raw = body.get("raw", {}) or {}
     record_url = body.get("record_url")
+    origin = body.get("origin")  # 'download' для восстановленных событий
 
     if not token or not unique_id or event_type not in {"dial", "hangup"}:
         raise HTTPException(status_code=400, detail="invalid payload")
@@ -495,11 +514,20 @@ async def dispatch_call_event(request: Request):
             timeout = aiohttp.ClientTimeout(total=3)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 # Если пришёл hangup и не было dial — сначала синтетический dial
-                if event_type == "hangup" and unique_id not in recent_dials:
+                # НО: не делаем synthetic dial для событий, пришедших из download (recovery)
+                if event_type == "hangup" and unique_id not in recent_dials and origin != "download":
                     synth = dict(payload_forward)
                     synth["event_type"] = "dial"
                     async with session.post("http://127.0.0.1:8019/internal/retailcrm/call-event", json=synth) as r1:
                         logger.info(f"→ 8019 synthetic dial: status={r1.status}")
+                # Для hangup (в т.ч. из download) подчистим raw доп. полем InternalCode, если его нет
+                if event_type == "hangup" and "InternalCode" not in raw:
+                    ic = pick_internal_code_for_hangup(raw)
+                    if ic:
+                        payload_forward = dict(payload_forward)
+                        payload_forward["raw"] = dict(payload_forward["raw"])  # copy
+                        payload_forward["raw"]["InternalCode"] = ic
+
                 async with session.post("http://127.0.0.1:8019/internal/retailcrm/call-event", json=payload_forward) as r2:
                     logger.info(f"→ 8019 forward {event_type}: status={r2.status}")
         except Exception as e:

@@ -961,13 +961,24 @@ async def internal_retailcrm_call_event(request: Request):
     code = None
     exts = list(raw.get("Extensions") or [])
     cand = str(raw.get("CallerIDNum") or "")
+    connected = str(raw.get("ConnectedLineNum") or "")
+    # 1) Явный внутренний в CallerIDNum
     if _is_internal(cand):
         code = cand
     else:
+        # 2) Любой внутренний в Extensions
         for e in exts:
             if _is_internal(str(e)):
                 code = str(e)
                 break
+        # 3) Внутренний в ConnectedLineNum (частый случай для входящих)
+        if not code and _is_internal(connected):
+            code = connected
+        # 4) Явно переданный внутренний код из апстрима
+        if not code:
+            ic = str(raw.get("InternalCode") or "")
+            if _is_internal(ic):
+                code = ic
     code_to_uid = _invert_user_extensions(cfg)
     user_id = code_to_uid.get(str(code)) if code else None
 
@@ -979,6 +990,22 @@ async def internal_retailcrm_call_event(request: Request):
                 user_id = cache_entry.get("user_id")
             if not code and cache_entry.get("code"):
                 code = str(cache_entry.get("code"))
+
+    # Fallback: если не удалось определить code/user_id — берём первый заинтегрированный
+    if code is None or user_id is None:
+        ue = (cfg or {}).get("user_extensions") or {}
+        if isinstance(ue, dict) and ue:
+            for uid_str, c in ue.items():
+                if not c:
+                    continue
+                if code is None:
+                    code = str(c)
+                if user_id is None:
+                    try:
+                        user_id = int(uid_str)
+                    except Exception:
+                        user_id = uid_str
+                break
 
     event_payload: Dict[str, Any] = {
         "phone": phone if phone.startswith("+") else ("+" + phone.lstrip("+")) if phone else "+000",
