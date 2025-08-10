@@ -892,6 +892,34 @@ def _invert_user_extensions(cfg: Dict[str, Any]) -> Dict[str, int]:
                     mapping[str(code)] = uid_str
     return mapping
 
+# Временный кэш данных dial по уникальному звонку для последующего hangup
+_last_dial_cache: Dict[str, Dict[str, Any]] = {}
+_DIAL_CACHE_TTL_SEC = 600
+
+def _cache_put_dial(unique_id: str, code: Optional[str], user_id: Optional[int]) -> None:
+    try:
+        from datetime import datetime
+        _last_dial_cache[unique_id] = {
+            "code": str(code) if code else None,
+            "user_id": int(user_id) if isinstance(user_id, int) else user_id,
+            "ts": datetime.utcnow().timestamp(),
+        }
+    except Exception:
+        pass
+
+def _cache_get_dial(unique_id: str) -> Optional[Dict[str, Any]]:
+    try:
+        from datetime import datetime
+        entry = _last_dial_cache.get(unique_id)
+        if not entry:
+            return None
+        if datetime.utcnow().timestamp() - float(entry.get("ts", 0)) > _DIAL_CACHE_TTL_SEC:
+            _last_dial_cache.pop(unique_id, None)
+            return None
+        return entry
+    except Exception:
+        return None
+
 @app.post("/internal/retailcrm/call-event")
 async def internal_retailcrm_call_event(request: Request):
     if request.client and request.client.host not in {"127.0.0.1", "localhost"}:
@@ -943,6 +971,15 @@ async def internal_retailcrm_call_event(request: Request):
     code_to_uid = _invert_user_extensions(cfg)
     user_id = code_to_uid.get(str(code)) if code else None
 
+    # Для hangup подтянем code/user_id из кэша dial, если не удалось определить
+    if event_type == "hangup":
+        cache_entry = _cache_get_dial(unique_id)
+        if cache_entry:
+            if user_id is None and cache_entry.get("user_id") is not None:
+                user_id = cache_entry.get("user_id")
+            if not code and cache_entry.get("code"):
+                code = str(cache_entry.get("code"))
+
     event_payload: Dict[str, Any] = {
         "phone": phone if phone.startswith("+") else ("+" + phone.lstrip("+")) if phone else "+000",
         "type": kind if kind in {"in", "out", "hangup"} else "in",
@@ -959,11 +996,27 @@ async def internal_retailcrm_call_event(request: Request):
         "api_version": "v5",
         "timeout": 5,
     }) as client:
+        # 1) Всегда передаём codes/userIds и на hangup (для соответствия требованиям API)
+        #    Дополнительно укажем hangupStatus для наглядности в CRM
+        if event_type == "hangup":
+            try:
+                call_status_int = int(raw.get("CallStatus", 0))
+            except Exception:
+                call_status_int = 0
+            if call_status_int == 2:
+                event_payload["hangupStatus"] = "answered"
+            else:
+                # Для сценария "не ответили" фиксируем как "no answered"
+                event_payload["hangupStatus"] = "no answered"
         ev = await client._make_request("POST", "/telephony/call/event", data={
             "clientId": enterprise_number,
             "event": json.dumps(event_payload, ensure_ascii=False),
         })
         logger.info(f"[internal call-event] sent: {event_payload} resp={ev.success}")
+
+        # Кэшируем dial для последующего hangup
+        if event_type == "dial":
+            _cache_put_dial(unique_id, code, user_id)
 
         if event_type == "hangup":
             from datetime import datetime
@@ -976,7 +1029,10 @@ async def internal_retailcrm_call_event(request: Request):
                 duration = max(0, int((dt_e - dt_s).total_seconds()))
             except Exception:
                 duration = 0
-            result = "answered" if int(raw.get("CallStatus", 0)) == 2 else "missed"
+            # Map result в журнал: answered / failed
+            # Для "неответа" фиксируем как failed (в RetailCRM валидно для upload)
+            answered = int(raw.get("CallStatus", 0)) == 2
+            result = "answered" if answered else "failed"
             upload_payload = [{
                 "date": start_time.replace("T", " ")[:19],
                 "type": _map_call_type(int(raw.get("CallType", 0))) or "in",
@@ -985,10 +1041,14 @@ async def internal_retailcrm_call_event(request: Request):
                 "result": result,
                 "externalId": unique_id,
             }]
-            if user_id is not None:
-                upload_payload[0]["userId"] = user_id
-            elif code:
-                upload_payload[0]["code"] = str(code)
+            # Если на этапе hangup не смогли определить, дотянем из кэша dial
+            cache_entry = _cache_get_dial(unique_id)
+            eff_user_id = user_id if user_id is not None else (cache_entry.get("user_id") if cache_entry else None)
+            eff_code = str(code) if code else (str(cache_entry.get("code")) if cache_entry and cache_entry.get("code") else None)
+            if eff_user_id is not None:
+                upload_payload[0]["userId"] = eff_user_id
+            elif eff_code:
+                upload_payload[0]["code"] = eff_code
             if record_url:
                 upload_payload[0]["recordUrl"] = record_url
 
