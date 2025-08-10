@@ -561,6 +561,39 @@ STATS: Dict[str, int] = {
     "cache_refreshes": 0,
 }
 
+# === Внутренние хелперы для событий телефонии ===
+def _map_call_type(call_type: Optional[int]) -> Optional[str]:
+    if call_type == 0:
+        return "in"
+    if call_type == 1:
+        return "out"
+    return None
+
+def _is_internal(num: str) -> bool:
+    try:
+        return bool(num) and str(num).isdigit() and 2 <= len(str(num)) <= 5
+    except Exception:
+        return False
+
+def _guess_direction_and_phone(raw: dict, fallback: str = "") -> tuple[str, str]:
+    ct = raw.get("CallType")
+    if isinstance(ct, (int, str)) and str(ct).isdigit():
+        kind = _map_call_type(int(ct))
+        if kind in {"in", "out"}:
+            phone = raw.get("Phone") or raw.get("CallerIDNum") or raw.get("ConnectedLineNum") or fallback
+            return kind, str(phone)
+    caller = str(raw.get("CallerIDNum") or "")
+    phone_field = str(raw.get("Phone") or "")
+    exts = list(raw.get("Extensions") or [])
+    caller_internal = _is_internal(caller)
+    any_external_ext = any((not _is_internal(e)) and e for e in exts)
+    if caller_internal and (any_external_ext or (phone_field and not _is_internal(phone_field))):
+        external = next((e for e in exts if e and not _is_internal(e)), None) or phone_field
+        return "out", external
+    if (not caller_internal) and any(_is_internal(e) for e in exts):
+        return "in", caller or phone_field
+    return ("in", phone_field or caller or fallback)
+
 def _normalize_json(value: Any) -> Dict[str, Any]:
     """Безопасно приводит JSON/JSONB значение из БД к dict.
     Допускает типы: dict (возвращается как есть), str (парсится как JSON),
@@ -837,6 +870,135 @@ async def load_user_extensions_from_db(enterprise_number: str) -> Dict[str, str]
     except Exception as e:
         logger.error(f"❌ Error loading user extensions from DB for enterprise {enterprise_number}: {e}")
         return {}
+
+async def _get_enterprise_by_token(token: str) -> Optional[str]:
+    if pg_pool is None:
+        await init_pg_pool()
+    assert pg_pool is not None
+    q = "SELECT number FROM enterprises WHERE name2 = $1 OR secret = $1 LIMIT 1"
+    async with pg_pool.acquire() as conn:
+        row = await conn.fetchrow(q, token)
+        return row["number"] if row else None
+
+def _invert_user_extensions(cfg: Dict[str, Any]) -> Dict[str, int]:
+    mapping: Dict[str, int] = {}
+    user_ext = (cfg or {}).get("user_extensions") or {}
+    if isinstance(user_ext, dict):
+        for uid_str, code in user_ext.items():
+            if code:
+                try:
+                    mapping[str(code)] = int(uid_str)
+                except Exception:
+                    mapping[str(code)] = uid_str
+    return mapping
+
+@app.post("/internal/retailcrm/call-event")
+async def internal_retailcrm_call_event(request: Request):
+    if request.client and request.client.host not in {"127.0.0.1", "localhost"}:
+        return JSONResponse(status_code=403, content={"success": False, "error": "forbidden"})
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"success": False, "error": "invalid json"})
+
+    token = body.get("token")
+    unique_id = body.get("uniqueId")
+    event_type = body.get("event_type")  # dial|hangup
+    raw = body.get("raw", {}) or {}
+    record_url = body.get("record_url")
+
+    if not token or not unique_id or event_type not in {"dial", "hangup"}:
+        return JSONResponse(status_code=400, content={"success": False, "error": "invalid payload"})
+
+    enterprise_number = await _get_enterprise_by_token(token)
+    if not enterprise_number:
+        return JSONResponse(status_code=404, content={"success": False, "error": "enterprise not found"})
+
+    cfg = await fetch_retailcrm_config(enterprise_number)
+    cfg = cfg if cfg and cfg.get("enabled") and cfg.get("domain") and cfg.get("api_key") else None
+    if not cfg:
+        return JSONResponse(status_code=400, content={"success": False, "error": "retailcrm disabled or config invalid"})
+
+    base_url = cfg["domain"] if str(cfg["domain"]).startswith("http") else f"https://{cfg['domain']}"
+    api_key = cfg["api_key"]
+
+    if event_type == "dial":
+        kind, phone = _guess_direction_and_phone(raw, fallback="")
+    else:
+        _, phone = _guess_direction_and_phone(raw, fallback="")
+        kind = "hangup"
+
+    # code / userId
+    code = None
+    exts = list(raw.get("Extensions") or [])
+    cand = str(raw.get("CallerIDNum") or "")
+    if _is_internal(cand):
+        code = cand
+    else:
+        for e in exts:
+            if _is_internal(str(e)):
+                code = str(e)
+                break
+    code_to_uid = _invert_user_extensions(cfg)
+    user_id = code_to_uid.get(str(code)) if code else None
+
+    event_payload: Dict[str, Any] = {
+        "phone": phone if phone.startswith("+") else ("+" + phone.lstrip("+")) if phone else "+000",
+        "type": kind if kind in {"in", "out", "hangup"} else "in",
+        "callExternalId": unique_id,
+    }
+    if code:
+        event_payload["codes"] = [str(code)]
+    if user_id is not None:
+        event_payload["userIds"] = [user_id]
+
+    async with RetailCRMClient({
+        "base_url": base_url,
+        "api_key": api_key,
+        "api_version": "v5",
+        "timeout": 5,
+    }) as client:
+        ev = await client._make_request("POST", "/telephony/call/event", data={
+            "clientId": enterprise_number,
+            "event": json.dumps(event_payload, ensure_ascii=False),
+        })
+        logger.info(f"[internal call-event] sent: {event_payload} resp={ev.success}")
+
+        if event_type == "hangup":
+            from datetime import datetime
+            start_time = raw.get("StartTime") or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            end_time = raw.get("EndTime") or start_time
+            duration = 0
+            try:
+                dt_s = datetime.fromisoformat(start_time.replace("Z", ""))
+                dt_e = datetime.fromisoformat(end_time.replace("Z", ""))
+                duration = max(0, int((dt_e - dt_s).total_seconds()))
+            except Exception:
+                duration = 0
+            result = "answered" if int(raw.get("CallStatus", 0)) == 2 else "missed"
+            upload_payload = [{
+                "date": start_time.replace("T", " ")[:19],
+                "type": _map_call_type(int(raw.get("CallType", 0))) or "in",
+                "phone": (phone or "").lstrip("+"),
+                "duration": duration,
+                "result": result,
+                "externalId": unique_id,
+            }]
+            if user_id is not None:
+                upload_payload[0]["userId"] = user_id
+            elif code:
+                upload_payload[0]["code"] = str(code)
+            if record_url:
+                upload_payload[0]["recordUrl"] = record_url
+
+            up = await client._make_request("POST", "/telephony/calls/upload", data={
+                "clientId": enterprise_number,
+                "calls": json.dumps(upload_payload, ensure_ascii=False),
+            })
+            logger.info(f"[internal calls/upload] sent: {upload_payload} resp={up.success}")
+
+    return JSONResponse({"success": True})
 
 async def find_enterprise_by_integration_token(client_id: str) -> Optional[Dict[str, Any]]:
     """Находит предприятие по токену интеграции RetailCRM

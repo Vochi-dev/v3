@@ -1,4 +1,4 @@
-```python
+import aiohttp
 import asyncio
 import logging
 from datetime import datetime
@@ -312,6 +312,30 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         callee,
         is_int
     )
+    # Fire-and-forget отправка dial в Integration Gateway (8020)
+    try:
+        token_for_gateway = data.get("Token")
+        unique_id_for_gateway = data.get("UniqueId")
+        if token_for_gateway and unique_id_for_gateway:
+            async def _dispatch_to_gateway():
+                try:
+                    url = "http://127.0.0.1:8020/dispatch/call-event"
+                    payload = {
+                        "token": token_for_gateway,
+                        "uniqueId": unique_id_for_gateway,
+                        "event_type": "dial",
+                        "raw": data,
+                    }
+                    timeout = aiohttp.ClientTimeout(total=2)
+                    async with aiohttp.ClientSession(timeout=timeout) as session:
+                        logging.info(f"[process_dial] → 8020 POST {url} uid={unique_id_for_gateway}")
+                        resp = await session.post(url, json=payload)
+                        logging.info(f"[process_dial] ← 8020 {resp.status} uid={unique_id_for_gateway}")
+                except Exception:
+                    logging.warning(f"[process_dial] 8020 dispatch failed uid={unique_id_for_gateway}")
+            asyncio.create_task(_dispatch_to_gateway())
+    except Exception:
+        pass
     return {"status": "sent"}
 
 
@@ -478,6 +502,30 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         callee,
         is_int
     )
+    # Fire-and-forget отправка hangup в Integration Gateway (8020)
+    try:
+        token_for_gateway = data.get("Token")
+        unique_id_for_gateway = data.get("UniqueId")
+        if token_for_gateway and unique_id_for_gateway:
+            async def _dispatch_to_gateway():
+                try:
+                    url = "http://127.0.0.1:8020/dispatch/call-event"
+                    payload = {
+                        "token": token_for_gateway,
+                        "uniqueId": unique_id_for_gateway,
+                        "event_type": "hangup",
+                        "raw": data,
+                    }
+                    timeout = aiohttp.ClientTimeout(total=2)
+                    async with aiohttp.ClientSession(timeout=timeout) as session:
+                        logging.info(f"[process_hangup] → 8020 POST {url} uid={unique_id_for_gateway}")
+                        resp = await session.post(url, json=payload)
+                        logging.info(f"[process_hangup] ← 8020 {resp.status} uid={unique_id_for_gateway}")
+                except Exception:
+                    logging.warning(f"[process_hangup] 8020 dispatch failed uid={unique_id_for_gateway}")
+            asyncio.create_task(_dispatch_to_gateway())
+    except Exception:
+        pass
     return {"status": "sent"}
 
 
@@ -630,4 +678,4 @@ async def _dispatch_to_all(handler, body: dict):
 #         asyncio.create_task(create_resend_loop(dial_cache, bridge_store, active_bridges, bot, chat_id))
 #
 # app.add_event_handler("startup", on_startup)
-```
+

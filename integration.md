@@ -13,6 +13,61 @@
 - retailcrm.py:8019 — сервис RetailCRM: UI администрирования, приём событий, вызовы API RetailCRM, логи
 - dial.py/bridge.py/hangup.py/download.py — отправляют события в активные CRM‑сервисы асинхронно
 
+## Единый флоу звонка (start/dial/bridge/hangup → интеграции)
+
+Ниже — согласованный, конечный «сквозной» путь события от Asterisk до CRM (пример: RetailCRM).
+
+- Вход событий (общий)
+  - Asterisk хосты → `main.py`:
+    - `POST /start`, `POST /dial`, `POST /bridge`, `POST /hangup` с телом: `{ Token, UniqueId, CallerIDNum, Extensions[], ConnectedLineNum, CallType, CallStatus, StartTime, EndTime, Trunk, ... }`.
+  - `main.py` → `_dispatch_to_all(...)`:
+    - Сохраняет событие в PostgreSQL: `call_events (unique_id, event_type, raw_data, data_source='live')`.
+    - Рассылает в Telegram через `app/services/calls/*` (формирование текстов и UI-логика).
+
+- Интеграции (целевое назначение потока)
+  - Универсальная точка: `integration_cache.py` на 8020 (Integration Gateway).
+    - Эндпоинт: `POST /dispatch/call-event` с телом: `{ token, uniqueId, event_type: 'dial'|'hangup', raw, record_url? }`.
+    - Действия 8020:
+      1) Находит `enterprise_number` по `token`.
+      2) Проверяет включённые интеграции из in‑memory кэша (`/integrations/{enterprise}`), TTL≈90s.
+      3) Для `retailcrm: true` — форвардит в 8019.
+      4) Если пришёл `hangup` без предшествующего `dial` по этому `uniqueId` — делает синтетический `dial` (правило: идемпотентная попытка поднять поп‑ап).
+
+  - RetailCRM сервис: `retailcrm.py` на 8019
+    - Эндпоинт приёма только с localhost: `POST /internal/retailcrm/call-event`.
+    - Логика преобразования payload (на основе `raw`):
+      - Определение направления: `CallType 0→in, 1→out; 2 — пропускаем`. При отсутствии — эвристики (CallerIDNum/Extensions/ConnectedLineNum).
+      - `phone`: нормализация в E.164 для `call/event`, без `+` для `calls/upload`.
+      - Определение `codes`/`userIds`: по `enterprises.integrations_config->retailcrm.user_extensions` (добавочные ↔ RetailCRM userId). Приоритет `codes`.
+      - `callExternalId`: = `UniqueId` (для всех вызовов RetailCRM).
+    - Вызовы RetailCRM:
+      - Реалтайм поп‑ап: `POST /api/v5/telephony/call/event` с `clientId=<enterprise_number>`, `event={ phone, type: in|out|hangup, codes|userIds, callExternalId, externalPhone? }`.
+      - Журнал/запись: `POST /api/v5/telephony/calls/upload` (только на `hangup`) с `calls=[{ date, type, phone(without +), duration, result (answered|missed), externalId, userId, recordUrl? }]`.
+    - Таймауты: 2–3s, идемпотентность по `(enterprise_number, callExternalId, type)`.
+
+- Назначение событий:
+  - `start`: Telegram/лог; в интеграции не используется.
+  - `dial`: ключевое для поп‑апов в RetailCRM (type in|out). Должно уходить в 8020 сразу (fire‑and‑forget) из сервиса приёма звонков.
+  - `bridge`: для RetailCRM не требуется (используется только в Telegram‑UI).
+  - `hangup`: фиксация истории в RetailCRM, добавление `duration` и `recordUrl`; при отсутствии `dial` по `uniqueId` — синтетический `dial`.
+
+- Нефункциональные требования:
+  - Fire‑and‑forget в сторону 8020 (не блокировать ответ Asterisk).
+  - Жёсткие таймауты, ретраи на уровне 8020/8019.
+  - Логирование: `logs/integration_cache.log` и `logs/retailcrm.log` с краткими строками статуса.
+
+### «Как есть» (на текущий момент)
+- `main.py` принимает события, пишет в `call_events`, шлёт в Telegram.
+- 8020 (Integration Gateway) и 8019 (RetailCRM) готовы: принимают `dispatch/call-event` → `internal/retailcrm/call-event`, формируют корректные вызовы в RetailCRM (подтверждено success в логах и всплывашками при эмуляции).
+- Связка «сервис приёма звонков → 8020» должна слать как минимум `dial` и `hangup` (fire‑and‑forget). Это единственное звено, которое обеспечивает реальные поп‑апы во время живых звонков.
+
+### Диагностика/чек‑лист
+- Если нет поп‑апа при живом звонке:
+  1) Проверить, уходит ли `dial` в 8020 (`tail -f logs/integration_cache.log`).
+  2) На 8019 — `tail -f logs/retailcrm.log` (должен быть 200 на `call/event`).
+  3) `integration_cache.log` при `hangup` без `dial` — увидеть «synthetic dial».
+  4) Проверить маппинг `user_extensions` в БД (codes/userIds), `clientId`, домен и ключ.
+
 ## Nginx маршрутизация (внутренняя)
 
 ```nginx
@@ -96,6 +151,38 @@ location /retailcrm/api/ {
   - Определяют по `enterprise_number` активные интеграции (из БД/кэша)
   - Асинхронно шлют события во все включённые CRM‑сервисы
   - Не ждут завершения внешних HTTP при ответе Asterisk
+
+---
+
+## Расширение 8020: Integration Cache → Integration Gateway
+
+Цель: вынести доставку событий в CRM‑интеграции из call‑сервисов в сервис 8020, чтобы не разрастать основной сервис и хэндлеры.
+
+### Новые эндпоинты 8020
+- `POST /dispatch/call-event`
+  - Вход: `{ token, uniqueId, event_type: "dial"|"hangup", raw: {...}, record_url?: string }`
+  - Поведение:
+    - Находит `enterprise_number` по `token` в БД
+    - Проверяет активные интеграции по in‑memory кэшу (`/integrations/{enterprise}`)
+    - Для `retailcrm` отправляет:
+      - Реалтайм: `POST /api/v5/telephony/call/event` (`clientId`, `event={phone, type: in|out|hangup, codes|userIds, callExternalId}`)
+      - Персистентно (для `hangup`): `POST /api/v5/telephony/calls/upload` (`date, type, phone, code|userId, duration, result, externalId, recordUrl, externalPhone`)
+    - Таймаут 2–3s, ретраи 2–3, идемпотентность по `(enterprise, callExternalId, type)`
+    - Логирование в `integration_logs`
+
+### Минимальные правки в call‑сервисах
+- `dial.py`: после отправки в Telegram — fire‑and‑forget POST на `http://localhost:8020/dispatch/call-event` (тип in|out)
+- `hangup.py`: после `create_call_record` — fire‑and‑forget POST на `.../dispatch/call-event` (тип hangup, с `record_url`)
+
+### Правила маппинга полей RetailCRM
+- `type`: 0→in, 1→out, 2→пропуск
+- `codes`: внутренний добавочный (строка) приоритетнее `userIds`
+- `userIds`: фолбэк при пустых `additionalCodes`
+- `phone`: E.164 (для upload — без `+`)
+- `result`: `CallStatus` → `answered|missed|busy`
+- `externalId`: `UniqueId`
+- `recordUrl`: `https://bot.vochi.by/recordings/file/{uuid}`
+
 
 Пример внутренних вызовов (логика):
 - `POST /retailcrm/api/events` с телом: `{ enterprise_number, event_type, payload }`

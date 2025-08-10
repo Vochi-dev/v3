@@ -22,7 +22,7 @@ import time
 import random
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Set, Any
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 # Настройка логирования
@@ -56,6 +56,183 @@ cache_stats = {
     "last_full_refresh": None,
     "total_requests": 0
 }
+
+# Недавние dial-события для идемпотентности и синтетического поднятия карточки при пропусках
+recent_dials: Dict[str, float] = {}
+RECENT_DIAL_TTL = 300  # 5 минут
+
+# ===== Вспомогательные функции =====
+
+async def fetch_enterprise_by_token(token: str) -> Optional[str]:
+    """Возвращает enterprise_number по токену (name2 или secret)."""
+    if not pg_pool:
+        return None
+    try:
+        async with pg_pool.acquire() as conn:
+            # Принимаем в качестве токена: name2, secret ИЛИ сам номер предприятия
+            row = await conn.fetchrow(
+                """
+                SELECT number FROM enterprises
+                WHERE name2 = $1 OR secret = $1 OR number = $1
+                LIMIT 1
+                """,
+                str(token),
+            )
+            return row["number"] if row else None
+    except Exception as e:
+        logger.error(f"❌ fetch_enterprise_by_token error: {e}")
+        return None
+
+async def fetch_retailcrm_config(enterprise_number: str) -> Optional[dict]:
+    """Читает integrations_config->retailcrm для юнита."""
+    if not pg_pool:
+        return None
+    try:
+        async with pg_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT integrations_config -> 'retailcrm' AS cfg
+                FROM enterprises WHERE number = $1
+                """,
+                enterprise_number,
+            )
+            if not row or not row["cfg"]:
+                return None
+            cfg = row["cfg"]
+            if isinstance(cfg, str):
+                cfg = json.loads(cfg)
+            return cfg
+    except Exception as e:
+        logger.error(f"❌ fetch_retailcrm_config error: {e}")
+        return None
+
+def map_call_type(call_type: int) -> Optional[str]:
+    if call_type == 0:
+        return "in"
+    if call_type == 1:
+        return "out"
+    return None
+
+def normalize_phone_e164(raw: str) -> str:
+    raw = str(raw or "").strip()
+    if not raw:
+        return ""
+    if raw.startswith("+"):
+        return raw
+    # упрощённая нормализация
+    if raw.isdigit():
+        return "+" + raw
+    return raw
+
+def phone_without_plus(e164: str) -> str:
+    return e164[1:] if e164.startswith("+") else e164
+
+def determine_internal_code(raw_event: dict) -> Optional[str]:
+    """Определяем внутренний добавочный сотрудника. Приоритет: CallerIDNum → Extensions → ConnectedLineNum.
+    Это важно для исходящих вызовов, где CallerIDNum — внутренний звонящего, а Extensions может содержать внешний номер."""
+    caller = str(raw_event.get("CallerIDNum", ""))
+    if caller and caller.isdigit() and 2 <= len(caller) <= 5:
+        return str(caller)
+    exts = raw_event.get("Extensions", []) or []
+    for ext in exts:
+        if ext and str(ext).isdigit() and 2 <= len(str(ext)) <= 5:
+            return str(ext)
+    connected = str(raw_event.get("ConnectedLineNum", ""))
+    if connected and connected.isdigit() and 2 <= len(connected) <= 5:
+        return str(connected)
+    return None
+
+def map_result(call_status: int) -> str:
+    return "answered" if call_status == 2 else "missed"
+
+async def post_retailcrm_call_event(base_url: str, api_key: str, client_id: str, event: dict) -> dict:
+    import aiohttp
+    url = f"{base_url}/api/v5/telephony/call/event?apiKey={api_key}"
+    data = {
+        "clientId": client_id,
+        "event": json.dumps(event)
+    }
+    timeout = aiohttp.ClientTimeout(total=3)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(url, data=data) as resp:
+            try:
+                return await resp.json()
+            except Exception:
+                return {"success": False, "status": resp.status}
+
+async def post_retailcrm_calls_upload(base_url: str, api_key: str, client_id: str, calls: list[dict]) -> dict:
+    import aiohttp
+    url = f"{base_url}/api/v5/telephony/calls/upload?apiKey={api_key}"
+    data = {
+        "clientId": client_id,
+        "calls": json.dumps(calls)
+    }
+    timeout = aiohttp.ClientTimeout(total=3)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(url, data=data) as resp:
+            try:
+                return await resp.json()
+            except Exception:
+                return {"success": False, "status": resp.status}
+
+def _is_internal(num: str) -> bool:
+    try:
+        return bool(num) and str(num).isdigit() and 2 <= len(str(num)) <= 5
+    except Exception:
+        return False
+
+def _collect_internal_exts(raw: dict) -> list[str]:
+    exts = []
+    for ext in (raw.get("Extensions") or []):
+        if _is_internal(ext):
+            exts.append(str(ext))
+    return exts
+
+def guess_direction_and_phone(raw: dict, fallback: Optional[str]) -> tuple[str, str]:
+    """Возвращает (event_kind, external_phone_e164).
+    Правила:
+    - Если CallType корректен — используем его.
+    - Исходящий: CallerIDNum — внутренний, среди Extensions есть внешний или Phone внешний.
+    - Входящий: CallerIDNum — внешний, среди Extensions есть внутренний.
+    - Прочие случаи: эвристика по соотношению внутренних/внешних.
+    """
+    ct = raw.get("CallType")
+    if isinstance(ct, (int, str)) and str(ct).isdigit():
+        kind = map_call_type(int(ct))
+        if kind in {"in", "out"}:
+            phone = raw.get("Phone") or raw.get("CallerIDNum") or raw.get("ConnectedLineNum") or fallback or ""
+            return kind, normalize_phone_e164(phone)
+
+    caller = str(raw.get("CallerIDNum") or "")
+    phone_field = str(raw.get("Phone") or "")
+    connected = str(raw.get("ConnectedLineNum") or "")
+    exts = list(raw.get("Extensions") or [])
+
+    caller_internal = _is_internal(caller)
+    any_internal_ext = any(_is_internal(e) for e in exts)
+    any_external_ext = any((not _is_internal(e)) and e for e in exts)
+    phone_is_external = bool(phone_field and not _is_internal(phone_field))
+
+    # Явный исходящий: внутренний звонящий + есть внешний номер среди Extensions или в Phone
+    if caller_internal and (any_external_ext or phone_is_external):
+        external = next((e for e in exts if e and not _is_internal(e)), None) or phone_field or connected
+        return "out", normalize_phone_e164(external)
+
+    # Явный входящий: внешний CallerIDNum и есть внутренние Extensions
+    if (not caller_internal) and any_internal_ext:
+        external = caller or phone_field or connected
+        return "in", normalize_phone_e164(external)
+
+    # Неопределённые сочетания — мягкая эвристика
+    if caller_internal and not any_internal_ext:
+        external = phone_field or connected
+        return "out", normalize_phone_e164(external)
+    if (not caller_internal) and any_internal_ext:
+        external = caller or phone_field or connected
+        return "in", normalize_phone_e164(external)
+
+    # fallback: считаем входящим
+    return ("in", normalize_phone_e164(fallback or phone_field or caller or connected))
 
 class CacheEntry:
     def __init__(self, data: Dict[str, bool]):
@@ -269,6 +446,66 @@ async def get_integrations(enterprise_number: str):
         return entry.to_dict()
     
     raise HTTPException(status_code=404, detail="Enterprise not found")
+
+@app.post("/dispatch/call-event")
+async def dispatch_call_event(request: Request):
+    """Принимает события от dial/hangup и отправляет в активные интеграции."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    token = body.get("token")
+    unique_id = body.get("uniqueId")
+    event_type = body.get("event_type")  # dial|hangup
+    raw = body.get("raw", {}) or {}
+    record_url = body.get("record_url")
+
+    if not token or not unique_id or event_type not in {"dial", "hangup"}:
+        raise HTTPException(status_code=400, detail="invalid payload")
+
+    enterprise_number = await fetch_enterprise_by_token(token)
+    if not enterprise_number:
+        raise HTTPException(status_code=404, detail="enterprise not found by token")
+
+    # Проверяем кэш активных интеграций
+    integrations_entry = integration_cache.get(enterprise_number)
+    if not integrations_entry or integrations_entry.is_expired():
+        # подгрузим одну запись
+        await get_integrations(enterprise_number)
+        integrations_entry = integration_cache.get(enterprise_number)
+    active = integrations_entry.data if integrations_entry else {}
+
+    # Лог приёма события
+    logger.info(f"➡️ Received event: enterprise={enterprise_number} type={event_type} uniqueId={unique_id}")
+
+    # RetailCRM → пересылка в интеграционный сервис 8019
+    if active.get("retailcrm"):
+        # Отмечаем dial, чтобы на hangup при необходимости сделать синтетический dial
+        if event_type == "dial":
+            recent_dials[unique_id] = time.time()
+        try:
+            import aiohttp
+            payload_forward = {
+                "token": token,
+                "uniqueId": unique_id,
+                "event_type": event_type,
+                "raw": raw,
+                "record_url": record_url,
+            }
+            timeout = aiohttp.ClientTimeout(total=3)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                # Если пришёл hangup и не было dial — сначала синтетический dial
+                if event_type == "hangup" and unique_id not in recent_dials:
+                    synth = dict(payload_forward)
+                    synth["event_type"] = "dial"
+                    async with session.post("http://127.0.0.1:8019/internal/retailcrm/call-event", json=synth) as r1:
+                        logger.info(f"→ 8019 synthetic dial: status={r1.status}")
+                async with session.post("http://127.0.0.1:8019/internal/retailcrm/call-event", json=payload_forward) as r2:
+                    logger.info(f"→ 8019 forward {event_type}: status={r2.status}")
+        except Exception as e:
+            logger.error(f"❌ Forward to 8019 failed: {e}")
+
+    return {"success": True}
 
 @app.post("/cache/invalidate/{enterprise_number}")
 async def invalidate_cache(enterprise_number: str):

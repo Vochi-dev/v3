@@ -1,4 +1,6 @@
 import logging
+import asyncio
+import aiohttp
 from telegram import Bot
 from telegram.error import BadRequest
 
@@ -163,4 +165,37 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     )
 
     logging.info(f"[process_dial] Successfully sent dial message {sent.message_id} for {phone_for_grouping}")
+
+    # ───────── Шаг 9. Fire-and-forget отправка в Integration Gateway (8020) ─────────
+    try:
+        token_for_gateway = token
+        unique_id_for_gateway = uid
+        event_type_for_gateway = "dial"
+
+        async def _dispatch_to_gateway():
+            try:
+                payload = {
+                    "token": token_for_gateway,
+                    "uniqueId": unique_id_for_gateway,
+                    "event_type": event_type_for_gateway,
+                    "raw": data,
+                }
+                timeout = aiohttp.ClientTimeout(total=2)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    logging.info(f"[process_dial] gateway dispatch start: uid={unique_id_for_gateway} type={event_type_for_gateway}")
+                    resp = await session.post(
+                        "http://localhost:8020/dispatch/call-event",
+                        json=payload,
+                    )
+                    try:
+                        logging.info(f"[process_dial] gateway dispatch done: uid={unique_id_for_gateway} status={resp.status}")
+                    except Exception:
+                        pass
+            except Exception as e:
+                logging.warning(f"[process_dial] gateway dispatch error: {e}")
+
+        asyncio.create_task(_dispatch_to_gateway())
+    except Exception as e:
+        logging.warning(f"[process_dial] failed to schedule gateway dispatch: {e}")
+
     return {"status": "sent", "message_id": sent.message_id}
