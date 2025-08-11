@@ -74,6 +74,8 @@ class SchemaDataModel(BaseModel):
     nodes: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
     viewport: Dict[str, float]
+    # Флаг умной переадресации (для входящих схем). Необязательный, чтобы не ломать старые записи.
+    smartRedirect: bool | None = None
 
 class SchemaModel(BaseModel):
     schema_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -617,6 +619,7 @@ async def update_schema(enterprise_number: str, schema_id: str, schema_update: S
                         )
 
                 # --- Основное обновление схемы ---
+                # Важно: сохраняем schema_data как есть, включая smartRedirect
                 cur.execute(
                     "UPDATE dial_schemas SET schema_name = %s, schema_data = %s, updated_at = NOW() WHERE schema_id = %s",
                     (current_schema_name, json.dumps(schema_update.schema_data.dict()), schema_id)

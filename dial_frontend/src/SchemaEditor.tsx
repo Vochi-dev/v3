@@ -95,6 +95,8 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
     const [edges, setEdges] = useState<Edge[]>(schema.schema_data?.edges || []);
     const [schemaName, setSchemaName] = useState(schema.schema_name || 'Новая схема');
     const [isLinesModalOpen, setIsLinesModalOpen] = useState(false);
+    // Умная переадресация (для входящих схем)
+    const [smartRedirect, setSmartRedirect] = useState<boolean>(Boolean((schema.schema_data as any)?.smartRedirect));
     const [isNodeActionModalOpen, setIsNodeActionModalOpen] = useState(false);
     const [isDialModalOpen, setIsDialModalOpen] = useState(false);
     const [isAddManagerModalOpen, setIsAddManagerModalOpen] = useState(false);
@@ -217,6 +219,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
         setNodes(schema.schema_data?.nodes || []);
         setEdges(schema.schema_data?.edges || []);
         setSchemaName(schema.schema_name || 'Новая схема');
+        setSmartRedirect(Boolean((schema.schema_data as any)?.smartRedirect));
         
         if (reactFlowInstance && schema.schema_data?.viewport) {
             const { x, y, zoom } = schema.schema_data.viewport;
@@ -240,7 +243,7 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
             ...schema,
             enterprise_id: enterpriseId,
             schema_name: schemaName,
-            schema_data: { nodes, edges, viewport },
+            schema_data: { nodes, edges, viewport, smartRedirect },
             schema_type: schemaType,
         };
 
@@ -989,6 +992,16 @@ const SchemaEditor: React.FC<SchemaEditorWithProviderProps> = (props) => {
                     placeholder="Название схемы"
                     maxLength={35}
                 />
+                {!isOutgoingSchema && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
+                        <label style={{ fontSize: '0.95em', color: '#555' }}>Умная переадресация</label>
+                        <input
+                            type="checkbox"
+                            checked={smartRedirect}
+                            onChange={(e) => setSmartRedirect(e.target.checked)}
+                        />
+                    </div>
+                )}
                 {isOutgoingSchema ? (
                     <div style={{ marginTop: '-40px', paddingLeft: '700px' }}>
                         <h4 style={{ margin: '0', fontSize: '1em', color: '#555' }}>Используется менеджерами:</h4>

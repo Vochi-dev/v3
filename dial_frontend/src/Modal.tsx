@@ -246,7 +246,14 @@ const Modal: React.FC = () => {
                         return (
                             <li key={schema.schema_id} className="schema-item">
                                 <div className="schema-info" onClick={() => handleEditSchema(schema)}>
-                                    <span>{schema.schema_name}</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <span style={{ fontWeight: 700 }}>{schema.schema_name}</span>
+                                        {schema.schema_type === 'incoming' && (schema.schema_data as any)?.smartRedirect && (
+                                            <span style={{ color: '#10b981', fontWeight: 700 }}>
+                                                Умная переадресация
+                                            </span>
+                                        )}
+                                    </div>
                                     {assignedLines.length > 0 && schema.schema_type === 'incoming' && (
                                         <div className="assigned-lines-list">
                                             {assignedLines.map(line => (
@@ -294,8 +301,8 @@ const Modal: React.FC = () => {
     };
 
     const viewTitle = schemaType === 'outgoing' 
-        ? `Исходящие схемы для предприятия: ${enterpriseId}`
-        : `Входящие схемы для предприятия: ${enterpriseId}`;
+        ? `Исходящие схемы`
+        : `Входящие схемы`;
 
     return (
         <>

@@ -2,6 +2,8 @@ export interface SchemaData {
     nodes: Node[];
     edges: Edge[];
     viewport: { x: number; y: number; zoom: number };
+    // Флаг умной переадресации (только для входящих схем)
+    smartRedirect?: boolean;
 }
 
 export interface Schema {
