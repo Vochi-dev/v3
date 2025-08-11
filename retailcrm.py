@@ -2261,6 +2261,7 @@ ADMIN_PAGE_JS = r"""
                 <button id="save_${user.id}" type="button" style="display:none; padding:8px 12px; background:#059669; color:white; border:none; border-radius:4px; font-size:12px; cursor:pointer; white-space:nowrap;" data-user-id="${user.id}">
                   💾 Сохранить
                 </button>
+                <button id="test_${user.id}" type="button" style="padding:8px 12px; background:#2563eb; color:white; border:none; border-radius:4px; font-size:12px; cursor:pointer; white-space:nowrap;" data-user-id="${user.id}">🧪 Тест</button>
               </div>
             </div>
           </div>
@@ -2270,12 +2271,19 @@ ADMIN_PAGE_JS = r"""
       if (usersList) usersList.innerHTML = html;
       if (usersCard) usersCard.style.display = 'block';
       
-      // Добавляем обработчики для кнопок "Сохранить"
+      // Добавляем обработчики для кнопок "Сохранить" и "Тест"
       const saveButtons = document.querySelectorAll('[id^="save_"]');
       saveButtons.forEach(btn => {
         btn.addEventListener('click', function() {
           const userId = this.getAttribute('data-user-id');
           saveExtension(userId);
+        });
+      });
+      const testButtons = document.querySelectorAll('[id^="test_"]');
+      testButtons.forEach(btn => {
+        btn.addEventListener('click', function(){
+          const userId = this.getAttribute('data-user-id');
+          testCall(userId);
         });
       });
       
@@ -2500,6 +2508,28 @@ ADMIN_PAGE_JS = r"""
       }
     }
 
+    // Тестовый вызов для конкретного менеджера
+    async function testCall(userId){
+      try{
+        const select = document.getElementById(`extension_${userId}`);
+        const code = (select && select.value && select.value !== 'REMOVE') ? select.value.trim() : '';
+        const btn = document.getElementById(`test_${userId}`);
+        const msg = document.getElementById('msg');
+        if (btn) { btn.disabled = true; btn.textContent = '🧪 Тест...'; }
+        if (msg) { msg.textContent=''; msg.className='hint'; }
+        const r = await fetch(`./api/test-call/${enterprise}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ userId: Number(userId), code }) });
+        const jr = await r.json();
+        if (!jr.success) throw new Error(jr.error||'Ошибка теста');
+        if (msg) { msg.textContent = 'Тестовый звонок отправлен'; msg.className='hint success'; }
+      }catch(e){
+        const msg = document.getElementById('msg');
+        if (msg) { msg.textContent = 'Ошибка теста: ' + e.message; msg.className='hint error'; }
+      }finally{
+        const btn = document.getElementById(`test_${userId}`);
+        if (btn) { btn.disabled = false; btn.textContent = '🧪 Тест'; }
+      }
+    }
+
     // Функция загрузки пользователей (обновленная)
     async function loadUsers() {
       const usersLoading = document.getElementById('usersLoading');
@@ -2612,6 +2642,111 @@ async def retailcrm_admin_page(enterprise_number: str, token: str = None) -> HTM
         .replace("{header}", title)
     )
     return HTMLResponse(content=html)
+
+
+@app.post("/retailcrm-admin/api/test-call/{enterprise_number}")
+async def admin_api_test_call(enterprise_number: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Отправляет тестовый входящий звонок и hangup на конкретного менеджера.
+    - phone: всегда +375290000000
+    - dial -> вызывается popup у нужного userId/code
+    - hangup -> failed с рандомным recordUrl (невалидный)
+    """
+    try:
+        user_id = int(payload.get("userId")) if payload.get("userId") is not None else None
+        code = str(payload.get("code") or "")
+        if not user_id and not code:
+            return {"success": False, "error": "userId or code required"}
+
+        # Получаем конфиг
+        cfg = await fetch_retailcrm_config(enterprise_number)
+        if not (cfg and cfg.get("enabled") and cfg.get("domain") and cfg.get("api_key")):
+            return {"success": False, "error": "retailcrm disabled or config invalid"}
+
+        base_url = cfg["domain"] if str(cfg["domain"]).startswith("http") else f"https://{cfg['domain']}"
+        api_key = cfg["api_key"]
+
+        async with RetailCRMClient({
+            "base_url": base_url,
+            "api_key": api_key,
+            "api_version": "v5",
+            "timeout": 5,
+        }) as client:
+            phone = "+375290000000"
+            unique_id = f"test-{int(time.time())}"
+            # ensure customer exists and assign responsible if not set
+            try:
+                sr = await client.search_customer_by_phone(phone)
+                customers_list = (sr.data or {}).get("customers") if (sr and sr.success and sr.data) else []
+                if not customers_list:
+                    # create new customer with selected manager as responsible (if provided)
+                    cust = CustomerData(
+                        firstName=phone,
+                        phones=[PhoneData(number=phone)],
+                        managerId=int(user_id) if user_id else None,
+                    )
+                    await client.create_customer(cust)
+                else:
+                    # set responsible if not assigned yet
+                    existing = customers_list[0]
+                    if (existing.get("managerId") in (None, 0)) and user_id:
+                        upd = {"customer": json.dumps({"managerId": int(user_id)}), "by": "id"}
+                        await client._make_request("POST", f"/customers/{existing.get('id')}/edit", data=upd)
+            except Exception:
+                pass
+            # dial (popup)
+            event_payload = {
+                "phone": phone,
+                "type": "in",
+                "callExternalId": unique_id,
+            }
+            if code:
+                event_payload["codes"] = [str(code)]
+            if user_id:
+                event_payload["userIds"] = [int(user_id)]
+            ev1 = await client._make_request("POST", "/telephony/call/event", data={
+                "clientId": enterprise_number,
+                "event": json.dumps(event_payload, ensure_ascii=False),
+            })
+
+            # hangup failed + random record url
+            event_payload2 = {
+                "phone": phone,
+                "type": "hangup",
+                "callExternalId": unique_id,
+                "hangupStatus": "no answered",
+            }
+            if code:
+                event_payload2["codes"] = [str(code)]
+            if user_id:
+                event_payload2["userIds"] = [int(user_id)]
+            ev2 = await client._make_request("POST", "/telephony/call/event", data={
+                "clientId": enterprise_number,
+                "event": json.dumps(event_payload2, ensure_ascii=False),
+            })
+
+            # calls/upload для истории
+            upload_payload = [{
+                "date": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                "type": "in",
+                "phone": phone.lstrip('+'),
+                "duration": 0,
+                "result": "failed",
+                "externalId": unique_id,
+                "userId": int(user_id) if user_id else None,
+                "recordUrl": f"https://invalid.example.com/{unique_id}.mp3",
+            }]
+            # очищаем None поля
+            if upload_payload[0]["userId"] is None:
+                upload_payload[0].pop("userId", None)
+
+            up = await client._make_request("POST", "/telephony/calls/upload", data={
+                "clientId": enterprise_number,
+                "calls": json.dumps(upload_payload, ensure_ascii=False),
+            })
+
+            return {"success": bool(ev1.success and ev2.success and up.success)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @app.get("/retailcrm-admin/favicon.ico")
