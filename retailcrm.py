@@ -896,6 +896,29 @@ def _invert_user_extensions(cfg: Dict[str, Any]) -> Dict[str, int]:
 _last_dial_cache: Dict[str, Dict[str, Any]] = {}
 _DIAL_CACHE_TTL_SEC = 600
 
+# Гард от дублей автосоздания клиентов (например, когда почти одновременно приходят dial и hangup)
+_recent_created_phones: Dict[str, float] = {}
+_RECENT_CREATED_TTL_SEC = 60
+_create_customer_locks: Dict[str, asyncio.Lock] = {}
+
+def _get_phone_lock(phone: str) -> asyncio.Lock:
+    key = phone or "__none__"
+    lock = _create_customer_locks.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        _create_customer_locks[key] = lock
+    return lock
+
+def _recent_create_allowed(phone: str) -> bool:
+    now = time.time()
+    ts = _recent_created_phones.get(phone)
+    if ts is None:
+        return True
+    return (now - ts) > _RECENT_CREATED_TTL_SEC
+
+def _mark_recent_created(phone: str) -> None:
+    _recent_created_phones[phone] = time.time()
+
 def _cache_put_dial(unique_id: str, code: Optional[str], user_id: Optional[int]) -> None:
     try:
         from datetime import datetime
@@ -1023,6 +1046,82 @@ async def internal_retailcrm_call_event(request: Request):
         "api_version": "v5",
         "timeout": 5,
     }) as client:
+        # Автосоздание клиента переносим на этап hangup, чтобы знать исход разговора и корректно назначить ответственного
+        if event_type == "hangup":
+            try:
+                normalized_phone = event_payload["phone"]
+                phone_lock = _get_phone_lock(normalized_phone)
+                async with phone_lock:
+                    if not _recent_create_allowed(normalized_phone):
+                        # Если подавили по TTL — залогируем и выйдем
+                        try:
+                            await write_integration_log(
+                                enterprise_number=enterprise_number,
+                                event_type="customer_create_suppressed_by_ttl",
+                                request_data={"phone": normalized_phone, "ttl_sec": _RECENT_CREATED_TTL_SEC},
+                                response_data=None,
+                                status_ok=True,
+                                error_message=None,
+                            )
+                        except Exception:
+                            pass
+                    else:
+                        sr = await client.search_customer_by_phone(normalized_phone)
+                        exists = False
+                        if sr and sr.success and sr.data and isinstance(sr.data.get("customers"), list):
+                            exists = len(sr.data.get("customers") or []) > 0
+                        if exists:
+                            try:
+                                await write_integration_log(
+                                    enterprise_number=enterprise_number,
+                                    event_type="customer_exists",
+                                    request_data={"phone": normalized_phone},
+                                    response_data=sr.data,
+                                    status_ok=True,
+                                    error_message=None,
+                                )
+                            except Exception:
+                                pass
+                        if not exists:
+                            # Назначаем ответственного, только если разговор состоялся (answered)
+                            manager_for_creation = None
+                            try:
+                                call_status_int = int(raw.get("CallStatus", 0))
+                            except Exception:
+                                call_status_int = 0
+                            if call_status_int == 2 and isinstance(user_id, int):
+                                manager_for_creation = int(user_id)
+                            cust = CustomerData(
+                                firstName=normalized_phone,
+                                phones=[PhoneData(number=normalized_phone)],
+                                managerId=manager_for_creation,
+                            )
+                            cr = await client.create_customer(cust)
+                            if cr and cr.success:
+                                _mark_recent_created(normalized_phone)
+                            try:
+                                await write_integration_log(
+                                    enterprise_number=enterprise_number,
+                                    event_type="customer_autocreate",
+                                    request_data={"phone": normalized_phone, "managerId": manager_for_creation},
+                                    response_data=(cr.data if cr and cr.data else None),
+                                    status_ok=bool(cr and cr.success),
+                                    error_message=(cr.error if cr and cr.error else None),
+                                )
+                            except Exception:
+                                pass
+            except Exception:
+                try:
+                    await write_integration_log(
+                        enterprise_number=enterprise_number,
+                        event_type="customer_autocreate_error",
+                        request_data={"phone": event_payload.get("phone"), "managerId": user_id},
+                        response_data=None,
+                        status_ok=False,
+                        error_message="exception in autocreate",
+                    )
+                except Exception:
+                    pass
         # 1) Всегда передаём codes/userIds и на hangup (для соответствия требованиям API)
         #    Дополнительно укажем hangupStatus для наглядности в CRM
         if event_type == "hangup":
