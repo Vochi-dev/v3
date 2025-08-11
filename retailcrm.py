@@ -2141,6 +2141,7 @@ ADMIN_PAGE_HTML = """
         <button id=\"saveBtn\" type=\"button\" class=\"btn\">Сохранить и зарегистрировать</button>
         <button id=\"refreshBtn\" type=\"button\" class=\"btn\" style=\"background:#059669;\">Обновить</button>
         <button id=\"deleteBtn\" type=\"button\" class=\"btn\" style=\"background:#dc2626; margin-left:auto;\">Удалить интеграцию</button>
+        <button id=\"journalBtn\" type=\"button\" class=\"btn\" style=\"background:#374151;\">Журнал</button>
         <span id=\"msg\" class=\"hint\"></span>
       </div>
     </div>
@@ -2593,9 +2594,11 @@ ADMIN_PAGE_JS = r"""
     const saveBtn = document.getElementById('saveBtn');
     const deleteBtn = document.getElementById('deleteBtn');
     const refreshBtn = document.getElementById('refreshBtn');
+    const journalBtn = document.getElementById('journalBtn');
     if (saveBtn) saveBtn.addEventListener('click', (e) => { e.preventDefault(); save(); });
     if (deleteBtn) deleteBtn.addEventListener('click', (e) => { e.preventDefault(); deleteIntegration(); });
     if (refreshBtn) refreshBtn.addEventListener('click', (e) => { e.preventDefault(); refreshManagers(); });
+    if (journalBtn) journalBtn.addEventListener('click', (e) => { e.preventDefault(); window.open(`./journal?enterprise_number=${enterprise}`, '_blank'); });
     load();
     
     // Автоматически загружаем пользователей при открытии страницы
@@ -2641,6 +2644,114 @@ async def retailcrm_admin_page(enterprise_number: str, token: str = None) -> HTM
         .replace("{title}", title)
         .replace("{header}", title)
     )
+    return HTMLResponse(content=html)
+
+@app.get("/retailcrm-admin/journal")
+async def retailcrm_admin_journal(enterprise_number: str, phone: Optional[str] = None) -> HTMLResponse:
+    """Страница журнала интеграций с поиском по телефону для юнита."""
+    # Подготовим результаты, если указан телефон
+    rows_html = ""
+    norm_phone = (phone or "").strip()
+    if norm_phone:
+        # нормализуем в два варианта: с + и только цифры
+        digits = "".join(ch for ch in norm_phone if ch.isdigit())
+        like_a = f"%{digits}%"
+        like_b = f"%+{digits}%" if not norm_phone.startswith("+") else f"%{norm_phone}%"
+        if pg_pool is None:
+            await init_pg_pool()
+        assert pg_pool is not None
+        query = (
+            "SELECT created_at, event_type, integration_type, request_data, response_data "
+            "FROM integration_logs "
+            "WHERE enterprise_number=$1 "
+            "AND ((request_data::text ILIKE $2) OR (response_data::text ILIKE $2) OR (request_data::text ILIKE $3) OR (response_data::text ILIKE $3)) "
+            "ORDER BY created_at DESC LIMIT 500"
+        )
+        async with pg_pool.acquire() as conn:
+            recs = await conn.fetch(query, enterprise_number, like_a, like_b)
+        # Формируем строки таблицы
+        def safe(s: Any) -> str:
+            try:
+                t = json.dumps(s, ensure_ascii=False, indent=2)
+            except Exception:
+                t = str(s)
+            # легкое экранирование для HTML
+            return (t.replace("&", "&amp;")
+                     .replace("<", "&lt;")
+                     .replace(">", "&gt;"))
+        def extract_unique(req: Dict[str, Any]) -> str:
+            try:
+                if isinstance(req, dict):
+                    if req.get("uniqueId"):
+                        return str(req.get("uniqueId"))
+                    if isinstance(req.get("payload"), dict):
+                        p = req["payload"]
+                        return str(p.get("callExternalId") or p.get("uniqueId") or "")
+            except Exception:
+                pass
+            return ""
+        for r in recs:
+            created = r["created_at"].strftime("%Y-%m-%d %H:%M:%S") if r["created_at"] else ""
+            req = r["request_data"] or {}
+            uniq = extract_unique(req)
+            body = req if req else (r["response_data"] or {})
+            integ = r["integration_type"] or "-"
+            rows_html += (
+                f"<tr>"
+                f"<td style='white-space:nowrap;vertical-align:top;padding:8px;border-bottom:1px solid #1b3350;'>{created}</td>"
+                f"<td style='vertical-align:top;padding:8px;border-bottom:1px solid #1b3350;'>{uniq}</td>"
+                f"<td style='vertical-align:top;padding:8px;border-bottom:1px solid #1b3350;'><pre style='margin:0;white-space:pre-wrap;'>{safe(body)}</pre></td>"
+                f"<td style='vertical-align:top;padding:8px;border-bottom:1px solid #1b3350;'>{integ}</td>"
+                f"</tr>"
+            )
+    # Рендер
+    html = f"""
+<!doctype html>
+<html lang=\"ru\">
+<head>
+  <meta charset=\"utf-8\">
+  <title>RetailCRM журнал</title>
+  <link rel=\"icon\" href=\"/retailcrm-admin/favicon.ico\">
+  <style>
+    body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:#0b1728; color:#e7eef8; margin:0; }}
+    .wrap {{ max-width: 1200px; margin: 0 auto; padding: 28px; }}
+    h1 {{ margin: 0 0 16px; font-size: 22px; }}
+    .card {{ background:#0f2233; border:1px solid #1b3350; border-radius:12px; padding:18px; }}
+    input[type=text] {{ padding:10px 12px; border-radius:8px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; }}
+    .btn {{ background:#2563eb; color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; }}
+    table {{ width:100%; border-collapse:collapse; font-size:13px; }}
+    th {{ text-align:left; padding:8px; border-bottom:1px solid #1b3350; color:#8fb3da; }}
+  </style>
+  </head>
+  <body>
+    <div class=\"wrap\">
+      <h1>RetailCRM журнал</h1>
+      <div class=\"card\" style=\"margin-bottom:16px;\">
+        <form method=\"get\" action=\"/retailcrm-admin/journal\" style=\"display:flex;gap:10px;align-items:center;flex-wrap:wrap;\">
+          <input type=\"hidden\" name=\"enterprise_number\" value=\"{enterprise_number}\" />
+          <label>Телефон: <input type=\"text\" name=\"phone\" value=\"{(phone or '')}\" placeholder=\"+37529...\" /></label>
+          <button class=\"btn\" type=\"submit\">Показать</button>
+        </form>
+      </div>
+      <div class=\"card\">
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>UniqueId</th>
+              <th>Тело события</th>
+              <th>Интеграция</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows_html}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+  </html>
+    """
     return HTMLResponse(content=html)
 
 
