@@ -481,9 +481,19 @@
                             <p>Внутренние номера <button type="button" data-action="add-internal-line" style="cursor: pointer; border-radius: 50%; border: 1px solid #ccc; background-color: #f8f8f8;">+</button></p>
                             <div id="internalNumbersList"></div><hr>
                             <p>Отделы</p>
+                            <div id="userDepartmentsList" style="min-height: 56px; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; background: #fff;"></div>
                         </div>
                     </div>
-                    <hr><h4>Права</h4><hr><h4>Схема дозвона (Умная переадресация и Follow Me)</h4>
+                    <hr><h4>Права</h4><hr>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+                        <h4 style="margin:0;">Схема дозвона (Умная переадресация и Follow Me)</h4>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <input type="number" id="followMeNumber" min="100" max="899" style="width:56px; font-size:16px; text-align:center;" />
+                            <label style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
+                                <input type="checkbox" id="followMeEnabled" /> Включить
+                            </label>
+                        </div>
+                    </div>
                     <div class="form-actions">
                         <button type="button" data-action="delete-user" id="deleteUserBtn" class="btn btn-danger" style="display: none;">Удалить</button>
                         <div>
@@ -1255,6 +1265,25 @@
                         listContainer.innerHTML += `<div><input type="hidden" name="internal_phones" value="${phone}">${phone}</div>`;
                     });
                 }
+
+                // Заполняем список отделов, где участвуют внутренние номера пользователя
+                const deptBox = document.getElementById('userDepartmentsList');
+                if (deptBox) {
+                    deptBox.innerHTML = '';
+                    const departments = Array.isArray(user.departments) ? user.departments : [];
+                    if (departments.length === 0) {
+                        deptBox.innerHTML = '<span style="color:#888">Нет</span>';
+                    } else {
+                        const rows = departments.map(d => `<div>${d.name} — ${d.number}</div>`).join('');
+                        deptBox.innerHTML = rows;
+                    }
+                }
+
+                // Follow Me поля
+                const fmNum = document.getElementById('followMeNumber');
+                const fmEnabled = document.getElementById('followMeEnabled');
+                if (fmNum) fmNum.value = (user.follow_me_number !== null && user.follow_me_number !== undefined) ? user.follow_me_number : '';
+                if (fmEnabled) fmEnabled.checked = !!user.follow_me_enabled;
                 
                 // Заполняем чекбоксы ролей
                 document.getElementById('roleAdmin').checked = user.is_admin || false;
@@ -1318,6 +1347,12 @@
             data.is_marketer = document.getElementById('roleMarketer').checked;
             data.is_spec1 = document.getElementById('roleSpec1').checked;
             data.is_spec2 = document.getElementById('roleSpec2').checked;
+
+            // Follow Me
+            const fmNum = document.getElementById('followMeNumber');
+            const fmEnabled = document.getElementById('followMeEnabled');
+            data.follow_me_number = fmNum && fmNum.value ? parseInt(fmNum.value, 10) : null;
+            data.follow_me_enabled = fmEnabled ? fmEnabled.checked : false;
             
             const url = currentEditingUser ? `/enterprise/${enterpriseNumber}/users/${currentEditingUser.id}` : `/enterprise/${enterpriseNumber}/users`;
             const method = currentEditingUser ? 'PUT' : 'POST';

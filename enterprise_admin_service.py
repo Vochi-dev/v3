@@ -29,6 +29,25 @@ from app.config import JWT_SECRET_KEY, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRE
 # A set of reserved numbers that cannot be assigned.
 RESERVED_INTERNAL_NUMBERS = {301, 302, 555}
 
+# --- FollowMe support: ensure columns exist ---
+async def _ensure_followme_columns() -> None:
+    try:
+        conn = await get_db_connection()
+        if not conn:
+            return
+        try:
+            await conn.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS follow_me_number INTEGER,
+                ADD COLUMN IF NOT EXISTS follow_me_enabled BOOLEAN DEFAULT FALSE
+                """
+            )
+        finally:
+            await conn.close()
+    except Exception as e:
+        logging.error(f"Failed to ensure follow_me columns: {e}")
+
 # Определяем корневую директорию проекта
 # __file__ -> enterprise_admin_service.py
 # .parent -> /
@@ -52,6 +71,9 @@ class UserUpdate(BaseModel):
     is_marketer: bool = False
     is_spec1: bool = False
     is_spec2: bool = False
+    # FollowMe
+    follow_me_number: Optional[int] = None
+    follow_me_enabled: bool = False
 
 class UserCreate(UserUpdate):
     pass
@@ -109,6 +131,11 @@ app.mount("/music", StaticFiles(directory="music"), name="music")
 templates = Jinja2Templates(directory="templates", auto_reload=True)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Инициализация БД при старте сервиса
+@app.on_event("startup")
+async def _startup_init_followme():
+    await _ensure_followme_columns()
 
 # Add a handler for log_action.txt
 log_action_handler = logging.FileHandler("log_action.txt", mode='a')
@@ -822,7 +849,8 @@ async def get_user_details_for_edit(enterprise_number: str, user_id: int, curren
     try:
         user_query = """
             SELECT id, email, first_name, last_name, patronymic, personal_phone,
-                   is_admin, is_employee, is_marketer, is_spec1, is_spec2
+                   is_admin, is_employee, is_marketer, is_spec1, is_spec2,
+                   follow_me_number, follow_me_enabled
             FROM users
             WHERE id = $1 AND enterprise_number = $2;
         """
@@ -841,6 +869,23 @@ async def get_user_details_for_edit(enterprise_number: str, user_id: int, curren
         internal_phones_records = await conn.fetch(internal_phones_query, user_id, enterprise_number)
         
         user_details['internal_phones'] = [record['phone_number'] for record in internal_phones_records]
+
+        # Загрузка отделов, в которых участвуют внутренние номера пользователя
+        try:
+            departments_query = """
+                SELECT DISTINCT d.name, d.number
+                FROM departments d
+                JOIN department_members dm ON dm.department_id = d.id
+                JOIN user_internal_phones uip ON uip.id = dm.internal_phone_id
+                WHERE uip.user_id = $1 AND d.enterprise_number = $2
+                ORDER BY d.number
+            """
+            dept_rows = await conn.fetch(departments_query, user_id, enterprise_number)
+            user_details['departments'] = [dict(row) for row in dept_rows]
+        except Exception as e:
+            # Если запрос с отделами упал, не валим весь эндпоинт
+            logger.error(f"Failed to load user departments for user {user_id}: {e}", exc_info=True)
+            user_details['departments'] = []
 
         return JSONResponse(content=user_details)
 
@@ -871,12 +916,31 @@ async def update_user(enterprise_number: str, user_id: int, user_data: UserUpdat
             if existing_user_by_phone:
                 raise HTTPException(status_code=400, detail="Пользователь с таким внешним номером телефона уже существует.")
 
+        # Валидация follow_me_number: должен быть в диапазоне 100-899, не зарезервирован и не занят как внутренний
+        if user_data.follow_me_enabled and user_data.follow_me_number is not None:
+            try:
+                fm = int(user_data.follow_me_number)
+                if not (100 <= fm <= 899) or fm in RESERVED_INTERNAL_NUMBERS:
+                    raise ValueError
+            except (ValueError, TypeError):
+                raise HTTPException(status_code=400, detail=f"Follow Me номер должен быть в диапазоне 100-899 и не входить в {RESERVED_INTERNAL_NUMBERS}")
+
+            # Проверка занятости во внутренних номерах этого предприятия
+            exists_internal = await conn.fetchval(
+                "SELECT 1 FROM user_internal_phones WHERE enterprise_number = $1 AND phone_number = $2",
+                enterprise_number, str(fm)
+            )
+            if exists_internal:
+                raise HTTPException(status_code=400, detail=f"Follow Me номер '{fm}' уже используется как внутренний")
+
         await conn.execute(
             """UPDATE users SET email = $1, first_name = $2, last_name = $3, patronymic = $4, personal_phone = $5,
-               is_admin = $6, is_employee = $7, is_marketer = $8, is_spec1 = $9, is_spec2 = $10
-               WHERE id = $11 AND enterprise_number = $12""",
+               is_admin = $6, is_employee = $7, is_marketer = $8, is_spec1 = $9, is_spec2 = $10,
+               follow_me_number = $11, follow_me_enabled = $12
+               WHERE id = $13 AND enterprise_number = $14""",
             user_data.email, user_data.first_name, user_data.last_name, user_data.patronymic, user_data.personal_phone,
             user_data.is_admin, user_data.is_employee, user_data.is_marketer, user_data.is_spec1, user_data.is_spec2,
+            user_data.follow_me_number, user_data.follow_me_enabled,
             user_id, enterprise_number
         )
         if user_data.internal_phones is not None:
