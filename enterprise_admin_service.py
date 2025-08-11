@@ -6,7 +6,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import asyncpg
 import logging
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
+import json
 import jwt
 from datetime import datetime
 import random
@@ -40,7 +41,8 @@ async def _ensure_followme_columns() -> None:
                 """
                 ALTER TABLE users
                 ADD COLUMN IF NOT EXISTS follow_me_number INTEGER,
-                ADD COLUMN IF NOT EXISTS follow_me_enabled BOOLEAN DEFAULT FALSE
+                ADD COLUMN IF NOT EXISTS follow_me_enabled BOOLEAN DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS follow_me_steps JSONB
                 """
             )
         finally:
@@ -74,6 +76,7 @@ class UserUpdate(BaseModel):
     # FollowMe
     follow_me_number: Optional[int] = None
     follow_me_enabled: bool = False
+    follow_me_steps: Optional[Any] = None
 
 class UserCreate(UserUpdate):
     pass
@@ -850,7 +853,7 @@ async def get_user_details_for_edit(enterprise_number: str, user_id: int, curren
         user_query = """
             SELECT id, email, first_name, last_name, patronymic, personal_phone,
                    is_admin, is_employee, is_marketer, is_spec1, is_spec2,
-                   follow_me_number, follow_me_enabled
+                   follow_me_number, follow_me_enabled, follow_me_steps
             FROM users
             WHERE id = $1 AND enterprise_number = $2;
         """
@@ -860,6 +863,14 @@ async def get_user_details_for_edit(enterprise_number: str, user_id: int, curren
             raise HTTPException(status_code=404, detail="User not found")
 
         user_details = dict(user_record)
+
+        # Нормализуем JSONB поле follow_me_steps: отдаём как объект/массив, а не строку
+        try:
+            if 'follow_me_steps' in user_details and user_details['follow_me_steps'] is not None:
+                if isinstance(user_details['follow_me_steps'], str):
+                    user_details['follow_me_steps'] = json.loads(user_details['follow_me_steps'])
+        except Exception as e:
+            logger.warning(f"Failed to parse follow_me_steps JSON for user {user_id}: {e}")
 
         internal_phones_query = """
             SELECT phone_number 
@@ -936,11 +947,11 @@ async def update_user(enterprise_number: str, user_id: int, user_data: UserUpdat
         await conn.execute(
             """UPDATE users SET email = $1, first_name = $2, last_name = $3, patronymic = $4, personal_phone = $5,
                is_admin = $6, is_employee = $7, is_marketer = $8, is_spec1 = $9, is_spec2 = $10,
-               follow_me_number = $11, follow_me_enabled = $12
-               WHERE id = $13 AND enterprise_number = $14""",
+               follow_me_number = $11, follow_me_enabled = $12, follow_me_steps = $13
+               WHERE id = $14 AND enterprise_number = $15""",
             user_data.email, user_data.first_name, user_data.last_name, user_data.patronymic, user_data.personal_phone,
             user_data.is_admin, user_data.is_employee, user_data.is_marketer, user_data.is_spec1, user_data.is_spec2,
-            user_data.follow_me_number, user_data.follow_me_enabled,
+            user_data.follow_me_number, user_data.follow_me_enabled, json.dumps(user_data.follow_me_steps) if user_data.follow_me_steps is not None else None,
             user_id, enterprise_number
         )
         if user_data.internal_phones is not None:

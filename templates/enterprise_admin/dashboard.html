@@ -494,6 +494,27 @@
                             </label>
                         </div>
                     </div>
+
+                    <!-- Follow Me steps table -->
+                    <div id="followMeStepsSection" style="margin-top:10px;">
+                        <div class="table-container" style="border:1px solid #e5e5e5; border-radius:4px;">
+                            <table style="width:100%; border-collapse:collapse;">
+                                <thead>
+                                    <tr style="background:#f7f7f7;">
+                                        <th style="text-align:left; padding:8px; border-right:1px solid #eee; width:160px;">Шаг</th>
+                                        <th style="text-align:left; padding:8px; border-right:1px solid #eee; width:140px;">Гудки</th>
+                                        <th style="text-align:left; padding:8px;">Номера</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="followMeStepsBody">
+                                    <!-- строки шагов будут добавляться позже -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top:6px;">
+                            <button type="button" id="addFollowMeStepBtn" data-action="add-followme-step" style="background:none; border:none; color:#1a73e8; cursor:pointer; padding:0;">+ Добавить шаг</button>
+                        </div>
+                    </div>
                     <div class="form-actions">
                         <button type="button" data-action="delete-user" id="deleteUserBtn" class="btn btn-danger" style="display: none;">Удалить</button>
                         <div>
@@ -784,6 +805,8 @@
                 addDepartmentMember();
             } else if (action === 'remove-department-member') {
                 e.target.closest('li').remove();
+            } else if (action === 'add-followme-step') {
+                addFollowMeStepRow();
             } else if (action === 'open-sip-line-form') {
                 document.getElementById('sip-line-form-modal').style.display = 'block';
                 // Опционально: сбросить форму при открытии
@@ -902,6 +925,98 @@
                     }
                 }
             });
+        });
+
+        // Helper: сформировать опции номеров (внутренние + персональный)
+        function buildUserNumbersOptions(exclude, includePlaceholder=false) {
+            const listContainer = document.getElementById('internalNumbersList');
+            const internal = Array.from(listContainer.querySelectorAll('input[name="internal_phones"]')).map(i => i.value).sort((a,b)=>parseInt(a)-parseInt(b));
+            const personal = (typeof iti !== 'undefined') ? iti.getNumber() : '';
+            const all = [...internal];
+            if (personal) all.push(personal);
+            let options = includePlaceholder ? '<option value=""></option>' : '';
+            options += all
+                .filter(n => n && n !== exclude)
+                .map(n => `<option value="${n}">${n}</option>`)
+                .join('');
+            return options;
+        }
+
+        // Helper: добавить строку шага Follow Me
+        function addFollowMeStepRow() {
+            const tbody = document.getElementById('followMeStepsBody');
+            if (!tbody) return;
+            if (tbody.children.length >= 2) return; // максимум 2 шага
+            const idx = tbody.children.length + 1;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="padding:8px; border-top:1px solid #eee; display:flex; align-items:center; gap:8px;">
+                    <span style="width:16px; display:inline-block;">${idx}</span>
+                    <a href="#" data-action="remove-followme-step" title="Удалить">✕</a>
+                </td>
+                <td style="padding:8px; border-top:1px solid #eee;">
+                    <input type="number" class="fm-rings" value="3" min="1" max="20" style="width:56px; text-align:center;" />
+                </td>
+                <td style="padding:8px; border-top:1px solid #eee;">
+                    <div class="fm-numbers" style="display:flex; align-items:center; gap:6px;">
+                        <select class="fm-select" style="min-width:80px;">${buildUserNumbersOptions('', true)}</select>
+                        <button type="button" class="btn btn-light fm-add" disabled>+</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+
+            // скрыть кнопку добавления шага если достигнут лимит
+            const addStepBtn = document.getElementById('addFollowMeStepBtn');
+            if (addStepBtn) addStepBtn.style.display = (tbody.children.length >= 2) ? 'none' : 'inline';
+
+            const select = tr.querySelector('select.fm-select');
+            const addBtn = tr.querySelector('button.fm-add');
+            const ringsInput = tr.querySelector('input.fm-rings');
+
+            select.addEventListener('change', () => {
+                addBtn.disabled = !select.value;
+                if (select.value && select.value.startsWith('+')) {
+                    const val = parseInt(ringsInput.value || '0', 10);
+                    if (val < 6) ringsInput.value = 6;
+                }
+            });
+
+            addBtn.addEventListener('click', () => {
+                const container = tr.querySelector('.fm-numbers');
+                const selects = Array.from(container.querySelectorAll('select.fm-select'));
+                const exclude = selects.length ? selects[selects.length-1].value : '';
+                const newSel = document.createElement('select');
+                newSel.className = 'fm-select';
+                newSel.innerHTML = buildUserNumbersOptions(exclude, true);
+                container.insertBefore(newSel, addBtn);
+                addBtn.disabled = true;
+                newSel.addEventListener('change', () => {
+                    addBtn.disabled = !newSel.value;
+                    if (newSel.value && newSel.value.startsWith('+')) {
+                        const val = parseInt(ringsInput.value || '0', 10);
+                        if (val < 6) ringsInput.value = 6;
+                    }
+                });
+            });
+        }
+
+        // Удаление шага и перенумерация
+        document.body.addEventListener('click', (e) => {
+            const a = e.target.closest('[data-action="remove-followme-step"]');
+            if (!a) return;
+            e.preventDefault();
+            const row = a.closest('tr');
+            const tbody = document.getElementById('followMeStepsBody');
+            if (row && tbody) {
+                row.remove();
+                Array.from(tbody.children).forEach((tr, i) => {
+                    const span = tr.querySelector('td:first-child span');
+                    if (span) span.textContent = String(i+1);
+                });
+                const addStepBtn = document.getElementById('addFollowMeStepBtn');
+                if (addStepBtn) addStepBtn.style.display = (tbody.children.length >= 2) ? 'none' : 'inline';
+            }
         });
 
         // --- Modal Management ---
@@ -1284,6 +1399,50 @@
                 const fmEnabled = document.getElementById('followMeEnabled');
                 if (fmNum) fmNum.value = (user.follow_me_number !== null && user.follow_me_number !== undefined) ? user.follow_me_number : '';
                 if (fmEnabled) fmEnabled.checked = !!user.follow_me_enabled;
+                const followMeStepsBody = document.getElementById('followMeStepsBody');
+                if (followMeStepsBody) {
+                    followMeStepsBody.innerHTML = '';
+                    // отрисуем сохранённые шаги если есть
+                    let savedSteps = user.follow_me_steps;
+                    if (typeof savedSteps === 'string') {
+                        try { savedSteps = JSON.parse(savedSteps); } catch(e) { savedSteps = []; }
+                    }
+                    if (Array.isArray(savedSteps) && savedSteps.length) {
+                        savedSteps.forEach((s) => {
+                            addFollowMeStepRow();
+                            const lastRow = followMeStepsBody.lastElementChild;
+                            if (!lastRow) return;
+                            const ringsInput = lastRow.querySelector('.fm-rings');
+                            if (ringsInput && s.rings) ringsInput.value = Math.max(1, Math.min(20, parseInt(s.rings, 10)));
+                            const container = lastRow.querySelector('.fm-numbers');
+                            const addBtn = lastRow.querySelector('.fm-add');
+                            // первый селект
+                            const firstSel = container.querySelector('select.fm-select');
+                            if (firstSel) {
+                                firstSel.value = s.numbers?.[0] || '';
+                                addBtn.disabled = !firstSel.value;
+                            }
+                            // остальные селекты
+                            if (Array.isArray(s.numbers)) {
+                                for (let i = 1; i < s.numbers.length; i++) {
+                                    const selects = Array.from(container.querySelectorAll('select.fm-select'));
+                                    const exclude = selects.length ? selects[selects.length-1].value : '';
+                                    const newSel = document.createElement('select');
+                                    newSel.className = 'fm-select';
+                                    newSel.innerHTML = buildUserNumbersOptions(exclude, true);
+                                    container.insertBefore(newSel, addBtn);
+                                    newSel.value = s.numbers[i];
+                                    addBtn.disabled = !newSel.value;
+                                }
+                            }
+                        });
+                        const addStepBtn = document.getElementById('addFollowMeStepBtn');
+                        if (addStepBtn) addStepBtn.style.display = (followMeStepsBody.children.length >= 2) ? 'none' : 'inline';
+                    } else {
+                        const addStepBtn = document.getElementById('addFollowMeStepBtn');
+                        if (addStepBtn) addStepBtn.style.display = 'inline';
+                    }
+                }
                 
                 // Заполняем чекбоксы ролей
                 document.getElementById('roleAdmin').checked = user.is_admin || false;
@@ -1353,6 +1512,22 @@
             const fmEnabled = document.getElementById('followMeEnabled');
             data.follow_me_number = fmNum && fmNum.value ? parseInt(fmNum.value, 10) : null;
             data.follow_me_enabled = fmEnabled ? fmEnabled.checked : false;
+
+            // Follow Me steps -> собираем JSON
+            const stepsTbody = document.getElementById('followMeStepsBody');
+            if (stepsTbody && stepsTbody.children.length > 0) {
+                const steps = [];
+                Array.from(stepsTbody.children).forEach((tr, idx) => {
+                    const rings = parseInt(tr.querySelector('.fm-rings')?.value || '3', 10);
+                    const numbers = Array.from(tr.querySelectorAll('.fm-select')).map(s => s.value).filter(Boolean);
+                    if (numbers.length > 0) {
+                        steps.push({ step: idx + 1, rings: Math.max(1, Math.min(20, rings)), numbers });
+                    }
+                });
+                data.follow_me_steps = steps.length ? steps : null;
+            } else {
+                data.follow_me_steps = null;
+            }
             
             const url = currentEditingUser ? `/enterprise/${enterpriseNumber}/users/${currentEditingUser.id}` : `/enterprise/${enterpriseNumber}/users`;
             const method = currentEditingUser ? 'PUT' : 'POST';
