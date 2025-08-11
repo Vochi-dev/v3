@@ -34,6 +34,7 @@ app = FastAPI(
 
 # Настройки форвардинга восстановленных событий в Integration Gateway (8020)
 FORWARD_TO_GATEWAY: bool = True
+GATEWAY_INTEGRATIONS_URL: str = "http://127.0.0.1:8020/integrations/{enterprise_number}"
 GATEWAY_URL: str = "http://127.0.0.1:8020/dispatch/call-event"
 FORWARD_TIMEOUT_SEC: int = 2
 FORWARD_RETRIES: int = 1
@@ -465,6 +466,36 @@ async def forward_event_to_gateway(
                 break
     return {"status": 0, "error": last_error or "unknown error"}
 
+async def is_retailcrm_enabled_in_cache(enterprise_number: str) -> bool:
+    """Проверяет через кэш 8020, включена ли интеграция retailcrm для юнита.
+    Делает короткие ретраи, чтобы пережить холодный старт сервисов.
+    """
+    attempts = 0
+    last_exc: Optional[Exception] = None
+    while attempts < 3:
+        attempts += 1
+        try:
+            timeout = aiohttp.ClientTimeout(total=2)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                url = GATEWAY_INTEGRATIONS_URL.format(enterprise_number=enterprise_number)
+                async with session.get(url) as resp:
+                    if resp.status != 200:
+                        # подождём и попробуем ещё раз
+                        if attempts < 3:
+                            await asyncio.sleep(1)
+                            continue
+                        return False
+                    data = await resp.json()
+                    integrations = (data or {}).get("integrations") or {}
+                    return bool(integrations.get("retailcrm"))
+        except Exception as e:
+            last_exc = e
+            if attempts < 3:
+                await asyncio.sleep(1)
+                continue
+            return False
+    return False
+
 def update_sync_stats(cursor, enterprise_id: str, total_downloaded: int, new_events: int, failed_events: int):
     """Обновить статистику синхронизации"""
     active_enterprises = get_active_enterprises()
@@ -735,8 +766,8 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                 else:
                                     logger.warning(f"Не удалось вставить событие {unique_id}")
                                 
-                                # Форвардинг в Integration Gateway (8020) — как post‑factum hangup
-                                if FORWARD_TO_GATEWAY:
+                                # Форвардинг в Integration Gateway (8020) — только если retailcrm включен в кэше 8020
+                                if FORWARD_TO_GATEWAY and await is_retailcrm_enabled_in_cache(ent_id):
                                     try:
                                         forward_result = await forward_event_to_gateway(
                                             token=call_data["token"],
@@ -774,6 +805,8 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                             )
                                         except Exception:
                                             pass
+                                else:
+                                    logger.info(f"Пропускаю форвард/логирование для {ent_id} — retailcrm выключен в 8020")
 
                                 conn.commit()
                                 

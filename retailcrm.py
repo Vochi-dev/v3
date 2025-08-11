@@ -2649,17 +2649,27 @@ async def retailcrm_admin_page(enterprise_number: str, token: str = None) -> HTM
 @app.get("/retailcrm-admin/journal")
 async def retailcrm_admin_journal(enterprise_number: str, phone: Optional[str] = None) -> HTMLResponse:
     """Страница журнала интеграций с поиском по телефону для юнита."""
-    # Подготовим результаты, если указан телефон
+    # Подготовим результаты: если телефон не указан — показываем последние 10 событий
     rows_html = ""
     norm_phone = (phone or "").strip()
+
+    def safe(s: Any) -> str:
+        try:
+            t = json.dumps(s, ensure_ascii=False, indent=2)
+        except Exception:
+            t = str(s)
+        return (t.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;"))
+
+    if pg_pool is None:
+        await init_pg_pool()
+    assert pg_pool is not None
+
     if norm_phone:
-        # нормализуем в два варианта: с + и только цифры
         digits = "".join(ch for ch in norm_phone if ch.isdigit())
         like_a = f"%{digits}%"
         like_b = f"%+{digits}%" if not norm_phone.startswith("+") else f"%{norm_phone}%"
-        if pg_pool is None:
-            await init_pg_pool()
-        assert pg_pool is not None
         query = (
             "SELECT created_at, event_type, integration_type, request_data, response_data "
             "FROM integration_logs "
@@ -2669,41 +2679,62 @@ async def retailcrm_admin_journal(enterprise_number: str, phone: Optional[str] =
         )
         async with pg_pool.acquire() as conn:
             recs = await conn.fetch(query, enterprise_number, like_a, like_b)
-        # Формируем строки таблицы
-        def safe(s: Any) -> str:
-            try:
-                t = json.dumps(s, ensure_ascii=False, indent=2)
-            except Exception:
-                t = str(s)
-            # легкое экранирование для HTML
-            return (t.replace("&", "&amp;")
-                     .replace("<", "&lt;")
-                     .replace(">", "&gt;"))
-        def extract_unique(req: Dict[str, Any]) -> str:
-            try:
-                if isinstance(req, dict):
-                    if req.get("uniqueId"):
-                        return str(req.get("uniqueId"))
-                    if isinstance(req.get("payload"), dict):
-                        p = req["payload"]
-                        return str(p.get("callExternalId") or p.get("uniqueId") or "")
-            except Exception:
-                pass
-            return ""
-        for r in recs:
-            created = r["created_at"].strftime("%Y-%m-%d %H:%M:%S") if r["created_at"] else ""
-            req = r["request_data"] or {}
-            uniq = extract_unique(req)
-            body = req if req else (r["response_data"] or {})
-            integ = r["integration_type"] or "-"
-            rows_html += (
-                f"<tr>"
-                f"<td style='white-space:nowrap;vertical-align:top;padding:8px;border-bottom:1px solid #1b3350;'>{created}</td>"
-                f"<td style='vertical-align:top;padding:8px;border-bottom:1px solid #1b3350;'>{uniq}</td>"
-                f"<td style='vertical-align:top;padding:8px;border-bottom:1px solid #1b3350;'><pre style='margin:0;white-space:pre-wrap;'>{safe(body)}</pre></td>"
-                f"<td style='vertical-align:top;padding:8px;border-bottom:1px solid #1b3350;'>{integ}</td>"
-                f"</tr>"
-            )
+    else:
+        # По умолчанию: показываем 10 последних звонков (уникальные uid)
+        # Берём одну, самую свежую запись на звонок с приоритетом calls_upload
+        query = (
+            "WITH logs AS ("
+            "  SELECT id, created_at, event_type, integration_type, request_data, response_data, "
+            "         COALESCE("
+            "           call_unique_id, "
+            "           request_data->>'uniqueId', "
+            "           request_data->'payload'->>'callExternalId', "
+            "           (request_data->'calls'->0)->>'externalId'"
+            "         ) AS uid "
+            "  FROM integration_logs "
+            "  WHERE enterprise_number=$1 "
+            "    AND (event_type LIKE 'call_event:%' OR event_type = 'calls_upload')"
+            "), ranked AS ("
+            "  SELECT *, "
+            "         ROW_NUMBER() OVER ("
+            "           PARTITION BY uid "
+            "           ORDER BY created_at DESC, "
+            "             CASE WHEN event_type = 'calls_upload' THEN 2 ELSE 1 END DESC, "
+            "             id DESC"
+            "         ) AS rn "
+            "  FROM logs "
+            "  WHERE uid IS NOT NULL AND uid <> ''"
+            ") "
+            "SELECT created_at, event_type, integration_type, request_data, response_data "
+            "FROM ranked "
+            "WHERE rn = 1 "
+            "ORDER BY created_at DESC "
+            "LIMIT 10"
+        )
+        async with pg_pool.acquire() as conn:
+            recs = await conn.fetch(query, enterprise_number)
+
+    for r in recs:
+        created = r["created_at"].strftime("%Y-%m-%d %H:%M:%S") if r["created_at"] else ""
+        req = r["request_data"] or {}
+        resp = r["response_data"] or {}
+        # Попробуем распарсить строки JSON для красивого отображения
+        def parse_jsonish(v):
+            if isinstance(v, str):
+                try:
+                    return json.loads(v)
+                except Exception:
+                    return v
+            return v
+        body_obj = parse_jsonish(req)
+        resp_obj = parse_jsonish(resp)
+        rows_html += (
+            f"<tr>"
+            f"<td style='white-space:nowrap;vertical-align:top;padding:8px;border-bottom:1px solid #1b3350;'>{created}</td>"
+            f"<td style='vertical-align:top;padding:8px;border-bottom:1px solid #1b3350;'><pre style='margin:0;white-space:pre-wrap;'>{safe(body_obj)}</pre></td>"
+            f"<td style='vertical-align:top;padding:8px;border-bottom:1px solid #1b3350;'><pre class='int-pre'>{safe(resp_obj)}</pre></td>"
+            f"</tr>"
+        )
     # Рендер
     html = f"""
 <!doctype html>
@@ -2714,13 +2745,17 @@ async def retailcrm_admin_journal(enterprise_number: str, phone: Optional[str] =
   <link rel=\"icon\" href=\"/retailcrm-admin/favicon.ico\">
   <style>
     body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:#0b1728; color:#e7eef8; margin:0; }}
-    .wrap {{ max-width: 1200px; margin: 0 auto; padding: 28px; }}
+    .wrap {{ max-width: 100%; width: 100%; margin: 0; padding: 20px 24px; box-sizing: border-box; }}
     h1 {{ margin: 0 0 16px; font-size: 22px; }}
     .card {{ background:#0f2233; border:1px solid #1b3350; border-radius:12px; padding:18px; }}
     input[type=text] {{ padding:10px 12px; border-radius:8px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; }}
     .btn {{ background:#2563eb; color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; }}
-    table {{ width:100%; border-collapse:collapse; font-size:13px; }}
+    table {{ width:100%; border-collapse:collapse; font-size:13px; table-layout: fixed; }}
+    td pre {{ max-width: 100%; overflow-wrap: anywhere; }}
     th {{ text-align:left; padding:8px; border-bottom:1px solid #1b3350; color:#8fb3da; }}
+    .int-box {{ display:block; }}
+    .int-label {{ color:#8fb3da; font-size:12px; margin:6px 0 2px; }}
+    .int-pre {{ margin:0; white-space:pre-wrap; }}
   </style>
   </head>
   <body>
@@ -2735,10 +2770,14 @@ async def retailcrm_admin_journal(enterprise_number: str, phone: Optional[str] =
       </div>
       <div class=\"card\">
         <table>
+          <colgroup>
+            <col style="width: 180px;" />
+            <col style="width: calc((100% - 180px)/2);" />
+            <col style="width: calc((100% - 180px)/2);" />
+          </colgroup>
           <thead>
             <tr>
               <th>Дата</th>
-              <th>UniqueId</th>
               <th>Тело события</th>
               <th>Интеграция</th>
             </tr>
