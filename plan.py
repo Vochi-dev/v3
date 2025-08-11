@@ -1191,6 +1191,21 @@ async def generate_config(request: GenerateConfigRequest):
             "same => n,NoOp(CALL======================================================END)",
         ])
 
+        # --- Определяем: включена ли Smart Redirection хотя бы в одной входящей схеме ---
+        smart_redirect_enabled = False
+        try:
+            for r in schema_records:
+                if r.get('schema_type') == 'incoming':
+                    try:
+                        data_sr = json.loads(r['schema_data'])
+                        if bool(data_sr.get('smartRedirect')):
+                            smart_redirect_enabled = True
+                            break
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
         # --- Этап 2: Генерация всех контекстов с разделением ---
         pre_from_out_office_contexts = [generate_department_context(enterprise_id, dept) for dept in department_records]
         post_from_out_office_contexts = []
@@ -1251,11 +1266,19 @@ async def generate_config(request: GenerateConfigRequest):
             "exten => _X.,n,MixMonitor(${UNIQUEID}.wav)",
             "exten => _X.,n,NoOp(NOW is ${CALLERID(num)})"
         ]
+
+        # Если включён Smart Redirect в любой входящей схеме — добавляем расширение шапки после NoOp
+        if smart_redirect_enabled:
+            from_out_office_lines.extend([
+                "same => n,Set(INCALL=${EXTEN})",
+                "same => n,Macro(getcustomerdata,${CALLERID(num)},${EXTEN})",
+                "same => n,ExecIf($[\"${CALLNAME}\" != \"\"]?Set(CALLERID(name)=${CALLNAME}))",
+                "same => n,GotoIf($[\"${NEXT}\" != \"\"]?${NEXT},${INCALL},1)",
+            ])
         lines_with_context = []
         
-        # GSM Lines
-        incoming_gsm_lines = [line for line in gsm_lines_records if line['in_schema'] is not None]
-        for line in sorted(incoming_gsm_lines, key=lambda x: int(x['line_id'])):
+        # GSM Lines (для всех линий, независимо от участия в in_schema)
+        for line in sorted(gsm_lines_records, key=lambda x: int(x['line_id'])):
             schema = next((s for s in schema_records if s['schema_name'] == line['in_schema'] and s.get('schema_type') == 'incoming'), None)
             if schema:
                 nodes, edges = json.loads(schema['schema_data'])['nodes'], json.loads(schema['schema_data'])['edges']
@@ -1266,9 +1289,8 @@ async def generate_config(request: GenerateConfigRequest):
                         context_name = generate_context_name(schema['schema_id'], target_node_id)
                         lines_with_context.append({'line_id': line['line_id'], 'context': context_name})
         
-        # SIP Lines
-        incoming_sip_lines = [line for line in sip_unit_records if line['in_schema'] is not None]
-        for line in sorted(incoming_sip_lines, key=lambda x: x['id']):
+        # SIP Lines (для всех линий, независимо от участия в in_schema)
+        for line in sorted(sip_unit_records, key=lambda x: x['id']):
             schema = next((s for s in schema_records if s['schema_name'] == line['in_schema'] and s.get('schema_type') == 'incoming'), None)
             if schema:
                 nodes, edges = json.loads(schema['schema_data'])['nodes'], json.loads(schema['schema_data'])['edges']
@@ -1290,7 +1312,54 @@ async def generate_config(request: GenerateConfigRequest):
             "same => n,Macro(incall_end,${Trunk})"
         ])
 
-        # --- Этап 4: Финальная сборка ---
+        # --- Этап 4: Smart Redirection блок (контексты менеджер-линия) ---
+        smart_block = ""
+        if smart_redirect_enabled:
+            try:
+                # 1) Карта фолбэков для линий: хеш-контекст, если линия привязана к in_schema
+                fallback_map = {item['line_id']: item['context'] for item in lines_with_context}
+
+                # 2) Внутренние линии предприятия (id и номер)
+                internal_rows = await conn.fetch(
+                    "SELECT id, phone_number FROM user_internal_phones WHERE enterprise_number = $1 ORDER BY id",
+                    enterprise_id
+                )
+
+                # 3) Все внешние линии предприятия (GSM и SIP)
+                all_external_lines = []
+                all_external_lines.extend([str(r['line_id']) for r in gsm_lines_records])
+                all_external_lines.extend([str(r['line_name']) for r in sip_unit_records])
+
+                # 4) Генерация контекстов
+                smart_contexts = []
+                for ir in internal_rows:
+                    internal_id = ir['id']
+                    internal_phone = str(ir['phone_number'])
+                    for ext_line in all_external_lines:
+                        ctx_name = f"mngr{internal_id}_{ext_line}_1"
+                        fallback_ctx = fallback_map.get(ext_line, "from-out-office")
+                        smart_lines = [
+                            f"[{ctx_name}]",
+                            "exten => _X.,1,Noop",
+                            f"same => n,Set(LOCAL={internal_phone})",
+                            f"same => n,Macro(incall_dial,${{Trunk}},{internal_phone})",
+                            f"same => n,Dial(SIP/{internal_phone},30,mTtKk)",
+                            f"same => n,Goto({fallback_ctx},${{EXTEN}},1)",
+                            "same => n,Hangup",
+                            "exten => h,1,NoOp(Call is end)",
+                            'exten => h,n,Set(AGISIGHUP="no")',
+                            "exten => h,n,StopMixMonitor()",
+                            "same => n,Macro(incall_end,${Trunk})",
+                        ]
+                        smart_contexts.append("\n".join(smart_lines))
+
+                marker = ";******************************Smart Redirection******************************************"
+                block_content = f"{marker}\n" + "\n\n".join(smart_contexts) + f"\n{marker}"
+                smart_block = block_content
+            except Exception as e:
+                logging.error(f"Error generating Smart Redirection block: {e}", exc_info=True)
+
+        # --- Этап 5: Финальная сборка ---
         config_parts = [
             get_config_header(token),
             "\n".join(dialexecute_lines),
@@ -1298,7 +1367,15 @@ async def generate_config(request: GenerateConfigRequest):
         config_parts.extend(filter(None, pre_from_out_office_contexts))
         config_parts.append("\n".join(from_out_office_lines))
         config_parts.extend(filter(None, post_from_out_office_contexts))
-        config_parts.append(get_config_footer())
+        footer = get_config_footer()
+        if smart_block:
+            # Вставляем smart_block между маркерами в футере
+            marker_pair = (
+                ";******************************Smart Redirection******************************************\n"
+                ";******************************Smart Redirection******************************************"
+            )
+            footer = footer.replace(marker_pair, smart_block)
+        config_parts.append(footer)
 
         final_config = "\n\n".join(filter(None, config_parts))
         logging.info(f"Final config generated. Length: {len(final_config)}. Writing to file.")
