@@ -1443,9 +1443,17 @@ async def generate_config(request: GenerateConfigRequest):
                 # 1) Карта фолбэков для линий: хеш-контекст, если линия привязана к in_schema
                 fallback_map = {item['line_id']: item['context'] for item in lines_with_context}
 
-                # 2) Внутренние линии предприятия (id и номер)
+                # 2) Внутренние линии предприятия (с признаком Follow Me у владельца)
                 internal_rows = await conn.fetch(
-                    "SELECT id, phone_number FROM user_internal_phones WHERE enterprise_number = $1 ORDER BY id",
+                    """
+                    SELECT uip.id,
+                           uip.phone_number
+                    FROM user_internal_phones uip
+                    LEFT JOIN users u ON u.id = uip.user_id
+                    WHERE uip.enterprise_number = $1
+                      AND COALESCE(u.follow_me_enabled, false) = false
+                    ORDER BY uip.id
+                    """,
                     enterprise_id
                 )
 
@@ -1461,14 +1469,17 @@ async def generate_config(request: GenerateConfigRequest):
                     internal_phone = str(ir['phone_number'])
                     for ext_line in all_external_lines:
                         ctx_name = f"mngr{internal_id}_{ext_line}_1"
-                        fallback_ctx = fallback_map.get(ext_line, "from-out-office")
+                        # Фолбэк: точный по линии или первый доступный из from-out-office
+                        fallback_ctx = fallback_map.get(ext_line)
+                        if not fallback_ctx:
+                            fallback_ctx = next(iter(fallback_map.values()), None)
                         smart_lines = [
                             f"[{ctx_name}]",
                             "exten => _X.,1,Noop",
                             f"same => n,Set(LOCAL={internal_phone})",
                             f"same => n,Macro(incall_dial,${{Trunk}},{internal_phone})",
                             f"same => n,Dial(SIP/{internal_phone},30,mTtKk)",
-                            f"same => n,Goto({fallback_ctx},${{EXTEN}},1)",
+                            *( [f"same => n,Goto({fallback_ctx},${{EXTEN}},1)"] if fallback_ctx else [] ),
                             "same => n,Hangup",
                             "exten => h,1,NoOp(Call is end)",
                             'exten => h,n,Set(AGISIGHUP="no")',
@@ -1476,6 +1487,123 @@ async def generate_config(request: GenerateConfigRequest):
                             "same => n,Macro(incall_end,${Trunk})",
                         ]
                         smart_contexts.append("\n".join(smart_lines))
+
+                # 5) ДОБАВКА: Генерация Smart Redirect для внутренних номеров, принадлежащих пользователям с включённым Follow Me
+                internal_rows_fm = await conn.fetch(
+                    """
+                    SELECT uip.id,
+                           uip.phone_number,
+                           u.id AS user_id
+                    FROM user_internal_phones uip
+                    JOIN users u ON u.id = uip.user_id
+                    WHERE uip.enterprise_number = $1
+                      AND COALESCE(u.follow_me_enabled, false) = true
+                    ORDER BY uip.id
+                    """,
+                    enterprise_id
+                )
+
+                # Карта нормализованных шагов Follow Me по user_id
+                fm_steps_map = {}
+                for ur in user_records:
+                    try:
+                        if ur['follow_me_enabled'] and ur['follow_me_steps'] is not None:
+                            steps_raw = ur['follow_me_steps']
+                            if isinstance(steps_raw, str):
+                                try:
+                                    steps_raw = json.loads(steps_raw)
+                                except Exception:
+                                    steps_raw = None
+                            if isinstance(steps_raw, list) and steps_raw:
+                                norm = []
+                                for s in steps_raw:
+                                    try:
+                                        rings = int(s.get('rings', 3))
+                                        rings = max(1, min(20, rings))
+                                        nums = [str(n).strip() for n in (s.get('numbers') or []) if str(n).strip()]
+                                        if nums:
+                                            norm.append({'rings': rings, 'numbers': nums})
+                                    except Exception:
+                                        continue
+                                if norm:
+                                    fm_steps_map[ur['id']] = norm
+                    except Exception:
+                        continue
+
+                # Функции выбора исходящего контекста и LOCAL доступны выше: _find_user_outgoing_context и _pick_local_for_step
+                # Фолбэк по умолчанию: первый найденный во from-out-office
+                first_fallback_ctx = next(iter(fallback_map.values()), None)
+
+                for ir in internal_rows_fm:
+                    internal_id = int(ir['id'])
+                    internal_phone = str(ir['phone_number'])
+                    user_id_for_internal = int(ir['user_id'])
+
+                    user_steps = fm_steps_map.get(user_id_for_internal)
+                    if not user_steps:
+                        continue
+
+                    outgoing_ctx = None
+                    try:
+                        outgoing_ctx = _find_user_outgoing_context(user_id_for_internal)
+                    except Exception:
+                        outgoing_ctx = None
+
+                    for ext_line in all_external_lines:
+                        steps_len = len(user_steps)
+                        for idx, s in enumerate(user_steps, start=1):
+                            ctx_name = f"mngr{internal_id}_{ext_line}_{idx}"
+                            rings = s['rings']
+                            wait_time = rings * 5
+                            numbers = s['numbers']
+                            internal_nums = [n for n in numbers if n.isdigit() and len(n) <= 4]
+                            external_nums = [n for n in numbers if not (n.isdigit() and len(n) <= 4)]
+
+                            # Dial сборка
+                            dial_parts = []
+                            dial_parts.extend([f"SIP/{n}" for n in internal_nums])
+                            for en in external_nums:
+                                num_digits = en.lstrip('+')
+                                if outgoing_ctx:
+                                    dial_parts.append(f"Local/{num_digits}@{outgoing_ctx}")
+                            dial_string = "&".join(dial_parts)
+                            if not dial_string:
+                                continue
+
+                            # LOCAL выбор
+                            local_var = None
+                            try:
+                                local_var = _pick_local_for_step(numbers, user_id_for_internal)
+                            except Exception:
+                                local_var = internal_phone
+
+                            # Фолбэк для конкретной линии
+                            fallback_ctx = fallback_map.get(ext_line) or first_fallback_ctx
+
+                            lines = [
+                                f"[{ctx_name}]",
+                                "exten => _X.,1,Noop",
+                            ]
+                            if local_var:
+                                lines.append(f"same => n,Set(LOCAL={local_var})")
+                            lines.append(f"same => n,Macro(incall_dial,${{Trunk}},{'&'.join(internal_nums + [en.lstrip('+') for en in external_nums])})")
+                            lines.append(f"same => n,Dial({dial_string},{wait_time},mTtKk)")
+
+                            if idx < steps_len:
+                                next_ctx = f"mngr{internal_id}_{ext_line}_{idx+1}"
+                                lines.append(f"same => n,Goto({next_ctx},${{EXTEN}},1)")
+                            else:
+                                if fallback_ctx:
+                                    lines.append(f"same => n,Goto({fallback_ctx},${{EXTEN}},1)")
+
+                            lines.extend([
+                                "same => n,Hangup",
+                                "exten => h,1,NoOp(Call is end)",
+                                'exten => h,n,Set(AGISIGHUP="no")',
+                                "exten => h,n,StopMixMonitor()",
+                                "same => n,Macro(incall_end,${Trunk})",
+                            ])
+                            smart_contexts.append("\n".join(lines))
 
                 marker = ";******************************Smart Redirection******************************************"
                 block_content = f"{marker}\n" + "\n\n".join(smart_contexts) + f"\n{marker}"
