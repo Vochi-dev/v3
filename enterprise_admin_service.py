@@ -960,6 +960,32 @@ async def update_user(enterprise_number: str, user_id: int, user_data: UserUpdat
                 if user_data.internal_phones:
                     await conn.execute("UPDATE user_internal_phones SET user_id = $1 WHERE enterprise_number = $2 AND phone_number = ANY($3::text[])",
                                        user_id, enterprise_number, user_data.internal_phones)
+
+        # Точечная перегенерация диалплана при Follow Me с шагами
+        try:
+            should_regenerate = False
+            if user_data.follow_me_enabled:
+                steps_obj = user_data.follow_me_steps
+                if isinstance(steps_obj, str):
+                    try:
+                        steps_obj = json.loads(steps_obj)
+                    except Exception:
+                        steps_obj = None
+                if isinstance(steps_obj, list) and len(steps_obj) > 0:
+                    should_regenerate = True
+            if should_regenerate:
+                async def _regen():
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            plan_service_url = "http://localhost:8006/generate_config"
+                            await client.post(plan_service_url, json={"enterprise_id": enterprise_number}, timeout=10.0)
+                            logger.info(f"Запущена перегенерация диалплана для предприятия {enterprise_number} (Follow Me обновлен у пользователя {user_id}).")
+                    except Exception as e:
+                        logger.error(f"Не удалось инициировать перегенерацию диалплана: {e}")
+                asyncio.create_task(_regen())
+        except Exception as e:
+            logger.error(f"Ошибка при попытке инициировать перегенерацию диалплана: {e}")
+
         return {"status": "success"}
     except asyncpg.exceptions.UniqueViolationError:
         raise HTTPException(status_code=400, detail="Пользователь с таким email или телефоном уже существует.")

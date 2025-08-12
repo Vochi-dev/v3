@@ -1146,13 +1146,33 @@ async def generate_config(request: GenerateConfigRequest):
         }
         
         user_records = await conn.fetch("""
-            SELECT u.id, array_agg(uip.phone_number) as internal_phones
+            SELECT u.id,
+                   u.follow_me_number,
+                   u.follow_me_enabled,
+                   u.follow_me_steps,
+                   array_agg(uip.phone_number) as internal_phones
             FROM users u
             LEFT JOIN user_internal_phones uip ON u.id = uip.user_id
-            WHERE u.enterprise_number = $1 AND uip.phone_number IS NOT NULL
-            GROUP BY u.id;
+            WHERE u.enterprise_number = $1 AND (uip.phone_number IS NOT NULL OR uip.phone_number IS NULL)
+            GROUP BY u.id, u.follow_me_number, u.follow_me_enabled, u.follow_me_steps;
         """, enterprise_id)
-        user_phones_map = {user['id']: user['internal_phones'] for user in user_records}
+        user_phones_map = {user['id']: [p for p in (user['internal_phones'] or []) if p] for user in user_records}
+        follow_me_users = []
+        for ur in user_records:
+            if ur['follow_me_enabled'] and ur['follow_me_number'] is not None:
+                steps = ur['follow_me_steps']
+                # JSONB может прийти строкой из некоторых окружений
+                if isinstance(steps, str):
+                    try:
+                        steps = json.loads(steps)
+                    except Exception:
+                        steps = None
+                if isinstance(steps, list) and len(steps) > 0:
+                    follow_me_users.append({
+                        'user_id': ur['id'],
+                        'number': int(ur['follow_me_number']),
+                        'steps': steps
+                    })
 
         # --- Этап 1: Генерация dialexecute и карты маршрутов для Local/
         dialexecute_contexts_map = {}
@@ -1183,6 +1203,13 @@ async def generate_config(request: GenerateConfigRequest):
             context_name = generate_department_context_name(enterprise_id, dept_num)
             dialexecute_lines.append(f"exten => {dept_num},1,Goto({context_name},${{EXTEN}},1)")
 
+        # Follow Me номера -> экстены в dialexecute вида:
+        # exten => <fm_number>,1,Goto(mngr<user_id>_1,${EXTEN},1)
+        for fmu in follow_me_users:
+            dialexecute_lines.append(
+                f"exten => {fmu['number']},1,Goto(mngr{fmu['user_id']}_1,${{EXTEN}},1)"
+            )
+
         dialexecute_lines.extend([
             "exten => _[+]X.,1,Goto(dialexecute,${{EXTEN:1}},1)",
             "exten => _00X.,1,Goto(dialexecute,${{EXTEN:2}},1)",
@@ -1208,6 +1235,103 @@ async def generate_config(request: GenerateConfigRequest):
 
         # --- Этап 2: Генерация всех контекстов с разделением ---
         pre_from_out_office_contexts = [generate_department_context(enterprise_id, dept) for dept in department_records]
+        
+        # Добавляем Follow Me контексты mngr<user_id>_N до from-out-office
+        def _find_user_outgoing_context(user_id: int) -> str:
+            """По правилам: берём наименьший внутренний номер пользователя,
+            который присутствует в dialexecute_contexts_map; если нет — следующий по возрастанию."""
+            internals = sorted([int(x) for x in user_phones_map.get(user_id, [])])
+            for pn in internals:
+                if str(pn) in dialexecute_contexts_map:
+                    return dialexecute_contexts_map[str(pn)]
+            return ""
+
+        def _pick_local_for_step(step_numbers: list, user_id: int) -> str:
+            """Выбираем LOCAL: минимальный внутренний из номеров шага; если
+            во шаге нет внутренних — минимальный внутренний пользователя; иначе пусто."""
+            internal_in_step = [int(n) for n in step_numbers if n.isdigit() and len(n) <= 4]
+            if internal_in_step:
+                return str(min(internal_in_step))
+            user_internals = user_phones_map.get(user_id, [])
+            if user_internals:
+                try:
+                    return str(min([int(x) for x in user_internals]))
+                except Exception:
+                    return str(user_internals[0])
+            return ""
+
+        for fmu in follow_me_users:
+            user_id = fmu['user_id']
+            steps = fmu['steps']
+            # Нормализуем шаги: ожидаем элементы с полями rings (1..20) и numbers (список)
+            norm_steps = []
+            for s in steps:
+                try:
+                    rings = int(s.get('rings', 3))
+                    rings = max(1, min(20, rings))
+                    nums = s.get('numbers', [])
+                    # Приведём к строкам
+                    nums = [str(n).strip() for n in nums if str(n).strip()]
+                    if nums:
+                        norm_steps.append({'rings': rings, 'numbers': nums})
+                except Exception:
+                    continue
+            if not norm_steps:
+                continue
+
+            outgoing_ctx = _find_user_outgoing_context(user_id)
+
+            # Генерируем контексты mngr{user_id}_{idx}
+            for idx, s in enumerate(norm_steps, start=1):
+                ctx_name = f"mngr{user_id}_{idx}"
+                rings = s['rings']
+                wait_time = rings * 5
+                numbers = s['numbers']
+                # Разделяем на внутренние и внешние
+                internal_nums = [n for n in numbers if n.isdigit() and len(n) <= 4]
+                external_nums = [n for n in numbers if not (n.isdigit() and len(n) <= 4)]
+                # Собираем лог-строку для Macro
+                log_parts = internal_nums + [n.lstrip('+') for n in external_nums]
+                log_string = "&".join(log_parts) if log_parts else ""
+                # Dial-строка
+                dial_parts = []
+                dial_parts.extend([f"SIP/{n}" for n in internal_nums])
+                for en in external_nums:
+                    num_digits = en.lstrip('+')
+                    if outgoing_ctx:
+                        dial_parts.append(f"Local/{num_digits}@{outgoing_ctx}")
+                    else:
+                        # Нет исходящего контекста — пропускаем внешний номер
+                        logging.warning(f"No outgoing context for user {user_id}; external number {en} skipped in Follow Me")
+                dial_string = "&".join(dial_parts) if dial_parts else ""
+                local_var = _pick_local_for_step(numbers, user_id)
+
+                if not dial_string:
+                    # Нечего звонить — пропускаем шаг
+                    continue
+
+                lines = [
+                    f"[{ctx_name}]",
+                    "exten => _X.,1,Noop",
+                ]
+                if local_var:
+                    lines.append(f"same => n,Set(LOCAL={local_var})")
+                if log_string:
+                    lines.append(f"same => n,Macro(incall_dial,${{Trunk}},{log_string})")
+                else:
+                    lines.append(f"same => n,Macro(incall_dial,${{Trunk}},)")
+                lines.append(f"same => n,Dial({dial_string},{wait_time},mTtKk)")
+                if idx < len(norm_steps):
+                    next_ctx = f"mngr{user_id}_{idx+1}"
+                    lines.append(f"same => n,Goto({next_ctx},${{EXTEN}},1)")
+                lines.append("same => n,Hangup")
+                lines.extend([
+                    "exten => h,1,NoOp(Call is end)",
+                    'exten => h,n,Set(AGISIGHUP="no")',
+                    "exten => h,n,StopMixMonitor()",
+                    "same => n,Macro(incall_end,${Trunk})",
+                ])
+                pre_from_out_office_contexts.append("\n".join(lines))
         post_from_out_office_contexts = []
         
         # Обновленный NODE_GENERATORS
