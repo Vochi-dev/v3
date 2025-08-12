@@ -31,6 +31,7 @@
             <button class="btn btn-info" type="button" id="btn-phones">Внутренние номера</button>
             <button class="btn btn-success" type="button" id="btn-gsm-lines">GSM Линии</button>
             <button class="btn btn-warning" type="button" id="btn-audiofiles">Аудиофайлы</button>
+            <button class="btn btn-outline-primary" type="button" id="btn-shops">Магазины</button>
         </div>
     </div>
 
@@ -75,6 +76,46 @@
     <!-- Модальное окно редактирования, подключаемое из другого файла -->
     {% include 'enterprise_admin/includes/edit_gsm_line_modal.html' %}
 
+    <!-- Модальное окно Магазины -->
+    <div class="modal fade" id="shopsModal" tabindex="-1" aria-labelledby="shopsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Магазины</h5>
+                    <button type="button" class="btn btn-sm btn-success" id="btn-create-shop">Создать магазин</button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="shops-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка создания магазина -->
+    <div class="modal fade" id="createShopModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Создание магазина</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Наименование</label>
+                        <input type="text" id="shopNameInput" class="form-control" placeholder="Например: UT" />
+                    </div>
+                    <div class="mb-2 fw-bold">Линии магазина</div>
+                    <div style="max-height: 50vh; overflow:auto; border: 1px solid #eee;" id="shopLinesList"></div>
+                    <div id="shopCreateError" class="text-danger mt-2" style="display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="saveShopBtn">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -87,6 +128,9 @@
         
         const editGsmLineModal = new bootstrap.Modal(document.getElementById('editGsmLineModal'));
         const editGsmLineModalEl = document.getElementById('editGsmLineModal');
+        const shopsModal = new bootstrap.Modal(document.getElementById('shopsModal'));
+        const createShopModal = new bootstrap.Modal(document.getElementById('createShopModal'));
+        const shopsListEl = document.getElementById('shops-list');
 
         // --- Логика кнопок ---
         document.getElementById('btn-users').addEventListener('click', () => { 
@@ -101,6 +145,33 @@
         });
         document.getElementById('btn-audiofiles').addEventListener('click', () => {
             alert('Раздел аудиофайлов в разработке.');
+        });
+        document.getElementById('btn-shops').addEventListener('click', async () => {
+            shopsModal.show();
+            await loadShops();
+        });
+        document.getElementById('btn-create-shop').addEventListener('click', async () => {
+            await renderShopLinesForSelect();
+            document.getElementById('shopNameInput').value = '';
+            document.getElementById('shopCreateError').style.display = 'none';
+            createShopModal.show();
+        });
+        document.getElementById('saveShopBtn').addEventListener('click', async () => {
+            const name = document.getElementById('shopNameInput').value.trim();
+            const checked = Array.from(document.querySelectorAll('.shop-line-checkbox:checked')).map(ch => parseInt(ch.value));
+            if (!name) {
+                const err = document.getElementById('shopCreateError');
+                err.textContent = 'Введите наименование магазина';
+                err.style.display = 'block';
+                return;
+            }
+            await fetch(`/enterprise/${enterpriseNumber}/shops`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, line_ids: checked })
+            });
+            createShopModal.hide();
+            await loadShops();
         });
 
         // --- Функция для форматирования количества схем ---
@@ -184,6 +255,37 @@
                 gsmTbody.innerHTML = `<tr><td colspan="12" class="text-center text-danger">Не удалось загрузить линии: ${error.message}</td></tr>`;
             }
         };
+
+        async function loadShops() {
+            shopsListEl.innerHTML = '<div class="text-center">Загрузка...</div>';
+            const res = await fetch(`/enterprise/${enterpriseNumber}/shops`);
+            const shops = await res.json();
+            if (!Array.isArray(shops) || shops.length === 0) {
+                shopsListEl.innerHTML = '<div class="text-muted">Магазинов нет</div>';
+                return;
+            }
+            shopsListEl.innerHTML = shops.map(s => {
+                const lines = (s.lines || []).map(l => `<span class='badge bg-secondary me-1'>${l.phone_number || l.line_id}</span>`).join(' ');
+                return `<div class='mb-2'><div class='fw-bold'>${s.name}</div><div>${lines}</div></div>`;
+            }).join('');
+        }
+
+        async function renderShopLinesForSelect() {
+            const res = await fetch(`/enterprise/${enterpriseNumber}/gsm-lines/all`);
+            const gateways = await res.json();
+            const container = document.getElementById('shopLinesList');
+            container.innerHTML = '';
+            gateways.forEach(gw => {
+                container.innerHTML += `<div class='fw-bold mt-2'>${gw.gateway_name}</div>`;
+                gw.lines.forEach(line => {
+                    const label = `${line.line_id || ''} ${line.phone_number || ''} ${line.line_name ? '— '+line.line_name : ''}`.trim();
+                    container.innerHTML += `<div class='form-check'>
+                        <input class='form-check-input shop-line-checkbox' type='checkbox' value='${line.id}' id='line_${line.id}'>
+                        <label class='form-check-label' for='line_${line.id}'>${label}</label>
+                    </div>`;
+                });
+            });
+        }
         
         // --- Поиск по таблице GSM ---
         gsmSearchInput.addEventListener('keyup', function() {

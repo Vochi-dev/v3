@@ -312,12 +312,68 @@
         <button class="btn btn-warning" type="button" data-action="show-audiofiles">Аудиофайлы</button>
         <button class="btn btn-primary" type="button" data-action="show-sip-lines">SIP-линии</button>
         <button class="btn btn-primary" type="button" data-action="show-departments">Отделы</button>
-        <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Магазины</button>
+        <button class="btn btn-primary" type="button" id="btn-shops">Магазины</button>
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">API</button>
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Статистика</button>
         <button class="btn btn-primary" type="button" onclick="openIntegrationsModal()">Интеграции</button>
         <button class="btn btn-primary" type="button" onclick="alert('Раздел в разработке')">Прочие настройки</button>
         <p>Здесь будет содержимое админки для предприятия.</p>
+    </div>
+
+    <!-- Модальное окно Магазины -->
+    <div id="shopsModal" class="modal">
+        <div class="schema-modal-content" style="max-width: 1100px;">
+            <div class="schema-modal-header">
+                <h2 style="font-size: 1.6rem;">Магазины</h2>
+                <span data-action="close-modal" class="close-button" data-target="#shopsModal">&times;</span>
+            </div>
+            <div class="schema-modal-body">
+                <div class="d-flex justify-content-start align-items-center mb-3">
+                    <button class="btn btn-success" id="btn-create-shop">Создать магазин</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:50%">Наименование</th>
+                                <th style="width:50%">Линии магазина</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shops-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка создания/редактирования магазина -->
+    <div id="createShopModal" class="modal">
+        <div class="schema-modal-content" style="max-width: 1000px;">
+            <div class="schema-modal-header">
+                <h2>Создание магазина</h2>
+                <span data-action="close-modal" class="close-button" data-target="#createShopModal">&times;</span>
+            </div>
+            <div class="schema-modal-body">
+                <div class="mb-3">
+                    <label class="form-label" style="font-size:1.05rem;">Наименование</label>
+                    <input type="text" id="shopNameInput" class="form-control form-control-lg" placeholder="Например: UT" />
+                </div>
+                <div class="text-center fw-bold" style="margin: 10px 0;">Линии магазина</div>
+                <div class="table-responsive" style="max-height: 55vh; overflow:auto;">
+                    <table class="table table-sm table-bordered" style="margin-bottom:0;">
+                        <tbody id="shopLinesList"></tbody>
+                    </table>
+                </div>
+                <div id="shopCreateError" class="text-danger mt-2" style="display:none;"></div>
+            </div>
+            <div class="schema-modal-footer" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <button class="btn btn-danger" id="deleteShopBtn">Удалить</button>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button class="btn btn-light" id="cancelShopBtn">ОТМЕНА</button>
+                    <button class="btn btn-primary" id="saveShopBtn">Сохранить</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Модальное окно для СХЕМ (DIALPLAN) -->
@@ -926,6 +982,223 @@
                 }
             });
         });
+
+        // ---- Магазины ----
+        const shopsTableBody = document.getElementById('shops-table-body');
+        let shopsCache = [];
+        let editingShopId = null;
+        document.getElementById('btn-shops').addEventListener('click', async () => {
+            document.getElementById('shopsModal').style.display = 'block';
+            await loadShops();
+        });
+        document.getElementById('btn-create-shop').addEventListener('click', async () => {
+            editingShopId = null;
+            const titleEl = document.querySelector('#createShopModal .schema-modal-header h2');
+            if (titleEl) titleEl.textContent = 'Создание магазина';
+            document.getElementById('shopNameInput').value = '';
+            document.getElementById('shopCreateError').style.display = 'none';
+            await renderShopLinesForSelect(new Set());
+            document.getElementById('deleteShopBtn').style.display = 'none';
+            document.getElementById('createShopModal').style.display = 'block';
+        });
+        document.getElementById('saveShopBtn').addEventListener('click', async () => {
+            const name = document.getElementById('shopNameInput').value.trim();
+            const checked = Array.from(document.querySelectorAll('.shop-line-checkbox:checked'))
+                .filter(ch => (ch.dataset.type || 'gsm') === 'gsm')
+                .map(ch => parseInt(ch.value));
+            if (!name) {
+                const err = document.getElementById('shopCreateError');
+                err.textContent = 'Введите наименование магазина';
+                err.style.display = 'block';
+                return;
+            }
+            if (!editingShopId) {
+                // создаём магазин и сразу сохраняем и SIP привязки
+                const resp = await fetch(`/enterprise/${enterpriseNumber}/shops`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, line_ids: checked })
+                });
+                if (!resp.ok) {
+                    const t = await resp.text();
+                    alert(`Ошибка создания магазина: ${t}`);
+                    return;
+                }
+                const created = await resp.json();
+                const newShopId = created && created.id;
+                const sipChecked = Array.from(document.querySelectorAll('.shop-line-checkbox:checked'))
+                    .filter(ch => (ch.dataset.type || 'gsm') === 'sip')
+                    .map(ch => parseInt(ch.value));
+                if (newShopId) {
+                    const sipResp = await fetch(`/enterprise/${enterpriseNumber}/shops/${newShopId}/sip-lines`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sip_line_ids: sipChecked })
+                    });
+                    if (!sipResp.ok) {
+                        const t = await sipResp.text();
+                        alert(`Ошибка сохранения SIP-линий: ${t}`);
+                    }
+                }
+            } else {
+                await fetch(`/enterprise/${enterpriseNumber}/shops/${editingShopId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                await fetch(`/enterprise/${enterpriseNumber}/shops/${editingShopId}/lines`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ line_ids: checked })
+                });
+                const sipChecked = Array.from(document.querySelectorAll('.shop-line-checkbox:checked'))
+                    .filter(ch => (ch.dataset.type || 'gsm') === 'sip')
+                    .map(ch => parseInt(ch.value));
+                const sipResp = await fetch(`/enterprise/${enterpriseNumber}/shops/${editingShopId}/sip-lines`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sip_line_ids: sipChecked })
+                });
+                if (sipResp.ok) {
+                    const data = await sipResp.json().catch(()=>({}));
+                    console.log('SIP saved:', data);
+                } else {
+                    const t = await sipResp.text();
+                    alert(`Ошибка сохранения SIP-линий: ${t}`);
+                }
+            }
+            document.getElementById('createShopModal').style.display = 'none';
+            await loadShops();
+        });
+
+        document.getElementById('cancelShopBtn').addEventListener('click', () => {
+            document.getElementById('createShopModal').style.display = 'none';
+        });
+
+        document.getElementById('deleteShopBtn').addEventListener('click', async () => {
+            if (!editingShopId) return;
+            if (!confirm('Удалить магазин?')) return;
+            await fetch(`/enterprise/${enterpriseNumber}/shops/${editingShopId}`, { method: 'DELETE' });
+            document.getElementById('createShopModal').style.display = 'none';
+            await loadShops();
+        });
+
+        async function loadShops() {
+            shopsTableBody.innerHTML = '<tr><td colspan="2" class="text-center">Загрузка...</td></tr>';
+            const res = await fetch(`/enterprise/${enterpriseNumber}/shops`);
+            const shops = await res.json();
+            shopsCache = Array.isArray(shops) ? shops : [];
+            if (!Array.isArray(shops) || shops.length === 0) {
+                shopsTableBody.innerHTML = '<tr><td colspan="2" class="text-muted">Магазинов нет</td></tr>';
+                return;
+            }
+            shopsTableBody.innerHTML = shops.map(s => {
+                const gsmUsed = (s.lines || []).map(l => `<span class=\"badge bg-secondary me-1\">${l.phone_number || l.line_id}</span>`).join(' ');
+                const sipUsed = (s.sip_lines || []).map(l => `<span class=\"badge bg-secondary me-1\">${l.line_name || ''}</span>`).join(' ');
+                const used = [gsmUsed, sipUsed].filter(Boolean).join(' ');
+                return `<tr data-shop-id='${s.id}'><td><a href=\"#\" class=\"shop-name-link text-primary\" data-shop-id='${s.id}'>${s.name || ''}</a></td><td>${used}</td></tr>`;
+            }).join('');
+        }
+
+        async function renderShopLinesForSelect(precheckedSet = new Set()) {
+            const res = await fetch(`/enterprise/${enterpriseNumber}/gsm-lines/all`);
+            const gateways = await res.json();
+            // карта принадлежности линий: line.id -> shop name
+            const ownersMap = new Map();
+            try {
+                const shopsRes = await fetch(`/enterprise/${enterpriseNumber}/shops`);
+                const shopsData = await shopsRes.json();
+                if (Array.isArray(shopsData)) {
+                    shopsData.forEach(s => {
+                        (s.lines || []).forEach(l => ownersMap.set(l.id, s.name || 'N/A'));
+                    });
+                }
+            } catch (e) { /* ignore */ }
+
+            const container = document.getElementById('shopLinesList');
+            container.innerHTML = '';
+            gateways.forEach(gw => {
+                const headerRow = document.createElement('tr');
+                headerRow.innerHTML = `<td colspan="3" class="fw-bold" style="background:#f8f9fa;">${gw.gateway_name}</td>`;
+                container.appendChild(headerRow);
+                gw.lines.forEach(line => {
+                    const tr = document.createElement('tr');
+                    const isChecked = precheckedSet.has(line.id) ? 'checked' : '';
+                    const left = `${line.phone_number || ''}${line.line_name ? ' — ' + line.line_name : ''}`.trim();
+                    const right = ownersMap.get(line.id) || 'N/A';
+                    tr.innerHTML = `
+                        <td style=\"width:40px; text-align:center; vertical-align:middle;\">
+                            <input class='form-check-input shop-line-checkbox' data-type='gsm' type='checkbox' value='${line.id}' id='line_${line.id}' ${isChecked}>
+                        </td>
+                        <td style=\"vertical-align:middle;\">
+                            <label class='form-check-label' for='line_${line.id}'>${left}</label>
+                        </td>
+                        <td style=\"vertical-align:middle;\">${right}</td>
+                    `;
+                    container.appendChild(tr);
+                });
+            });
+
+            // Добавляем SIP-линии в конце списка и даём возможность привязки к магазину
+            try {
+                const sipRes = await fetch(`/enterprise/${enterpriseNumber}/sip-lines`);
+                if (sipRes.ok) {
+                    const sipLines = await sipRes.json();
+                    if (Array.isArray(sipLines) && sipLines.length) {
+                        const headerRow = document.createElement('tr');
+                        headerRow.innerHTML = `<td colspan=\"3\" class=\"fw-bold\" style=\"background:#f1f1f1;\">SIP-линии</td>`;
+                        container.appendChild(headerRow);
+                        // Узнаём владельца каждой SIP-линии и заранее отметим чекбоксы, если линия уже принадлежит текущему магазину
+                        const owners = new Map();
+                        try {
+                            const shopsResp = await fetch(`/enterprise/${enterpriseNumber}/shops`);
+                            const shopsData = shopsResp.ok ? await shopsResp.json() : [];
+                            (shopsData || []).forEach(sh => {
+                                (sh.sip_lines || []).forEach(l => owners.set(l.id, sh.name || 'N/A'));
+                            });
+                        } catch(_) {}
+
+                        sipLines.forEach(line => {
+                            const tr = document.createElement('tr');
+                            const left = `${line.line_name || ''}`.trim();
+                            const right = owners.get(line.id) || 'N/A';
+                            const prechecked = precheckedSet.has(line.id) ? 'checked' : '';
+                            tr.innerHTML = `
+                                <td style=\"width:40px; text-align:center; vertical-align:middle;\">
+                                    <input class='form-check-input shop-line-checkbox' data-type='sip' type='checkbox' value='${line.id}' id='sip_${line.id}' ${prechecked}>
+                                </td>
+                                <td style=\"vertical-align:middle;\">
+                                    <label class='form-check-label' for='sip_${line.id}'>${left}</label>
+                                </td>
+                                <td style=\"vertical-align:middle;\">${right}</td>
+                            `;
+                            container.appendChild(tr);
+                        });
+                    }
+                }
+            } catch (_) { /* ignore */ }
+        }
+
+        // Открытие редактирования по клику на названии
+        document.addEventListener('click', async (e) => {
+            const link = e.target.closest('.shop-name-link');
+            if (!link) return;
+            e.preventDefault();
+            const shopId = parseInt(link.getAttribute('data-shop-id'));
+            const shop = (shopsCache || []).find(s => s.id === shopId);
+            if (!shop) return;
+            editingShopId = shopId;
+            const titleEl = document.querySelector('#createShopModal .schema-modal-header h2');
+            if (titleEl) titleEl.textContent = 'Редактирование магазина';
+            document.getElementById('shopNameInput').value = shop.name || '';
+            const prechecked = new Set([...(shop.lines || []).map(l => l.id), ...((shop.sip_lines || []).map(l => l.id))]);
+            await renderShopLinesForSelect(prechecked);
+            document.getElementById('shopCreateError').style.display = 'none';
+            document.getElementById('deleteShopBtn').style.display = 'inline-block';
+            document.getElementById('createShopModal').style.display = 'block';
+        });
+
+        // Таблица пока только с шапкой; редактирование и предпросмотр добавим следующим шагом
 
         // Helper: сформировать опции номеров (внутренние + персональный)
         function buildUserNumbersOptions(exclude, includePlaceholder=false) {

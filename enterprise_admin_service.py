@@ -139,6 +139,50 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def _startup_init_followme():
     await _ensure_followme_columns()
+    # Инициализация таблиц магазинов
+    await _ensure_shops_tables()
+
+async def _ensure_shops_tables() -> None:
+    """Создаёт таблицы shops и shop_lines при старте, если их ещё нет."""
+    try:
+        conn = await get_db_connection()
+        if not conn:
+            return
+        try:
+            await conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS shops (
+                    id SERIAL PRIMARY KEY,
+                    enterprise_number TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+                """
+            )
+            await conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS shop_lines (
+                    shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+                    gsm_line_id INTEGER NOT NULL,
+                    enterprise_number TEXT NOT NULL,
+                    PRIMARY KEY (shop_id, gsm_line_id)
+                );
+                """
+            )
+            await conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS shop_sip_lines (
+                    shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+                    sip_line_id INTEGER NOT NULL,
+                    enterprise_number TEXT NOT NULL,
+                    PRIMARY KEY (shop_id, sip_line_id)
+                );
+                """
+            )
+        finally:
+            await conn.close()
+    except Exception as e:
+        logger.error(f"Failed to ensure shops tables: {e}")
 
 # Add a handler for log_action.txt
 log_action_handler = logging.FileHandler("log_action.txt", mode='a')
@@ -1167,6 +1211,192 @@ async def get_enterprise_gsm_lines_status(enterprise_number: str, current_enterp
     except Exception as e:
         logger.error(f"Ошибка при проверке статуса GSM линий для {enterprise_number}: {e}")
         raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
+    finally:
+        await conn.close()
+
+# ---------------------- Shops (магазины) ----------------------
+@app.get("/enterprise/{enterprise_number}/shops", response_class=JSONResponse)
+async def list_shops(enterprise_number: str):
+    conn = await get_db_connection()
+    if not conn: raise HTTPException(status_code=500, detail="DB connection failed")
+    try:
+        shops = await conn.fetch(
+            "SELECT id, name, created_at FROM shops WHERE enterprise_number = $1 ORDER BY name",
+            enterprise_number
+        )
+        # для каждой — подтянуть список линий
+        result = []
+        for s in shops:
+            lines = await conn.fetch(
+                """
+                SELECT gl.id, gl.line_id, gl.phone_number, gl.line_name
+                FROM shop_lines sl
+                JOIN gsm_lines gl ON sl.gsm_line_id = gl.id
+                WHERE sl.shop_id = $1 AND sl.enterprise_number = $2
+                ORDER BY gl.line_id
+                """,
+                s['id'], enterprise_number
+            )
+            sip_lines = await conn.fetch(
+                """
+                SELECT su.id, su.line_name
+                FROM shop_sip_lines ssl
+                JOIN sip_unit su ON ssl.sip_line_id = su.id
+                WHERE ssl.shop_id = $1 AND ssl.enterprise_number = $2 AND su.enterprise_number = $2
+                ORDER BY su.line_name
+                """,
+                s['id'], enterprise_number
+            )
+            result.append({
+                "id": s['id'], "name": s['name'], "created_at": s['created_at'],
+                "lines": [dict(r) for r in lines],
+                "sip_lines": [dict(r) for r in sip_lines]
+            })
+        return result
+    finally:
+        await conn.close()
+
+@app.post("/enterprise/{enterprise_number}/shops", response_class=JSONResponse)
+async def create_shop(enterprise_number: str, data: dict = Body(...)):
+    name = (data.get("name") or "").strip()
+    line_ids = data.get("line_ids") or []  # ожидаем массив id из gsm_lines.id
+    if not name:
+        raise HTTPException(status_code=400, detail="Название обязательно")
+    conn = await get_db_connection()
+    if not conn: raise HTTPException(status_code=500, detail="DB connection failed")
+    try:
+        async with conn.transaction():
+            shop_id = await conn.fetchval(
+                "INSERT INTO shops(enterprise_number, name) VALUES ($1, $2) RETURNING id",
+                enterprise_number, name
+            )
+            if line_ids:
+                insert_values = [(shop_id, int(lid), enterprise_number) for lid in line_ids]
+                await conn.executemany(
+                    "INSERT INTO shop_lines(shop_id, gsm_line_id, enterprise_number) VALUES ($1, $2, $3)",
+                    insert_values
+                )
+        return {"id": shop_id, "name": name, "line_ids": line_ids}
+    finally:
+        await conn.close()
+
+@app.put("/enterprise/{enterprise_number}/shops/{shop_id}", response_class=JSONResponse)
+async def update_shop(enterprise_number: str, shop_id: int, data: dict = Body(...)):
+    """Обновление названия магазина (и в перспективе набора линий)."""
+    name = data.get("name")
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+    try:
+        if name is not None:
+            await conn.execute(
+                "UPDATE shops SET name = $1 WHERE id = $2 AND enterprise_number = $3",
+                name, shop_id, enterprise_number
+            )
+        # Возвращаем актуальные данные по магазину
+        shop = await conn.fetchrow(
+            "SELECT id, name, created_at FROM shops WHERE id = $1 AND enterprise_number = $2",
+            shop_id, enterprise_number
+        )
+        lines = await conn.fetch(
+            """
+            SELECT gl.id, gl.line_id, gl.phone_number, gl.line_name
+            FROM shop_lines sl
+            JOIN gsm_lines gl ON sl.gsm_line_id = gl.id
+            WHERE sl.shop_id = $1 AND sl.enterprise_number = $2
+            ORDER BY gl.line_id
+            """,
+            shop_id, enterprise_number
+        )
+        sip_lines = await conn.fetch(
+            """
+            SELECT su.id, su.line_name
+            FROM shop_sip_lines ssl
+            JOIN sip_unit su ON ssl.sip_line_id = su.id
+            WHERE ssl.shop_id = $1 AND ssl.enterprise_number = $2 AND su.enterprise_number = $2
+            ORDER BY su.line_name
+            """,
+            shop_id, enterprise_number
+        )
+        return {"id": shop["id"], "name": shop["name"], "lines": [dict(r) for r in lines], "sip_lines": [dict(r) for r in sip_lines]}
+    finally:
+        await conn.close()
+
+@app.put("/enterprise/{enterprise_number}/shops/{shop_id}/lines", response_class=JSONResponse)
+async def set_shop_lines(enterprise_number: str, shop_id: int, data: dict = Body(...)):
+    """Полная замена набора линий для магазина."""
+    line_ids = data.get("line_ids") or []
+    line_ids = [int(x) for x in line_ids]
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+    try:
+        async with conn.transaction():
+            await conn.execute(
+                "DELETE FROM shop_lines WHERE shop_id = $1 AND enterprise_number = $2",
+                shop_id, enterprise_number
+            )
+            if line_ids:
+                await conn.executemany(
+                    "INSERT INTO shop_lines(shop_id, gsm_line_id, enterprise_number) VALUES ($1,$2,$3)",
+                    [(shop_id, lid, enterprise_number) for lid in line_ids]
+                )
+        return {"success": True, "shop_id": shop_id, "line_ids": line_ids}
+    finally:
+        await conn.close()
+
+@app.put("/enterprise/{enterprise_number}/shops/{shop_id}/sip-lines", response_class=JSONResponse)
+async def set_shop_sip_lines(enterprise_number: str, shop_id: int, data: dict = Body(...)):
+    """Полная замена набора SIP-линий для магазина."""
+    sip_line_ids = data.get("sip_line_ids") or []
+    sip_line_ids = [int(x) for x in sip_line_ids]
+    logger.info(f"set_shop_sip_lines: enterprise={enterprise_number} shop_id={shop_id} ids={sip_line_ids}")
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+    try:
+        async with conn.transaction():
+            await conn.execute(
+                "DELETE FROM shop_sip_lines WHERE shop_id = $1 AND enterprise_number = $2",
+                shop_id, enterprise_number
+            )
+            # Эксклюзивная привязка: удаляем эти SIP-линии из других магазинов данного предприятия
+            if sip_line_ids:
+                await conn.execute(
+                    "DELETE FROM shop_sip_lines WHERE enterprise_number = $1 AND shop_id <> $2 AND sip_line_id = ANY($3)",
+                    enterprise_number, shop_id, sip_line_ids
+                )
+            if sip_line_ids:
+                await conn.executemany(
+                    "INSERT INTO shop_sip_lines(shop_id, sip_line_id, enterprise_number) VALUES ($1,$2,$3)",
+                    [(shop_id, lid, enterprise_number) for lid in sip_line_ids]
+                )
+        saved = await conn.fetch(
+            "SELECT sip_line_id FROM shop_sip_lines WHERE shop_id=$1 AND enterprise_number=$2 ORDER BY sip_line_id",
+            shop_id, enterprise_number
+        )
+        saved_ids = [r["sip_line_id"] for r in saved]
+        logger.info(f"set_shop_sip_lines saved_ids={saved_ids}")
+        return {"success": True, "shop_id": shop_id, "sip_line_ids": saved_ids}
+    finally:
+        await conn.close()
+
+@app.delete("/enterprise/{enterprise_number}/shops/{shop_id}", response_class=JSONResponse)
+async def delete_shop(enterprise_number: str, shop_id: int):
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+    try:
+        async with conn.transaction():
+            await conn.execute(
+                "DELETE FROM shop_lines WHERE shop_id = $1 AND enterprise_number = $2",
+                shop_id, enterprise_number
+            )
+            await conn.execute(
+                "DELETE FROM shops WHERE id = $1 AND enterprise_number = $2",
+                shop_id, enterprise_number
+            )
+        return {"success": True}
     finally:
         await conn.close()
 
