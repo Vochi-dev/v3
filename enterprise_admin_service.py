@@ -1073,14 +1073,18 @@ async def get_enterprise_gsm_lines(enterprise_number: str):
     conn = await get_db_connection()
     if not conn: raise HTTPException(status_code=500, detail="DB connection failed")
     try:
-        # Проверим, есть ли колонка smart в gsm_lines
-        has_smart_col = True
-        try:
-            await conn.execute("SELECT smart FROM gsm_lines WHERE false")
-        except Exception:
-            has_smart_col = False
+        # Загружаем enterprise.integrations_config и строим карту smart-настроек по линиям
+        cfg_row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+        integrations_config = (dict(cfg_row).get('integrations_config') if cfg_row else None)
+        if isinstance(integrations_config, str):
+            try:
+                integrations_config = json.loads(integrations_config)
+            except Exception:
+                integrations_config = None
+        smart_lines_map = {}
+        if isinstance(integrations_config, dict):
+            smart_lines_map = ((integrations_config.get('smart') or {}).get('lines')) or {}
 
-        select_smart = ", gl.smart" if has_smart_col else ""
         query = f"""
         SELECT
             g.gateway_name,
@@ -1100,7 +1104,7 @@ async def get_enterprise_gsm_lines(enterprise_number: str):
                  FROM gsm_outgoing_schema_assignments gosa
                  WHERE gosa.gsm_line_id = gl.line_id AND gosa.enterprise_number = $1),
                 '{{}}'::text[]
-            ) as outgoing_schema_names{select_smart}
+            ) as outgoing_schema_names
         FROM gsm_lines gl
         LEFT JOIN goip g ON gl.goip_id = g.id
         WHERE gl.enterprise_number = $1
@@ -1109,7 +1113,6 @@ async def get_enterprise_gsm_lines(enterprise_number: str):
         rows = await conn.fetch(query, enterprise_number)
         gateways = {}
         for row in rows:
-            rowd = dict(row)
             gateway_name = row['gateway_name'] or 'Без шлюза'
             if gateway_name not in gateways:
                 gateways[gateway_name] = {
@@ -1119,6 +1122,7 @@ async def get_enterprise_gsm_lines(enterprise_number: str):
                     'lines': []
                 }
             if row['id'] is not None:
+                sr_key = f"gsm:{row['line_id']}"
                 line = {
                     'id': row['id'],
                     'line_id': row['line_id'],
@@ -1131,7 +1135,7 @@ async def get_enterprise_gsm_lines(enterprise_number: str):
                     'shop': row['shop'],
                     'slot': row['slot'],
                     'redirect': row['redirect'],
-                    'smart': rowd.get('smart') if has_smart_col else None
+                    'smart': smart_lines_map.get(sr_key)
                 }
                 gateways[gateway_name]['lines'].append(line)
         return JSONResponse(content=list(gateways.values()))
@@ -1416,22 +1420,7 @@ async def get_gsm_line(enterprise_number: str, line_id: int):
     if not conn:
         raise HTTPException(status_code=500, detail="DB connection failed")
     try:
-        # Гибко проверяем наличие колонки smart (JSONB)
-        has_smart_col = True
-        try:
-            await conn.execute("SELECT smart FROM gsm_lines WHERE false")
-        except Exception:
-            has_smart_col = False
-
-        if has_smart_col:
-            query = """
-            SELECT id, line_id, internal_id, prefix, phone_number, line_name, in_schema, out_schema, shop, slot, redirect,
-                   smart
-            FROM gsm_lines
-            WHERE id = $1 AND enterprise_number = $2
-            """
-        else:
-            query = """
+        query = """
             SELECT id, line_id, internal_id, prefix, phone_number, line_name, in_schema, out_schema, shop, slot, redirect
             FROM gsm_lines
             WHERE id = $1 AND enterprise_number = $2
@@ -1440,8 +1429,18 @@ async def get_gsm_line(enterprise_number: str, line_id: int):
         if not row:
             raise HTTPException(status_code=404, detail="Линия не найдена")
         data = dict(row)
-        if not has_smart_col:
-            data.setdefault("smart", None)
+        # Smart настройки берём из enterprises.integrations_config
+        cfg_row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+        integrations_config = (dict(cfg_row).get('integrations_config') if cfg_row else None)
+        if isinstance(integrations_config, str):
+            try:
+                integrations_config = json.loads(integrations_config)
+            except Exception:
+                integrations_config = None
+        smart = None
+        if isinstance(integrations_config, dict):
+            smart = ((integrations_config.get('smart') or {}).get('lines') or {}).get(f"gsm:{data['line_id']}")
+        data['smart'] = smart
         return data
     finally:
         await conn.close()
@@ -1456,22 +1455,7 @@ async def update_gsm_line(
     if not conn:
         raise HTTPException(status_code=500, detail="DB connection failed")
     try:
-        # smart в теле запроса опционален; если колонки нет — мягко игнорируем
-        has_smart_col = True
-        try:
-            await conn.execute("SELECT smart FROM gsm_lines WHERE false")
-        except Exception:
-            has_smart_col = False
-
-        if has_smart_col:
-            query = """
-            UPDATE gsm_lines
-            SET line_name = $1, phone_number = $2, prefix = $3, smart = $6
-            WHERE id = $4 AND enterprise_number = $5
-            RETURNING id, line_id, internal_id, prefix, phone_number, line_name, in_schema, out_schema, shop, slot, redirect, smart
-            """
-        else:
-            query = """
+        query = """
             UPDATE gsm_lines
             SET line_name = $1, phone_number = $2, prefix = $3
             WHERE id = $4 AND enterprise_number = $5
@@ -1484,12 +1468,34 @@ async def update_gsm_line(
             line_id,
             enterprise_number,
         ]
-        if has_smart_col:
-            params.append(data.get("smart"))
         row = await conn.fetchrow(query, *params)
         if not row:
             raise HTTPException(status_code=404, detail="Линия не найдена")
-        return dict(row)
+        updated = dict(row)
+
+        # Сохраняем smart в enterprises.integrations_config
+        if 'smart' in data:
+            sr_key = f"gsm:{updated['line_id']}"
+            cfg_row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+            current_cfg = (dict(cfg_row).get('integrations_config') if cfg_row else None)
+            if isinstance(current_cfg, str):
+                try:
+                    current_cfg = json.loads(current_cfg)
+                except Exception:
+                    current_cfg = None
+            if not isinstance(current_cfg, dict):
+                current_cfg = {}
+            current_cfg.setdefault('smart', {})
+            current_cfg['smart'].setdefault('lines', {})
+            current_cfg['smart']['lines'][sr_key] = data['smart']
+            await conn.execute(
+                "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",
+                json.dumps(current_cfg),
+                enterprise_number
+            )
+            updated['smart'] = data['smart']
+
+        return updated
     finally:
         await conn.close()
 
