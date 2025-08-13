@@ -1218,20 +1218,36 @@ async def generate_config(request: GenerateConfigRequest):
             "same => n,NoOp(CALL======================================================END)",
         ])
 
-        # --- Определяем: включена ли Smart Redirection хотя бы в одной входящей схеме ---
+        # --- Определяем: включена ли Smart Redirection по данным enterprises.integrations_config.smart.lines ---
         smart_redirect_enabled = False
+        enabled_ext_lines: set[str] = set()
         try:
-            for r in schema_records:
-                if r.get('schema_type') == 'incoming':
+            smart_lines_map = await conn.fetchval(
+                "SELECT integrations_config->'smart'->'lines' FROM enterprises WHERE number = $1",
+                enterprise_id,
+            )
+            if isinstance(smart_lines_map, str):
+                try:
+                    smart_lines_map = json.loads(smart_lines_map)
+                except Exception:
+                    smart_lines_map = None
+            if isinstance(smart_lines_map, dict):
+                for key, val in smart_lines_map.items():
                     try:
-                        data_sr = json.loads(r['schema_data'])
-                        if False:
-                            smart_redirect_enabled = True
-                            break
+                        if isinstance(val, str):
+                            val = json.loads(val)
                     except Exception:
                         pass
+                    if isinstance(val, dict) and bool(val.get('enabled')):
+                        # ключи формата "gsm:0001363" или "sip:3881848"
+                        parts = str(key).split(":", 1)
+                        if len(parts) == 2:
+                            enabled_ext_lines.add(parts[1].strip())
+                smart_redirect_enabled = len(enabled_ext_lines) > 0
+            logging.info(f"SR: enabled_ext_lines={list(enabled_ext_lines)} smart_redirect_enabled={smart_redirect_enabled}")
         except Exception:
-            pass
+            # В случае ошибки не включаем SR
+            smart_redirect_enabled = False
 
         # --- Этап 2: Генерация всех контекстов с разделением ---
         pre_from_out_office_contexts = [generate_department_context(enterprise_id, dept) for dept in department_records]
@@ -1457,10 +1473,11 @@ async def generate_config(request: GenerateConfigRequest):
                     enterprise_id
                 )
 
-                # 3) Все внешние линии предприятия (GSM и SIP)
+                # 3) Все внешние линии предприятия (GSM и SIP), отфильтрованные по enabled_ext_lines
                 all_external_lines = []
-                all_external_lines.extend([str(r['line_id']) for r in gsm_lines_records])
-                all_external_lines.extend([str(r['line_name']) for r in sip_unit_records])
+                all_external_lines.extend([str(r['line_id']).strip() for r in gsm_lines_records if not enabled_ext_lines or str(r['line_id']).strip() in enabled_ext_lines])
+                all_external_lines.extend([str(r['line_name']).strip() for r in sip_unit_records if not enabled_ext_lines or str(r['line_name']).strip() in enabled_ext_lines])
+                logging.info(f"SR: all_external_lines_for_contexts={all_external_lines}")
 
                 # 4) Генерация контекстов
                 smart_contexts = []
@@ -1620,13 +1637,23 @@ async def generate_config(request: GenerateConfigRequest):
         config_parts.append("\n".join(from_out_office_lines))
         config_parts.extend(filter(None, post_from_out_office_contexts))
         footer = get_config_footer()
+        # Всегда приводим смарт-блок в консистентное состояние: если пустой — затираем контексты маркерами
+        marker_pair = (
+            ";******************************Smart Redirection******************************************\n"
+            ";******************************Smart Redirection******************************************"
+        )
         if smart_block:
-            # Вставляем smart_block между маркерами в футере
-            marker_pair = (
-                ";******************************Smart Redirection******************************************\n"
-                ";******************************Smart Redirection******************************************"
-            )
             footer = footer.replace(marker_pair, smart_block)
+        else:
+            # Явно сбрасываем содержимое смарт-блока, если оно было ранее
+            # На случай, если шаблон уже содержит иной текст между маркерами, очищаем вручную
+            start_marker = ";******************************Smart Redirection******************************************"
+            end_marker = ";******************************Smart Redirection******************************************"
+            if start_marker in footer and end_marker in footer:
+                start_idx = footer.find(start_marker)
+                end_idx = footer.rfind(end_marker)
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    footer = footer[:start_idx] + start_marker + "\n" + end_marker + footer[end_idx+len(end_marker):]
         config_parts.append(footer)
 
         final_config = "\n\n".join(filter(None, config_parts))

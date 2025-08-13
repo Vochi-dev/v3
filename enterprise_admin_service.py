@@ -2224,6 +2224,25 @@ async def update_sip_line(
                 enterprise_number
             )
             updated['smart'] = data.smart
+
+        # Асинхронно инициируем ПОЛНУЮ перегенерацию диалплана, т.к. настройки УП влияют на extensions.conf
+        try:
+            ent_row = await conn.fetchrow("SELECT id FROM enterprises WHERE number = $1", enterprise_number)
+            enterprise_id_to_send = ent_row['id'] if ent_row else enterprise_number
+
+            async def _regen_plan(ent_id: str):
+                try:
+                    async with httpx.AsyncClient() as client:
+                        await client.post(
+                            'http://localhost:8006/generate_config',
+                            json={'enterprise_id': ent_id},
+                            timeout=10.0
+                        )
+                except Exception as _e:
+                    logger.error(f"Не удалось инициировать перегенерацию диалплана для SIP: {_e}")
+            asyncio.create_task(_regen_plan(enterprise_id_to_send))
+        except Exception as e:
+            logger.error(f"Ошибка запуска перегенерации диалплана для SIP: {e}")
         return updated
 
     except asyncpg.exceptions.UniqueViolationError:

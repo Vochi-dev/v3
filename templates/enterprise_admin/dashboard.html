@@ -3205,6 +3205,12 @@
                 }
                 
                 alert(lineId ? 'SIP-линия успешно обновлена!' : 'SIP-линия успешно создана!');
+                // Инициируем полную регенерацию диалплана (не блокируем UI)
+                try {
+                    fetch(`/enterprise/${enterpriseNumber}/regenerate-config`, { method: 'POST' })
+                        .then(r => r.ok ? null : r.text().then(t => console.warn('Plan regen failed', t)))
+                        .catch(err => console.warn('Plan regen error', err));
+                } catch(_) {}
                 sipLineFormModal.style.display = 'none';
                 loadSipLines(); 
             } catch (error) {
