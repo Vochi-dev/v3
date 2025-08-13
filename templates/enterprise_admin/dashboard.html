@@ -447,6 +447,27 @@
                         <label for="prefix">Префикс</label>
                         <input type="text" id="prefix" name="prefix">
                     </div>
+                    <hr style="margin:1rem 0;" />
+                    <div style="font-weight:600;margin-bottom:0.5rem;">Умная переадресация</div>
+                    <div class="form-group" style="display:flex;align-items:center;gap:10px;margin-bottom:0.5rem;">
+                        <input type="checkbox" id="sip_sr_enabled" />
+                        <label for="sip_sr_enabled" style="margin:0;">Включить для этой линии</label>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0.5rem;">
+                        <label for="sip_sr_algorithm" style="display:block;margin-bottom:4px;">Алгоритм</label>
+                        <select id="sip_sr_algorithm" class="form-group" style="width:100%;">
+                            <option value="">— выбрать —</option>
+                            <option value="retailcrm">RetailCRM</option>
+                            <option value="first_call">Первый звонок</option>
+                            <option value="last_call">Последний звонок</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sip_sr_do_routing"/> Маршрутизация</label>
+                        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sip_sr_send_line_name"/> Имя линии</label>
+                        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sip_sr_send_customer_name"/> Имя клиента</label>
+                        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sip_sr_send_shop_name"/> Название магазина</label>
+                    </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">Сохранить</button>
                     </div>
@@ -3051,7 +3072,7 @@
                                 <a href="#" data-action="edit-sip-line" data-line-id="${line.id}" class="edit-trigger" style="margin-right: 10px;">✏️</a>
                                 <a href="#" data-action="delete-sip-line" data-line-id="${line.id}" data-line-name="${line.line_name}" class="delete-trigger">🗑️</a>
                             </td>
-                            <td>${line.line_name}</td>
+                            <td style="${(line.smart && (line.smart.enabled === true || line.smart === true)) ? 'color:#28a745;font-weight:700;' : ''}">${line.line_name}</td>
                             <td>${line.provider_name}</td>
                             <td>${line.shop || '—'}</td>
                             <td>${inSchemaText}</td>
@@ -3100,6 +3121,17 @@
                 document.getElementById('line_name').value = lineDetails.line_name;
                 document.getElementById('password').value = lineDetails.password;
                 document.getElementById('prefix').value = lineDetails.prefix || '';
+                // УП настройки
+                try {
+                    const s = lineDetails.smart || {};
+                    const getBool = (v) => v === true || v === 'true' || v === 1 || v === '1';
+                    document.getElementById('sip_sr_enabled').checked = getBool(s.enabled);
+                    document.getElementById('sip_sr_algorithm').value = s.algorithm || '';
+                    document.getElementById('sip_sr_do_routing').checked = getBool(s.do_routing);
+                    document.getElementById('sip_sr_send_line_name').checked = getBool(s.send_line_name);
+                    document.getElementById('sip_sr_send_customer_name').checked = getBool(s.send_customer_name);
+                    document.getElementById('sip_sr_send_shop_name').checked = getBool(s.send_shop_name);
+                } catch(_) {}
 
                 sipLineFormModal.style.display = 'block';
             } catch (error) {
@@ -3116,7 +3148,15 @@
                 provider_id: parseInt(formData.get('provider_id')),
                 line_name: formData.get('line_name'),
                 password: formData.get('password'),
-                prefix: formData.get('prefix')
+                prefix: formData.get('prefix'),
+                smart: {
+                    enabled: document.getElementById('sip_sr_enabled').checked,
+                    algorithm: (function(){ const el = document.getElementById('sip_sr_algorithm'); return el && 'value' in el ? el.value : ''; })(),
+                    do_routing: document.getElementById('sip_sr_do_routing').checked,
+                    send_line_name: document.getElementById('sip_sr_send_line_name').checked,
+                    send_customer_name: document.getElementById('sip_sr_send_customer_name').checked,
+                    send_shop_name: document.getElementById('sip_sr_send_shop_name').checked,
+                }
             };
 
             const url = lineId 

@@ -94,9 +94,10 @@ class SipLineCreate(BaseModel):
     line_name: str
     password: str
     prefix: Optional[str] = None
+    smart: Optional[Any] = None
 
 class SipLineUpdate(SipLineCreate):
-    pass
+    smart: Optional[Any] = None
 
 class DepartmentCreate(BaseModel):
     name: str
@@ -2089,13 +2090,23 @@ async def get_sip_lines(enterprise_number: str, current_enterprise: str = Depend
         logger.info(f"ПОЛУЧЕНО ИЗ БД: {len(sip_lines)} строк.")
         logger.info(f"СОДЕРЖИМОЕ: {sip_lines}")
 
+        # Подмешиваем smart из enterprises.integrations_config
+        cfg_row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+        icfg = (dict(cfg_row).get('integrations_config') if cfg_row else None)
+        if isinstance(icfg, str):
+            try:
+                icfg = json.loads(icfg)
+            except Exception:
+                icfg = None
+        smart_map = {}
+        if isinstance(icfg, dict):
+            smart_map = ((icfg.get('smart') or {}).get('lines')) or {}
+
         results = []
         for record in sip_lines:
-            # Преобразуем каждую запись в словарь.
-            # Поля-массивы Postgres (как `outgoing_schema_names`) asyncpg возвращает как списки Python,
-            # что совместимо с JSON. Проблема могла быть в другом.
-            # Но для надежности оставляем явное преобразование в dict.
-            results.append(dict(record))
+            rec = dict(record)
+            rec['smart'] = smart_map.get(f"sip:{rec['line_name']}")
+            results.append(rec)
         return results
     except Exception as e:
         logger.error(f"Ошибка при обработке данных в get_sip_lines: {e}", exc_info=True)
@@ -2117,7 +2128,17 @@ async def get_sip_line_details(enterprise_number: str, line_id: int, current_ent
         line = await conn.fetchrow(query, line_id, enterprise_number)
         if not line:
             raise HTTPException(status_code=404, detail="SIP line not found")
-        return dict(line)
+        data = dict(line)
+        # Smart from integrations_config
+        cfg_row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+        icfg = (dict(cfg_row).get('integrations_config') if cfg_row else None)
+        if isinstance(icfg, str):
+            try:
+                icfg = json.loads(icfg)
+            except Exception:
+                icfg = None
+        data['smart'] = ((icfg or {}).get('smart') or {}).get('lines', {}).get(f"sip:{data['line_name']}") if isinstance(icfg, dict) else None
+        return data
     finally:
         await conn.close()
 
@@ -2161,7 +2182,29 @@ async def update_sip_line(
         # Регенерация SIP конфига через план-сервис (асинхронно)
         asyncio.create_task(_regenerate_sip_config_via_plan_service(enterprise_number))
 
-        return dict(updated_line)
+        updated = dict(updated_line)
+        # Сохраняем smart в enterprises.integrations_config
+        if data.smart is not None:
+            sr_key = f"sip:{updated['line_name']}"
+            cfg_row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+            current_cfg = (dict(cfg_row).get('integrations_config') if cfg_row else None)
+            if isinstance(current_cfg, str):
+                try:
+                    current_cfg = json.loads(current_cfg)
+                except Exception:
+                    current_cfg = None
+            if not isinstance(current_cfg, dict):
+                current_cfg = {}
+            current_cfg.setdefault('smart', {})
+            current_cfg['smart'].setdefault('lines', {})
+            current_cfg['smart']['lines'][sr_key] = data.smart
+            await conn.execute(
+                "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",
+                json.dumps(current_cfg),
+                enterprise_number
+            )
+            updated['smart'] = data.smart
+        return updated
 
     except asyncpg.exceptions.UniqueViolationError:
         raise HTTPException(status_code=400, detail="Линия с таким именем уже существует для этого предприятия.")
@@ -2209,10 +2252,33 @@ async def create_sip_line(
             data.provider_id
         )
 
+        created = dict(new_line_record)
+        # Сохраняем smart при создании
+        if data.smart is not None:
+            sr_key = f"sip:{created['line_name']}"
+            cfg_row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+            current_cfg = (dict(cfg_row).get('integrations_config') if cfg_row else None)
+            if isinstance(current_cfg, str):
+                try:
+                    current_cfg = json.loads(current_cfg)
+                except Exception:
+                    current_cfg = None
+            if not isinstance(current_cfg, dict):
+                current_cfg = {}
+            current_cfg.setdefault('smart', {})
+            current_cfg['smart'].setdefault('lines', {})
+            current_cfg['smart']['lines'][sr_key] = data.smart
+            await conn.execute(
+                "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",
+                json.dumps(current_cfg),
+                enterprise_number
+            )
+            created['smart'] = data.smart
+
         # Регенерация SIP конфига через план-сервис (асинхронно)
         asyncio.create_task(_regenerate_sip_config_via_plan_service(enterprise_number))
         
-        return dict(new_line_record)
+        return created
 
     except asyncpg.exceptions.UniqueViolationError:
         raise HTTPException(status_code=400, detail="Линия с таким именем уже существует для этого предприятия.")
