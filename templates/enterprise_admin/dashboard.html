@@ -2922,8 +2922,31 @@
                             row.querySelector('td:nth-child(5)').textContent = result.line_name || '';
                             row.querySelector('td:nth-child(4)').textContent = formatDisplayNumber(result.phone_number || '');
                             row.querySelector('td:nth-child(6)').textContent = result.prefix || '';
+                            // Мгновенно обновим подсветку ID согласно текущему состоянию чекбокса
+                            try {
+                                const srEnabledNow = document.getElementById('sr_enabled').checked;
+                                const idCell = row.querySelector('td:nth-child(1)');
+                                if (idCell) {
+                                    if (srEnabledNow) {
+                                        idCell.style.color = '#28a745';
+                                        idCell.style.fontWeight = '700';
+                                    } else {
+                                        idCell.style.color = '';
+                                        idCell.style.fontWeight = '';
+                                    }
+                                }
+                            } catch (_) {}
                         }
+                        // Запускаем регенерацию диалплана (не блокируем UI)
+                        try {
+                            fetch(`/enterprise/${enterpriseNumber}/regenerate-config`, { method: 'POST' })
+                                .then(r => r.ok ? null : r.text().then(t => console.warn('Plan regen failed', t)))
+                                .catch(err => console.warn('Plan regen error', err));
+                        } catch(_) {}
+                        alert('GSM-линия успешно обновлена!');
                         closeEditLineModal();
+                        // Лёгкий рефреш списка, чтобы подтянуть все изменения с сервера
+                        try { setTimeout(() => { document.getElementById('btn-gsm-lines').click(); }, 150); } catch(_) {}
                     } catch (err) {
                         errorDiv.textContent = err.message;
                         errorDiv.style.display = 'block';
@@ -3169,8 +3192,8 @@
             submitButton.disabled = true;
             submitButton.textContent = 'Сохранение...';
 
-            try {
-                const response = await fetch(url, {
+                try {
+                    const response = await fetch(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -3191,6 +3214,29 @@
                 submitButton.textContent = 'Сохранить';
             }
         });
+
+        // После сохранения GSM-линии (форма editLineForm) обновляем таблицу без закрытия модалки
+        document.addEventListener('submit', async (e) => {
+            const formEl = e.target;
+            if (formEl && formEl.id === 'editLineForm') {
+                // Мгновенно обновим цвет ID в текущей строке
+                try {
+                    const srEnabled = document.getElementById('sr_enabled').checked;
+                    const row = document.querySelector(`tr[data-line-id="${lineId}"] td:nth-child(1)`);
+                    if (row) {
+                        if (srEnabled) {
+                            row.style.color = '#28a745';
+                            row.style.fontWeight = '700';
+                        } else {
+                            row.style.color = '';
+                            row.style.fontWeight = '';
+                        }
+                    }
+                } catch(_) {}
+                // Параллельно прожимаем обновление всей таблицы (не мешает UX)
+                setTimeout(() => { try { document.getElementById('btn-gsm-lines').click(); } catch(_) {} }, 200);
+            }
+        }, true);
 
         // --- Department Logic ---
         const loadDepartments = async () => {

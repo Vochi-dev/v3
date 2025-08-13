@@ -1496,6 +1496,26 @@ async def update_gsm_line(
             )
             updated['smart'] = data['smart']
 
+        # Асинхронно инициируем перегенерацию диалплана, т.к. настройки УП влияют на маршрутизацию
+        try:
+            # ВАЖНО: conn будет закрыт в finally, поэтому заранее получаем enterprise_id
+            ent_row = await conn.fetchrow("SELECT id FROM enterprises WHERE number = $1", enterprise_number)
+            enterprise_id_to_send = ent_row['id'] if ent_row else enterprise_number
+
+            async def _regen_plan(ent_id):
+                try:
+                    async with httpx.AsyncClient() as client:
+                        await client.post(
+                            'http://localhost:8006/generate_config',
+                            json={'enterprise_id': ent_id},
+                            timeout=10.0
+                        )
+                except Exception as _e:
+                    logger.error(f"Не удалось инициировать перегенерацию диалплана для GSM: {_e}")
+            asyncio.create_task(_regen_plan(enterprise_id_to_send))
+        except Exception as e:
+            logger.error(f"Ошибка запуска перегенерации диалплана для GSM: {e}")
+
         return updated
     finally:
         await conn.close()
