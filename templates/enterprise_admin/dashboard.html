@@ -2448,8 +2448,10 @@
                             <tbody>`;
                     gateway.lines.forEach(line => {
                         const formattedPhoneNumber = formatDisplayNumber(line.phone_number || '');
+                        const srEnabled = (line.smart && (line.smart.enabled === true || line.smart.enabled === 'true' || line.smart.enabled === 1 || line.smart.enabled === '1'));
+                        const idStyle = srEnabled ? 'style="color:#28a745;font-weight:700;"' : '';
                         html += `<tr data-line-id="${line.id}" data-line-gsm-id="${line.line_id}">
-                            <td class="edit-trigger" data-line-id="${line.id}">${line.line_id || ''}</td>
+                            <td class="edit-trigger" data-line-id="${line.id}" ${idStyle}>${line.line_id || ''}</td>
                             <td><span class="ip-offline">Проверка...</span></td>
                             <td>${line.internal_id || ''}</td>
                             <td>${formattedPhoneNumber}</td>
@@ -2662,6 +2664,27 @@
                     '<div class="form-group"><label for="editLinePhone">Номер телефона:</label><input type="tel" id="editLinePhone" name="phone_number" class="form-group"></div>'+
                     '</form>'+
                     '<div class="form-group" style="margin-top:1rem;"><label>Префикс (prefix):</label> <span id="editLinePrefix" style="font-weight:500;"></span></div>'+
+                    '<hr style="margin:1rem 0;" />'+
+                    '<div style="font-weight:600;margin-bottom:0.5rem;">Умная переадресация</div>'+
+                    '<div class="form-group" style="display:flex;align-items:center;gap:10px;margin-bottom:0.5rem;">'+
+                        '<input type="checkbox" id="sr_enabled" />'+
+                        '<label for="sr_enabled" style="margin:0;">Включить для этой линии</label>'+
+                    '</div>'+
+                    '<div class="form-group" style="margin-bottom:0.5rem;">'+
+                        '<label for="sr_algorithm" style="display:block;margin-bottom:4px;">Алгоритм</label>'+
+                        '<select id="sr_algorithm" class="form-group" style="width:100%;">'+
+                            '<option value="">— выбрать —</option>'+
+                            '<option value="retailcrm">RetailCRM</option>'+
+                            '<option value="first_call">Первый звонок</option>'+
+                            '<option value="last_call">Последний звонок</option>'+
+                        '</select>'+
+                    '</div>'+
+                    '<div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'+
+                        '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sr_do_routing"/> Маршрутизация</label>'+
+                        '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sr_send_line_name"/> Имя линии</label>'+
+                        '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sr_send_customer_name"/> Имя клиента</label>'+
+                        '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sr_send_shop_name"/> Название магазина</label>'+
+                    '</div>'+
                     '<div class="button-bar" style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1.5rem;">'+
                     '<button type="submit" class="button btn btn-primary" form="editLineForm">Сохранить</button>'+
                     '<button type="button" class="button button-secondary btn btn-secondary" id="cancelEditLineModal">Отмена</button>'+
@@ -2783,7 +2806,7 @@
                 // Загружаем данные операторов
                 await loadMobilesData();
                 
-                // Подгружаем данные линии
+                    // Подгружаем данные линии
                 try {
                     const resp = await fetch(`/enterprise/${enterpriseNumber}/gsm-lines/${lineId}`);
                     if (!resp.ok) throw new Error('Ошибка загрузки данных линии');
@@ -2792,6 +2815,20 @@
                     document.getElementById('editLinePhone').value = line.phone_number || '';
                     document.getElementById('editLinePrefix').textContent = line.prefix || '';
                     document.getElementById('editLineNumber').textContent = formatDisplayNumber(line.phone_number || '');
+
+                        // Smart Redirect настройки, если приходят из БД (из поля smart в enterprises.integrations_config или аналогичного места)
+                        try {
+                            if (line.smart && typeof line.smart === 'object') {
+                                const s = line.smart;
+                                const getBool = (v) => v === true || v === 'true' || v === 1 || v === '1';
+                                document.getElementById('sr_enabled').checked = getBool(s.enabled);
+                                document.getElementById('sr_algorithm').value = s.algorithm || '';
+                                document.getElementById('sr_do_routing').checked = getBool(s.do_routing);
+                                document.getElementById('sr_send_line_name').checked = getBool(s.send_line_name);
+                                document.getElementById('sr_send_customer_name').checked = getBool(s.send_customer_name);
+                                document.getElementById('sr_send_shop_name').checked = getBool(s.send_shop_name);
+                            }
+                        } catch(_) {}
                     
                     // Инициализируем intlTelInput после заполнения данных
                     initGsmIti();
@@ -2837,7 +2874,15 @@
                     const data = {
                         line_name: document.getElementById('editLineName').value,
                         phone_number: phoneNumber,
-                        prefix: document.getElementById('editLinePrefix').textContent
+                        prefix: document.getElementById('editLinePrefix').textContent,
+                        smart: {
+                            enabled: document.getElementById('sr_enabled').checked,
+                            algorithm: (function(){ const el = document.getElementById('sr_algorithm'); return el && 'value' in el ? el.value : ''; })(),
+                            do_routing: document.getElementById('sr_do_routing').checked,
+                            send_line_name: document.getElementById('sr_send_line_name').checked,
+                            send_customer_name: document.getElementById('sr_send_customer_name').checked,
+                            send_shop_name: document.getElementById('sr_send_shop_name').checked,
+                        }
                     };
                     try {
                         const resp = await fetch(`/enterprise/${enterpriseNumber}/gsm-lines/${lineId}`, {

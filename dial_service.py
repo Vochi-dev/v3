@@ -74,8 +74,6 @@ class SchemaDataModel(BaseModel):
     nodes: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
     viewport: Dict[str, float]
-    # Флаг умной переадресации (для входящих схем). Необязательный, чтобы не ломать старые записи.
-    smartRedirect: bool | None = None
 
 class SchemaModel(BaseModel):
     schema_id: str = Field(default_factory=lambda: str(uuid.uuid4()))

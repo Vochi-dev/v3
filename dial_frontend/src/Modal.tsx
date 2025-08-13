@@ -248,11 +248,6 @@ const Modal: React.FC = () => {
                                 <div className="schema-info" onClick={() => handleEditSchema(schema)}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                         <span style={{ fontWeight: 700 }}>{schema.schema_name}</span>
-                                        {schema.schema_type === 'incoming' && (schema.schema_data as any)?.smartRedirect && (
-                                            <span style={{ color: '#10b981', fontWeight: 700 }}>
-                                                Умная переадресация
-                                            </span>
-                                        )}
                                     </div>
                                     {assignedLines.length > 0 && schema.schema_type === 'incoming' && (
                                         <div className="assigned-lines-list">

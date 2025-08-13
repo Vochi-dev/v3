@@ -1225,7 +1225,7 @@ async def generate_config(request: GenerateConfigRequest):
                 if r.get('schema_type') == 'incoming':
                     try:
                         data_sr = json.loads(r['schema_data'])
-                        if bool(data_sr.get('smartRedirect')):
+                        if False:
                             smart_redirect_enabled = True
                             break
                     except Exception:
