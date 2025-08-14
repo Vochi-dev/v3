@@ -135,6 +135,39 @@ app.mount("/music", StaticFiles(directory="music"), name="music")
 templates = Jinja2Templates(directory="templates", auto_reload=True)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+try:
+    os.makedirs('logs', exist_ok=True)
+    fh = logging.FileHandler('logs/enterprise_admin_service.log')
+    fh.setLevel(logging.INFO)
+    fmt = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    fh.setFormatter(fmt)
+    logger.addHandler(fh)
+    logger.propagate = True
+except Exception:
+    pass
+
+# -------------------------------------------------
+# Временное точечное логирование флоу в отдельный файл
+# -------------------------------------------------
+def _trace_flow(message: str) -> None:
+    try:
+        line = f"{datetime.now().isoformat()} enterprise_admin_service | {message}\n"
+        # относительный путь
+        try:
+            os.makedirs('logs', exist_ok=True)
+            with open('logs/flow_debug.log', 'a', encoding='utf-8') as _f:
+                _f.write(line)
+        except Exception:
+            pass
+        # абсолютный путь проекта
+        try:
+            os.makedirs('/root/asterisk-webhook/logs', exist_ok=True)
+            with open('/root/asterisk-webhook/logs/flow_debug.log', 'a', encoding='utf-8') as _f:
+                _f.write(line)
+        except Exception:
+            pass
+    except Exception:
+        pass
 
 # Инициализация БД при старте сервиса
 @app.on_event("startup")
@@ -989,6 +1022,74 @@ async def update_user(enterprise_number: str, user_id: int, user_data: UserUpdat
             if exists_internal:
                 raise HTTPException(status_code=400, detail=f"Follow Me номер '{fm}' уже используется как внутренний")
 
+        # Нормализуем follow_me_steps и автодеактивация флага при пустых шагах
+        try:
+            _steps_preview = None
+            if user_data.follow_me_steps is not None:
+                _steps_preview = str(user_data.follow_me_steps)
+                if len(_steps_preview) > 300:
+                    _steps_preview = _steps_preview[:300] + "..."
+        except Exception:
+            _steps_preview = "<error>"
+        logger.info(
+            f"FM_IN enterprise={enterprise_number} user_id={user_id} "
+            f"enabled={user_data.follow_me_enabled} number={user_data.follow_me_number} "
+            f"steps_type={type(user_data.follow_me_steps).__name__} steps_preview={_steps_preview}"
+        )
+        _trace_flow(f"PUT /users/{user_id} START enterprise={enterprise_number} enabled={user_data.follow_me_enabled} number={user_data.follow_me_number}")
+        normalized_steps = user_data.follow_me_steps
+        try:
+            if isinstance(normalized_steps, str):
+                try:
+                    normalized_steps = json.loads(normalized_steps)
+                except Exception:
+                    normalized_steps = None
+        except Exception:
+            normalized_steps = None
+
+        if user_data.follow_me_enabled:
+            # Если включен чекбокс, но шагов нет — автоматически выключаем
+            if not (isinstance(normalized_steps, list) and len(normalized_steps) > 0):
+                user_data.follow_me_enabled = False
+                normalized_steps = None
+        else:
+            # При выключенном флаге принудительно очищаем шаги
+            normalized_steps = None
+
+        # Определим, изменилось ли состояние Follow Me по сравнению с БД
+        fm_changed = False
+        try:
+            current_row = await conn.fetchrow(
+                "SELECT follow_me_number, follow_me_enabled, follow_me_steps FROM users WHERE id = $1 AND enterprise_number = $2",
+                user_id,
+                enterprise_number,
+            )
+            if current_row:
+                curr_num = current_row.get('follow_me_number')
+                curr_enabled = current_row.get('follow_me_enabled')
+                curr_steps = current_row.get('follow_me_steps')
+                if isinstance(curr_steps, str):
+                    try:
+                        curr_steps = json.loads(curr_steps)
+                    except Exception:
+                        curr_steps = None
+                def _js(v):
+                    try:
+                        return json.dumps(v, sort_keys=True, ensure_ascii=False)
+                    except Exception:
+                        return "null"
+                if (curr_num != user_data.follow_me_number) or (bool(curr_enabled) != bool(user_data.follow_me_enabled)) or (_js(curr_steps) != _js(normalized_steps)):
+                    fm_changed = True
+        except Exception:
+            # В случае ошибки сравнения — лучше перестраховаться и обновить план
+            fm_changed = True
+
+        _trace_flow(f"PUT /users/{user_id} BEFORE_UPDATE enterprise={enterprise_number} enabled={user_data.follow_me_enabled} steps={'len='+str(len(normalized_steps)) if isinstance(normalized_steps, list) else 'null'}")
+        logger.info(
+            f"FM_NORMALIZED enterprise={enterprise_number} user_id={user_id} "
+            f"enabled={user_data.follow_me_enabled} number={user_data.follow_me_number} "
+            f"steps_len={len(normalized_steps) if isinstance(normalized_steps, list) else 'null'}"
+        )
         await conn.execute(
             """UPDATE users SET email = $1, first_name = $2, last_name = $3, patronymic = $4, personal_phone = $5,
                is_admin = $6, is_employee = $7, is_marketer = $8, is_spec1 = $9, is_spec2 = $10,
@@ -996,9 +1097,15 @@ async def update_user(enterprise_number: str, user_id: int, user_data: UserUpdat
                WHERE id = $14 AND enterprise_number = $15""",
             user_data.email, user_data.first_name, user_data.last_name, user_data.patronymic, user_data.personal_phone,
             user_data.is_admin, user_data.is_employee, user_data.is_marketer, user_data.is_spec1, user_data.is_spec2,
-            user_data.follow_me_number, user_data.follow_me_enabled, json.dumps(user_data.follow_me_steps) if user_data.follow_me_steps is not None else None,
+            user_data.follow_me_number, user_data.follow_me_enabled, json.dumps(normalized_steps) if normalized_steps is not None else None,
             user_id, enterprise_number
         )
+        logger.info(
+            f"FM_UPDATE_DONE enterprise={enterprise_number} user_id={user_id} "
+            f"enabled={user_data.follow_me_enabled} number={user_data.follow_me_number} "
+            f"steps_len={len(normalized_steps) if isinstance(normalized_steps, list) else 'null'}"
+        )
+        _trace_flow(f"PUT /users/{user_id} AFTER_UPDATE enterprise={enterprise_number}")
         if user_data.internal_phones is not None:
             async with conn.transaction():
                 await conn.execute("UPDATE user_internal_phones SET user_id = NULL WHERE user_id = $1 AND enterprise_number = $2", user_id, enterprise_number)
@@ -1006,30 +1113,22 @@ async def update_user(enterprise_number: str, user_id: int, user_data: UserUpdat
                     await conn.execute("UPDATE user_internal_phones SET user_id = $1 WHERE enterprise_number = $2 AND phone_number = ANY($3::text[])",
                                        user_id, enterprise_number, user_data.internal_phones)
 
-        # Точечная перегенерация диалплана при Follow Me с шагами
+        # Всегда инициируем перегенерацию диалплана после сохранения пользователя (требование)
         try:
-            should_regenerate = False
-            if user_data.follow_me_enabled:
-                steps_obj = user_data.follow_me_steps
-                if isinstance(steps_obj, str):
-                    try:
-                        steps_obj = json.loads(steps_obj)
-                    except Exception:
-                        steps_obj = None
-                if isinstance(steps_obj, list) and len(steps_obj) > 0:
-                    should_regenerate = True
-            if should_regenerate:
-                async def _regen():
-                    try:
-                        async with httpx.AsyncClient() as client:
-                            plan_service_url = "http://localhost:8006/generate_config"
-                            await client.post(plan_service_url, json={"enterprise_id": enterprise_number}, timeout=10.0)
-                            logger.info(f"Запущена перегенерация диалплана для предприятия {enterprise_number} (Follow Me обновлен у пользователя {user_id}).")
-                    except Exception as e:
-                        logger.error(f"Не удалось инициировать перегенерацию диалплана: {e}")
-                asyncio.create_task(_regen())
+            async def _regen():
+                try:
+                    async with httpx.AsyncClient() as client:
+                        plan_service_url = "http://localhost:8006/generate_config"
+                        await client.post(plan_service_url, json={"enterprise_id": enterprise_number}, timeout=10.0)
+                        logger.info(f"plan:regen requested enterprise={enterprise_number} by user_update id={user_id}")
+                        _trace_flow(f"REGEN_REQUESTED enterprise={enterprise_number} user={user_id}")
+                except Exception as e:
+                    logger.error(f"plan:regen failed enterprise={enterprise_number} err={e}")
+                    _trace_flow(f"REGEN_FAILED enterprise={enterprise_number} err={e}")
+            asyncio.create_task(_regen())
         except Exception as e:
             logger.error(f"Ошибка при попытке инициировать перегенерацию диалплана: {e}")
+            _trace_flow(f"REGEN_SPAWN_ERROR enterprise={enterprise_number} err={e}")
 
         return {"status": "success"}
     except asyncpg.exceptions.UniqueViolationError:

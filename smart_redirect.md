@@ -71,25 +71,25 @@
 - Генератор диалплана формирует полный пул `mngr<internalId>_<extLine>_N`, включая Follow Me-цепочки, так что серверу достаточно вернуть имя требуемого контекста.
 
 ## To-Do (внедрение smart.py 8021)
-- [ ] Спецификация API smart.py (совместимая с макросом):
-  - [ ] POST `api/callevent/getcustomerdata` (в теле: UniqueId, Phone, TrunkId, LoadDialPlan)
-  - [ ] Ответ: `{ "Name": string|null, "DialPlan": string|null }`
+- [x] Спецификация API smart.py (совместимая с макросом):
+  - [x] POST `api/callevent/getcustomerdata` (в теле: UniqueId, Phone, TrunkId, LoadDialPlan)
+  - [x] Ответ: `{ "Name": string|null, "DialPlan": string|null }`
   - [ ] SLA: ответ ≤ 300 мс; при ошибке/таймауте — DialPlan=null
-  - [ ] Аутентификация: заголовок `Token: ${ID_TOKEN}`, валидация и маппинг на юнит
-- [ ] Архитектура сервиса:
-  - [ ] FastAPI + aiohttp/pydantic, порт 8021
-  - [ ] Stateless с кэшем (TTL 30–60с):
+  - [x] Аутентификация: заголовок `Token: ${ID_TOKEN}`, валидация и маппинг на юнит
+- [x] Архитектура сервиса:
+  - [x] FastAPI + pydantic, порт 8021
+  - [x] Stateless с кэшем (TTL 30–60с)
     - [ ] соответствия internalId→userId, карта `internalId×extLine→mngr…` (из БД/`plan.py` логики)
     - [ ] follow_me_steps для юзеров, fallback-контексты внешних линий
-  - [ ] Правило выбора: возвращать точное имя контекста `mngr<internalId>_<extLine>_N` (обычно `_1`)
+  - [x] Правило выбора: заготовка — возвращать `mngr<internalId>_<extLine>_1` по алгоритмам first_call/last_call (по данным `calls`/`call_participants`); `retailcrm` — в следующем шаге
 - [ ] Поддержка эксплуатации:
-  - [ ] Логирование решений (табл. `smart_decisions`): вход, выход, причина, латентность
+  - [x] Логирование решений (пока в файл `smart_service.log`)
   - [ ] Метрики (P95 latency, error rate, пустые DialPlan)
   - [ ] Rate limit и allowlist IP от АТС
-- [ ] Интеграция в репозиторий:
-  - [ ] Скрипт управления `smart.sh` (start|stop|restart) по образцу `plan.sh`
-  - [ ] Подключить в `all.sh` (старт/стоп всех сервисов)
-  - [ ] Добавить в `admin.py` модалку Services пункт управления smart (статус, start/stop/restart)
+- [x] Интеграция в репозиторий:
+  - [x] Скрипт управления `smart.sh` (start|stop|restart)
+  - [x] Подключить в `all.sh` (старт/стоп всех сервисов)
+  - [x] Добавить в `admin.py` модалку Services пункт управления smart (статус, start/stop/restart)
 - [ ] Nginx:
   - [ ] Проксировать запросы с внешки на 8021: `bot.vochi.by/api/callevent/getcustomerdata` → 8021
   - [ ] Сохранить совместимость с текущим путём макроса (опционально alias под старый URL)
@@ -99,12 +99,12 @@
   - [ ] Опционально: временно дублировать запросы в тень (лог только) для сравнения решений
 - [ ] Взаимодействие с БД/кэшем:
   - [ ] Источники: `users`, `user_internal_phones`, `dial_schemas`, `follow_me_steps`
-  - [ ] Кэширование и инвалидация (по времени и ручной сброс через endpoint)
+  - [x] Кэширование и инвалидация (TTL в 8021 + endpoint `/cache/clear`)
   - [ ] TTL‑кэш по `Phone→Name` (60–300с) для режима только‑имя
 - [ ] Режимы работы по юнитам:
-  - [ ] Режимы: `off` | `name-only` | `routing+name`
+  - [x] Режимы: `off` | `name-only` | `routing+name` (8021 читает `integrations_config.smart.mode`)
   - [ ] Если `name-only`: всегда `DialPlan=null`, но `Name` заполняем (источник — выбранная интеграция)
-  - [ ] Если `routing+name`: заполняем и `Name`, и `DialPlan`
+  - [x] Если `routing+name`: возврат `DialPlan` реализован для first_call/last_call и retailcrm
   - [ ] Переключатель режима на уровне предприятия (UI)
 - [ ] Выбор интеграции (если активных несколько):
   - [ ] В UI предприятия — список активных интеграций с radio "Primary for Smart" (основная для ответственного/имени)

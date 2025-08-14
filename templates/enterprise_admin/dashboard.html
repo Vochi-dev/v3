@@ -595,7 +595,7 @@
                     <div class="form-actions">
                         <button type="button" data-action="delete-user" id="deleteUserBtn" class="btn btn-danger" style="display: none;">Удалить</button>
                         <div>
-                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                            <button type="submit" id="saveUserBtn" class="btn btn-primary">Сохранить</button>
                             <button type="button" data-action="close-modal" class="btn btn-secondary">Отмена</button>
                         </div>
                     </div>
@@ -1822,6 +1822,11 @@
             } else {
                 data.follow_me_steps = null;
             }
+            // Авто-отключение Follow Me при отсутствии шагов
+            if (!data.follow_me_steps) {
+                data.follow_me_enabled = false;
+                if (fmEnabled) fmEnabled.checked = false;
+            }
             
             const url = currentEditingUser ? `/enterprise/${enterpriseNumber}/users/${currentEditingUser.id}` : `/enterprise/${enterpriseNumber}/users`;
             const method = currentEditingUser ? 'PUT' : 'POST';
@@ -1833,13 +1838,17 @@
                     const errorData = await response.json();
                     throw new Error(errorData.detail || `Ошибка HTTP ${response.status}`);
                 }
-
                 closeModal(createUserModal);
                 await fetchUsers();
             } catch (error) {
                 alert(`Не удалось сохранить пользователя: ${error.message}`);
             }
         };
+
+        // Удалён альтернативный обработчик на кнопку "Сохранить".
+        // Оставляем единственный источник отправки — onsubmit формы.
+
+        // Удалён делегированный обработчик, чтобы не дублировать отправку.
 
         const deleteUser = async () => {
             if (!currentEditingUser) return;

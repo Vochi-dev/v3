@@ -1,0 +1,418 @@
+2025-08-14 13:11:08,454 - download - INFO - Найдено 0 неуспешных событий hangup для 0360
+2025-08-14 13:11:08,454 - download - INFO - Синхронизация live событий для 0360 завершена: 0 новых событий
+2025-08-14 13:11:08,454 - download - INFO - Начинаю синхронизацию live событий для предприятия 0361
+2025-08-14 13:11:09,984 - download - INFO - Найдено 0 неуспешных событий hangup для 0361
+2025-08-14 13:11:09,984 - download - INFO - Синхронизация live событий для 0361 завершена: 0 новых событий
+2025-08-14 13:11:09,984 - download - INFO - Начинаю синхронизацию live событий для предприятия 0362
+2025-08-14 13:11:10,868 - main - INFO - Request: GET https://bot.vochi.by/admin/check-hosts [Client: 213.184.245.128, User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36]
+2025-08-14 13:11:11,253 - download - INFO - Найдено 3 неуспешных событий hangup для 0362
+2025-08-14 13:11:11,297 - download - INFO - Обрабатываю событие 1755159113.101
+2025-08-14 13:11:11,301 - download - INFO - Событие 1755159113.101 уже есть в БД
+2025-08-14 13:11:11,302 - download - INFO - Обрабатываю событие 1755159113.101
+2025-08-14 13:11:11,302 - download - INFO - Событие 1755159113.101 уже есть в БД
+2025-08-14 13:11:11,302 - download - INFO - Обрабатываю событие 1755172908.297
+2025-08-14 13:11:11,303 - download - INFO - Событие 1755172908.297 уже есть в БД
+2025-08-14 13:11:11,332 - download - INFO - Синхронизация live событий для 0362 завершена: 0 новых событий
+2025-08-14 13:11:11,333 - download - INFO - Начинаю синхронизацию live событий для предприятия 0363
+2025-08-14 13:11:11,682 - admin - DEBUG - GoIP AMmedia (enterprise 0119) is online: HTTP 303
+2025-08-14 13:11:11,683 - admin - DEBUG - GoIP Garantum (enterprise 0357) is online: HTTP 303
+2025-08-14 13:11:11,683 - admin - DEBUG - GoIP KlimResh (enterprise 0348) is online: HTTP 303
+2025-08-14 13:11:11,702 - admin - DEBUG - GoIP Supermoika (enterprise 0271) is online: HTTP 303
+2025-08-14 13:11:11,703 - admin - DEBUG - GoIP Albion (enterprise 0107) is online: HTTP 303
+2025-08-14 13:11:11,703 - admin - DEBUG - GoIP KM-8 (enterprise 0245) is online: HTTP 303
+2025-08-14 13:11:11,704 - admin - DEBUG - GoIP FCourier (enterprise 0354) is online: HTTP 303
+2025-08-14 13:11:11,704 - admin - DEBUG - GoIP Global (enterprise 0291) is online: HTTP 303
+2025-08-14 13:11:11,704 - admin - DEBUG - GoIP IntelStride (enterprise 0114) is online: HTTP 303
+2025-08-14 13:11:11,705 - admin - DEBUG - GoIP Garantum2 (enterprise 0353) is online: HTTP 303
+2025-08-14 13:11:11,705 - admin - DEBUG - GoIP DTime (enterprise 0110) is online: HTTP 303
+2025-08-14 13:11:11,706 - admin - DEBUG - GoIP BBG (enterprise 0262) is online: HTTP 303
+2025-08-14 13:11:11,706 - admin - DEBUG - GoIP ConShip (enterprise 0111) is online: HTTP 303
+2025-08-14 13:11:11,706 - admin - DEBUG - GoIP Selling (enterprise 0292) is online: HTTP 303
+2025-08-14 13:11:11,708 - admin - DEBUG - GoIP Amiteh (enterprise 0103) is online: HTTP 303
+2025-08-14 13:11:11,708 - admin - DEBUG - GoIP InterLux (enterprise 0387) is online: HTTP 303
+2025-08-14 13:11:11,708 - admin - DEBUG - GoIP AKRA (enterprise 0118) is online: HTTP 303
+2025-08-14 13:11:11,709 - admin - DEBUG - GoIP Flower (enterprise 0288) is online: HTTP 303
+2025-08-14 13:11:11,713 - admin - DEBUG - GoIP P-Travel (enterprise 0373) is online: HTTP 303
+2025-08-14 13:11:11,713 - admin - DEBUG - GoIP AgroFilter (enterprise 0376) is online: HTTP 303
+2025-08-14 13:11:11,714 - admin - DEBUG - GoIP KANN (enterprise 0350) is online: HTTP 303
+2025-08-14 13:11:11,714 - admin - DEBUG - GoIP Megas (enterprise 0334) is online: HTTP 303
+2025-08-14 13:11:11,715 - admin - DEBUG - GoIP RTM (enterprise 0117) is online: HTTP 303
+2025-08-14 13:11:11,715 - admin - DEBUG - GoIP 1AKB-1379-1386 (enterprise 0233) is online: HTTP 303
+2025-08-14 13:11:11,717 - admin - DEBUG - GoIP LidRemService (enterprise 0361) is online: HTTP 303
+2025-08-14 13:11:11,718 - admin - DEBUG - GoIP AQ (enterprise 0263) is online: HTTP 303
+2025-08-14 13:11:11,719 - admin - DEBUG - GoIP BezopGorod (enterprise 0378) is online: HTTP 303
+2025-08-14 13:11:11,719 - admin - DEBUG - GoIP Lakneya (enterprise 0275) is online: HTTP 303
+2025-08-14 13:11:11,720 - admin - DEBUG - GoIP Audi (enterprise 0226) is online: HTTP 303
+2025-08-14 13:11:11,720 - admin - DEBUG - GoIP STF (enterprise 0385) is online: HTTP 303
+2025-08-14 13:11:11,721 - admin - DEBUG - GoIP Siba-1363-1370 (enterprise 0295) is online: HTTP 303
+2025-08-14 13:11:11,721 - admin - DEBUG - GoIP Merida (enterprise 0335) is online: HTTP 303
+2025-08-14 13:11:11,721 - admin - DEBUG - GoIP Amedis (enterprise 0113) is online: HTTP 303
+2025-08-14 13:11:11,721 - admin - DEBUG - GoIP BT-Obuv (enterprise 0223) is online: HTTP 303
+2025-08-14 13:11:11,722 - admin - DEBUG - GoIP CDEK-Belarus (enterprise 0347) is online: HTTP 303
+2025-08-14 13:11:11,722 - admin - DEBUG - GoIP TehnoStil-1363-1370 (enterprise 0360) is online: HTTP 303
+2025-08-14 13:11:11,723 - admin - DEBUG - GoIP Markit (enterprise 0294) is online: HTTP 303
+2025-08-14 13:11:11,723 - admin - DEBUG - GoIP SSM (enterprise 0281) is online: HTTP 303
+2025-08-14 13:11:11,724 - admin - DEBUG - GoIP M-Market-1367-1374 (enterprise 0286) is online: HTTP 303
+2025-08-14 13:11:11,724 - admin - DEBUG - GoIP AquaExpert (enterprise 0280) is online: HTTP 303
+2025-08-14 13:11:11,736 - admin - DEBUG - GoIP PinaPrint (enterprise 0349) is online: HTTP 303
+2025-08-14 13:11:11,743 - admin - DEBUG - GoIP Multicom-1371-1386 (enterprise 0356) is online: HTTP 303
+2025-08-14 13:11:11,744 - admin - DEBUG - GoIP Mers (enterprise 0389) is online: HTTP 303
+2025-08-14 13:11:11,746 - main - INFO - Request: POST https://bot.vochi.by/bridge_create [Client: 46.53.139.140, User-Agent: python-requests/2.2.1 CPython/3.5.2 Linux/3.18.0-20-rpi2]
+2025-08-14 13:11:11,746 - admin - DEBUG - GoIP Ditrib (enterprise 0252) is online: HTTP 303
+2025-08-14 13:11:11,746 - admin - DEBUG - GoIP MoreMir (enterprise 0337) is online: HTTP 303
+2025-08-14 13:11:11,746 - admin - DEBUG - GoIP ECO (enterprise 0380) is online: HTTP 303
+2025-08-14 13:11:11,748 - admin - DEBUG - GoIP ChinaMoto (enterprise 0116) is online: HTTP 303
+2025-08-14 13:11:11,748 - admin - DEBUG - GoIP Ajour (enterprise 0371) is online: HTTP 303
+2025-08-14 13:11:11,748 - admin - DEBUG - GoIP Dviglo (enterprise 0322) is online: HTTP 303
+2025-08-14 13:11:11,749 - main - INFO - BRIDGE_CREATE REQUEST from 46.53.139.140: {"BridgeUniqueid": "e620b9ba-13f6-4ae6-8490-3b033ad6ce1f", "Token": "375297433335", "BridgeType": "", "BridgeName": "<unknown>", "BridgeTechnology": "simple_bridge", "BridgeCreator": "<unknown>", "UniqueId": "", "BridgeNumChannels": "0"}
+2025-08-14 13:11:11,749 - main - INFO - _dispatch_to_all: Token='375297433335', UniqueId='', body keys: ['BridgeUniqueid', 'Token', 'BridgeType', 'BridgeName', 'BridgeTechnology', 'BridgeCreator', 'UniqueId', 'BridgeNumChannels']
+2025-08-14 13:11:11,749 - main - INFO - Detected event_type: bridge_create
+2025-08-14 13:11:11,749 - root - INFO - Saving Asterisk event: bridge_create, unique_id: , token: 375297433335
+2025-08-14 13:11:11,751 - root - DEBUG - Saved event bridge_create for  from token 375297433335
+2025-08-14 13:11:11,753 - main - INFO - Found bot_token: 8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U, tg_ids: [374573193, 7889254605]
+2025-08-14 13:11:11,753 - telegram.Bot - DEBUG - Set Bot API URL: https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U
+2025-08-14 13:11:11,753 - telegram.Bot - DEBUG - Set Bot API File URL: https://api.telegram.org/file/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U
+2025-08-14 13:11:11,818 - main - ERROR - Asterisk dispatch to 374573193 failed: Token and UniqueId are required fields
+2025-08-14 13:11:11,818 - main - ERROR - Asterisk dispatch to 7889254605 failed: Token and UniqueId are required fields
+2025-08-14 13:11:11,821 - main - INFO - Response: 200 [75.43ms] POST https://bot.vochi.by/bridge_create
+2025-08-14 13:11:11,821 - admin - DEBUG - GoIP Ecotour-108 (enterprise 0230) is online: HTTP 303
+2025-08-14 13:11:11,822 - admin - DEBUG - GoIP ArtStroy (enterprise 0313) is online: HTTP 303
+2025-08-14 13:11:11,822 - admin - DEBUG - GoIP Upaper (enterprise 0283) is online: HTTP 303
+2025-08-14 13:11:11,822 - admin - DEBUG - GoIP Asvik-8 (enterprise 0326) is online: HTTP 303
+2025-08-14 13:11:11,822 - admin - DEBUG - GoIP Erada (enterprise 0388) is online: HTTP 303
+2025-08-14 13:11:11,823 - admin - DEBUG - GoIP CorpStyle (enterprise 0332) is online: HTTP 303
+2025-08-14 13:11:11,823 - admin - DEBUG - GoIP RusShiny (enterprise 0379) is online: HTTP 303
+2025-08-14 13:11:11,823 - admin - DEBUG - GoIP Avtodom-1363-1378 (enterprise 0246) is online: HTTP 303
+2025-08-14 13:11:11,823 - admin - DEBUG - GoIP TermoDar (enterprise 0370) is online: HTTP 303
+2025-08-14 13:11:11,823 - admin - DEBUG - GoIP July1 (enterprise 0200) is online: HTTP 303
+2025-08-14 13:11:11,824 - admin - DEBUG - GoIP VOS (enterprise 0327) is online: HTTP 303
+2025-08-14 13:11:11,824 - admin - DEBUG - GoIP Pump (enterprise 0270) is online: HTTP 303
+2025-08-14 13:11:11,824 - admin - DEBUG - GoIP Vochi-Main (enterprise 0367) is online: HTTP 303
+2025-08-14 13:11:11,824 - admin - DEBUG - GoIP PAO (enterprise 0310) is online: HTTP 303
+2025-08-14 13:11:11,824 - admin - DEBUG - GoIP InDS (enterprise 0307) is online: HTTP 303
+2025-08-14 13:11:11,824 - admin - DEBUG - GoIP MyCar (enterprise 0351) is online: HTTP 303
+2025-08-14 13:11:11,825 - admin - DEBUG - GoIP AQ2 (enterprise 0298) is online: HTTP 303
+2025-08-14 13:11:11,825 - admin - DEBUG - GoIP AMOnew (enterprise 0106) is online: HTTP 303
+2025-08-14 13:11:11,825 - admin - DEBUG - GoIP S-Textile (enterprise 0362) is online: HTTP 303
+2025-08-14 13:11:11,826 - uvicorn.access - INFO - 46.53.139.140:0 - "POST /bridge_create HTTP/1.0" 200
+2025-08-14 13:11:11,957 - admin - DEBUG - GoIP Silvano (enterprise 0358) is online: HTTP 303
+2025-08-14 13:11:12,109 - main - INFO - Request: POST https://bot.vochi.by/bridge [Client: 46.53.139.140, User-Agent: python-requests/2.2.1 CPython/3.5.2 Linux/3.18.0-20-rpi2]
+2025-08-14 13:11:12,110 - main - INFO - BRIDGE REQUEST from 46.53.139.140: {"BridgeUniqueid": "e620b9ba-13f6-4ae6-8490-3b033ad6ce1f", "ConnectedLineNum": "152", "Channel": "SIP/0001366-000000c1", "Token": "375297433335", "Exten": "", "CallerIDNum": "375232346117", "ConnectedLineName": "152", "UniqueId": "1755177057.296", "CallerIDName": ""}
+2025-08-14 13:11:12,110 - main - INFO - _dispatch_to_all: Token='375297433335', UniqueId='1755177057.296', body keys: ['BridgeUniqueid', 'ConnectedLineNum', 'Channel', 'Token', 'Exten', 'CallerIDNum', 'ConnectedLineName', 'UniqueId', 'CallerIDName']
+2025-08-14 13:11:12,110 - main - INFO - Detected event_type: bridge
+2025-08-14 13:11:12,110 - root - INFO - Saving Asterisk event: bridge, unique_id: 1755177057.296, token: 375297433335
+2025-08-14 13:11:12,112 - root - DEBUG - Saved event bridge for 1755177057.296 from token 375297433335
+2025-08-14 13:11:12,113 - main - INFO - Found bot_token: 8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U, tg_ids: [374573193, 7889254605]
+2025-08-14 13:11:12,113 - telegram.Bot - DEBUG - Set Bot API URL: https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U
+2025-08-14 13:11:12,114 - telegram.Bot - DEBUG - Set Bot API File URL: https://api.telegram.org/file/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U
+2025-08-14 13:11:12,175 - root - INFO - [process_bridge] RAW DATA = {'BridgeUniqueid': 'e620b9ba-13f6-4ae6-8490-3b033ad6ce1f', 'ConnectedLineNum': '152', 'Channel': 'SIP/0001366-000000c1', 'Token': '375297433335', 'Exten': '', 'CallerIDNum': '375232346117', 'ConnectedLineName': '152', 'UniqueId': '1755177057.296', 'CallerIDName': ''}
+2025-08-14 13:11:12,175 - root - INFO - [should_send_bridge] Checking bridge e620b9ba-13f6-4ae6-8490-3b033ad6ce1f: caller='375232346117', connected='152'
+2025-08-14 13:11:12,175 - root - INFO - [should_send_bridge] Bridge e620b9ba-13f6-4ae6-8490-3b033ad6ce1f is valid for sending
+2025-08-14 13:11:12,177 - telegram.Bot - DEBUG - Set Bot API URL: https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U
+2025-08-14 13:11:12,177 - telegram.Bot - DEBUG - Set Bot API File URL: https://api.telegram.org/file/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U
+2025-08-14 13:11:12,237 - root - INFO - [send_bridge_to_single_chat] Phone for grouping: 375232346117
+2025-08-14 13:11:12,237 - root - INFO - [send_bridge_to_single_chat] Found previous message 1468 to delete for phone 375232346117
+2025-08-14 13:11:12,237 - telegram.Bot - DEBUG - Calling Bot API endpoint `deleteMessage` with parameters `{'chat_id': 374573193, 'message_id': 1468}`
+2025-08-14 13:11:12,238 - httpcore.connection - DEBUG - connect_tcp.started host='api.telegram.org' port=443 local_address=None timeout=5.0 socket_options=None
+2025-08-14 13:11:12,255 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f62b8244df0>
+2025-08-14 13:11:12,256 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7f62984937c0> server_hostname='api.telegram.org' timeout=5.0
+2025-08-14 13:11:12,274 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f62bc65e590>
+2025-08-14 13:11:12,274 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:12,275 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:12,275 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:12,275 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:12,275 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:12,398 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:12 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'25'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Allow-Methods', b'GET, POST, OPTIONS'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:12,399 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U/deleteMessage "HTTP/1.1 200 OK"
+2025-08-14 13:11:12,399 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:12,399 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:12,399 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:12,400 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:12,400 - telegram.Bot - DEBUG - Call to Bot API endpoint `deleteMessage` finished with return value `True`
+2025-08-14 13:11:12,400 - root - INFO - [send_bridge_to_single_chat] Deleted previous bridge message 1468
+2025-08-14 13:11:12,400 - root - INFO - [send_bridge_to_single_chat] After cleanup, proceeding to create new bridge message
+2025-08-14 13:11:12,400 - root - INFO - [send_bridge_to_single_chat] Bridge: 375232346117 <-> 152
+2025-08-14 13:11:12,401 - root - INFO - [send_bridge_to_single_chat] => chat=374573193, text='☎️152 📞➡️ 💰+375 232 34-61-17📞'
+2025-08-14 13:11:12,401 - telegram.Bot - DEBUG - Calling Bot API endpoint `sendMessage` with parameters `{'chat_id': 374573193, 'text': '☎️152 📞➡️ 💰+375 232 34-61-17📞', 'parse_mode': 'HTML'}`
+2025-08-14 13:11:12,402 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:12,403 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:12,403 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:12,403 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:12,403 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:12,510 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:12 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'440'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Allow-Methods', b'GET, POST, OPTIONS'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:12,511 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U/sendMessage "HTTP/1.1 200 OK"
+2025-08-14 13:11:12,511 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:12,511 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:12,512 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:12,512 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:12,512 - telegram.Bot - DEBUG - Call to Bot API endpoint `sendMessage` finished with return value `{'message_id': 1470, 'from': {'id': 8382776956, 'is_bot': True, 'first_name': '0118-AKRA-bot', 'username': 'akra_vochi_bot'}, 'chat': {'id': 374573193, 'first_name': 'Vochi-CRM', 'last_name': 'Баевский Евгений', 'username': 'VochiCRM', 'type': 'private'}, 'date': 1755177072, 'text': '☎️152 📞➡️ 💰+375 232 34-61-17📞'}`
+2025-08-14 13:11:12,513 - root - INFO - [send_bridge_to_single_chat] Sent bridge message 1470
+2025-08-14 13:11:12,513 - root - DEBUG - Telegram message 1470 for bridge logged
+2025-08-14 13:11:12,513 - root - INFO - [send_bridge_to_single_chat] Successfully sent bridge message 1470 for 375232346117
+2025-08-14 13:11:12,516 - root - INFO - [send_bridge_to_single_chat] Phone for grouping: 375232346117
+2025-08-14 13:11:12,517 - root - INFO - [send_bridge_to_single_chat] Found previous message 1469 to delete for phone 375232346117
+2025-08-14 13:11:12,517 - root - INFO - [send_bridge_to_single_chat] Found bridge in store 1470 to delete for uid 1755177057.296
+2025-08-14 13:11:12,517 - telegram.Bot - DEBUG - Calling Bot API endpoint `deleteMessage` with parameters `{'chat_id': 7889254605, 'message_id': 1469}`
+2025-08-14 13:11:12,521 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:12,521 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:12,522 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:12,522 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:12,522 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:12,552 - download - INFO - Найдено 0 неуспешных событий hangup для 0363
+2025-08-14 13:11:12,552 - download - INFO - Синхронизация live событий для 0363 завершена: 0 новых событий
+2025-08-14 13:11:12,553 - download - INFO - Начинаю синхронизацию live событий для предприятия 0367
+2025-08-14 13:11:12,598 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:12 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'25'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Allow-Methods', b'GET, POST, OPTIONS'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:12,599 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U/deleteMessage "HTTP/1.1 200 OK"
+2025-08-14 13:11:12,599 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:12,599 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:12,599 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:12,599 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:12,600 - telegram.Bot - DEBUG - Call to Bot API endpoint `deleteMessage` finished with return value `True`
+2025-08-14 13:11:12,600 - root - INFO - [send_bridge_to_single_chat] Deleted previous bridge message 1469
+2025-08-14 13:11:12,600 - telegram.Bot - DEBUG - Calling Bot API endpoint `deleteMessage` with parameters `{'chat_id': 7889254605, 'message_id': 1470}`
+2025-08-14 13:11:12,601 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:12,601 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:12,601 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:12,601 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:12,601 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:12,655 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 400, b'Bad Request', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:12 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'86'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:12,656 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U/deleteMessage "HTTP/1.1 400 Bad Request"
+2025-08-14 13:11:12,656 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:12,656 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:12,656 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:12,657 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:12,657 - root - WARNING - [send_bridge_to_single_chat] Could not delete message 1470: Message to delete not found
+2025-08-14 13:11:12,657 - root - INFO - [send_bridge_to_single_chat] After cleanup, proceeding to create new bridge message
+2025-08-14 13:11:12,657 - root - INFO - [send_bridge_to_single_chat] Bridge: 375232346117 <-> 152
+2025-08-14 13:11:12,657 - root - INFO - [send_bridge_to_single_chat] => chat=7889254605, text='☎️152 📞➡️ 💰+375 232 34-61-17📞'
+2025-08-14 13:11:12,658 - telegram.Bot - DEBUG - Calling Bot API endpoint `sendMessage` with parameters `{'chat_id': 7889254605, 'text': '☎️152 📞➡️ 💰+375 232 34-61-17📞', 'parse_mode': 'HTML'}`
+2025-08-14 13:11:12,659 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:12,659 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:12,659 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:12,659 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:12,659 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:12,736 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:12 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'320'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Allow-Methods', b'GET, POST, OPTIONS'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:12,736 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U/sendMessage "HTTP/1.1 200 OK"
+2025-08-14 13:11:12,736 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:12,736 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:12,737 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:12,737 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:12,737 - telegram.Bot - DEBUG - Call to Bot API endpoint `sendMessage` finished with return value `{'message_id': 1471, 'from': {'id': 8382776956, 'is_bot': True, 'first_name': '0118-AKRA-bot', 'username': 'akra_vochi_bot'}, 'chat': {'id': 7889254605, 'first_name': 'VochiBotServer#2', 'type': 'private'}, 'date': 1755177072, 'text': '☎️152 📞➡️ 💰+375 232 34-61-17📞'}`
+2025-08-14 13:11:12,737 - root - INFO - [send_bridge_to_single_chat] Sent bridge message 1471
+2025-08-14 13:11:12,737 - root - DEBUG - Telegram message 1471 for bridge logged
+2025-08-14 13:11:12,737 - root - INFO - [send_bridge_to_single_chat] Successfully sent bridge message 1471 for 375232346117
+2025-08-14 13:11:12,739 - main - INFO - Successfully sent to chat_id: 374573193
+2025-08-14 13:11:12,739 - root - INFO - [process_bridge] RAW DATA = {'BridgeUniqueid': 'e620b9ba-13f6-4ae6-8490-3b033ad6ce1f', 'ConnectedLineNum': '152', 'Channel': 'SIP/0001366-000000c1', 'Token': '375297433335', 'Exten': '', 'CallerIDNum': '375232346117', 'ConnectedLineName': '152', 'UniqueId': '1755177057.296', 'CallerIDName': ''}
+2025-08-14 13:11:12,739 - root - INFO - [should_send_bridge] Checking bridge e620b9ba-13f6-4ae6-8490-3b033ad6ce1f: caller='375232346117', connected='152'
+2025-08-14 13:11:12,739 - root - INFO - [should_send_bridge] Bridge e620b9ba-13f6-4ae6-8490-3b033ad6ce1f is valid for sending
+2025-08-14 13:11:12,740 - telegram.Bot - DEBUG - Set Bot API URL: https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U
+2025-08-14 13:11:12,740 - telegram.Bot - DEBUG - Set Bot API File URL: https://api.telegram.org/file/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U
+2025-08-14 13:11:12,816 - main - INFO - Request: POST https://bot.vochi.by/bridge [Client: 86.57.254.225, User-Agent: python-requests/2.2.1 CPython/3.5.2 Linux/3.18.0-20-rpi2]
+2025-08-14 13:11:12,817 - main - INFO - BRIDGE REQUEST from 86.57.254.225: {"Token": "375296211113", "ConnectedLineName": "<unknown>", "BridgeUniqueid": "73ece31c-28a4-48b6-8782-d45e64c29447", "UniqueId": "1755177058.2592", "Channel": "SIP/158-000005ed", "ConnectedLineNum": "<unknown>", "CallerIDNum": "158", "CallerIDName": "158", "Exten": "375297503878"}
+2025-08-14 13:11:12,817 - main - INFO - _dispatch_to_all: Token='375296211113', UniqueId='1755177058.2592', body keys: ['Token', 'ConnectedLineName', 'BridgeUniqueid', 'UniqueId', 'Channel', 'ConnectedLineNum', 'CallerIDNum', 'CallerIDName', 'Exten']
+2025-08-14 13:11:12,817 - main - INFO - Detected event_type: bridge
+2025-08-14 13:11:12,817 - root - INFO - Saving Asterisk event: bridge, unique_id: 1755177058.2592, token: 375296211113
+2025-08-14 13:11:12,818 - root - INFO - [send_bridge_to_single_chat] Phone for grouping: 375232346117
+2025-08-14 13:11:12,818 - root - INFO - [send_bridge_to_single_chat] Found previous message 1470 to delete for phone 375232346117
+2025-08-14 13:11:12,818 - telegram.Bot - DEBUG - Calling Bot API endpoint `deleteMessage` with parameters `{'chat_id': 374573193, 'message_id': 1470}`
+2025-08-14 13:11:12,819 - httpcore.connection - DEBUG - connect_tcp.started host='api.telegram.org' port=443 local_address=None timeout=5.0 socket_options=None
+2025-08-14 13:11:12,820 - root - DEBUG - Saved event bridge for 1755177058.2592 from token 375296211113
+2025-08-14 13:11:12,821 - main - INFO - Found bot_token: 7631174715:AAHfnUcGZyysGu8kEbHWzFj7XXmkGzNjbyE, tg_ids: [374573193]
+2025-08-14 13:11:12,821 - telegram.Bot - DEBUG - Set Bot API URL: https://api.telegram.org/bot7631174715:AAHfnUcGZyysGu8kEbHWzFj7XXmkGzNjbyE
+2025-08-14 13:11:12,821 - telegram.Bot - DEBUG - Set Bot API File URL: https://api.telegram.org/file/bot7631174715:AAHfnUcGZyysGu8kEbHWzFj7XXmkGzNjbyE
+2025-08-14 13:11:12,878 - root - INFO - [process_bridge] RAW DATA = {'Token': '375296211113', 'ConnectedLineName': '<unknown>', 'BridgeUniqueid': '73ece31c-28a4-48b6-8782-d45e64c29447', 'UniqueId': '1755177058.2592', 'Channel': 'SIP/158-000005ed', 'ConnectedLineNum': '<unknown>', 'CallerIDNum': '158', 'CallerIDName': '158', 'Exten': '375297503878'}
+2025-08-14 13:11:12,878 - root - INFO - [should_send_bridge] Checking bridge 73ece31c-28a4-48b6-8782-d45e64c29447: caller='158', connected='<unknown>'
+2025-08-14 13:11:12,878 - root - INFO - [should_send_bridge] Skipping bridge - invalid numbers
+2025-08-14 13:11:12,878 - root - INFO - [process_bridge] Skipping bridge - not the right one to send
+2025-08-14 13:11:12,878 - main - INFO - Successfully sent to chat_id: 374573193
+2025-08-14 13:11:12,888 - root - DEBUG - Marked telegram_sent for bridge event 1755177058.2592
+2025-08-14 13:11:12,889 - main - INFO - Marked telegram_sent for bridge event 1755177058.2592
+2025-08-14 13:11:12,892 - main - INFO - Response: 200 [76.04ms] POST https://bot.vochi.by/bridge
+2025-08-14 13:11:12,892 - uvicorn.access - INFO - 86.57.254.225:0 - "POST /bridge HTTP/1.0" 200
+2025-08-14 13:11:12,895 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f62b82fa7d0>
+2025-08-14 13:11:12,895 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7f62b82a83c0> server_hostname='api.telegram.org' timeout=5.0
+2025-08-14 13:11:12,912 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f62b82fa470>
+2025-08-14 13:11:12,912 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:12,913 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:12,913 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:12,913 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:12,913 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,054 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:13 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'25'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Allow-Methods', b'GET, POST, OPTIONS'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:13,054 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U/deleteMessage "HTTP/1.1 200 OK"
+2025-08-14 13:11:13,055 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,055 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:13,056 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:13,056 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:13,056 - telegram.Bot - DEBUG - Call to Bot API endpoint `deleteMessage` finished with return value `True`
+2025-08-14 13:11:13,057 - root - INFO - [send_bridge_to_single_chat] Deleted previous bridge message 1470
+2025-08-14 13:11:13,057 - root - INFO - [send_bridge_to_single_chat] After cleanup, proceeding to create new bridge message
+2025-08-14 13:11:13,057 - root - INFO - [send_bridge_to_single_chat] Bridge: 375232346117 <-> 152
+2025-08-14 13:11:13,057 - root - INFO - [send_bridge_to_single_chat] => chat=374573193, text='☎️152 📞➡️ 💰+375 232 34-61-17📞'
+2025-08-14 13:11:13,058 - telegram.Bot - DEBUG - Calling Bot API endpoint `sendMessage` with parameters `{'chat_id': 374573193, 'text': '☎️152 📞➡️ 💰+375 232 34-61-17📞', 'parse_mode': 'HTML'}`
+2025-08-14 13:11:13,058 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,059 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:13,059 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,059 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:13,060 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,197 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:13 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'440'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Allow-Methods', b'GET, POST, OPTIONS'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:13,198 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U/sendMessage "HTTP/1.1 200 OK"
+2025-08-14 13:11:13,198 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,198 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:13,198 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:13,198 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:13,199 - telegram.Bot - DEBUG - Call to Bot API endpoint `sendMessage` finished with return value `{'message_id': 1472, 'from': {'id': 8382776956, 'is_bot': True, 'first_name': '0118-AKRA-bot', 'username': 'akra_vochi_bot'}, 'chat': {'id': 374573193, 'first_name': 'Vochi-CRM', 'last_name': 'Баевский Евгений', 'username': 'VochiCRM', 'type': 'private'}, 'date': 1755177073, 'text': '☎️152 📞➡️ 💰+375 232 34-61-17📞'}`
+2025-08-14 13:11:13,199 - root - INFO - [send_bridge_to_single_chat] Sent bridge message 1472
+2025-08-14 13:11:13,199 - root - DEBUG - Telegram message 1472 for bridge logged
+2025-08-14 13:11:13,199 - root - INFO - [send_bridge_to_single_chat] Successfully sent bridge message 1472 for 375232346117
+2025-08-14 13:11:13,201 - root - INFO - [send_bridge_to_single_chat] Phone for grouping: 375232346117
+2025-08-14 13:11:13,201 - root - INFO - [send_bridge_to_single_chat] Found previous message 1471 to delete for phone 375232346117
+2025-08-14 13:11:13,201 - root - INFO - [send_bridge_to_single_chat] Found bridge in store 1472 to delete for uid 1755177057.296
+2025-08-14 13:11:13,201 - telegram.Bot - DEBUG - Calling Bot API endpoint `deleteMessage` with parameters `{'chat_id': 7889254605, 'message_id': 1471}`
+2025-08-14 13:11:13,202 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,203 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:13,203 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,203 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:13,203 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,227 - main - INFO - Request: POST https://bot.vochi.by/bridge [Client: 86.57.254.225, User-Agent: python-requests/2.2.1 CPython/3.5.2 Linux/3.18.0-20-rpi2]
+2025-08-14 13:11:13,228 - main - INFO - BRIDGE REQUEST from 86.57.254.225: {"Token": "375296211113", "ConnectedLineName": "158", "BridgeUniqueid": "73ece31c-28a4-48b6-8782-d45e64c29447", "UniqueId": "1755177058.2593", "Channel": "SIP/0001368-000005ee", "ConnectedLineNum": "158", "CallerIDNum": "375297503878", "CallerIDName": "", "Exten": ""}
+2025-08-14 13:11:13,228 - main - INFO - _dispatch_to_all: Token='375296211113', UniqueId='1755177058.2593', body keys: ['Token', 'ConnectedLineName', 'BridgeUniqueid', 'UniqueId', 'Channel', 'ConnectedLineNum', 'CallerIDNum', 'CallerIDName', 'Exten']
+2025-08-14 13:11:13,228 - main - INFO - Detected event_type: bridge
+2025-08-14 13:11:13,229 - root - INFO - Saving Asterisk event: bridge, unique_id: 1755177058.2593, token: 375296211113
+2025-08-14 13:11:13,231 - root - DEBUG - Saved event bridge for 1755177058.2593 from token 375296211113
+2025-08-14 13:11:13,233 - main - INFO - Found bot_token: 7631174715:AAHfnUcGZyysGu8kEbHWzFj7XXmkGzNjbyE, tg_ids: [374573193]
+2025-08-14 13:11:13,233 - telegram.Bot - DEBUG - Set Bot API URL: https://api.telegram.org/bot7631174715:AAHfnUcGZyysGu8kEbHWzFj7XXmkGzNjbyE
+2025-08-14 13:11:13,233 - telegram.Bot - DEBUG - Set Bot API File URL: https://api.telegram.org/file/bot7631174715:AAHfnUcGZyysGu8kEbHWzFj7XXmkGzNjbyE
+2025-08-14 13:11:13,293 - root - INFO - [process_bridge] RAW DATA = {'Token': '375296211113', 'ConnectedLineName': '158', 'BridgeUniqueid': '73ece31c-28a4-48b6-8782-d45e64c29447', 'UniqueId': '1755177058.2593', 'Channel': 'SIP/0001368-000005ee', 'ConnectedLineNum': '158', 'CallerIDNum': '375297503878', 'CallerIDName': '', 'Exten': ''}
+2025-08-14 13:11:13,293 - root - INFO - [should_send_bridge] Checking bridge 73ece31c-28a4-48b6-8782-d45e64c29447: caller='375297503878', connected='158'
+2025-08-14 13:11:13,293 - root - INFO - [should_send_bridge] Bridge 73ece31c-28a4-48b6-8782-d45e64c29447 is valid for sending
+2025-08-14 13:11:13,294 - telegram.Bot - DEBUG - Set Bot API URL: https://api.telegram.org/bot7631174715:AAHfnUcGZyysGu8kEbHWzFj7XXmkGzNjbyE
+2025-08-14 13:11:13,294 - telegram.Bot - DEBUG - Set Bot API File URL: https://api.telegram.org/file/bot7631174715:AAHfnUcGZyysGu8kEbHWzFj7XXmkGzNjbyE
+2025-08-14 13:11:13,350 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:13 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'25'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Allow-Methods', b'GET, POST, OPTIONS'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:13,350 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U/deleteMessage "HTTP/1.1 200 OK"
+2025-08-14 13:11:13,351 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,351 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:13,351 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:13,351 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:13,351 - telegram.Bot - DEBUG - Call to Bot API endpoint `deleteMessage` finished with return value `True`
+2025-08-14 13:11:13,351 - root - INFO - [send_bridge_to_single_chat] Deleted previous bridge message 1471
+2025-08-14 13:11:13,352 - telegram.Bot - DEBUG - Calling Bot API endpoint `deleteMessage` with parameters `{'chat_id': 7889254605, 'message_id': 1472}`
+2025-08-14 13:11:13,352 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,353 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:13,353 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,353 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:13,353 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,353 - root - INFO - [send_bridge_to_single_chat] Phone for grouping: 375297503878
+2025-08-14 13:11:13,353 - root - INFO - [send_bridge_to_single_chat] Found previous message 87551 to delete for phone 375297503878
+2025-08-14 13:11:13,354 - telegram.Bot - DEBUG - Calling Bot API endpoint `deleteMessage` with parameters `{'chat_id': 374573193, 'message_id': 87551}`
+2025-08-14 13:11:13,354 - httpcore.connection - DEBUG - connect_tcp.started host='api.telegram.org' port=443 local_address=None timeout=5.0 socket_options=None
+2025-08-14 13:11:13,371 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f6298140a60>
+2025-08-14 13:11:13,371 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7f6298492d40> server_hostname='api.telegram.org' timeout=5.0
+2025-08-14 13:11:13,385 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f6298140340>
+2025-08-14 13:11:13,386 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,386 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:13,386 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,386 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:13,387 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,404 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:13 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'25'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Allow-Methods', b'GET, POST, OPTIONS'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:13,404 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7631174715:AAHfnUcGZyysGu8kEbHWzFj7XXmkGzNjbyE/deleteMessage "HTTP/1.1 200 OK"
+2025-08-14 13:11:13,405 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,405 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:13,405 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:13,405 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:13,405 - telegram.Bot - DEBUG - Call to Bot API endpoint `deleteMessage` finished with return value `True`
+2025-08-14 13:11:13,405 - root - INFO - [send_bridge_to_single_chat] Deleted previous bridge message 87551
+2025-08-14 13:11:13,406 - root - INFO - [send_bridge_to_single_chat] After cleanup, proceeding to create new bridge message
+2025-08-14 13:11:13,406 - root - INFO - [send_bridge_to_single_chat] Bridge: 375297503878 <-> 158
+2025-08-14 13:11:13,406 - root - INFO - [send_bridge_to_single_chat] => chat=374573193, text='☎️158 📞➡️ 💰+375 29 750-38-78📞'
+2025-08-14 13:11:13,406 - telegram.Bot - DEBUG - Calling Bot API endpoint `sendMessage` with parameters `{'chat_id': 374573193, 'text': '☎️158 📞➡️ 💰+375 29 750-38-78📞', 'parse_mode': 'HTML'}`
+2025-08-14 13:11:13,407 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,407 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:13,407 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,407 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:13,408 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,447 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:13 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'439'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Allow-Methods', b'GET, POST, OPTIONS'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:13,447 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7631174715:AAHfnUcGZyysGu8kEbHWzFj7XXmkGzNjbyE/sendMessage "HTTP/1.1 200 OK"
+2025-08-14 13:11:13,448 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,448 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:13,448 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:13,448 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:13,449 - telegram.Bot - DEBUG - Call to Bot API endpoint `sendMessage` finished with return value `{'message_id': 87554, 'from': {'id': 7631174715, 'is_bot': True, 'first_name': '0327-VOS-bot', 'username': 'vochi_vos_bot'}, 'chat': {'id': 374573193, 'first_name': 'Vochi-CRM', 'last_name': 'Баевский Евгений', 'username': 'VochiCRM', 'type': 'private'}, 'date': 1755177073, 'text': '☎️158 📞➡️ 💰+375 29 750-38-78📞'}`
+2025-08-14 13:11:13,449 - root - INFO - [send_bridge_to_single_chat] Sent bridge message 87554
+2025-08-14 13:11:13,449 - root - DEBUG - Telegram message 87554 for bridge logged
+2025-08-14 13:11:13,449 - root - INFO - [send_bridge_to_single_chat] Successfully sent bridge message 87554 for 375297503878
+2025-08-14 13:11:13,450 - main - INFO - Successfully sent to chat_id: 374573193
+2025-08-14 13:11:13,452 - root - DEBUG - Marked telegram_sent for bridge event 1755177058.2593
+2025-08-14 13:11:13,453 - main - INFO - Marked telegram_sent for bridge event 1755177058.2593
+2025-08-14 13:11:13,455 - main - INFO - Response: 200 [227.93ms] POST https://bot.vochi.by/bridge
+2025-08-14 13:11:13,455 - uvicorn.access - INFO - 86.57.254.225:0 - "POST /bridge HTTP/1.0" 200
+2025-08-14 13:11:13,460 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 400, b'Bad Request', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:13 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'86'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:13,460 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U/deleteMessage "HTTP/1.1 400 Bad Request"
+2025-08-14 13:11:13,460 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,461 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:13,461 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:13,461 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:13,461 - root - WARNING - [send_bridge_to_single_chat] Could not delete message 1472: Message to delete not found
+2025-08-14 13:11:13,461 - root - INFO - [send_bridge_to_single_chat] After cleanup, proceeding to create new bridge message
+2025-08-14 13:11:13,462 - root - INFO - [send_bridge_to_single_chat] Bridge: 375232346117 <-> 152
+2025-08-14 13:11:13,462 - root - INFO - [send_bridge_to_single_chat] => chat=7889254605, text='☎️152 📞➡️ 💰+375 232 34-61-17📞'
+2025-08-14 13:11:13,462 - telegram.Bot - DEBUG - Calling Bot API endpoint `sendMessage` with parameters `{'chat_id': 7889254605, 'text': '☎️152 📞➡️ 💰+375 232 34-61-17📞', 'parse_mode': 'HTML'}`
+2025-08-14 13:11:13,463 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,463 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-08-14 13:11:13,463 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,463 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-08-14 13:11:13,464 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-08-14 13:11:13,570 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'nginx/1.18.0'), (b'Date', b'Thu, 14 Aug 2025 13:11:13 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'320'), (b'Connection', b'keep-alive'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'Access-Control-Allow-Origin', b'*'), (b'Access-Control-Allow-Methods', b'GET, POST, OPTIONS'), (b'Access-Control-Expose-Headers', b'Content-Length,Content-Type,Date,Server,Connection')])
+2025-08-14 13:11:13,571 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U/sendMessage "HTTP/1.1 200 OK"
+2025-08-14 13:11:13,571 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-08-14 13:11:13,571 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-08-14 13:11:13,571 - httpcore.http11 - DEBUG - response_closed.started
+2025-08-14 13:11:13,572 - httpcore.http11 - DEBUG - response_closed.complete
+2025-08-14 13:11:13,572 - telegram.Bot - DEBUG - Call to Bot API endpoint `sendMessage` finished with return value `{'message_id': 1473, 'from': {'id': 8382776956, 'is_bot': True, 'first_name': '0118-AKRA-bot', 'username': 'akra_vochi_bot'}, 'chat': {'id': 7889254605, 'first_name': 'VochiBotServer#2', 'type': 'private'}, 'date': 1755177073, 'text': '☎️152 📞➡️ 💰+375 232 34-61-17📞'}`
+2025-08-14 13:11:13,573 - root - INFO - [send_bridge_to_single_chat] Sent bridge message 1473
+2025-08-14 13:11:13,573 - root - DEBUG - Telegram message 1473 for bridge logged
+2025-08-14 13:11:13,573 - root - INFO - [send_bridge_to_single_chat] Successfully sent bridge message 1473 for 375232346117
+2025-08-14 13:11:13,574 - main - INFO - Successfully sent to chat_id: 7889254605
+2025-08-14 13:11:13,576 - root - DEBUG - Marked telegram_sent for bridge event 1755177057.296
+2025-08-14 13:11:13,577 - main - INFO - Marked telegram_sent for bridge event 1755177057.296
+2025-08-14 13:11:13,580 - main - INFO - Response: 200 [1470.77ms] POST https://bot.vochi.by/bridge
+2025-08-14 13:11:13,580 - uvicorn.access - INFO - 46.53.139.140:0 - "POST /bridge HTTP/1.0" 200
+2025-08-14 13:11:13,738 - download - INFO - Найдено 0 неуспешных событий hangup для 0367
+2025-08-14 13:11:13,738 - download - INFO - Синхронизация live событий для 0367 завершена: 0 новых событий
+2025-08-14 13:11:13,738 - download - INFO - Начинаю синхронизацию live событий для предприятия 0368
+2025-08-14 13:11:13,910 - main - INFO - Request: POST https://bot.vochi.by/bridge [Client: 46.53.139.140, User-Agent: python-requests/2.2.1 CPython/3.5.2 Linux/3.18.0-20-rpi2]
+2025-08-14 13:11:13,912 - main - INFO - BRIDGE REQUEST from 46.53.139.140: {"BridgeUniqueid": "e620b9ba-13f6-4ae6-8490-3b033ad6ce1f", "ConnectedLineNum": "<unknown>", "Channel": "SIP/152-000000c0", "Token": "375297433335", "Exten": "375232346117", "CallerIDNum": "152", "ConnectedLineName": "<unknown>", "UniqueId": "1755177056.295", "CallerIDName": "152"}
+2025-08-14 13:11:13,912 - main - INFO - _dispatch_to_all: Token='375297433335', UniqueId='1755177056.295', body keys: ['BridgeUniqueid', 'ConnectedLineNum', 'Channel', 'Token', 'Exten', 'CallerIDNum', 'ConnectedLineName', 'UniqueId', 'CallerIDName']
+2025-08-14 13:11:13,912 - main - INFO - Detected event_type: bridge
+2025-08-14 13:11:13,912 - root - INFO - Saving Asterisk event: bridge, unique_id: 1755177056.295, token: 375297433335
+2025-08-14 13:11:13,915 - root - DEBUG - Saved event bridge for 1755177056.295 from token 375297433335
+2025-08-14 13:11:13,920 - main - INFO - Found bot_token: 8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U, tg_ids: [374573193, 7889254605]
+2025-08-14 13:11:13,920 - telegram.Bot - DEBUG - Set Bot API URL: https://api.telegram.org/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U
+2025-08-14 13:11:13,921 - telegram.Bot - DEBUG - Set Bot API File URL: https://api.telegram.org/file/bot8382776956:AAGeouE47sq7Y7eKEm4UXoxFBAGFXXCHh0U
+2025-08-14 13:11:14,007 - root - INFO - [process_bridge] RAW DATA = {'BridgeUniqueid': 'e620b9ba-13f6-4ae6-8490-3b033ad6ce1f', 'ConnectedLineNum': '<unknown>', 'Channel': 'SIP/152-000000c0', 'Token': '375297433335', 'Exten': '375232346117', 'CallerIDNum': '152', 'ConnectedLineName': '<unknown>', 'UniqueId': '1755177056.295', 'CallerIDName': '152'}
+2025-08-14 13:11:14,008 - root - INFO - [should_send_bridge] Checking bridge e620b9ba-13f6-4ae6-8490-3b033ad6ce1f: caller='152', connected='<unknown>'
+2025-08-14 13:11:14,008 - root - INFO - [should_send_bridge] Skipping bridge - invalid numbers
+2025-08-14 13:11:14,008 - root - INFO - [process_bridge] Skipping bridge - not the right one to send
+2025-08-14 13:11:14,008 - main - INFO - Successfully sent to chat_id: 374573193
+2025-08-14 13:11:14,008 - root - INFO - [process_bridge] RAW DATA = {'BridgeUniqueid': 'e620b9ba-13f6-4ae6-8490-3b033ad6ce1f', 'ConnectedLineNum': '<unknown>', 'Channel': 'SIP/152-000000c0', 'Token': '375297433335', 'Exten': '375232346117', 'CallerIDNum': '152', 'ConnectedLineName': '<unknown>', 'UniqueId': '1755177056.295', 'CallerIDName': '152'}
+2025-08-14 13:11:14,008 - root - INFO - [should_send_bridge] Checking bridge e620b9ba-13f6-4ae6-8490-3b033ad6ce1f: caller='152', connected='<unknown>'
+2025-08-14 13:11:14,008 - root - INFO - [should_send_bridge] Skipping bridge - invalid numbers
+2025-08-14 13:11:14,009 - root - INFO - [process_bridge] Skipping bridge - not the right one to send
+2025-08-14 13:11:14,009 - main - INFO - Successfully sent to chat_id: 7889254605
+2025-08-14 13:11:14,010 - root - DEBUG - Marked telegram_sent for bridge event 1755177056.295
+2025-08-14 13:11:14,010 - main - INFO - Marked telegram_sent for bridge event 1755177056.295
+2025-08-14 13:11:14,013 - main - INFO - Response: 200 [102.79ms] POST https://bot.vochi.by/bridge
+2025-08-14 13:11:14,013 - uvicorn.access - INFO - 46.53.139.140:0 - "POST /bridge HTTP/1.0" 200
+2025-08-14 13:11:14,884 - download - INFO - Найдено 1 неуспешных событий hangup для 0368
+2025-08-14 13:11:14,892 - download - INFO - Обрабатываю событие 1755169285.35
+2025-08-14 13:11:14,893 - download - INFO - Событие 1755169285.35 уже есть в БД
+2025-08-14 13:11:14,904 - download - INFO - Синхронизация live событий для 0368 завершена: 0 новых событий
+2025-08-14 13:11:14,905 - download - INFO - Начинаю синхронизацию live событий для предприятия 0370
+2025-08-14 13:11:15,682 - main - INFO - Request: POST https://bot.vochi.by/dial [Client: 86.57.159.9, User-Agent: python-requests/2.2.1 CPython/3.5.2 Linux/3.18.0-20-rpi2]
+2025-08-14 13:11:15,684 - main - INFO - DIAL REQUEST from 86.57.159.9: {"CallType": 1, "Token": "375293637318", "ExtPhone": "", "Trunk": "0001364", "ExtTrunk": "", "Phone": "375333595172", "UniqueId": "1755177074.369", "Extensions": ["202"]}
+2025-08-14 13:11:15,684 - main - INFO - _dispatch_to_all: Token='375293637318', UniqueId='1755177074.369', body keys: ['CallType', 'Token', 'ExtPhone', 'Trunk', 'ExtTrunk', 'Phone', 'UniqueId', 'Extensions']
+2025-08-14 13:11:15,684 - main - INFO - Detected event_type: dial
+2025-08-14 13:11:15,684 - root - INFO - Saving Asterisk event: dial, unique_id: 1755177074.369, token: 375293637318
+2025-08-14 13:11:15,686 - root - DEBUG - Saved event dial for 1755177074.369 from token 375293637318
+2025-08-14 13:11:15,687 - main - INFO - Found bot_token: 8028414946:AAG40uYS5d4QvYeX3HpGaFp5kirKBHtgio8, tg_ids: [374573193]
+2025-08-14 13:11:15,687 - telegram.Bot - DEBUG - Set Bot API URL: https://api.telegram.org/bot8028414946:AAG40uYS5d4QvYeX3HpGaFp5kirKBHtgio8
+2025-08-14 13:11:15,687 - telegram.Bot - DEBUG - Set Bot API File URL: https://api.telegram.org/file/bot8028414946:AAG40uYS5d4QvYeX3HpGaFp5kirKBHtgio8

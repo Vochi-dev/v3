@@ -3233,6 +3233,108 @@ async def test_telephony_settings():
         return result.dict()
 
 
+@app.get("/internal/retailcrm/customer-name")
+async def internal_get_customer_name(phone: str):
+    """Возвращает имя клиента по номеру телефона через RetailCRM.
+    Формат ответа: {"name": string|null}
+    """
+    try:
+        async with RetailCRMClient(RETAILCRM_CONFIG) as client:
+            result = await client.search_customer_by_phone(phone)
+            name = None
+            if result and result.success and isinstance(result.data, dict):
+                customers = result.data.get("customers") or []
+                if customers:
+                    c = customers[0]
+                    first = (c.get("firstName") or "").strip()
+                    last = (c.get("lastName") or "").strip()
+                    full = (first + " " + last).strip()
+                    name = full or None
+            return {"name": name}
+    except Exception as e:
+        logger.error(f"internal_get_customer_name error: {e}")
+        return {"name": None}
+
+
+@app.get("/internal/retailcrm/responsible-extension")
+async def internal_get_responsible_extension(phone: str):
+    """Возвращает внутренний код ответственного менеджера по номеру телефона.
+    Основной путь: /telephony/manager?phone=... → manager.code.
+    Фолбэк: /customers?filter[phone] → managerId → /users/{id} → code.
+    Формат ответа: {"extension": str|null}
+    """
+    try:
+        clean_phone = phone.lstrip('+')
+        async with RetailCRMClient(RETAILCRM_CONFIG) as client:
+            found_manager_id: Optional[int] = None
+            # 1) Основной API для ответственного менеджера
+            mgr = await client.get_responsible_manager(clean_phone)
+            if mgr and isinstance(mgr.data, dict):
+                data_obj = mgr.data
+                code = None
+                # Популярные варианты расположения кода
+                if isinstance(data_obj.get("manager"), dict):
+                    code = data_obj["manager"].get("code")
+                    mid = data_obj["manager"].get("id")
+                    try:
+                        found_manager_id = int(mid) if str(mid).isdigit() else None
+                    except Exception:
+                        found_manager_id = None
+                if not code:
+                    code = data_obj.get("code")
+                inner = data_obj.get("data") if isinstance(data_obj.get("data"), dict) else None
+                if not code and inner and isinstance(inner.get("manager"), dict):
+                    code = inner["manager"].get("code")
+                    mid = inner["manager"].get("id")
+                    try:
+                        found_manager_id = int(mid) if str(mid).isdigit() else None
+                    except Exception:
+                        found_manager_id = None
+                if not code and inner:
+                    code = inner.get("code")
+                if isinstance(code, str) and code.isdigit():
+                    # попытка добрать managerId через customers, если не определили
+                    if found_manager_id is None:
+                        try:
+                            cust_tmp = await client.search_customer_by_phone(clean_phone)
+                            if cust_tmp and cust_tmp.success and isinstance(cust_tmp.data, dict):
+                                customers_tmp = (cust_tmp.data or {}).get("customers") or []
+                                if customers_tmp:
+                                    found_manager_id = customers_tmp[0].get("managerId")
+                        except Exception:
+                            pass
+                    return {"extension": code, "manager_id": found_manager_id}
+
+            # 2) Фолбэк через клиента и пользователя
+            cust = await client.search_customer_by_phone(clean_phone)
+            if cust and cust.success and isinstance(cust.data, dict):
+                customers = (cust.data or {}).get("customers") or []
+                if customers:
+                    # Выбираем наиболее актуальную запись клиента по updatedAt/createdAt
+                    def _ts(c):
+                        return c.get("updatedAt") or c.get("createdAt") or ""
+                    try:
+                        customers_sorted = sorted(customers, key=_ts)
+                    except Exception:
+                        customers_sorted = customers
+                    best = customers_sorted[-1] if customers_sorted else customers[0]
+                    manager_id = best.get("managerId")
+                    if manager_id:
+                        user_resp = await client.get_user(int(manager_id))
+                        if user_resp and user_resp.success and isinstance(user_resp.data, dict):
+                            user = (user_resp.data or {}).get("user") or {}
+                            code = user.get("code")
+                            if isinstance(code, str) and code.isdigit():
+                                return {"extension": code, "manager_id": int(manager_id)}
+                            # если code нет — берём поле phone как внутренний
+                            phone_ext = user.get("phone")
+                            if isinstance(phone_ext, str) and phone_ext.isdigit():
+                                return {"extension": phone_ext, "manager_id": int(manager_id)}
+            return {"extension": None, "manager_id": None}
+    except Exception as e:
+        logger.error(f"internal_get_responsible_extension error: {e}")
+        return {"extension": None}
+
 # =============================================================================
 # ПОЛНЫЙ ТЕСТОВЫЙ СЦЕНАРИЙ
 # =============================================================================

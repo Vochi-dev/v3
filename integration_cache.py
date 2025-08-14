@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional, Set, Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+import httpx
 
 # Настройка логирования
 logging.basicConfig(
@@ -56,6 +57,11 @@ cache_stats = {
     "last_full_refresh": None,
     "total_requests": 0
 }
+
+# Cache for customer names: key=(enterprise, phone_e164) -> {"name": str|None, "expires": epoch}
+customer_name_cache: Dict[str, Dict[str, Any]] = {}
+# Cache for responsible extensions: key=(enterprise, phone_e164) -> {"ext": str|None, "expires": epoch}
+responsible_ext_cache: Dict[str, Dict[str, Any]] = {}
 
 # Недавние dial-события для идемпотентности и синтетического поднятия карточки при пропусках
 recent_dials: Dict[str, float] = {}
@@ -554,6 +560,162 @@ async def get_cache_entries():
         enterprise: entry.to_dict() 
         for enterprise, entry in integration_cache.items()
     }
+
+
+async def _get_enterprise_smart_primary(conn: asyncpg.Connection, enterprise_number: str) -> str:
+    """Returns primary integration code for Smart (default: 'retailcrm')."""
+    try:
+        row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+        cfg = dict(row).get("integrations_config") if row else None
+        if isinstance(cfg, str):
+            try:
+                cfg = json.loads(cfg)
+            except Exception:
+                cfg = None
+        if isinstance(cfg, dict):
+            smart = cfg.get("smart") or {}
+            primary = smart.get("primary") or "retailcrm"
+            return str(primary)
+    except Exception as e:
+        logger.error(f"_get_enterprise_smart_primary error: {e}")
+    return "retailcrm"
+
+
+@app.get("/customer-name/{enterprise_number}/{phone}")
+async def get_customer_name(enterprise_number: str, phone: str):
+    """Return customer display name via primary integration (cached)."""
+    global pg_pool
+    # Normalize phone to E164
+    phone_e164 = normalize_phone_e164(phone)
+    cache_key = f"{enterprise_number}|{phone_e164}"
+
+    # Check cache
+    now = time.time()
+    entry = customer_name_cache.get(cache_key)
+    if entry and entry.get("expires", 0) > now:
+        return {"name": entry.get("name")}
+
+    if not pg_pool:
+        await init_database()
+    if not pg_pool:
+        return {"name": None}
+
+    try:
+        async with pg_pool.acquire() as conn:
+            primary = await _get_enterprise_smart_primary(conn, enterprise_number)
+            name: Optional[str] = None
+
+            if primary == "retailcrm":
+                # Query local retailcrm service for name
+                url = "http://127.0.0.1:8019/internal/retailcrm/customer-name"
+                try:
+                    async with httpx.AsyncClient(timeout=2.5) as client:
+                        resp = await client.get(url, params={"phone": phone_e164})
+                        if resp.status_code == 200:
+                            data = resp.json() or {}
+                            n = data.get("name")
+                            if isinstance(n, str) and n.strip():
+                                name = n.strip()
+                except Exception as e:
+                    logger.warning(f"retailcrm name lookup failed: {e}")
+            else:
+                # Other integrations can be added here
+                name = None
+
+            # Store in cache (TTL 90s)
+            customer_name_cache[cache_key] = {"name": name, "expires": now + TTL_SECONDS}
+            return {"name": name}
+    except Exception as e:
+        logger.error(f"get_customer_name error: {e}")
+        return {"name": None}
+
+
+@app.get("/responsible-extension/{enterprise_number}/{phone}")
+async def get_responsible_extension(enterprise_number: str, phone: str, nocache: Optional[bool] = False):
+    """Return responsible manager extension via primary integration (cached)."""
+    global pg_pool
+    phone_e164 = normalize_phone_e164(phone)
+    cache_key = f"{enterprise_number}|{phone_e164}"
+
+    now = time.time()
+    if not nocache:
+        entry = responsible_ext_cache.get(cache_key)
+        if entry and entry.get("expires", 0) > now:
+            return {"extension": entry.get("ext")}
+
+    if not pg_pool:
+        await init_database()
+    if not pg_pool:
+        return {"extension": None}
+
+    try:
+        async with pg_pool.acquire() as conn:
+            primary = await _get_enterprise_smart_primary(conn, enterprise_number)
+            ext: Optional[str] = None
+            mapped_ext: Optional[str] = None
+            manager_id_from_api: Optional[int] = None
+
+            # Загружаем ручную карту user_extensions из enterprises.integrations_config
+            try:
+                row_cfg = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+                cfg = dict(row_cfg).get("integrations_config") if row_cfg else None
+                if isinstance(cfg, str):
+                    try:
+                        cfg = json.loads(cfg)
+                    except Exception:
+                        cfg = None
+                if isinstance(cfg, dict):
+                    retail = cfg.get("retailcrm") or {}
+                    user_ext_map = retail.get("user_extensions") or {}
+                else:
+                    user_ext_map = {}
+            except Exception as e:
+                logger.warning(f"read user_extensions failed: {e}")
+                user_ext_map = {}
+
+            if primary == "retailcrm":
+                # Ask local retailcrm service for responsible manager (stable internal endpoint)
+                url = f"http://127.0.0.1:8019/internal/retailcrm/responsible-extension"
+                try:
+                    async with httpx.AsyncClient(timeout=2.0) as client:
+                        for attempt in range(2):
+                            try:
+                                resp = await client.get(url, params={"phone": phone_e164})
+                                if resp.status_code == 200:
+                                    data = resp.json() or {}
+                                    code = data.get("extension") if isinstance(data, dict) else None
+                                    mid = data.get("manager_id") if isinstance(data, dict) else None
+                                    if isinstance(code, str) and code.isdigit():
+                                        ext = code
+                                    # попробуем проставить manager_id даже если code не пришёл
+                                    try:
+                                        manager_id_from_api = int(mid) if str(mid).isdigit() else None
+                                    except Exception:
+                                        manager_id_from_api = None
+                                    if manager_id_from_api is not None:
+                                        # приоритет: ручная карта user_extensions
+                                        mapped = user_ext_map.get(str(manager_id_from_api))
+                                        if isinstance(mapped, str) and mapped.isdigit():
+                                            mapped_ext = mapped
+                                    logger.info(f"responsible-extension retailcrm ok ext={ext} mapped={mapped_ext} manager_id={manager_id_from_api} phone={phone_e164}")
+                                    break
+                                else:
+                                    logger.warning(f"responsible-extension retailcrm http={resp.status_code} attempt={attempt+1}")
+                            except Exception as er:
+                                logger.warning(f"responsible-extension retailcrm error attempt={attempt+1}: {er}")
+                                await asyncio.sleep(0.05)
+                except Exception as e:
+                    logger.warning(f"responsible-extension retailcrm client setup failed: {e}")
+            else:
+                ext = None
+
+            # Выбор окончательного значения: приоритет mapped_ext, затем ext из API
+            final_ext = mapped_ext or ext
+            responsible_ext_cache[cache_key] = {"ext": final_ext, "expires": now + TTL_SECONDS}
+            return {"extension": final_ext}
+    except Exception as e:
+        logger.error(f"get_responsible_extension error: {e}")
+        return {"extension": None}
 
 # Background tasks
 

@@ -382,6 +382,7 @@ async def get_services_status(request: Request):
             "dial": {"port": 8005, "script": "dial.sh", "app": "dial"},
             "111": {"port": 8000, "script": "111.sh", "app": "main"},
             "plan": {"port": 8006, "script": "plan.sh", "app": "plan"},
+            "smart": {"port": 8021, "script": "smart.sh", "app": "smart"},
             "sms": {"port": 8002, "script": "sms.sh", "app": "goip_sms_service"},
             "sms_send": {"port": 8013, "script": "sms_send.sh", "app": "send_service_sms"},
             "send_user_sms": {"port": 8014, "script": "send_user_sms.sh", "app": "send_user_sms"},
