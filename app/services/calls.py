@@ -13,6 +13,7 @@ from telegram.error import BadRequest
 from app.services.events import save_telegram_message
 from app.services.postgres import get_pool
 from app.config import DB_PATH
+from app.services.customers import upsert_customer_from_hangup
 
 # ───────── ГЛОБАЛЬНОЕ СОСТОЯНИЕ ─────────
 # Здесь хранятся все внутренние in-memory структуры,
@@ -502,6 +503,11 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         callee,
         is_int
     )
+    # Обновляем агрегаты клиентов (customers) fire-and-forget
+    try:
+        asyncio.create_task(upsert_customer_from_hangup(data))
+    except Exception:
+        pass
     # Fire-and-forget отправка hangup в Integration Gateway (8020)
     try:
         token_for_gateway = data.get("Token")

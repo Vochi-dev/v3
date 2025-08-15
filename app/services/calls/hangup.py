@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime
 
 from app.services.events import save_telegram_message
+from app.services.customers import upsert_customer_from_hangup
 from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
 
@@ -556,6 +557,12 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         )
         
         logging.info(f"[process_hangup] Successfully sent hangup message {sent.message_id} for {phone_for_grouping}")
+
+        # ───────── Fire-and-forget обновление customers ─────────
+        try:
+            asyncio.create_task(upsert_customer_from_hangup(data))
+        except Exception:
+            pass
 
         # ───────── Fire-and-forget отправка в Integration Gateway (8020) ─────────
         try:

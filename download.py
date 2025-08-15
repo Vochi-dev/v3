@@ -17,6 +17,16 @@ import aiohttp
 from pydantic import BaseModel
 import logging
 from telegram import Bot
+try:
+    # Для UPSERT в таблицу customers используем общую функцию, как в 8000
+    import sys
+    sys.path.append('app')
+    from app.services.customers import upsert_customer_from_hangup
+    CUSTOMERS_AVAILABLE = True
+except Exception as e:
+    CUSTOMERS_AVAILABLE = False
+    import logging as _logging
+    _logging.warning(f"[download] customers upsert not available: {e}")
 from telegram.error import BadRequest
 
 # Настройка логирования
@@ -901,6 +911,24 @@ async def sync_enterprise_data(enterprise_id: str, force_all: bool = False,
                                 logger.warning(f"📱 Не удалось отправить Telegram уведомление для {call_data['unique_id']}")
                         except Exception as telegram_error:
                             logger.error(f"📱 Ошибка отправки Telegram уведомления для {call_data['unique_id']}: {telegram_error}")
+
+                        # 🧩 UPSERT в customers (идемпотентно)
+                        try:
+                            if CUSTOMERS_AVAILABLE:
+                                # Собираем «raw» событие, максимально близкое к live hangup
+                                raw = json.loads(call_data['raw_data']) if isinstance(call_data['raw_data'], str) else (call_data['raw_data'] or {})
+                                # Гарантируем обязательные поля как в live
+                                raw.setdefault('Token', call_data.get('token'))
+                                raw.setdefault('CallType', int(call_data.get('call_type') or 0))
+                                raw.setdefault('CallStatus', int(call_data.get('call_status') or 0))
+                                raw.setdefault('Phone', call_data.get('phone_number'))
+                                raw.setdefault('Trunk', call_data.get('trunk'))
+                                raw.setdefault('EndTime', call_data.get('end_time'))
+                                raw.setdefault('StartTime', call_data.get('start_time'))
+                                raw.setdefault('Extensions', call_data.get('extensions') or ([]))
+                                await upsert_customer_from_hangup(raw)
+                        except Exception as upsert_err:
+                            logger.error(f"[download] customers upsert failed for {call_data['unique_id']}: {upsert_err}")
                             
                     # Если call_id is None, значит запись уже существует (ON CONFLICT DO NOTHING)
                     
