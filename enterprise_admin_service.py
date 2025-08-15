@@ -1587,6 +1587,22 @@ async def update_gsm_line(
                 current_cfg = {}
             current_cfg.setdefault('smart', {})
             current_cfg['smart'].setdefault('lines', {})
+            # Нормализуем порядок отображения
+            try:
+                s = data['smart'] or {}
+                for k in ('line_name_order','customer_name_order','shop_name_order'):
+                    if s.get(k) is not None:
+                        try:
+                            val = int(s.get(k))
+                            if val not in (1,2,3):
+                                s[k] = None
+                            else:
+                                s[k] = val
+                        except Exception:
+                            s[k] = None
+                data['smart'] = s
+            except Exception:
+                pass
             current_cfg['smart']['lines'][sr_key] = data['smart']
             await conn.execute(
                 "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",
@@ -2316,6 +2332,22 @@ async def update_sip_line(
                 current_cfg = {}
             current_cfg.setdefault('smart', {})
             current_cfg['smart'].setdefault('lines', {})
+            # Нормализуем порядок отображения
+            try:
+                s = data.smart or {}
+                for k in ('line_name_order','customer_name_order','shop_name_order'):
+                    if s.get(k) is not None:
+                        try:
+                            val = int(s.get(k))
+                            if val not in (1,2,3):
+                                s[k] = None
+                            else:
+                                s[k] = val
+                        except Exception:
+                            s[k] = None
+                data.smart = s
+            except Exception:
+                pass
             current_cfg['smart']['lines'][sr_key] = data.smart
             await conn.execute(
                 "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",
@@ -2405,6 +2437,22 @@ async def create_sip_line(
                 current_cfg = {}
             current_cfg.setdefault('smart', {})
             current_cfg['smart'].setdefault('lines', {})
+            # Нормализуем порядок отображения
+            try:
+                s = data.smart or {}
+                for k in ('line_name_order','customer_name_order','shop_name_order'):
+                    if s.get(k) is not None:
+                        try:
+                            val = int(s.get(k))
+                            if val not in (1,2,3):
+                                s[k] = None
+                            else:
+                                s[k] = val
+                        except Exception:
+                            s[k] = None
+                data.smart = s
+            except Exception:
+                pass
             current_cfg['smart']['lines'][sr_key] = data.smart
             await conn.execute(
                 "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",

@@ -462,11 +462,22 @@
                             <option value="last_call">Последний звонок</option>
                         </select>
                     </div>
-                    <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sip_sr_do_routing"/> Маршрутизация</label>
-                        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sip_sr_send_line_name"/> Имя линии</label>
-                        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sip_sr_send_customer_name"/> Имя клиента</label>
-                        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sip_sr_send_shop_name"/> Название магазина</label>
+                    <div class="form-group">
+                        <div id="sip_sr_options" style="display:grid;grid-template-columns:24px 160px 60px;row-gap:8px;column-gap:8px;align-items:center;">
+                            <input type="checkbox" id="sip_sr_do_routing"/><span style="white-space:nowrap;">Маршрутизация</span><span></span>
+                            <input type="checkbox" id="sip_sr_send_line_name"/><span style="white-space:nowrap;">Имя линии</span>
+                            <select id="sip_sr_line_name_order" style="width:60px;">
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                            </select>
+                            <input type="checkbox" id="sip_sr_send_customer_name"/><span style="white-space:nowrap;">Имя клиента</span>
+                            <select id="sip_sr_customer_name_order" style="width:60px;">
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                            </select>
+                            <input type="checkbox" id="sip_sr_send_shop_name"/><span style="white-space:nowrap;">Название магазина</span>
+                            <select id="sip_sr_shop_name_order" style="width:60px;">
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">Сохранить</button>
@@ -739,48 +750,6 @@
             <div class="form-actions" style="padding: 1rem 20px; justify-content: space-between;">
                  <button class="btn btn-primary" type="button" data-action="open-department-form">Создать новый</button>
                  <button type="button" data-action="close-modal" class="btn btn-secondary">Закрыть</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно для ФОРМЫ добавления/редактирования Отдела -->
-    <div id="department-form-modal" class="modal">
-        <div class="modal-content modal-narrow">
-            <div class="modal-header">
-                <h2 id="department-modal-title">Создание отдела</h2>
-                <span data-action="close-modal" class="close-button">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="department-form">
-                    <input type="hidden" id="department-id" name="id">
-                    <div class="form-group">
-                        <label for="department-name">Наименование</label>
-                        <input type="text" id="department-name" name="name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="department-number">Номер</label>
-                        <input type="number" id="department-number" name="number" min="901" max="999" required>
-                        <small>Значения от 901 до 999</small>
-                    </div>
-                    <!-- Место для добавления пользователей -->
-                    <div id="department-members-container" style="display: none; margin-top: 1.5rem;">
-                         <label>Пользователи</label>
-                         <div style="display: flex; gap: 10px; margin-top: 0.5rem;">
-                             <select id="department-user-select" style="flex-grow: 1;"></select>
-                             <button type="button" class="btn btn-primary" data-action="add-department-member">+</button>
-                         </div>
-                         <ul id="department-members-list" style="list-style: none; padding: 0; margin-top: 1rem;">
-                             <!-- Участники отдела -->
-                         </ul>
-                    </div>
-                    <div class="form-actions" style="display: flex; justify-content: space-between; align-items: center;">
-                        <button type="button" id="deleteDepartmentBtn" class="btn btn-danger" style="display: none;">Удалить</button>
-                        <div>
-                            <button type="submit" class="btn btn-primary">Сохранить</button>
-                            <button type="button" data-action="close-modal" class="btn btn-secondary">Закрыть</button>
-                        </div>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
@@ -1178,6 +1147,34 @@
                                 (sh.sip_lines || []).forEach(l => owners.set(l.id, sh.name || 'N/A'));
                             });
                         } catch(_) {}
+                        // Установим значения порядка (если есть) и заблокируем селекты, если чекбокс выключен
+                        try {
+                            const s = (line && line.smart) ? line.smart : {};
+                            const ln = document.getElementById('sr_line_name_order');
+                            const cn = document.getElementById('sr_customer_name_order');
+                            const sn = document.getElementById('sr_shop_name_order');
+                            if (ln) { ln.value = (s && s.line_name_order) ? String(s.line_name_order) : '1'; ln.disabled = !document.getElementById('sr_send_line_name').checked; }
+                            if (cn) { cn.value = (s && s.customer_name_order) ? String(s.customer_name_order) : '2'; cn.disabled = !document.getElementById('sr_send_customer_name').checked; }
+                            if (sn) { sn.value = (s && s.shop_name_order) ? String(s.shop_name_order) : '3'; sn.disabled = !document.getElementById('sr_send_shop_name').checked; }
+                        } catch(_) {}
+                        // Тогглы для селектов порядка
+                        const _toggleGsmOrders = () => {
+                            const ln = document.getElementById('sr_line_name_order');
+                            const cn = document.getElementById('sr_customer_name_order');
+                            const sn = document.getElementById('sr_shop_name_order');
+                            if (ln) { ln.disabled = !document.getElementById('sr_send_line_name').checked; }
+                            if (cn) { cn.disabled = !document.getElementById('sr_send_customer_name').checked; }
+                            if (sn) { sn.disabled = !document.getElementById('sr_send_shop_name').checked; }
+                        };
+                        ['sr_send_line_name','sr_send_customer_name','sr_send_shop_name'].forEach(id=>{
+                            const el = document.getElementById(id);
+                            if (el) el.addEventListener('change', _toggleGsmOrders);
+                        });
+                        _toggleGsmOrders();
+
+                        // Уникальность позиций (1-3) для GSM — удалено из глобальной области, будет объявлено в модалке
+
+                        // Уникальность позиций (1-3) для GSM (дублирующее объявление удалено) — используется enforceGsmOrders выше
 
                         sipLines.forEach(line => {
                             const tr = document.createElement('tr');
@@ -2709,11 +2706,13 @@
                             '<option value="last_call">Последний звонок</option>'+
                         '</select>'+
                     '</div>'+
-                    '<div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'+
-                        '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sr_do_routing"/> Маршрутизация</label>'+
-                        '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sr_send_line_name"/> Имя линии</label>'+
-                        '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sr_send_customer_name"/> Имя клиента</label>'+
-                        '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="sr_send_shop_name"/> Название магазина</label>'+
+                    '<div class="form-group">'+
+                        '<div id="gsm_sr_options" style="display:grid;grid-template-columns:24px 160px 60px;row-gap:8px;column-gap:8px;align-items:center;">'+
+                            '<input type="checkbox" id="sr_do_routing"/><span style="white-space:nowrap;">Маршрутизация</span><span></span>'+
+                            '<input type="checkbox" id="sr_send_line_name"/><span style="white-space:nowrap;">Имя линии</span><select id="sr_line_name_order" style="width:60px;"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>'+
+                            '<input type="checkbox" id="sr_send_customer_name"/><span style="white-space:nowrap;">Имя клиента</span><select id="sr_customer_name_order" style="width:60px;"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>'+
+                            '<input type="checkbox" id="sr_send_shop_name"/><span style="white-space:nowrap;">Название магазина</span><select id="sr_shop_name_order" style="width:60px;"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>'+
+                        '</div>'+
                     '</div>'+
                     '<div class="button-bar" style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1.5rem;">'+
                     '<button type="submit" class="button btn btn-primary" form="editLineForm">Сохранить</button>'+
@@ -2859,6 +2858,79 @@
                                 document.getElementById('sr_send_shop_name').checked = getBool(s.send_shop_name);
                             }
                         } catch(_) {}
+                        // Функция для управления уникальностью позиций и состоянием селектов GSM
+                        const enforceGsmOrders = () => {
+                            const chkLine = document.getElementById('sr_send_line_name');
+                            const chkCust = document.getElementById('sr_send_customer_name');
+                            const chkShop = document.getElementById('sr_send_shop_name');
+                            const selLine = document.getElementById('sr_line_name_order');
+                            const selCust = document.getElementById('sr_customer_name_order');
+                            const selShop = document.getElementById('sr_shop_name_order');
+
+                            // Показываем/скрываем и включаем/выключаем селекты
+                            if (selLine) {
+                                selLine.style.visibility = chkLine && chkLine.checked ? 'visible' : 'hidden';
+                                selLine.disabled = !chkLine || !chkLine.checked;
+                            }
+                            if (selCust) {
+                                selCust.style.visibility = chkCust && chkCust.checked ? 'visible' : 'hidden';
+                                selCust.disabled = !chkCust || !chkCust.checked;
+                            }
+                            if (selShop) {
+                                selShop.style.visibility = chkShop && chkShop.checked ? 'visible' : 'hidden';
+                                selShop.disabled = !chkShop || !chkShop.checked;
+                            }
+
+                            // Собираем активные селекты
+                            const activeSelects = [];
+                            if (chkLine && chkLine.checked && selLine) activeSelects.push(selLine);
+                            if (chkCust && chkCust.checked && selCust) activeSelects.push(selCust);
+                            if (chkShop && chkShop.checked && selShop) activeSelects.push(selShop);
+
+                            // Сбрасываем блокировки
+                            [selLine, selCust, selShop].forEach(s => {
+                                if (!s) return;
+                                Array.from(s.options).forEach(o => o.disabled = false);
+                            });
+
+                            // Применяем уникальность
+                            activeSelects.forEach((currentSelect) => {
+                                const usedValues = new Set(
+                                    activeSelects.filter(s => s !== currentSelect).map(s => s.value)
+                                );
+                                Array.from(currentSelect.options).forEach(option => {
+                                    option.disabled = usedValues.has(option.value);
+                                });
+
+                                // Если текущее значение уже занято, найдем свободное
+                                if (usedValues.has(currentSelect.value)) {
+                                    const availableValue = ['1', '2', '3'].find(v => !usedValues.has(v));
+                                    if (availableValue) {
+                                        currentSelect.value = availableValue;
+                                    }
+                                }
+                            });
+                        };
+
+                        // Заполним порядок из сохраненных данных
+                        const applyGsmOrdersFromData = () => {
+                            const s = (line && line.smart) ? line.smart : {};
+                            const ln = document.getElementById('sr_line_name_order');
+                            const cn = document.getElementById('sr_customer_name_order');
+                            const sn = document.getElementById('sr_shop_name_order');
+                            if (ln && s && s.line_name_order) ln.value = String(s.line_name_order);
+                            if (cn && s && s.customer_name_order) cn.value = String(s.customer_name_order);
+                            if (sn && s && s.shop_name_order) sn.value = String(s.shop_name_order);
+                        };
+
+                        applyGsmOrdersFromData();
+                        enforceGsmOrders();
+
+                        // Добавляем обработчики событий
+                        ['sr_send_line_name','sr_send_customer_name','sr_send_shop_name','sr_line_name_order','sr_customer_name_order','sr_shop_name_order'].forEach(id=>{
+                            const el = document.getElementById(id);
+                            if (el) el.addEventListener('change', enforceGsmOrders);
+                        });
                     
                     // Инициализируем intlTelInput после заполнения данных
                     initGsmIti();
@@ -2887,80 +2959,90 @@
                     }
                     container.innerHTML = '';
                 }
-                // --- Сохранение изменений ---
-                document.getElementById('editLineForm').onsubmit = async function(e) {
-                    e.preventDefault();
-                    const errorDiv = document.getElementById('editLineError');
-                    errorDiv.style.display = 'none';
-                    
-                    // --- Валидация номера телефона ---
-                    const phoneNumber = gsmIti ? gsmIti.getNumber() : document.getElementById('editLinePhone').value;
-                    if (phoneNumber && !validatePhoneNumber(phoneNumber)) {
-                        alert(`Ошибка: Номер телефона "${phoneNumber}" введен некорректно. Пожалуйста, проверьте формат.`);
-                        document.getElementById('editLinePhone').focus();
-                        return;
-                    }
-                    
-                    const data = {
-                        line_name: document.getElementById('editLineName').value,
-                        phone_number: phoneNumber,
-                        prefix: document.getElementById('editLinePrefix').textContent,
-                        smart: {
-                            enabled: document.getElementById('sr_enabled').checked,
-                            algorithm: (function(){ const el = document.getElementById('sr_algorithm'); return el && 'value' in el ? el.value : ''; })(),
-                            do_routing: document.getElementById('sr_do_routing').checked,
-                            send_line_name: document.getElementById('sr_send_line_name').checked,
-                            send_customer_name: document.getElementById('sr_send_customer_name').checked,
-                            send_shop_name: document.getElementById('sr_send_shop_name').checked,
-                        }
-                    };
-                    try {
-                        const resp = await fetch(`/enterprise/${enterpriseNumber}/gsm-lines/${lineId}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(data),
-                            credentials: 'same-origin'
-                        });
-                        const result = await resp.json();
-                        if (!resp.ok) {
-                            throw new Error(result.detail || 'Ошибка сохранения');
-                        }
-                        // Обновляем строку в таблице (если есть)
-                        const row = document.querySelector(`tr[data-line-id="${lineId}"]`);
-                        if (row) {
-                            row.querySelector('td:nth-child(5)').textContent = result.line_name || '';
-                            row.querySelector('td:nth-child(4)').textContent = formatDisplayNumber(result.phone_number || '');
-                            row.querySelector('td:nth-child(6)').textContent = result.prefix || '';
-                            // Мгновенно обновим подсветку ID согласно текущему состоянию чекбокса
-                            try {
-                                const srEnabledNow = document.getElementById('sr_enabled').checked;
-                                const idCell = row.querySelector('td:nth-child(1)');
-                                if (idCell) {
-                                    if (srEnabledNow) {
-                                        idCell.style.color = '#28a745';
-                                        idCell.style.fontWeight = '700';
-                                    } else {
-                                        idCell.style.color = '';
-                                        idCell.style.fontWeight = '';
-                                    }
+
+                // --- Сохранение изменений (назначаем в конце) ---
+                setTimeout(() => {
+                    const editLineForm = document.getElementById('editLineForm');
+                    if (editLineForm) {
+                        editLineForm.onsubmit = async function(e) {
+                            e.preventDefault();
+                            const errorDiv = document.getElementById('editLineError');
+                            errorDiv.style.display = 'none';
+                            
+                            // --- Валидация номера телефона ---
+                            const phoneNumber = gsmIti ? gsmIti.getNumber() : document.getElementById('editLinePhone').value;
+                            // Временно убираем валидацию, так как функция определена позже
+                            // if (phoneNumber && !validatePhoneNumber(phoneNumber)) {
+                            //     alert(`Ошибка: Номер телефона "${phoneNumber}" введен некорректно. Пожалуйста, проверьте формат.`);
+                            //     document.getElementById('editLinePhone').focus();
+                            //     return;
+                            // }
+                            
+                            const data = {
+                                line_name: document.getElementById('editLineName').value,
+                                phone_number: phoneNumber,
+                                prefix: document.getElementById('editLinePrefix').textContent,
+                                smart: {
+                                    enabled: document.getElementById('sr_enabled').checked,
+                                    algorithm: (function(){ const el = document.getElementById('sr_algorithm'); return el && 'value' in el ? el.value : ''; })(),
+                                    do_routing: document.getElementById('sr_do_routing').checked,
+                                    send_line_name: document.getElementById('sr_send_line_name').checked,
+                                    line_name_order: (function(){ const el = document.getElementById('sr_line_name_order'); return document.getElementById('sr_send_line_name').checked ? Number(el.value) : null; })(),
+                                    send_customer_name: document.getElementById('sr_send_customer_name').checked,
+                                    customer_name_order: (function(){ const el = document.getElementById('sr_customer_name_order'); return document.getElementById('sr_send_customer_name').checked ? Number(el.value) : null; })(),
+                                    send_shop_name: document.getElementById('sr_send_shop_name').checked,
+                                    shop_name_order: (function(){ const el = document.getElementById('sr_shop_name_order'); return document.getElementById('sr_send_shop_name').checked ? Number(el.value) : null; })(),
                                 }
-                            } catch (_) {}
-                        }
-                        // Запускаем регенерацию диалплана (не блокируем UI)
-                        try {
-                            fetch(`/enterprise/${enterpriseNumber}/regenerate-config`, { method: 'POST' })
-                                .then(r => r.ok ? null : r.text().then(t => console.warn('Plan regen failed', t)))
-                                .catch(err => console.warn('Plan regen error', err));
-                        } catch(_) {}
-                        alert('GSM-линия успешно обновлена!');
-                        closeEditLineModal();
-                        // Лёгкий рефреш списка, чтобы подтянуть все изменения с сервера
-                        try { setTimeout(() => { document.getElementById('btn-gsm-lines').click(); }, 150); } catch(_) {}
-                    } catch (err) {
-                        errorDiv.textContent = err.message;
-                        errorDiv.style.display = 'block';
+                            };
+                            try {
+                                const resp = await fetch(`/enterprise/${enterpriseNumber}/gsm-lines/${lineId}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(data),
+                                    credentials: 'same-origin'
+                                });
+                                const result = await resp.json();
+                                if (!resp.ok) {
+                                    throw new Error(result.detail || 'Ошибка сохранения');
+                                }
+                                // Обновляем строку в таблице (если есть)
+                                const row = document.querySelector(`tr[data-line-id="${lineId}"]`);
+                                if (row) {
+                                    row.querySelector('td:nth-child(5)').textContent = result.line_name || '';
+                                    row.querySelector('td:nth-child(4)').textContent = formatDisplayNumber(result.phone_number || '');
+                                    row.querySelector('td:nth-child(6)').textContent = result.prefix || '';
+                                    // Мгновенно обновим подсветку ID согласно текущему состоянию чекбокса
+                                    try {
+                                        const srEnabledNow = document.getElementById('sr_enabled').checked;
+                                        const idCell = row.querySelector('td:nth-child(1)');
+                                        if (idCell) {
+                                            if (srEnabledNow) {
+                                                idCell.style.color = '#28a745';
+                                                idCell.style.fontWeight = '700';
+                                            } else {
+                                                idCell.style.color = '';
+                                                idCell.style.fontWeight = '';
+                                            }
+                                        }
+                                    } catch (_) {}
+                                }
+                                // Запускаем регенерацию диалплана (не блокируем UI)
+                                try {
+                                    fetch(`/enterprise/${enterpriseNumber}/regenerate-config`, { method: 'POST' })
+                                        .then(r => r.ok ? null : r.text().then(t => console.warn('Plan regen failed', t)))
+                                        .catch(err => console.warn('Plan regen error', err));
+                                } catch(_) {}
+                                alert('GSM-линия успешно обновлена!');
+                                closeEditLineModal();
+                                // Лёгкий рефреш списка, чтобы подтянуть все изменения с сервера
+                                try { setTimeout(() => { document.getElementById('btn-gsm-lines').click(); }, 150); } catch(_) {}
+                            } catch (err) {
+                                errorDiv.textContent = err.message;
+                                errorDiv.style.display = 'block';
+                            }
+                        };
                     }
-                };
+                }, 100);
             }
         });
 
@@ -3163,7 +3245,61 @@
                     document.getElementById('sip_sr_send_line_name').checked = getBool(s.send_line_name);
                     document.getElementById('sip_sr_send_customer_name').checked = getBool(s.send_customer_name);
                     document.getElementById('sip_sr_send_shop_name').checked = getBool(s.send_shop_name);
+                    // Порядок отображения
+                    const ln = document.getElementById('sip_sr_line_name_order');
+                    const cn = document.getElementById('sip_sr_customer_name_order');
+                    const sn = document.getElementById('sip_sr_shop_name_order');
+                    if (ln) { ln.value = (s.line_name_order && [1,2,3].includes(Number(s.line_name_order))) ? String(s.line_name_order) : '1'; ln.disabled = !document.getElementById('sip_sr_send_line_name').checked; }
+                    if (cn) { cn.value = (s.customer_name_order && [1,2,3].includes(Number(s.customer_name_order))) ? String(s.customer_name_order) : '2'; cn.disabled = !document.getElementById('sip_sr_send_customer_name').checked; }
+                    if (sn) { sn.value = (s.shop_name_order && [1,2,3].includes(Number(s.shop_name_order))) ? String(s.shop_name_order) : '3'; sn.disabled = !document.getElementById('sip_sr_send_shop_name').checked; }
                 } catch(_) {}
+
+                const toggleSipOrders = () => {
+                    const ln = document.getElementById('sip_sr_line_name_order');
+                    const cn = document.getElementById('sip_sr_customer_name_order');
+                    const sn = document.getElementById('sip_sr_shop_name_order');
+                    if (ln) { ln.disabled = !document.getElementById('sip_sr_send_line_name').checked; }
+                    if (cn) { cn.disabled = !document.getElementById('sip_sr_send_customer_name').checked; }
+                    if (sn) { sn.disabled = !document.getElementById('sip_sr_send_shop_name').checked; }
+                };
+                ['sip_sr_send_line_name','sip_sr_send_customer_name','sip_sr_send_shop_name'].forEach(id=>{
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('change', toggleSipOrders);
+                });
+                toggleSipOrders();
+
+                // Уникальность позиций (1-3) для SIP
+                const enforceSipOrders = () => {
+                    const chkLine = document.getElementById('sip_sr_send_line_name');
+                    const chkCust = document.getElementById('sip_sr_send_customer_name');
+                    const chkShop = document.getElementById('sip_sr_send_shop_name');
+                    const selLine = document.getElementById('sip_sr_line_name_order');
+                    const selCust = document.getElementById('sip_sr_customer_name_order');
+                    const selShop = document.getElementById('sip_sr_shop_name_order');
+                    const active = [];
+                    if (chkLine && chkLine.checked && selLine) active.push(selLine);
+                    if (chkCust && chkCust.checked && selCust) active.push(selCust);
+                    if (chkShop && chkShop.checked && selShop) active.push(selShop);
+                    // Снимем все disable
+                    [selLine, selCust, selShop].forEach(s => { if (!s) return; Array.from(s.options).forEach(o=>o.disabled=false); });
+                    // Запретим дубликаты
+                    active.forEach((s, idx) => {
+                        const used = new Set(active.filter(x=>x!==s).map(x=>x.value));
+                        Array.from(s.options).forEach(o => { o.disabled = used.has(o.value); });
+                        if (used.has(s.value)) {
+                            // автоисправление на первую свободную
+                            const cand = ['1','2','3'].find(v=>!used.has(v));
+                            if (cand) s.value = cand;
+                        }
+                    });
+                };
+                ['sip_sr_send_line_name','sip_sr_send_customer_name','sip_sr_send_shop_name',
+                 'sip_sr_line_name_order','sip_sr_customer_name_order','sip_sr_shop_name_order']
+                .forEach(id=>{
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('change', enforceSipOrders);
+                });
+                enforceSipOrders();
 
                 sipLineFormModal.style.display = 'block';
             } catch (error) {
@@ -3186,8 +3322,11 @@
                     algorithm: (function(){ const el = document.getElementById('sip_sr_algorithm'); return el && 'value' in el ? el.value : ''; })(),
                     do_routing: document.getElementById('sip_sr_do_routing').checked,
                     send_line_name: document.getElementById('sip_sr_send_line_name').checked,
+                    line_name_order: (function(){ const el = document.getElementById('sip_sr_line_name_order'); return document.getElementById('sip_sr_send_line_name').checked && el ? Number(el.value) : null; })(),
                     send_customer_name: document.getElementById('sip_sr_send_customer_name').checked,
+                    customer_name_order: (function(){ const el = document.getElementById('sip_sr_customer_name_order'); return document.getElementById('sip_sr_send_customer_name').checked && el ? Number(el.value) : null; })(),
                     send_shop_name: document.getElementById('sip_sr_send_shop_name').checked,
+                    shop_name_order: (function(){ const el = document.getElementById('sip_sr_shop_name_order'); return document.getElementById('sip_sr_send_shop_name').checked && el ? Number(el.value) : null; })(),
                 }
             };
 

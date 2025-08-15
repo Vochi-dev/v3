@@ -452,18 +452,34 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
             send_customer_name = bool(line_settings.get("send_customer_name"))
             if send_line_name or send_shop_name or send_customer_name:
                 line_name, shop_name = await _get_line_and_shop_names(conn, enterprise_number, trunk)
-                parts = []
+                # Порядок отображения: значения 1..3, отсутствующие — в конец по умолчанию
+                items: list[tuple[int, str]] = []
+                try:
+                    line_order = int((line_settings or {}).get("line_name_order")) if isinstance(line_settings, dict) else None
+                except Exception:
+                    line_order = None
+                try:
+                    cust_order = int((line_settings or {}).get("customer_name_order")) if isinstance(line_settings, dict) else None
+                except Exception:
+                    cust_order = None
+                try:
+                    shop_order = int((line_settings or {}).get("shop_name_order")) if isinstance(line_settings, dict) else None
+                except Exception:
+                    shop_order = None
+
                 if send_line_name and line_name:
-                    parts.append(str(line_name))
-                if send_shop_name and shop_name:
-                    parts.append(str(shop_name))
+                    items.append((line_order if line_order in (1,2,3) else 99, str(line_name)))
                 if send_customer_name:
                     e164 = "+" + phone_norm if not phone_norm.startswith("+") else phone_norm
                     customer_name = await _get_customer_name_via_8020(enterprise_number, e164)
                     if customer_name:
-                        parts.append(customer_name)
-                if parts:
-                    name = " | ".join(parts)
+                        items.append((cust_order if cust_order in (1,2,3) else 99, customer_name))
+                if send_shop_name and shop_name:
+                    items.append((shop_order if shop_order in (1,2,3) else 99, str(shop_name)))
+
+                if items:
+                    items_sorted = sorted(items, key=lambda x: x[0])
+                    name = " | ".join([v for _, v in items_sorted])
 
         safe_name = name or ""
         await cache.set(cache_key, (safe_name, dialplan))
