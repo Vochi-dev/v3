@@ -81,42 +81,62 @@
   - [x] Stateless с кэшем (TTL 30–60с)
     - [ ] соответствия internalId→userId, карта `internalId×extLine→mngr…` (из БД/`plan.py` логики)
     - [ ] follow_me_steps для юзеров, fallback-контексты внешних линий
-  - [x] Правило выбора: заготовка — возвращать `mngr<internalId>_<extLine>_1` по алгоритмам first_call/last_call (по данным `calls`/`call_participants`); `retailcrm` — в следующем шаге
-- [ ] Поддержка эксплуатации:
-  - [x] Логирование решений (пока в файл `smart_service.log`)
-  - [ ] Метрики (P95 latency, error rate, пустые DialPlan)
+  - [x] Правило выбора: заготовка — возвращать `mngr<internalId>_<extLine>_1` по алгоритмам first_call/last_call (по данным `calls`/`call_participants`); `retailcrm` — реализовано
+- [x] Поддержка эксплуатации:
+  - [x] Логирование решений (в `logs/smart_decisions.log`)
+  - [x] Метрики (P95/latency, error rate, counters) — endpoint `/metrics`
   - [ ] Rate limit и allowlist IP от АТС
 - [x] Интеграция в репозиторий:
   - [x] Скрипт управления `smart.sh` (start|stop|restart)
   - [x] Подключить в `all.sh` (старт/стоп всех сервисов)
   - [x] Добавить в `admin.py` модалку Services пункт управления smart (статус, start/stop/restart)
 - [ ] Nginx:
-  - [ ] Проксировать запросы с внешки на 8021: `bot.vochi.by/api/callevent/getcustomerdata` → 8021
+  - [x] Проксировать запросы с внешки на 8021: `bot.vochi.by/api/callevent/getcustomerdata` → 8021
   - [ ] Сохранить совместимость с текущим путём макроса (опционально alias под старый URL)
   - [ ] Таймауты 1с, retry off, X-Forwarded-* заголовки
 - [ ] Взаимодействие с Asterisk:
-  - [ ] На пилоте 0367 оставить макрос как есть, но путь вести на `bot.vochi.by` (nginx → 8021)
+  - [x] На пилоте 0367 оставить макрос как есть, но путь вести на `bot.vochi.by` (nginx → 8021)
   - [ ] Опционально: временно дублировать запросы в тень (лог только) для сравнения решений
 - [ ] Взаимодействие с БД/кэшем:
   - [ ] Источники: `users`, `user_internal_phones`, `dial_schemas`, `follow_me_steps`
-  - [x] Кэширование и инвалидация (TTL в 8021 + endpoint `/cache/clear`)
-  - [ ] TTL‑кэш по `Phone→Name` (60–300с) для режима только‑имя
+  - [x] Кэширование (TTL в 8021; очистка при рестарте; отдельный `/cache/clear` — позже)
+  - [x] TTL‑кэш по `Phone→Name` (60–300с) — реализовано в 8020 (`integration_cache.py`); также кэш ответственных (`Phone→Extension`)
 - [ ] Режимы работы по юнитам:
   - [x] Режимы: `off` | `name-only` | `routing+name` (8021 читает `integrations_config.smart.mode`)
-  - [ ] Если `name-only`: всегда `DialPlan=null`, но `Name` заполняем (источник — выбранная интеграция)
+  - [x] Если `name-only`: всегда `DialPlan=null`, но `Name` заполняем (источник — выбранная интеграция)
   - [x] Если `routing+name`: возврат `DialPlan` реализован для first_call/last_call и retailcrm
-  - [ ] Переключатель режима на уровне предприятия (UI)
+  - [x] Переключатель режима на уровне предприятия (UI)
 - [ ] Выбор интеграции (если активных несколько):
-  - [ ] В UI предприятия — список активных интеграций с radio "Primary for Smart" (основная для ответственного/имени)
+  - [x] В UI предприятия — список активных интеграций с radio "Primary for Smart" (основная для ответственного/имени)
   - [ ] Политика: primary → fallback по следующей в списке (ручной порядок)
   - [ ] 8021 читает политику через 8020: endpoint типа `/integrations/{enterprise}/smart-policy`
 - [ ] UI/Настройки:
-  - [ ] В `enterprise_admin` добавить раздел "Smart":
-    - [ ] Переключатель режима (off/name-only/routing+name)
-    - [ ] Dropdown выбора основной интеграции (если несколько активных)
+  - [x] В `enterprise_admin` добавить раздел "Smart":
+    - [x] Переключатель режима (off/name-only/routing+name)
+    - [x] Dropdown выбора основной интеграции (если несколько активных)
     - [ ] Кнопка "Тест вызова" (симулирует запрос для указанного номера)
   - [ ] В интеграционных модалках можно отображать флаг "Используется как Smart primary" (read-only), управление — только в разделе "Smart"
 - [ ] Тестовый план:
   - [ ] Канареечный запуск на 0367 (1–2 дня), сравнение с ожидаемыми контекстами
   - [ ] Набор автотестов: выбор контекста по комбинациям (Follow Me / без, разные линии, режим name-only)
   - [ ] Роллбэк-план (отключение smart в один шаг)
+
+## Сделано сверх плана
+- Реализована интеграция 8021 ↔ 8020:
+  - Endpoint 8020 `/customer-name/{enterprise}/{phone}` с TTL‑кэшем имён
+  - Endpoint 8020 `/responsible-extension/{enterprise}/{phone}` с TTL‑кэшем внутренних; приоритет локальной мапы `user_extensions` над ответом RetailCRM
+- В `retailcrm.py` добавлены внутренние эндпоинты:
+  - `/internal/retailcrm/customer-name` — поиск клиента по телефону; формат имени «Фамилия Имя»
+  - `/internal/retailcrm/responsible-extension` — ответственное лицо → внутренний (с fallback по поиску клиента)
+- В `plan.py` изменена генерация:
+  - Контексты Smart Redirect формируются ТОЛЬКО для линий, где `smart.enabled=true`
+  - При отсутствии включённых линий блок SR в `extensions.conf` очищается до маркеров
+- В UI линий (SIP/GSM):
+  - Блок Smart Redirect с чекбоксами и селекторами порядка (1–3) для параметров "Имя линии/Имя клиента/Название магазина"
+  - Жёсткое обеспечение уникальности позиций; сохранение и мгновенное обновление подсветки строки
+  - Исправления JS: единое объявление `enforceGsmOrders`, рабочая кнопка "Сохранить"
+- Регенирация диалплана:
+  - Триггеры после сохранения SIP/GSM линии и при любом изменении пользователя (включая Follow Me)
+- Логи и мониторинг:
+  - Детальный лог решений `logs/smart_decisions.log`
+  - Временная чистка крупного `debug.log`; добавить logrotate — в план

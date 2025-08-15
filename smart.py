@@ -385,11 +385,14 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
         phone_norm = _normalize_phone(body.Phone)
         key = None
         if trunk:
-            # Определяем тип линии: пробуем как GSM (все цифры) или как SIP (строка)
-            if trunk.isdigit():
+            # Сначала пытаемся найти точное соответствие среди известных ключей
+            if f"sip:{trunk}" in lines_cfg:
+                key = f"sip:{trunk}"
+            elif f"gsm:{trunk}" in lines_cfg:
                 key = f"gsm:{trunk}"
             else:
-                key = f"sip:{trunk}"
+                # Фоллбек-эвристика: цифры → GSM, иначе → SIP
+                key = f"gsm:{trunk}" if trunk.isdigit() else f"sip:{trunk}"
 
         line_settings = lines_cfg.get(key) if key else None
 
