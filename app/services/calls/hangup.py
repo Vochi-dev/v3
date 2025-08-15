@@ -11,6 +11,7 @@ from datetime import datetime
 
 from app.services.events import save_telegram_message
 from app.services.customers import upsert_customer_from_hangup
+from app.services.postgres import get_pool
 from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
 
@@ -561,6 +562,95 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         # ───────── Fire-and-forget обновление customers ─────────
         try:
             asyncio.create_task(upsert_customer_from_hangup(data))
+        except Exception:
+            pass
+
+        # ───────── Fire-and-forget обогащение профиля и обновление customers, затем edit Telegram ─────────
+        async def _enrich_and_edit():
+            try:
+                # 1) Определяем предприятие
+                pool = await get_pool()
+                if not pool:
+                    return
+                async with pool.acquire() as conn:
+                    row = await conn.fetchrow(
+                        "SELECT number FROM enterprises WHERE name2 = $1 OR secret = $1 OR number = $1 LIMIT 1",
+                        data.get("Token", "")
+                    )
+                    enterprise_number = row["number"] if row else None
+                if not enterprise_number:
+                    return
+
+                # 2) Определяем внешний номер для профиля
+                phone = data.get("Phone") or data.get("CallerIDNum") or data.get("ConnectedLineNum") or ""
+                if not phone:
+                    return
+
+                # 3) Запрос профиля через 8020
+                import httpx
+                prof = None
+                try:
+                    async with httpx.AsyncClient(timeout=2.5) as client:
+                        r = await client.get(f"http://127.0.0.1:8020/customer-profile/{enterprise_number}/{phone}")
+                        if r.status_code == 200:
+                            prof = r.json() or {}
+                except Exception:
+                    prof = None
+
+                if not isinstance(prof, dict):
+                    return
+
+                ln = (prof.get("last_name") or "").strip()
+                fn = (prof.get("first_name") or "").strip()
+                mn = (prof.get("middle_name") or "").strip()
+                en = (prof.get("enterprise_name") or "").strip()
+
+                if not (ln or fn or en):
+                    return
+
+                # 4) Обновляем таблицу customers, если поле пустое
+                async with pool.acquire() as conn:
+                    await conn.execute(
+                        """
+                        UPDATE customers
+                        SET last_name = COALESCE(last_name, $1),
+                            first_name = COALESCE(first_name, $2),
+                            middle_name = COALESCE(middle_name, $3),
+                            enterprise_name = COALESCE(enterprise_name, $4)
+                        WHERE enterprise_number = $5 AND phone_e164 = $6
+                        """,
+                        ln or None, fn or None, mn or None, en or None,
+                        enterprise_number, phone if phone.startswith("+") else "+" + ''.join(ch for ch in phone if ch.isdigit())
+                    )
+
+                # 5) Формируем подпись и edit Telegram сообщения
+                parts = []
+                if ln:
+                    parts.append(ln)
+                if fn:
+                    parts.append(fn)
+                full_name = " ".join(parts).strip()
+                suffix = ""
+                if full_name and en:
+                    suffix = f"\n👤 {full_name} ({en})"
+                elif full_name:
+                    suffix = f"\n👤 {full_name}"
+                elif en:
+                    suffix = f"\n🏢 {en}"
+                if not suffix:
+                    return
+
+                try:
+                    # Edit последнего отправленного сообщения (sent.message_id уже есть в замыкании)
+                    new_text = safe_text + suffix
+                    await bot.edit_message_text(chat_id=chat_id, message_id=sent.message_id, text=new_text, parse_mode="HTML")
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+        try:
+            asyncio.create_task(_enrich_and_edit())
         except Exception:
             pass
 

@@ -15,6 +15,12 @@ from typing import Dict, List, Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 import aiohttp
 from pydantic import BaseModel
+try:
+    from app.services.postgres import get_pool as get_pool_async
+    import httpx as _httpx
+    ENRICH_AVAILABLE = True
+except Exception:
+    ENRICH_AVAILABLE = False
 import logging
 from telegram import Bot
 try:
@@ -929,6 +935,37 @@ async def sync_enterprise_data(enterprise_id: str, force_all: bool = False,
                                 await upsert_customer_from_hangup(raw)
                         except Exception as upsert_err:
                             logger.error(f"[download] customers upsert failed for {call_data['unique_id']}: {upsert_err}")
+
+                        # 🪄 Обогащение профиля клиента через 8020 и обновление customers (лучше батчем, но допустим по одному)
+                        try:
+                            if ENRICH_AVAILABLE:
+                                ent = call_data.get('enterprise_id')
+                                ph = call_data.get('phone_number')
+                                if ent and ph:
+                                    async with _httpx.AsyncClient(timeout=2.5) as client:
+                                        r = await client.get(f"http://127.0.0.1:8020/customer-profile/{ent}/{ph}")
+                                        if r.status_code == 200:
+                                            prof = r.json() or {}
+                                            ln = (prof.get('last_name') or '').strip() or None
+                                            fn = (prof.get('first_name') or '').strip() or None
+                                            mn = (prof.get('middle_name') or '').strip() or None
+                                            en = (prof.get('enterprise_name') or '').strip() or None
+                                            pool = await get_pool_async()
+                                            if pool and (ln or fn or en):
+                                                async with pool.acquire() as conn:
+                                                    await conn.execute(
+                                                        """
+                                                        UPDATE customers
+                                                        SET last_name = COALESCE(last_name, $1),
+                                                            first_name = COALESCE(first_name, $2),
+                                                            middle_name = COALESCE(middle_name, $3),
+                                                            enterprise_name = COALESCE(enterprise_name, $4)
+                                                        WHERE enterprise_number = $5 AND phone_e164 = $6
+                                                        """,
+                                                        ln, fn, mn, en, ent, ph if str(ph).startswith('+') else '+' + ''.join(ch for ch in str(ph) if ch.isdigit())
+                                                    )
+                        except Exception as enrich_err:
+                            logger.warning(f"[download] enrich profile failed for {call_data.get('unique_id')}: {enrich_err}")
                             
                     # Если call_id is None, значит запись уже существует (ON CONFLICT DO NOTHING)
                     

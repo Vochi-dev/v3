@@ -60,6 +60,8 @@ cache_stats = {
 
 # Cache for customer names: key=(enterprise, phone_e164) -> {"name": str|None, "expires": epoch}
 customer_name_cache: Dict[str, Dict[str, Any]] = {}
+# Cache for customer profiles: key=(enterprise, phone_e164) -> {"last_name":str|None, "first_name":str|None, "middle_name":str|None, "enterprise_name":str|None, "expires": epoch}
+customer_profile_cache: Dict[str, Dict[str, Any]] = {}
 # Cache for responsible extensions: key=(enterprise, phone_e164) -> {"ext": str|None, "expires": epoch}
 responsible_ext_cache: Dict[str, Dict[str, Any]] = {}
 # Cache for incoming transforms per enterprise: enterprise -> {"map": {"sip:<line>": "+375{9}", ...}, "expires": epoch}
@@ -722,6 +724,55 @@ async def get_customer_name(enterprise_number: str, phone: str):
         logger.error(f"get_customer_name error: {e}")
         return {"name": None}
 
+
+@app.get("/customer-profile/{enterprise_number}/{phone}")
+async def get_customer_profile(enterprise_number: str, phone: str):
+    """Return customer profile via primary integration (cached).
+    Profile fields: last_name, first_name, middle_name, enterprise_name.
+    """
+    global pg_pool
+    phone_e164 = normalize_phone_e164(phone)
+    cache_key = f"{enterprise_number}|{phone_e164}"
+    now = time.time()
+    entry = customer_profile_cache.get(cache_key)
+    if entry and entry.get("expires", 0) > now:
+        return {
+            "last_name": entry.get("last_name"),
+            "first_name": entry.get("first_name"),
+            "middle_name": entry.get("middle_name"),
+            "enterprise_name": entry.get("enterprise_name"),
+        }
+
+    if not pg_pool:
+        await init_database()
+    if not pg_pool:
+        return {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
+
+    try:
+        async with pg_pool.acquire() as conn:
+            primary = await _get_enterprise_smart_primary(conn, enterprise_number)
+            prof = {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
+            if primary == "retailcrm":
+                url = "http://127.0.0.1:8019/internal/retailcrm/customer-profile"
+                try:
+                    async with httpx.AsyncClient(timeout=2.5) as client:
+                        resp = await client.get(url, params={"phone": phone_e164})
+                        if resp.status_code == 200:
+                            data = resp.json() or {}
+                            for k in ("last_name", "first_name", "middle_name", "enterprise_name"):
+                                v = data.get(k)
+                                if isinstance(v, str):
+                                    prof[k] = v.strip() or None
+                except Exception as e:
+                    logger.warning(f"customer-profile retailcrm lookup failed: {e}")
+            else:
+                pass
+
+            customer_profile_cache[cache_key] = {**prof, "expires": now + TTL_SECONDS}
+            return prof
+    except Exception as e:
+        logger.error(f"get_customer_profile error: {e}")
+        return {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
 
 @app.get("/responsible-extension/{enterprise_number}/{phone}")
 async def get_responsible_extension(enterprise_number: str, phone: str, nocache: Optional[bool] = False):

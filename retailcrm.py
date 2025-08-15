@@ -3257,6 +3257,34 @@ async def internal_get_customer_name(phone: str):
         return {"name": None}
 
 
+@app.get("/internal/retailcrm/customer-profile")
+async def internal_get_customer_profile(phone: str):
+    """Возвращает профиль клиента по номеру телефона (Фамилия/Имя/Отчество/Компания).
+    Формат ответа: {"last_name": str|null, "first_name": str|null, "middle_name": str|null, "enterprise_name": str|null}
+    """
+    try:
+        async with RetailCRMClient(RETAILCRM_CONFIG) as client:
+            result = await client.search_customer_by_phone(phone)
+            prof = {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
+            if result and result.success and isinstance(result.data, dict):
+                customers = result.data.get("customers") or []
+                if customers:
+                    c = customers[0]
+                    ln = (c.get("lastName") or "").strip() or None
+                    fn = (c.get("firstName") or "").strip() or None
+                    mn = (c.get("patronymic") or c.get("middleName") or "").strip() or None
+                    # Название компании может храниться в разных полях; пытаемся угадать
+                    comp = (
+                        (c.get("company") or {}).get("name")
+                        if isinstance(c.get("company"), dict) else c.get("companyName")
+                    )
+                    en = (comp or "").strip() or None
+                    prof = {"last_name": ln, "first_name": fn, "middle_name": mn, "enterprise_name": en}
+            return prof
+    except Exception as e:
+        logger.error(f"internal_get_customer_profile error: {e}")
+        return {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
+
 @app.get("/internal/retailcrm/responsible-extension")
 async def internal_get_responsible_extension(phone: str):
     """Возвращает внутренний код ответственного менеджера по номеру телефона.
