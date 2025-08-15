@@ -62,6 +62,8 @@ cache_stats = {
 customer_name_cache: Dict[str, Dict[str, Any]] = {}
 # Cache for responsible extensions: key=(enterprise, phone_e164) -> {"ext": str|None, "expires": epoch}
 responsible_ext_cache: Dict[str, Dict[str, Any]] = {}
+# Cache for incoming transforms per enterprise: enterprise -> {"map": {"sip:<line>": "+375{9}", ...}, "expires": epoch}
+incoming_transform_cache: Dict[str, Dict[str, Any]] = {}
 
 # Недавние dial-события для идемпотентности и синтетического поднятия карточки при пропусках
 recent_dials: Dict[str, float] = {}
@@ -364,6 +366,35 @@ async def refresh_cache():
     elapsed = time.time() - start_time
     logger.info(f"🔄 Cache refreshed: {len(integration_cache)} entries in {elapsed:.2f}s")
 
+async def load_incoming_transform_map(enterprise_number: str) -> Dict[str, str]:
+    """Загружает карту правил incoming_transform для всех SIP-линий юнита.
+    Возвращает: { "sip:<line_name>": "+375{9}", ... }
+    """
+    if not pg_pool:
+        return {}
+    try:
+        async with pg_pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT line_name, incoming_transform
+                FROM sip_unit
+                WHERE enterprise_number = $1
+                  AND incoming_transform IS NOT NULL
+                  AND trim(incoming_transform) <> ''
+                """,
+                enterprise_number,
+            )
+            result: Dict[str, str] = {}
+            for r in rows:
+                ln = str(r["line_name"]) if r and r["line_name"] is not None else None
+                tr = str(r["incoming_transform"]).strip() if r and r["incoming_transform"] is not None else ""
+                if ln and tr:
+                    result[f"sip:{ln}"] = tr
+            return result
+    except Exception as e:
+        logger.error(f"❌ load_incoming_transform_map error: {e}")
+        return {}
+
 async def invalidate_enterprise_cache(enterprise_number: str):
     """Инвалидация кэша для конкретного предприятия"""
     if enterprise_number in integration_cache:
@@ -439,7 +470,8 @@ async def get_stats():
     return {
         **cache_stats,
         "hit_rate_percent": round(hit_rate, 2),
-        "cache_entries": len(integration_cache)
+        "cache_entries": len(integration_cache),
+        "incoming_transform_cached": len(incoming_transform_cache)
     }
 
 @app.get("/integrations/{enterprise_number}")
@@ -471,6 +503,32 @@ async def get_integrations(enterprise_number: str):
     
     raise HTTPException(status_code=404, detail="Enterprise not found")
 
+@app.get("/incoming-transform/{enterprise_number}")
+async def get_incoming_transform(enterprise_number: str):
+    """Возвращает карту правил incoming_transform для юнита (кэшируется на TTL_SECONDS)."""
+    now = time.time()
+    entry = incoming_transform_cache.get(enterprise_number)
+    if entry and entry.get("expires", 0) > now:
+        return {"map": entry.get("map", {})}
+
+    if not pg_pool:
+        await init_database()
+    if not pg_pool:
+        return {"map": {}}
+
+    m = await load_incoming_transform_map(enterprise_number)
+    incoming_transform_cache[enterprise_number] = {"map": m, "expires": now + TTL_SECONDS}
+    return {"map": m}
+
+@app.post("/reload-incoming-transform/{enterprise_number}")
+async def reload_incoming_transform(enterprise_number: str):
+    """Принудительно перезагружает карту incoming_transform для юнита."""
+    if not pg_pool:
+        await init_database()
+    m = await load_incoming_transform_map(enterprise_number)
+    incoming_transform_cache[enterprise_number] = {"map": m, "expires": time.time() + TTL_SECONDS}
+    return {"size": len(m)}
+
 @app.post("/dispatch/call-event")
 async def dispatch_call_event(request: Request):
     """Принимает события от dial/hangup и отправляет в активные интеграции."""
@@ -499,6 +557,41 @@ async def dispatch_call_event(request: Request):
         await get_integrations(enterprise_number)
         integrations_entry = integration_cache.get(enterprise_number)
     active = integrations_entry.data if integrations_entry else {}
+
+    # Попробуем применить входящее преобразование номера для SIP-линий
+    try:
+        trunk = str(
+            raw.get("TrunkId")
+            or raw.get("Trunk")
+            or raw.get("INCALL")
+            or raw.get("Incall")
+            or ""
+        ).strip()
+        if trunk:
+            # Получаем карту правил для юнита
+            mresp = await get_incoming_transform(enterprise_number)  # reuse local endpoint logic
+            tmap = (mresp or {}).get("map") or {}
+            rule = tmap.get(f"sip:{trunk}") or tmap.get(f"gsm:{trunk}")
+            if isinstance(rule, str) and "{" in rule and "}" in rule:
+                pref = rule.split("{")[0]
+                try:
+                    n = int(rule.split("{")[1].split("}")[0])
+                except Exception:
+                    n = None
+                # Определим внешний номер из raw (как поступал ранее)
+                _, external_e164 = guess_direction_and_phone(raw, None)
+                digits = ''.join([c for c in external_e164 if c.isdigit()])
+                if n and len(digits) >= n:
+                    normalized = f"{pref}{digits[-n:]}"
+                    # Применим нормализацию обратно в raw/Phone
+                    if raw.get("Phone"):
+                        raw = dict(raw)
+                        raw["Phone"] = normalized
+                    else:
+                        raw = dict(raw)
+                        raw["CallerIDNum"] = normalized
+    except Exception as e:
+        logger.warning(f"incoming_transform apply failed: {e}")
 
     # Лог приёма события
     logger.info(f"➡️ Received event: enterprise={enterprise_number} type={event_type} uniqueId={unique_id}")

@@ -95,6 +95,7 @@ class SipLineCreate(BaseModel):
     password: str
     prefix: Optional[str] = None
     smart: Optional[Any] = None
+    incoming_transform: Optional[str] = None
 
 class SipLineUpdate(SipLineCreate):
     smart: Optional[Any] = None
@@ -2198,6 +2199,7 @@ async def get_sip_lines(enterprise_number: str, current_enterprise: str = Depend
             su.id,
             su.line_name,
             su.prefix,
+            su.incoming_transform,
             p.name as provider_name,
             su.in_schema as incoming_schema_name,
             COALESCE(out_s.outgoing_schema_names, ARRAY[]::text[]) as outgoing_schema_names
@@ -2259,7 +2261,7 @@ async def get_sip_line_details(enterprise_number: str, line_id: int, current_ent
         raise HTTPException(status_code=500, detail="DB connection failed")
 
     try:
-        query = "SELECT id, line_name, password, prefix, provider_id FROM sip_unit WHERE id = $1 AND enterprise_number = $2"
+        query = "SELECT id, line_name, password, prefix, provider_id, incoming_transform FROM sip_unit WHERE id = $1 AND enterprise_number = $2"
         line = await conn.fetchrow(query, line_id, enterprise_number)
         if not line:
             raise HTTPException(status_code=404, detail="SIP line not found")
@@ -2301,14 +2303,14 @@ async def update_sip_line(
             
             query = """
             UPDATE sip_unit
-            SET line_name = $1, password = $2, prefix = $3, info = $4, provider_id = $5
+            SET line_name = $1, password = $2, prefix = $3, info = $4, provider_id = $5, incoming_transform = $8
             WHERE id = $6 AND enterprise_number = $7
-            RETURNING id, enterprise_number, line_name, prefix
+            RETURNING id, enterprise_number, line_name, prefix, incoming_transform
             """
             updated_line = await conn.fetchrow(
                 query,
                 data.line_name, data.password, data.prefix,
-                info_text, data.provider_id, line_id, enterprise_number
+                info_text, data.provider_id, line_id, enterprise_number, data.incoming_transform
             )
             
             if not updated_line:
@@ -2318,6 +2320,12 @@ async def update_sip_line(
         asyncio.create_task(_regenerate_sip_config_via_plan_service(enterprise_number))
 
         updated = dict(updated_line)
+        # Сообщим 8020 о перезагрузке incoming_transform
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                await client.post(f"http://127.0.0.1:8020/reload-incoming-transform/{enterprise_number}")
+        except Exception as _:
+            pass
         # Сохраняем smart в enterprises.integrations_config
         if data.smart is not None:
             sr_key = f"sip:{updated['line_name']}"
@@ -2408,9 +2416,9 @@ async def create_sip_line(
         
         # 3. Insert the new record into the sip_unit table
         query = """
-        INSERT INTO sip_unit (enterprise_number, line_name, password, prefix, info, provider_id)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, enterprise_number, line_name, prefix
+        INSERT INTO sip_unit (enterprise_number, line_name, password, prefix, info, provider_id, incoming_transform)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id, enterprise_number, line_name, prefix, incoming_transform
         """
         new_line_record = await conn.fetchrow(
             query,
@@ -2419,10 +2427,17 @@ async def create_sip_line(
             data.password,
             data.prefix,
             info_text,
-            data.provider_id
+            data.provider_id,
+            data.incoming_transform
         )
 
         created = dict(new_line_record)
+        # Сообщим 8020 о перезагрузке incoming_transform
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                await client.post(f"http://127.0.0.1:8020/reload-incoming-transform/{enterprise_number}")
+        except Exception:
+            pass
         # Сохраняем smart при создании
         if data.smart is not None:
             sr_key = f"sip:{created['line_name']}"

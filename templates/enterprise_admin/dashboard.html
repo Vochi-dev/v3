@@ -447,6 +447,11 @@
                         <label for="prefix">Префикс</label>
                         <input type="text" id="prefix" name="prefix">
                     </div>
+                    <div class="form-group">
+                        <label for="incoming_transform">Входящее преобразование</label>
+                        <input type="text" id="incoming_transform" name="incoming_transform" placeholder="например: +375{9}">
+                        <small>Правило: приставить префикс к последним N цифрам. Пример: +375{9}</small>
+                    </div>
                     <hr style="margin:1rem 0;" />
                     <div style="font-weight:600;margin-bottom:0.5rem;">Умная переадресация</div>
                     <div class="form-group" style="display:flex;align-items:center;gap:10px;margin-bottom:0.5rem;">
@@ -3235,6 +3240,7 @@
                 document.getElementById('line_name').value = lineDetails.line_name;
                 document.getElementById('password').value = lineDetails.password;
                 document.getElementById('prefix').value = lineDetails.prefix || '';
+                document.getElementById('incoming_transform').value = lineDetails.incoming_transform || '';
                 // УП настройки
                 try {
                     const s = lineDetails.smart || {};
@@ -3317,6 +3323,7 @@
                 line_name: formData.get('line_name'),
                 password: formData.get('password'),
                 prefix: formData.get('prefix'),
+                incoming_transform: formData.get('incoming_transform') || null,
                 smart: {
                     enabled: document.getElementById('sip_sr_enabled').checked,
                     algorithm: (function(){ const el = document.getElementById('sip_sr_algorithm'); return el && 'value' in el ? el.value : ''; })(),

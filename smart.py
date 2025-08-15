@@ -328,32 +328,11 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
     if not Token:
         raise HTTPException(status_code=401, detail="Token header is required")
 
-    cache_key = f"{Token}|{body.Phone}|{body.TrunkId}"
     metrics["requests_total"] += 1
-    cached = await cache.get(cache_key)
-    if cached is not None:
-        name_cached, dialplan_cached = cached
-        metrics["cache_hits"] += 1
-        decisions_logger.info(
-            json.dumps({
-                "req_id": req_id,
-                "enterprise": "cache",  # enterprise неизвестен до БД
-                "trunk": body.TrunkId,
-                "phone": body.Phone,
-                "mode": "cache",
-                "flags": None,
-                "algorithm": None,
-                "result": {"Name": (name_cached or ""), "DialPlan": dialplan_cached},
-                "reason": "cache_hit"
-            }, ensure_ascii=False)
-        )
-        safe_name = name_cached or ""
-        return JSONResponse(GetCustomerDataResponse(Name=safe_name, DialPlan=dialplan_cached).dict())
 
     conn = await _get_conn()
     if not conn:
         # В случае проблем с БД: безопасный дефолт — ничего не перенаправляем
-        await cache.set(cache_key, (None, None))
         elapsed = int((time.time() - start_ts) * 1000)
         latencies_ms.append(elapsed)
         decisions_logger.info(
@@ -396,6 +375,28 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
 
         line_settings = lines_cfg.get(key) if key else None
 
+        # 1) Попробуем применить входящее преобразование номера для SIP/GSM линий (приоритет SIP)
+        try:
+            if enterprise_number and trunk:
+                async with httpx.AsyncClient(timeout=1.0) as client:
+                    r = await client.get(f"http://127.0.0.1:8020/incoming-transform/{enterprise_number}")
+                    if r.status_code == 200:
+                        m = (r.json() or {}).get("map") or {}
+                        # Не полагаться на эвристику key: явно пробуем sip:<trunk>, затем gsm:<trunk>
+                        rule = m.get(f"sip:{trunk}") or m.get(f"gsm:{trunk}")
+                        if isinstance(rule, str) and "{" in rule and "}" in rule:
+                            # правило вида "+375{9}"
+                            pref = rule.split("{")[0]
+                            try:
+                                n = int(rule.split("{")[1].split("}")[0])
+                            except Exception:
+                                n = None
+                            digits = ''.join([c for c in phone_norm if c.isdigit()])
+                            if n and len(digits) >= n:
+                                phone_norm = f"{pref}{digits[-n:]}"
+        except Exception:
+            pass
+
         # Режим: управляет тем, что возвращаем
         # name: отображаемое имя (пока заглушка), dialplan: имя контекста
         name: Optional[str] = None
@@ -403,7 +404,6 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
 
         # Если режим выключен — выходим сразу
         if mode == "off":
-            await cache.set(cache_key, (None, None))
             elapsed = int((time.time() - start_ts) * 1000)
             logger.info(f"smart.getcustomerdata req_id={req_id} ent={enterprise_number} mode=off trunk={trunk} result=NONE ms={elapsed}")
             latencies_ms.append(elapsed)
@@ -485,7 +485,6 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
                     name = " | ".join([v for _, v in items_sorted])
 
         safe_name = name or ""
-        await cache.set(cache_key, (safe_name, dialplan))
         elapsed = int((time.time() - start_ts) * 1000)
         latencies_ms.append(elapsed)
         logger.info(f"smart.getcustomerdata req_id={req_id} ent={enterprise_number} trunk={trunk} result={{Name:{name},DialPlan:{dialplan}}} ms={elapsed}")
@@ -520,7 +519,6 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
         logger.error(f"get_customer_data unexpected error: {e}", exc_info=True)
         metrics["errors_total"] += 1
         # При ошибках — безопасный ответ без маршрутизации
-        await cache.set(cache_key, (None, None))
         elapsed = int((time.time() - start_ts) * 1000)
         latencies_ms.append(elapsed)
         decisions_logger.info(

@@ -522,6 +522,62 @@ async def _get_bot_and_recipients(asterisk_token: str) -> tuple[str, list[int]]:
         tg_ids.append(SUPERUSER_TG_ID)
     return bot_token, tg_ids
 
+async def _get_enterprise_number_by_token(asterisk_token: str) -> Optional[str]:
+    """Возвращает enterprise_number по токену (name2/secret/number)."""
+    pool = await get_pool()
+    if not pool:
+        return None
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT number FROM enterprises
+            WHERE name2 = $1 OR secret = $1 OR number = $1
+            LIMIT 1
+            """,
+            asterisk_token,
+        )
+        return row["number"] if row else None
+
+async def _apply_incoming_transform_if_any(body: dict) -> None:
+    """Нормализует внешний номер по правилу incoming_transform для линии.
+    Модифицирует body на месте (Phone/CallerIDNum/ConnectedLineNum)."""
+    try:
+        token = body.get("Token") or body.get("token")
+        trunk = str(body.get("TrunkId") or body.get("Trunk") or body.get("INCALL") or body.get("Incall") or "").strip()
+        if not (token and trunk):
+            return
+        enterprise_number = await _get_enterprise_number_by_token(token)
+        if not enterprise_number:
+            return
+        import httpx
+        async with httpx.AsyncClient(timeout=1.5) as client:
+            r = await client.get(f"http://127.0.0.1:8020/incoming-transform/{enterprise_number}")
+            if r.status_code != 200:
+                return
+            m = (r.json() or {}).get("map") or {}
+            rule = m.get(f"sip:{trunk}") or m.get(f"gsm:{trunk}")
+            if not (isinstance(rule, str) and "{" in rule and "}" in rule):
+                return
+            pref = rule.split("{")[0]
+            try:
+                n = int(rule.split("{")[1].split("}")[0])
+            except Exception:
+                return
+            # Берём внешний номер из полей события
+            candidate = str(body.get("Phone") or body.get("CallerIDNum") or body.get("ConnectedLineNum") or "")
+            digits = ''.join(ch for ch in candidate if ch.isdigit())
+            if not (n and len(digits) >= n):
+                return
+            normalized = f"{pref}{digits[-n:]}"
+            # Обновляем основные поля, чтобы все обработчики видели нормализованный номер
+            body["Phone"] = normalized
+            # Если CallerIDNum выглядел как внешний, тоже обновим
+            if body.get("CallerIDNum") and not str(body.get("CallerIDNum")).isdigit():
+                body["CallerIDNum"] = normalized
+            # ConnectedLineNum оставляем как есть (это чаще внутренний)
+    except Exception as e:
+        logger.warning(f"incoming_transform normalize failed: {e}")
+
 async def _dispatch_to_all(handler, body: dict):
     """
     Универсальный диспетчер: получает функцию handler (process_start, process_dial и т. д.),
@@ -559,6 +615,9 @@ async def _dispatch_to_all(handler, body: dict):
     finally:
         del frame
     
+    # Нормализуем номер по правилу на линии (если задано)
+    await _apply_incoming_transform_if_any(body)
+
     # Сохраняем событие в PostgreSQL
     from app.services.events import save_asterisk_event, mark_telegram_sent
     await save_asterisk_event(event_type, unique_id, token, body)
