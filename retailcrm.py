@@ -3248,7 +3248,8 @@ async def internal_get_customer_name(phone: str):
                     c = customers[0]
                     first = (c.get("firstName") or "").strip()
                     last = (c.get("lastName") or "").strip()
-                    full = (first + " " + last).strip()
+                    # Требуемый формат отображения: "Фамилия Имя"
+                    full = (last + " " + first).strip()
                     name = full or None
             return {"name": name}
     except Exception as e:

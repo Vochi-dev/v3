@@ -319,14 +319,6 @@ async def _get_responsible_extension_via_8020(enterprise_number: str, phone_e164
     return None
 
 
-async def _get_customer_name_via_8020(enterprise_number: str, phone_e164: str) -> Optional[str]:
-    """Заглушка: позже подключим 8020 (primary интеграция) для получения имени клиента."""
-    try:
-        return None
-    except Exception:
-        return None
-
-
 @app.post("/api/callevent/getcustomerdata")
 async def get_customer_data(request: Request, body: GetCustomerDataRequest, Token: Optional[str] = Header(default=None)):
     start_ts = time.time()
