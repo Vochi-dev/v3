@@ -3534,7 +3534,8 @@
             membersList.appendChild(li);
         };
 
-        document.getElementById('department-form').addEventListener('submit', async (e) => {
+        const _deptForm = document.getElementById('department-form');
+        if (_deptForm) _deptForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
             const departmentId = form.elements['id'].value;
@@ -3707,7 +3708,8 @@
             }
         }
 
-        document.getElementById('deleteDepartmentBtn').addEventListener('click', async (e) => {
+        const _delDeptBtn = document.getElementById('deleteDepartmentBtn');
+        if (_delDeptBtn) _delDeptBtn.addEventListener('click', async (e) => {
             const departmentId = e.target.dataset.id;
             if (!departmentId) return;
 
@@ -3737,8 +3739,8 @@
         // ФУНКЦИИ ДЛЯ РАБОТЫ С МОДАЛКОЙ ВНУТРЕННИХ ЛИНИЙ
         // ============================================
         
-        // Универсальная функция закрытия модальных окон
-        const closeAllModals = () => {
+        // Универсальная функция закрытия модальных окон (hoisted)
+        function closeAllModals() {
             // Закрываем все модальные окна с классом .modal
             const modals = document.querySelectorAll('.modal');
             modals.forEach(modal => {
@@ -3759,7 +3761,7 @@
             
             // Убираем возможные блокировки скролла
             document.body.style.overflow = '';
-        };
+        }
         
         // Функция копирования в буфер обмена с уведомлением
         const copyToClipboardWithNotification = async (text, message = "Данные скопированы в буфер обмена") => {
@@ -3806,8 +3808,8 @@
             }
         };
 
-        // Функция получения конфигурационных данных с хоста
-        const getPhoneConfigData = async (enterpriseNumber) => {
+        // Функция получения конфигурационных данных с хоста (hoisted)
+        async function getPhoneConfigData(enterpriseNumber) {
             try {
                 // Используем прямой endpoint для получения конфигурационных данных
                 const response = await fetch(`/enterprise/${enterpriseNumber}/phone-config-data`);
@@ -3834,10 +3836,10 @@
                     hasExternip: false
                 };
             }
-        };
+        }
 
-        // Функция создания кнопки копирования для ячеек таблицы
-        const createCopyButton = (text) => {
+        // Функция создания кнопки копирования для ячеек таблицы (hoisted)
+        function createCopyButton(text) {
             const button = document.createElement('button');
             button.innerHTML = '📋';
             button.style.cssText = `
@@ -3862,10 +3864,10 @@
                 copyToClipboardWithNotification(text);
             };
             return button;
-        };
+        }
 
-        // Функция создания таблицы конфигурации
-        const createConfigTable = (lineData, configData) => {
+        // Функция создания таблицы конфигурации (hoisted)
+        function createConfigTable(lineData, configData) {
             const { phone_number, password } = lineData;
             const { externip, bindport, localIp, hasExternip } = configData;
             
@@ -3976,24 +3978,23 @@
             });
             
             return table;
-        };
+        }
 
-        // Функция показа индикатора загрузки
-        const showLoadingIndicator = (buttonElement) => {
+        // Функция показа индикатора загрузки (hoisted)
+        function showLoadingIndicator(buttonElement) {
             const originalText = buttonElement.innerHTML;
             buttonElement.innerHTML = '⏳ Загрузка...';
             buttonElement.disabled = true;
             buttonElement.style.opacity = '0.7';
-            
             return () => {
                 buttonElement.innerHTML = originalText;
                 buttonElement.disabled = false;
                 buttonElement.style.opacity = '1';
             };
-        };
+        }
 
         // Открытие модального окна редактирования внутренней линии
-        const openEditInternalLineModal = async (event) => {
+        async function openEditInternalLineModal(event) {
             event.preventDefault();
             
             // Получаем номер линии
@@ -4093,22 +4094,35 @@
                 // Добавляем обработчик для кнопки закрытия
                 const closeModalBtn = document.getElementById('closeModalBtn');
                 if (closeModalBtn) {
-                    closeModalBtn.onclick = () => {
-                        closeAllModals();
-                    };
+                    closeModalBtn.addEventListener('click', (ev) => {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        if (modal && modal.parentNode) {
+                            modal.parentNode.removeChild(modal);
+                        }
+                        document.body.style.overflow = '';
+                    });
                 }
                 
                 // Обработчик закрытия модального окна (крестик)
-                modal.querySelector('.close').onclick = () => {
-                    closeAllModals();
-                };
+                modal.querySelector('.close').addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (modal && modal.parentNode) {
+                        modal.parentNode.removeChild(modal);
+                    }
+                    document.body.style.overflow = '';
+                });
                 
                 // Обработчик закрытия модального окна (клик вне области)
-                modal.onclick = function(event) {
+                modal.addEventListener('click', function(event) {
                     if (event.target === modal) {
-                        closeAllModals();
+                        if (modal && modal.parentNode) {
+                            modal.parentNode.removeChild(modal);
+                        }
+                        document.body.style.overflow = '';
                     }
-                };
+                });
                 
 
                 
@@ -4117,7 +4131,7 @@
                 console.error('Ошибка загрузки данных:', error);
                 alert('Ошибка загрузки данных линии');
             }
-        };
+        }
     });
     </script>
     <script src="https://unpkg.com/libphonenumber-js@1.11.1/bundle/libphonenumber-js.min.js"></script>
