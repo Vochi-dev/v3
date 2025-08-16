@@ -613,10 +613,10 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     await conn.execute(
                         """
                         UPDATE customers
-                        SET last_name = COALESCE(last_name, $1),
-                            first_name = COALESCE(first_name, $2),
-                            middle_name = COALESCE(middle_name, $3),
-                            enterprise_name = COALESCE(enterprise_name, $4)
+                        SET last_name = COALESCE($1, last_name),
+                            first_name = COALESCE($2, first_name),
+                            middle_name = COALESCE($3, middle_name),
+                            enterprise_name = COALESCE($4, enterprise_name)
                         WHERE enterprise_number = $5 AND phone_e164 = $6
                         """,
                         ln or None, fn or None, mn or None, en or None,
