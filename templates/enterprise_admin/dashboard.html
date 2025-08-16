@@ -3696,7 +3696,7 @@
             }
         });
 
-        const validatePhoneNumber = (number) => {
+        function validatePhoneNumber(number) {
             try {
                 if (!number.startsWith('+')) return true; // Проверяем только международные номера
                 const phoneNumber = libphonenumber.parsePhoneNumberFromString(number);
@@ -3705,7 +3705,7 @@
                 console.error(`Ошибка валидации номера ${number}:`, error);
                 return false; // Считаем невалидным при ошибке
             }
-        };
+        }
 
         document.getElementById('deleteDepartmentBtn').addEventListener('click', async (e) => {
             const departmentId = e.target.dataset.id;
