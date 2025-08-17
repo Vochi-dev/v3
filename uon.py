@@ -17,7 +17,7 @@ app = FastAPI(title="U-ON Integration Service", version="0.1.0")
 
 # In-memory config for pilot
 _CONFIG: Dict[str, Any] = {
-    "api_key": "10IxhY2Py4v6LcUBqU4y1755409304",  # Временно для тестирования
+    "api_key": "",
 }
 
 
@@ -659,7 +659,7 @@ async def _write_probe_result(payload: Dict[str, Any]) -> None:
 
 async def _probe_loop():
     """Автопроба поиска клиента в U-ON"""
-    api_key = _CONFIG.get("api_key") or os.environ.get("UON_API_KEY") or "10IxhY2Py4v6LcUBqU4y1755409304"
+    api_key = _CONFIG.get("api_key") or os.environ.get("UON_API_KEY") or ""
     logger.info(f"Starting probe loop for phone {_PROBE_PHONE} with API key {'***' + api_key[-4:] if api_key else 'NONE'}")
     
     for attempt in range(1, 4):
