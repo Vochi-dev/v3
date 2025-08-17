@@ -396,6 +396,7 @@ async def get_services_status(request: Request):
             "asterisk": {"port": 8018, "script": "asterisk.sh", "app": "asterisk"},
             "retailcrm": {"port": 8019, "script": "retailcrm.sh", "app": "retailcrm"},
             "integration_cache": {"port": 8020, "script": "integration_cache.sh", "app": "integration_cache"},
+            "uon": {"port": 8022, "script": "uon.sh", "app": "uon"},
             "reboot": {"port": 8009, "script": "reboot.sh", "app": "reboot.py"},
             "ewelink": {"port": 8010, "script": "ewelink.sh", "app": "ewelink_api"}
         }

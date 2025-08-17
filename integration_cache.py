@@ -713,6 +713,20 @@ async def get_customer_name(enterprise_number: str, phone: str):
                                 name = n.strip()
                 except Exception as e:
                     logger.warning(f"retailcrm name lookup failed: {e}")
+            elif primary == "uon":
+                # Query local uon service for customer profile
+                url = "http://127.0.0.1:8022/internal/uon/customer-by-phone"
+                try:
+                    async with httpx.AsyncClient(timeout=2.5) as client:
+                        resp = await client.get(url, params={"phone": phone_e164})
+                        if resp.status_code == 200:
+                            data = resp.json() or {}
+                            profile = data.get("profile") or {}
+                            n = profile.get("display_name")
+                            if isinstance(n, str) and n.strip():
+                                name = n.strip()
+                except Exception as e:
+                    logger.warning(f"uon name lookup failed: {e}")
             else:
                 # Other integrations can be added here
                 name = None
@@ -765,6 +779,39 @@ async def get_customer_profile(enterprise_number: str, phone: str):
                                     prof[k] = v.strip() or None
                 except Exception as e:
                     logger.warning(f"customer-profile retailcrm lookup failed: {e}")
+            elif primary == "uon":
+                url = "http://127.0.0.1:8022/internal/uon/customer-by-phone"
+                try:
+                    async with httpx.AsyncClient(timeout=2.5) as client:
+                        resp = await client.get(url, params={"phone": phone_e164})
+                        if resp.status_code == 200:
+                            data = resp.json() or {}
+                            profile = data.get("profile") or {}
+                            raw_data = data.get("source", {}).get("raw") if "source" in data else None
+                            
+                            # Извлекаем данные профиля из U-ON формата
+                            display_name = profile.get("display_name", "")
+                            if display_name:
+                                # Пробуем разделить display_name на части (если это "Фамилия Имя")
+                                parts = display_name.split()
+                                if len(parts) >= 1:
+                                    prof["first_name"] = parts[0]
+                                if len(parts) >= 2:
+                                    prof["last_name"] = parts[1]
+                            
+                            # Если есть сырые данные от U-ON, попробуем извлечь больше информации
+                            if isinstance(raw_data, dict):
+                                for uon_key, our_key in [
+                                    ("last_name", "last_name"), ("lastName", "last_name"), ("lname", "last_name"),
+                                    ("first_name", "first_name"), ("firstName", "first_name"), ("fname", "first_name"),
+                                    ("middle_name", "middle_name"), ("patronymic", "middle_name"), ("mname", "middle_name"),
+                                    ("company", "enterprise_name"), ("enterprise_name", "enterprise_name"), ("organization", "enterprise_name")
+                                ]:
+                                    v = raw_data.get(uon_key)
+                                    if isinstance(v, str) and v.strip():
+                                        prof[our_key] = v.strip()
+                except Exception as e:
+                    logger.warning(f"customer-profile uon lookup failed: {e}")
             else:
                 pass
 

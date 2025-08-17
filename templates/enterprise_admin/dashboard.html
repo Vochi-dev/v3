@@ -463,6 +463,7 @@
                         <select id="sip_sr_algorithm" class="form-group" style="width:100%;">
                             <option value="">— выбрать —</option>
                             <option value="retailcrm">RetailCRM</option>
+                            <option value="uon">U-ON.Travel</option>
                             <option value="first_call">Первый звонок</option>
                             <option value="last_call">Последний звонок</option>
                         </select>
@@ -2707,6 +2708,7 @@
                         '<select id="sr_algorithm" class="form-group" style="width:100%;">'+
                             '<option value="">— выбрать —</option>'+
                             '<option value="retailcrm">RetailCRM</option>'+
+                            '<option value="uon">U-ON.Travel</option>'+
                             '<option value="first_call">Первый звонок</option>'+
                             '<option value="last_call">Последний звонок</option>'+
                         '</select>'+
@@ -4149,6 +4151,9 @@
             <li style="margin:8px 0;">
               <a href="#" onclick="openRetailCRMAdmin(); return false;">RetailCRM</a>
             </li>
+            <li style="margin:8px 0;">
+              <a href="#" onclick="openUONAdmin(); return false;">U-ON.Travel</a>
+            </li>
           </ul>
         </div>
       </div>
@@ -4160,6 +4165,12 @@
       function openRetailCRMAdmin(){
         const enterpriseNumber = '{{ enterprise.number }}';
         const url = `/retailcrm-admin/?enterprise_number=${enterpriseNumber}`;
+        window.open(url, '_blank');
+        closeIntegrationsModal();
+      }
+      function openUONAdmin(){
+        const enterpriseNumber = '{{ enterprise.number }}';
+        const url = `/uon-admin/?enterprise_number=${enterpriseNumber}`;
         window.open(url, '_blank');
         closeIntegrationsModal();
       }

@@ -277,6 +277,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if path.startswith("/retailcrm-admin/"):
             return await self.handle_retailcrm_admin_auth(request, call_next)
         
+        # Специальная обработка для U-ON админки
+        if path.startswith("/uon-admin/"):
+            return await self.handle_uon_admin_auth(request, call_next)
+        
         # Для остальных маршрутов проверяем авторизацию
         session_token = request.cookies.get("session_token")
         user = await get_user_from_session_token(session_token)
@@ -325,6 +329,28 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         if not user:
             # Пользователь не авторизован - перенаправляем на главную
+            return RedirectResponse(url="/", status_code=302)
+        
+        # Добавляем пользователя в state запроса
+        request.state.user = user
+        return await call_next(request)
+    
+    async def handle_uon_admin_auth(self, request: Request, call_next):
+        """Обработка авторизации для U-ON админки - требует стандартной авторизации предприятия."""
+        # Получаем enterprise_number из параметров запроса
+        enterprise_number = request.query_params.get("enterprise_number")
+        
+        # Стандартная авторизация через session_token
+        session_token = request.cookies.get("session_token")
+        user = await get_user_from_session_token(session_token)
+        
+        if not user:
+            # Пользователь не авторизован - перенаправляем на главную
+            return RedirectResponse(url="/", status_code=302)
+        
+        # Проверяем, что пользователь имеет доступ к указанному предприятию
+        if enterprise_number and user.get("enterprise_number") != enterprise_number:
+            # Доступ к чужому предприятию запрещен
             return RedirectResponse(url="/", status_code=302)
         
         # Добавляем пользователя в state запроса
