@@ -724,14 +724,26 @@ UON_ADMIN_HTML = """
       btn.textContent = '🧪 Звоним...';
       
       try {
-        // Здесь будет реализация тестового звонка через U-ON API
-        console.log(`🧪 Тестовый звонок пользователю ${userId}`);
-        
-        btn.textContent = '🧪 ✅';
+        // Находим привязанный внутренний номер
+        const extSelect = document.getElementById(`extension_${userId}`);
+        const ext = (extSelect && extSelect.value && extSelect.value !== 'REMOVE') ? extSelect.value.trim() : '';
+        // Имитация входящего звонка от тест‑номера на добавочный менеджера — создаём уведомление
+        const enterpriseNumber = enterprise;
+        const testPhone = '+375290000000';
+        const resp = await fetch('/uon-admin/api/send-test-notification/' + enterpriseNumber, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, extension: ext, phone: testPhone })
+        });
+        if (resp.ok) {
+          btn.textContent = '🧪 ✅';
+        } else {
+          btn.textContent = '🧪 ❌';
+        }
         setTimeout(() => {
           btn.textContent = '🧪 Тест';
           btn.disabled = false;
-        }, 2000);
+        }, 1500);
         
       } catch (error) {
         console.error('Ошибка тестового звонка:', error);
@@ -897,6 +909,48 @@ async def admin_api_put_config(enterprise_number: str, config: dict):
         return {"success": True, "message": "Configuration saved"}
     except Exception as e:
         logger.error(f"Error saving config for {enterprise_number}: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/uon-admin/api/send-test-notification/{enterprise_number}")
+async def admin_api_send_test_notification(enterprise_number: str, payload: dict):
+    """Отправить тестовую всплывашку менеджеру (имитация входящего звонка)."""
+    try:
+        # Берём api_key из enterprises.integrations_config.uon, а не из кэша
+        import asyncpg
+        conn = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+        row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+        await conn.close()
+        api_key = None
+        if row and row.get("integrations_config"):
+            cfg = row["integrations_config"]
+            if isinstance(cfg, str):
+                try:
+                    cfg = json.loads(cfg)
+                except Exception:
+                    cfg = None
+            if isinstance(cfg, dict):
+                api_key = ((cfg.get("uon") or {}).get("api_key") or "").strip()
+        if not api_key:
+            api_key = _get_api_key_or_raise()
+        user_id = str(payload.get("user_id") or "").strip()
+        phone = str(payload.get("phone") or "+375290000000").strip()
+        # extension не обязателен для уведомления, но используем в тексте
+        ext = str(payload.get("extension") or "").strip()
+        text = f"Входящий звонок {phone}"
+        if ext:
+            text += f" → {ext}"
+
+        async with await _uon_client() as client:
+            url = f"https://api.u-on.ru/{api_key}/notification/create.json"
+            r = await client.post(url, json={"text": text, "manager_id": user_id})
+            try:
+                data = r.json()
+            except Exception:
+                data = None
+        return {"success": r.status_code == 200, "status": r.status_code, "data": data}
+    except Exception as e:
+        logger.error(f"Error send-test-notification for {enterprise_number}: {e}")
         return {"success": False, "error": str(e)}
 
 
