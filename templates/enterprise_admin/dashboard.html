@@ -4147,14 +4147,38 @@
         </div>
         <div style="padding:16px;">
           <p>Доступные интеграции:</p>
-          <ul style="list-style:none; padding:0; margin:0;">
-            <li style="margin:8px 0;">
-              <a href="#" onclick="openRetailCRMAdmin(); return false;">RetailCRM</a>
-            </li>
-            <li style="margin:8px 0;">
-              <a href="#" onclick="openUONAdmin(); return false;">U-ON.Travel</a>
-            </li>
-          </ul>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; column-gap:24px; align-items:start;">
+            <div style="min-width:0;">
+              <ul style="list-style:none; padding:0; margin:0; line-height:1.8;">
+                <li style="margin:8px 0;">
+                  <a href="#" onclick="openRetailCRMAdmin(); return false;">RetailCRM</a>
+                </li>
+                <li style="margin:8px 0;">
+                  <a href="#" onclick="openUONAdmin(); return false;">U-ON.Travel</a>
+                </li>
+              </ul>
+            </div>
+            <div style="min-width:0;">
+              <div id="primaryBlock" style="display:none; border:1px solid #eee; border-radius:8px; padding:12px;">
+                <div style="display:grid; grid-template-rows:auto 1fr auto; row-gap:10px;">
+                  <div>
+                    <button type="button" class="btn btn-primary" id="btnSavePrimary" style="width:140px;">Сохранить</button>
+                  </div>
+                  <div style="display:grid; row-gap:6px;">
+                    <label style="display:flex; align-items:center; gap:8px;">
+                      <input type="radio" name="primaryIntegration" value="retailcrm">
+                      <span>RetailCRM</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px;">
+                      <input type="radio" name="primaryIntegration" value="uon">
+                      <span>U-ON.Travel</span>
+                    </label>
+                  </div>
+                  <div id="primaryMsg" style="font-size:13px; color:#059669; display:none;">Сохранено</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -4174,6 +4198,63 @@
         window.open(url, '_blank');
         closeIntegrationsModal();
       }
+
+      // Primary integration UI logic
+      (function(){
+        try {
+          const enterpriseNumber = '{{ enterprise.number }}';
+          const primaryBlock = document.getElementById('primaryBlock');
+          const btnSavePrimary = document.getElementById('btnSavePrimary');
+          const msg = document.getElementById('primaryMsg');
+
+          async function refreshPrimaryUI(){
+            try {
+              const r = await fetch(`/enterprise/${enterpriseNumber}/integrations/summary`);
+              if (!r.ok) { primaryBlock.style.display = 'none'; return; }
+              const data = await r.json();
+              const enabled = data.enabled || {retailcrm:false, uon:false};
+              const enabledCount = (enabled.retailcrm?1:0) + (enabled.uon?1:0);
+              if (enabledCount > 1){
+                primaryBlock.style.display = 'block';
+                const val = data.primary || 'retailcrm';
+                const radios = document.getElementsByName('primaryIntegration');
+                radios.forEach(r => { r.checked = (r.value === val); r.disabled = false; });
+                btnSavePrimary.disabled = false;
+              } else {
+                primaryBlock.style.display = 'none';
+              }
+            } catch(e){ primaryBlock.style.display = 'none'; }
+          }
+
+          if (btnSavePrimary){
+            btnSavePrimary.addEventListener('click', async () => {
+              try {
+                const radios = document.getElementsByName('primaryIntegration');
+                let chosen = null;
+                radios.forEach(r => { if (r.checked) chosen = r.value; });
+                if (!chosen) return;
+                btnSavePrimary.textContent = 'Сохранение...';
+                btnSavePrimary.disabled = true;
+                const rs = await fetch(`/enterprise/${enterpriseNumber}/smart/primary`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ primary: chosen })
+                });
+                if (rs.ok){
+                  msg.style.display = 'block';
+                  setTimeout(()=>{ msg.style.display = 'none'; }, 1500);
+                }
+              } catch(e){}
+              finally {
+                btnSavePrimary.textContent = 'Сохранить';
+                btnSavePrimary.disabled = false;
+              }
+            });
+          }
+
+          refreshPrimaryUI();
+        } catch(e){}
+      })();
     </script>
   </body>
 </html>

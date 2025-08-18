@@ -18,6 +18,7 @@ import os
 import uuid
 import asyncio
 import re
+import json
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -264,6 +265,107 @@ async def get_file_path_from_db(file_id: int, enterprise_number: str) -> Optiona
             file_id, enterprise_number
         )
         return path
+    finally:
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/smart/primary", response_class=JSONResponse)
+async def get_smart_primary(enterprise_number: str):
+    """Возвращает текущую primary-интеграцию для Smart Redirect/профилей.
+    Формат ответа: {"primary": "retailcrm"|"uon"}. По умолчанию: retailcrm
+    """
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+    try:
+        row = await conn.fetchrow(
+            "SELECT integrations_config FROM enterprises WHERE number = $1",
+            enterprise_number,
+        )
+        cfg = dict(row).get("integrations_config") if row else None
+        if isinstance(cfg, str):
+            try:
+                cfg = json.loads(cfg)
+            except Exception:
+                cfg = None
+        primary = "retailcrm"
+        if isinstance(cfg, dict):
+            smart = cfg.get("smart") or {}
+            if isinstance(smart, dict):
+                p = smart.get("primary")
+                if isinstance(p, str) and p.strip():
+                    primary = p.strip()
+        return {"primary": primary}
+    finally:
+        await conn.close()
+
+@app.put("/enterprise/{enterprise_number}/smart/primary", response_class=JSONResponse)
+async def set_smart_primary(enterprise_number: str, payload: dict = Body(...)):
+    """Устанавливает primary-интеграцию (retailcrm|uon) в enterprises.integrations_config.smart.primary"""
+    primary = (payload or {}).get("primary")
+    if primary not in ("retailcrm", "uon"):
+        raise HTTPException(status_code=400, detail="primary must be 'retailcrm' or 'uon'")
+
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+    try:
+        row = await conn.fetchrow(
+            "SELECT integrations_config FROM enterprises WHERE number = $1",
+            enterprise_number,
+        )
+        cfg = dict(row).get("integrations_config") if row else None
+        if isinstance(cfg, str):
+            try:
+                cfg = json.loads(cfg)
+            except Exception:
+                cfg = None
+        if not isinstance(cfg, dict):
+            cfg = {}
+        cfg.setdefault("smart", {})
+        cfg["smart"]["primary"] = primary
+        await conn.execute(
+            "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",
+            json.dumps(cfg),
+            enterprise_number,
+        )
+        return {"success": True, "primary": primary}
+    finally:
+        await conn.close()
+
+@app.get("/enterprise/{enterprise_number}/integrations/summary", response_class=JSONResponse)
+async def get_integrations_summary(enterprise_number: str):
+    """Возвращает сводную информацию об интеграциях для модалки:
+    {
+      "enabled": {"retailcrm": bool, "uon": bool},
+      "primary": "retailcrm"|"uon"
+    }
+    """
+    conn = await get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB connection failed")
+    try:
+        row = await conn.fetchrow(
+            "SELECT integrations_config FROM enterprises WHERE number = $1",
+            enterprise_number,
+        )
+        cfg = dict(row).get("integrations_config") if row else None
+        if isinstance(cfg, str):
+            try:
+                cfg = json.loads(cfg)
+            except Exception:
+                cfg = None
+        enabled = {"retailcrm": False, "uon": False}
+        primary = "retailcrm"
+        if isinstance(cfg, dict):
+            r = cfg.get("retailcrm") or {}
+            u = cfg.get("uon") or {}
+            enabled["retailcrm"] = bool(r.get("enabled", False))
+            enabled["uon"] = bool(u.get("enabled", False))
+            smart = cfg.get("smart") or {}
+            p = smart.get("primary")
+            if isinstance(p, str) and p.strip():
+                primary = p.strip()
+        return {"enabled": enabled, "primary": primary}
     finally:
         await conn.close()
 
