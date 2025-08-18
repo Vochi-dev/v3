@@ -17,7 +17,10 @@ app = FastAPI(title="U-ON Integration Service", version="0.1.0")
 
 # In-memory config for pilot
 _CONFIG: Dict[str, Any] = {
+    "api_url": "https://api.u-on.ru",
     "api_key": "",
+    "enabled": False,
+    "log_calls": False
 }
 
 
@@ -298,11 +301,11 @@ UON_ADMIN_HTML = """
       <div class="row">
         <div>
           <label>Адрес API</label>
-        <input id="domain" type="url" placeholder="api.u-on.ru" />
+        <input id="domain" type="url" value="" />
         </div>
         <div>
           <label>API Key</label>
-          <input id="apiKey" type="text" placeholder="xxxxxxxx" />
+          <input id="apiKey" type="text" value="" />
         </div>
       </div>
       <div class="actions">
@@ -313,6 +316,13 @@ UON_ADMIN_HTML = """
         <button id="journalBtn" type="button" class="btn" style="background:#374151;">Журнал</button>
         <span id="msg" class="hint"></span>
       </div>
+    </div>
+    
+    <!-- Блок отображения пользователей U-ON -->
+    <div class="card" id="usersCard" style="display:none;">
+      <h2 style="margin:0 0 15px 0; font-size:24px; color:#1f2937;">Менеджеры</h2>
+      <div id="usersList"></div>
+      <div id="usersLoading" style="display:none; color:#8fb3da; font-style:italic;">Загрузка пользователей...</div>
     </div>
   </div>
   <script>
@@ -326,14 +336,29 @@ UON_ADMIN_HTML = """
         const r = await fetch(`./api/config/${enterprise}`);
         const j = await r.json();
         const cfg = (j||{});
+        const domainEl = document.getElementById('domain');
         const apiKeyEl = document.getElementById('apiKey');
         const enabledEl = document.getElementById('enabled');
-        if (apiKeyEl) apiKeyEl.value = cfg.api_key || '';
-        if (enabledEl) enabledEl.checked = !!cfg.enabled;
-      } catch(e) { console.warn('load() error', e); }
+        
+        // Загружаем значения из БД и устанавливаем в поля
+        if (domainEl) {
+          domainEl.value = cfg.api_url || 'https://api.u-on.ru';
+        }
+        if (apiKeyEl) {
+          apiKeyEl.value = cfg.api_key || '';
+        }
+        if (enabledEl) {
+          enabledEl.checked = !!cfg.enabled;
+        }
+        
+        console.log('✅ Конфигурация загружена:', cfg);
+      } catch(e) { 
+        console.warn('load() error', e); 
+      }
     }
 
     async function save() {
+      const apiUrl = (document.getElementById('domain')||{}).value?.trim?.() || 'https://api.u-on.ru';
       const apiKey = (document.getElementById('apiKey')||{}).value?.trim?.() || '';
       const enabled = !!((document.getElementById('enabled')||{}).checked);
       const btn = document.getElementById('saveBtn');
@@ -341,7 +366,7 @@ UON_ADMIN_HTML = """
       if (msg) { msg.textContent=''; msg.className='hint'; }
       if (btn) btn.disabled = true;
       try {
-        let r = await fetch(`./api/config/${enterprise}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({api_key: apiKey, enabled}) });
+        let r = await fetch(`./api/config/${enterprise}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({api_url: apiUrl, api_key: apiKey, enabled}) });
         const jr = await r.json();
         if(!jr.success) throw new Error(jr.error||'Ошибка сохранения');
         if (msg) { msg.textContent='Сохранено'; msg.className='hint success'; }
@@ -400,6 +425,324 @@ UON_ADMIN_HTML = """
       window.open(url, '_blank');
     }
 
+    // Функция отображения пользователей в специальном блоке
+    function displayUsers(users) {
+      const usersCard = document.getElementById('usersCard');
+      const usersList = document.getElementById('usersList');
+      
+      if (!users || users.length === 0) {
+        if (usersCard) usersCard.style.display = 'none';
+        return;
+      }
+      
+      let html = '';
+      users.forEach(user => {
+        const groups = user.groups ? user.groups.map(g => g.name).join(', ') : '';
+        const extension = user.extension ? `📞 ${user.extension}` : '📞 не назначен';
+        html += `
+          <div style="border:1px solid #e5e7eb; border-radius:8px; padding:15px; margin-bottom:10px; background:#f9fafb;">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+              <div style="flex:1;">
+                <div style="font-size:18px; font-weight:600; color:#1f2937; margin-bottom:5px;">
+                  ${user.firstName} ${user.lastName}
+                </div>
+                <div style="color:#6b7280; margin-bottom:3px;">ID: ${user.id} • ${user.email}</div>
+                <div style="color:#059669; font-weight:500; margin-bottom:3px;">${extension}</div>
+                ${groups ? `<div style="color:#6b7280; font-size:14px;">Группы: ${groups}</div>` : ''}
+              </div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <select id="extension_${user.id}" style="padding:8px; border:1px solid #d1d5db; border-radius:4px; font-size:14px; min-width:160px; background:white;">
+                  <option value="">Выберите номер...</option>
+                </select>
+                <button id="save_${user.id}" type="button" style="display:none; padding:8px 12px; background:#059669; color:white; border:none; border-radius:4px; font-size:12px; cursor:pointer; white-space:nowrap;" data-user-id="${user.id}">
+                  💾 Сохранить
+                </button>
+                <button id="test_${user.id}" type="button" style="padding:8px 12px; background:#2563eb; color:white; border:none; border-radius:4px; font-size:12px; cursor:pointer; white-space:nowrap;" data-user-id="${user.id}">🧪 Тест</button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      if (usersList) usersList.innerHTML = html;
+      if (usersCard) usersCard.style.display = 'block';
+      
+      // Добавляем обработчики для кнопок "Сохранить" и "Тест"
+      const saveButtons = document.querySelectorAll('[id^="save_"]');
+      saveButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+          const userId = this.getAttribute('data-user-id');
+          saveExtension(userId);
+        });
+      });
+      const testButtons = document.querySelectorAll('[id^="test_"]');
+      testButtons.forEach(btn => {
+        btn.addEventListener('click', function(){
+          const userId = this.getAttribute('data-user-id');
+          testCall(userId);
+        });
+      });
+    }
+
+    // Функция загрузки внутренних номеров
+    async function loadInternalPhones(users = []) {
+      try {
+        console.log('loadInternalPhones called');
+        const enterpriseNumber = enterprise;
+        console.log('Enterprise number:', enterpriseNumber);
+        
+        const response = await fetch(`./api/internal-phones/${enterpriseNumber}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Response data:', data);
+          if (data.success && data.phones) {
+            populateExtensionDropdowns(data.phones, users);
+          } else {
+            console.log('Data success or phones missing:', data);
+          }
+        } else {
+          console.error('Response not ok:', response.status);
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки внутренних номеров:', error);
+      }
+    }
+    
+    // Заполнение выпадающих списков номерами
+    function populateExtensionDropdowns(phones, users = []) {
+      console.log('populateExtensionDropdowns called with phones:', phones);
+      const selects = document.querySelectorAll('[id^="extension_"]');
+      console.log('Found selects:', selects.length);
+      
+      selects.forEach((select, index) => {
+        console.log(`Processing select ${index}:`, select.id);
+        const userId = select.id.replace('extension_', '');
+        
+        // Находим текущее назначение пользователя
+        const user = users.find(u => u.id == userId);
+        const currentExtension = user ? user.extension : '';
+        
+        // Очищаем и добавляем базовую опцию
+        select.innerHTML = '<option value="">Выберите номер...</option>';
+        
+        // Добавляем опцию "Без номера" для удаления назначения
+        const removeOption = document.createElement('option');
+        removeOption.value = 'REMOVE';
+        removeOption.textContent = 'Без номера';
+        select.appendChild(removeOption);
+        
+        // Добавляем все номера
+        phones.forEach(phone => {
+          const option = document.createElement('option');
+          option.value = phone.phone_number;
+          
+          // Формируем текст опции с информацией о владельце
+          let optionText = phone.phone_number;
+          if (phone.owner) {
+            optionText += ` (${phone.owner})`;
+          }
+          
+          option.textContent = optionText;
+          
+          // Устанавливаем выбранным если это текущее назначение
+          if (currentExtension && phone.phone_number === currentExtension) {
+            option.selected = true;
+            // Показываем кнопку сохранить если есть назначение
+            const saveBtn = document.getElementById(`save_${userId}`);
+            if (saveBtn) {
+              saveBtn.style.display = 'block';
+            }
+          }
+          
+          select.appendChild(option);
+        });
+        
+        // Обработчик изменения select
+        select.addEventListener('change', function() {
+          const saveBtn = document.getElementById(`save_${userId}`);
+          if (saveBtn) {
+            if (this.value && this.value !== '') {
+              saveBtn.style.display = 'block';
+            } else {
+              saveBtn.style.display = 'none';
+            }
+          }
+        });
+      });
+    }
+
+    // Функция загрузки пользователей
+    async function loadUsers() {
+      const usersLoading = document.getElementById('usersLoading');
+      const msg = document.getElementById('msg');
+      
+      if (usersLoading) usersLoading.style.display = 'block';
+      
+      try {
+        const r = await fetch(`./api/refresh-managers/${enterprise}`, { 
+          method:'POST', 
+          headers:{'Content-Type':'application/json'} 
+        });
+        const jr = await r.json();
+        
+        if (usersLoading) usersLoading.style.display = 'none';
+        
+        if(!jr.success) throw new Error(jr.error||'Ошибка получения менеджеров');
+        
+        console.log('📋 Менеджеры загружены:', jr.users?.length || 0);
+        displayUsers(jr.users);
+        // Загружаем внутренние номера для заполнения выпадающих списков
+        setTimeout(() => {
+          loadInternalPhones(jr.users);
+        }, 100);
+        
+      } catch(e) {
+        if (usersLoading) usersLoading.style.display = 'none';
+        console.error('Ошибка загрузки пользователей:', e);
+        if (msg) { 
+          msg.textContent = 'Ошибка загрузки менеджеров: ' + e.message; 
+          msg.className = 'hint error'; 
+        }
+      }
+    }
+
+    // Функция сохранения добавочного номера
+    async function saveExtension(userId) {
+      const select = document.getElementById(`extension_${userId}`);
+      const saveBtn = document.getElementById(`save_${userId}`);
+      
+      if (!select || !saveBtn) return;
+      
+      // Проверяем что пользователь выбрал что-то
+      if (!select || !select.value) {
+        alert('Пожалуйста, выберите номер или "Без номера"');
+        return;
+      }
+      
+      const enterpriseNumber = enterprise;
+      const selectedNumber = select.value.trim();
+      
+      // Собираем ВСЕ назначения со страницы
+      const extensions = {};
+      const allSelects = document.querySelectorAll('[id^="extension_"]');
+      
+      // Сначала собираем все назначения кроме текущего пользователя
+      allSelects.forEach(sel => {
+        const uid = sel.id.replace('extension_', '');
+        if (uid !== userId && sel.value && sel.value.trim() && sel.value.trim() !== 'REMOVE') {
+          const number = sel.value.trim();
+          
+          // Если этот номер совпадает с выбранным пользователем - убираем его у другого
+          if (number === selectedNumber && selectedNumber !== 'REMOVE') {
+            console.log(`🔄 Номер ${selectedNumber} отбирается у пользователя ${uid} для ${userId}`);
+            sel.value = ''; // Сбрасываем визуально
+            // Скрываем кнопку "Сохранить" у этого пользователя
+            const otherSaveBtn = document.getElementById(`save_${uid}`);
+            if (otherSaveBtn) {
+              otherSaveBtn.style.display = 'none';
+            }
+          } else {
+            extensions[uid] = number;
+          }
+        }
+      });
+      
+      // Добавляем назначение текущего пользователя (если не "Без номера")
+      if (selectedNumber && selectedNumber !== 'REMOVE') {
+        extensions[userId] = selectedNumber;
+      }
+      
+      console.log('Собранные назначения:', extensions);
+      
+      // Показываем индикатор загрузки
+      if (saveBtn) {
+        saveBtn.textContent = '⏳ Сохранение...';
+        saveBtn.disabled = true;
+      }
+      
+      try {
+        const response = await fetch(`./api/save-extensions/${enterpriseNumber}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            extensions: extensions
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            // Если получили обновленный список пользователей, используем его
+            if (data.users && Array.isArray(data.users)) {
+              console.log('📋 Updating UI with fresh user data:', data.users);
+              displayUsers(data.users);
+              // Загружаем внутренние номера для обновления выпадающих списков
+              setTimeout(() => {
+                loadInternalPhones(data.users);
+              }, 100);
+            } else {
+              // Fallback: обновляем список менеджеров традиционным способом
+              await loadUsers();
+            }
+            console.log('✅ Добавочный номер сохранен в U-ON');
+          } else {
+            throw new Error(data.error || 'Ошибка сохранения');
+          }
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+      } catch (error) {
+        console.error('Ошибка сохранения номера:', error);
+        console.error('❌ Ошибка сохранения:', error.message);
+        
+        // Восстанавливаем кнопку
+        const saveBtn = document.getElementById(`save_${userId}`);
+        if (saveBtn) {
+          saveBtn.textContent = '💾 Сохранить';
+          saveBtn.disabled = false;
+        }
+      }
+    }
+
+    // Функция тестового звонка
+    async function testCall(userId) {
+      const btn = document.getElementById(`test_${userId}`);
+      if (!btn) return;
+      
+      btn.disabled = true;
+      btn.textContent = '🧪 Звоним...';
+      
+      try {
+        // Здесь будет реализация тестового звонка через U-ON API
+        console.log(`🧪 Тестовый звонок пользователю ${userId}`);
+        
+        btn.textContent = '🧪 ✅';
+        setTimeout(() => {
+          btn.textContent = '🧪 Тест';
+          btn.disabled = false;
+        }, 2000);
+        
+      } catch (error) {
+        console.error('Ошибка тестового звонка:', error);
+        btn.textContent = '🧪 ❌';
+        setTimeout(() => {
+          btn.textContent = '🧪 Тест';
+          btn.disabled = false;
+        }, 3000);
+      }
+    }
+
     // События
     const saveBtn = document.getElementById('saveBtn');
     const deleteBtn = document.getElementById('deleteBtn');
@@ -413,6 +756,11 @@ UON_ADMIN_HTML = """
 
     // Загружаем конфигурацию при открытии страницы
     load();
+    
+    // Автоматически загружаем пользователей при открытии страницы
+    setTimeout(() => {
+      loadUsers();
+    }, 500); // Небольшая задержка чтобы сначала загрузилась конфигурация
   } catch(e) { console.error('Main script error:', e); }
   })();
   </script>
@@ -459,15 +807,50 @@ async def uon_admin_page(enterprise_number: str) -> HTMLResponse:
 async def admin_api_get_config(enterprise_number: str):
     """Получить текущую конфигурацию U-ON для предприятия"""
     try:
-        # Здесь будет запрос к БД за конфигурацией предприятия
-        # Пока вернем базовую конфигурацию
+        import asyncpg, json
+        
+        conn = await asyncpg.connect(
+            host="localhost",
+            port=5432,
+            database="postgres",
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        
+        # Получаем конфигурацию из БД
+        row = await conn.fetchrow(
+            "SELECT integrations_config FROM enterprises WHERE number = $1",
+            enterprise_number
+        )
+        
+        await conn.close()
+        
+        cfg: dict = {}
+        if row and row.get("integrations_config") is not None:
+            raw_cfg = row["integrations_config"]
+            if isinstance(raw_cfg, str):
+                try:
+                    cfg = json.loads(raw_cfg) or {}
+                except Exception:
+                    cfg = {}
+            elif isinstance(raw_cfg, dict):
+                cfg = raw_cfg
+            else:
+                # На всякий случай пробуем привести к словарю
+                try:
+                    cfg = dict(raw_cfg)
+                except Exception:
+                    cfg = {}
+
+        uon_config = (cfg.get("uon") if isinstance(cfg, dict) else None) or {}
         return {
-            "api_key": _CONFIG.get("api_key", ""),
-            "enabled": False,
-            "log_calls": False,
-            "primary": False
+            "api_url": uon_config.get("api_url", "https://api.u-on.ru"),
+            "api_key": uon_config.get("api_key", ""),
+            "enabled": uon_config.get("enabled", False),
+            "log_calls": uon_config.get("log_calls", False)
         }
     except Exception as e:
+        logger.error(f"Error getting config for {enterprise_number}: {e}")
         return {"error": str(e)}
 
 
@@ -475,13 +858,288 @@ async def admin_api_get_config(enterprise_number: str):
 async def admin_api_put_config(enterprise_number: str, config: dict):
     """Сохранить конфигурацию U-ON для предприятия"""
     try:
-        # Здесь будет сохранение в БД
-        # Пока просто обновляем локальную конфигурацию
-        if "api_key" in config:
-            _CONFIG["api_key"] = config["api_key"]
+        import asyncpg
+        
+        conn = await asyncpg.connect(
+            host="localhost",
+            port=5432,
+            database="postgres",
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        
+        # Создаем новую конфигурацию U-ON
+        uon_config = {
+            "api_url": config.get("api_url", "https://api.u-on.ru"),
+            "api_key": config.get("api_key", ""),
+            "enabled": config.get("enabled", False),
+            "log_calls": config.get("log_calls", False)
+        }
+        
+        # Обновляем в БД используя jsonb_set
+        import json
+        await conn.execute("""
+            UPDATE enterprises 
+            SET integrations_config = jsonb_set(
+                COALESCE(integrations_config, '{}'::jsonb),
+                '{uon}',
+                $2::jsonb,
+                true
+            )
+            WHERE number = $1
+        """, enterprise_number, json.dumps(uon_config))
+        
+        await conn.close()
+        
+        # Также обновляем локальную конфигурацию для текущей сессии
+        _CONFIG.update(uon_config)
         
         return {"success": True, "message": "Configuration saved"}
     except Exception as e:
+        logger.error(f"Error saving config for {enterprise_number}: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/uon-admin/api/refresh-managers/{enterprise_number}")
+async def admin_api_refresh_managers(enterprise_number: str):
+    """Получить список менеджеров из U-ON для отображения и маппинга добавочных"""
+    try:
+        import asyncpg, json, httpx
+
+        # Подключаемся к БД
+        conn = await asyncpg.connect(
+            host="localhost",
+            port=5432,
+            database="postgres",
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+
+        # Загружаем добавочные номера из БД (не используется для U-ON)
+        local_extensions: dict[str, str] = {}
+
+        # Читаем конфиг интеграции U-ON
+        row = await conn.fetchrow(
+            "SELECT integrations_config FROM enterprises WHERE number = $1",
+            enterprise_number,
+        )
+        await conn.close()
+
+        cfg: dict = {}
+        if row and row.get("integrations_config") is not None:
+            raw_cfg = row["integrations_config"]
+            if isinstance(raw_cfg, str):
+                try:
+                    cfg = json.loads(raw_cfg) or {}
+                except Exception:
+                    cfg = {}
+            elif isinstance(raw_cfg, dict):
+                cfg = raw_cfg
+            else:
+                try:
+                    cfg = dict(raw_cfg)
+                except Exception:
+                    cfg = {}
+
+        uon_cfg = (cfg.get("uon") if isinstance(cfg, dict) else None) or {}
+        api_key = (uon_cfg.get("api_key") or "").strip()
+        api_url = (uon_cfg.get("api_url") or "https://api.u-on.ru").strip()
+        enabled = bool(uon_cfg.get("enabled", False))
+        
+        # Загружаем сохраненные привязки пользователей из integrations_config
+        user_extensions = uon_cfg.get("user_extensions", {}) or {}
+
+        if not enabled:
+            return {"success": False, "error": "U-ON интеграция выключена"}
+        if not api_key:
+            return {"success": False, "error": "Не задан API Key U-ON"}
+
+        # Строгое обращение к публичному API U‑ON с пагинацией
+        base_host = "https://api.u-on.ru"
+        users: list[dict] = []
+        seen_ids: set = set()
+        raw_items: list = []
+        last_status = None
+        last_url = None
+        async with httpx.AsyncClient(timeout=15) as client:
+            for page in range(1, 11):  # ограничимся 10 страницами на всякий случай
+                url = f"{base_host}/{api_key}/manager.json?page={page}"
+                try:
+                    resp = await client.get(url)
+                    last_status = resp.status_code
+                    last_url = url
+                    # Лог: сохраняем сырую страницу для диагностики
+                    try:
+                        from pathlib import Path
+                        Path('logs').mkdir(exist_ok=True)
+                        with open(f"logs/uon_managers_page_{page}.json", "w", encoding="utf-8") as f:
+                            f.write(resp.text)
+                    except Exception:
+                        pass
+                    if resp.status_code != 200:
+                        break
+                    data = resp.json()
+                    # U-ON возвращает {"users": [...], "result": 200}
+                    users_array = data.get("users", []) if isinstance(data, dict) else []
+                    if not users_array:
+                        break
+                    
+                    # Добавляем только уникальных пользователей по u_id
+                    for user in users_array:
+                        if isinstance(user, dict):
+                            user_id = user.get("u_id")
+                            if user_id is not None and user_id not in seen_ids:
+                                seen_ids.add(user_id)
+                                raw_items.append(user)
+                except Exception:
+                    break
+
+        if not raw_items:
+            return {
+                "success": True,
+                "users": []
+            }
+
+        # Собираем ID из массива users - U-ON использует поле u_id
+        manager_ids: set[str] = set()
+        for user in raw_items:
+            if not isinstance(user, dict):
+                continue
+            user_id = user.get("u_id")
+            if user_id is not None:
+                manager_ids.add(str(user_id))
+
+        # Используем данные напрямую из массива users
+        users: list[dict] = []
+        for user in raw_items:
+            if not isinstance(user, dict):
+                continue
+            
+            user_id = str(user.get("u_id", ""))
+            last_name = user.get("u_surname", "").strip()
+            first_name = user.get("u_name", "").strip()
+            email = user.get("u_email", "").strip()
+            role_id = user.get("role_id", 0)
+            
+            # Определяем группу по role_id
+            if role_id == 1:
+                role_text = "Сотрудники"
+            elif role_id == 2:
+                role_text = "Менеджеры"
+            else:
+                role_text = "Пользователи"
+            
+            if not last_name and not first_name:
+                first_name = f"Пользователь {user_id}"
+            
+            users.append({
+                "id": user_id,
+                "firstName": first_name,
+                "lastName": last_name,
+                "email": email,
+                "extension": user_extensions.get(user_id, ""),
+                "groups": [{"name": role_text}],
+            })
+
+        return {"success": True, "users": users}
+
+    except Exception as e:
+        logger.error(f"Error refreshing managers for {enterprise_number}: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/uon-admin/api/save-extensions/{enterprise_number}")
+async def admin_api_save_extensions(enterprise_number: str, assignments: dict):
+    """Сохранить назначения добавочных номеров для U-ON (по аналогии с RetailCRM)"""
+    try:
+        user_extensions = assignments.get("extensions", {})
+        
+        import asyncpg
+        
+        conn = await asyncpg.connect(
+            host="localhost",
+            port=5432,
+            database="postgres",
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        
+        # Сохраняем только в integrations_config (как в RetailCRM)
+        import json
+        await conn.execute("""
+            UPDATE enterprises 
+            SET integrations_config = jsonb_set(
+                COALESCE(integrations_config, '{}'::jsonb),
+                '{uon,user_extensions}',
+                $2::jsonb,
+                true
+            )
+            WHERE number = $1
+        """, enterprise_number, json.dumps(user_extensions))
+        
+        await conn.close()
+        
+        # Получаем обновленный список пользователей для возврата актуальных данных
+        try:
+            fresh_users_result = await admin_api_refresh_managers(enterprise_number)
+            if fresh_users_result.get("success") and fresh_users_result.get("users"):
+                return {
+                    "success": True,
+                    "message": "Добавочные номера сохранены",
+                    "users": fresh_users_result["users"]  # Возвращаем свежий список пользователей
+                }
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to refresh users after saving extensions: {e}")
+        
+        return {"success": True, "message": "Добавочные номера сохранены"}
+        
+    except Exception as e:
+        logger.error(f"Error saving extensions for {enterprise_number}: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/uon-admin/api/internal-phones/{enterprise_number}")
+async def admin_api_get_internal_phones(enterprise_number: str):
+    """Получить список внутренних номеров для предприятия"""
+    try:
+        import asyncpg
+        
+        conn = await asyncpg.connect(
+            host="localhost",
+            port=5432,
+            database="postgres",
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        
+        # Получаем все внутренние номера для предприятия
+        rows = await conn.fetch("""
+            SELECT uip.phone_number, uip.user_id, 
+                   CASE 
+                     WHEN uip.user_id IS NOT NULL THEN 
+                       COALESCE(u.first_name || ' ' || u.last_name, 'ID: ' || uip.user_id)
+                     ELSE NULL
+                   END as owner
+            FROM user_internal_phones uip
+            LEFT JOIN users u ON u.id = uip.user_id AND u.enterprise_number = uip.enterprise_number
+            WHERE uip.enterprise_number = $1
+            ORDER BY uip.phone_number
+        """, enterprise_number)
+        
+        await conn.close()
+        
+        phones = []
+        for row in rows:
+            phones.append({
+                "phone_number": row["phone_number"],
+                "user_id": row["user_id"],
+                "owner": row["owner"]
+            })
+        
+        return {"success": True, "phones": phones}
+        
+    except Exception as e:
+        logger.error(f"Error getting internal phones for {enterprise_number}: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -489,10 +1147,32 @@ async def admin_api_put_config(enterprise_number: str, config: dict):
 async def admin_api_delete_config(enterprise_number: str):
     """Удалить конфигурацию U-ON для предприятия"""
     try:
-        # Здесь будет удаление из БД
+        import asyncpg
+        
+        conn = await asyncpg.connect(
+            host="localhost",
+            port=5432,
+            database="postgres",
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        
+        # Удаляем блок uon из integrations_config
+        await conn.execute("""
+            UPDATE enterprises 
+            SET integrations_config = integrations_config - 'uon'
+            WHERE number = $1
+        """, enterprise_number)
+        
+        await conn.close()
+        
+        # Очищаем локальную конфигурацию
         _CONFIG.clear()
-        return {"success": True, "message": "Configuration deleted"}
+        
+        return {"success": True, "message": "U-ON интеграция удалена"}
+        
     except Exception as e:
+        logger.error(f"Error deleting config for {enterprise_number}: {e}")
         return {"success": False, "error": str(e)}
 
 
