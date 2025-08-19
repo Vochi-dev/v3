@@ -222,7 +222,8 @@ PUBLIC_ROUTES = {
     "/", "/admin", "/admin/login", "/admin/dashboard", "/admin/enterprises",
     "/health", "/docs", "/redoc", "/openapi.json",
     "/start", "/dial", "/bridge", "/hangup",  # Asterisk webhooks
-    "/bridge_create", "/bridge_leave", "/bridge_destroy", "/new_callerid"
+    "/bridge_create", "/bridge_leave", "/bridge_destroy", "/new_callerid",
+    "/uon/webhook",
 }
 
 async def get_user_from_session_token(session_token: str) -> Optional[Dict]:

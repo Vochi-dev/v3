@@ -82,6 +82,40 @@ Content-Type: application/json
 
 Где `manager_id` — ID менеджера в U‑ON (не внутренний номер). Возвращает `{ "result": 200 }` при успехе. Этот метод мы используем для кнопки «Тест» в админке, чтобы имитировать звонок и показать карточку.
 
+### Входящий вебхук из U‑ON → инициировать звонок (originate)
+
+U‑ON может вызывать наш endpoint при нажатии «позвонить клиенту» в интерфейсе. Поддерживаем JSON и form‑urlencoded.
+
+- Endpoint: `POST https://bot.vochi.by/uon/webhook`
+- Параметры (ключи могут приходить на русском, они поддерживаются):
+  - `method` | `метод`: строка, ожидаем значение `call`
+  - `user_id` | `ID пользователя`: ID менеджера в U‑ON (например `2` или `4`)
+  - `phone` | `телефон`: номер клиента, допускается без `+` (мы нормализуем к E.164)
+  - `uon_id` | `account_id` | `uon_subdomain`: идентификатор/субдомен аккаунта U‑ON для привязки к нашему юниту
+  - `client` | `клиент`: JSON со сведениями о клиенте (опционально)
+
+Алгоритм обработки:
+1) Ищем предприятие по `integrations_config.uon.account_id` либо `integrations_config.uon.subdomain` (если не найдены — берём единственный активный юнит с включённой U‑ON интеграцией).
+2) По `user_id` находим внутренний номер через `integrations_config.uon.user_extensions`.
+3) Нормализуем номер клиента к E.164.
+4) Инициируем звонок через `asterisk.py` (`GET http://localhost:8018/api/makecallexternal?code=<ext>&phone=<e164>&clientId=<secret>`).
+5) Возвращаем `{ ok: true }` при успехе.
+
+Пример (form):
+```
+method=call&user_id=2&phone=375296254070&uon_id=67054
+```
+
+Пример (JSON):
+```
+{
+  "method": "call",
+  "user_id": 4,
+  "phone": "375296254070",
+  "uon_id": "67054"
+}
+```
+
 ## Полезные ссылки
 - U‑ON API: https://api.u-on.ru/doc
 - Неофициальный PHP‑клиент (как ориентир по эндпоинтам и моделям): https://github.com/DrTeamRocks/uon

@@ -22,7 +22,7 @@ import time
 import random
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Set, Any
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Body
 from fastapi.responses import JSONResponse
 import httpx
 
@@ -115,6 +115,63 @@ async def fetch_retailcrm_config(enterprise_number: str) -> Optional[dict]:
     except Exception as e:
         logger.error(f"❌ fetch_retailcrm_config error: {e}")
         return None
+
+async def write_integration_log(
+    enterprise_number: str,
+    event_type: str,
+    request_data: Dict[str, Any],
+    response_data: Optional[Dict[str, Any]],
+    status_ok: bool,
+    error_message: Optional[str] = None,
+    integration_type: str = "uon",
+) -> None:
+    """Запись события интеграции (новая схема с фолбэком на старую).
+
+    Совместимо с функцией из retailcrm.py.
+    """
+    try:
+        if not pg_pool:
+            await init_database()
+        if not pg_pool:
+            return
+        status_str = "success" if status_ok else "error"
+        try:
+            sql_new = (
+                "INSERT INTO integration_logs(enterprise_number, integration_type, event_type, request_data, response_data, status, error_message) "
+                "VALUES($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7)"
+            )
+            async with pg_pool.acquire() as conn:
+                await conn.execute(
+                    sql_new,
+                    enterprise_number,
+                    integration_type,
+                    event_type,
+                    json.dumps(request_data),
+                    json.dumps(response_data or {}),
+                    status_str,
+                    error_message,
+                )
+        except Exception as e_new:
+            try:
+                sql_old = (
+                    "INSERT INTO integration_logs(enterprise_number, integration_type, action, payload, response, success, error) "
+                    "VALUES($1, $2, $3, $4::jsonb, $5::jsonb, $6::boolean, $7)"
+                )
+                async with pg_pool.acquire() as conn:
+                    await conn.execute(
+                        sql_old,
+                        enterprise_number,
+                        integration_type,
+                        event_type,
+                        json.dumps(request_data),
+                        json.dumps(response_data or {}),
+                        status_ok,
+                        error_message,
+                    )
+            except Exception as e_old:
+                logger.warning(f"write_integration_log failed (new='{e_new}', old='{e_old}')")
+    except Exception as e:
+        logger.warning(f"write_integration_log outer failed: {e}")
 
 def map_call_type(call_type: int) -> Optional[str]:
     if call_type == 0:
@@ -634,7 +691,130 @@ async def dispatch_call_event(request: Request):
         except Exception as e:
             logger.error(f"❌ Forward to 8019 failed: {e}")
 
+    # U-ON → всплывашка (dial) и запись истории (hangup)
+    if active.get("uon"):
+        try:
+            import aiohttp
+            # Определяем направление/номер/внутренний
+            try:
+                event_kind, external_phone_e164 = guess_direction_and_phone(raw, None)
+            except Exception:
+                event_kind, external_phone_e164 = ("in", normalize_phone_e164(str(raw.get("Phone") or "")))
+            internal_code = determine_internal_code(raw) if event_type == "dial" else pick_internal_code_for_hangup(raw)
+
+            timeout = aiohttp.ClientTimeout(total=3)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                if event_type == "dial":
+                    # Для dial предпочитаем внутренний код из Extensions, а не CallerIDNum
+                    preferred_ext = None
+                    try:
+                        for e in (raw.get("Extensions") or []):
+                            if e and str(e).isdigit() and 2 <= len(str(e)) <= 5:
+                                preferred_ext = str(e)
+                                break
+                    except Exception:
+                        preferred_ext = None
+                    final_ext = preferred_ext or internal_code or ""
+                    # антидубль на стороне 8020: пометим этот dial, чтобы hangup не слал повторно
+                    recent_dials[unique_id] = time.time()
+                    # Собираем все кандидаты добавочных из raw.Extensions (только внутренние коды)
+                    ext_candidates: list[str] = []
+                    try:
+                        for e in (raw.get("Extensions") or []):
+                            es = str(e)
+                            if es.isdigit() and 2 <= len(es) <= 5 and es not in ext_candidates:
+                                ext_candidates.append(es)
+                    except Exception:
+                        pass
+                    if final_ext and final_ext not in ext_candidates:
+                        ext_candidates.insert(0, final_ext)
+                    payload = {
+                        "enterprise_number": enterprise_number,
+                        "phone": external_phone_e164,
+                        "extension": final_ext,
+                        "extensions_all": ext_candidates,
+                    }
+                    try:
+                        async with session.post("http://127.0.0.1:8022/internal/uon/notify-incoming", json=payload) as r:
+                            ok = (r.status == 200)
+                            try:
+                                data = await r.json()
+                            except Exception:
+                                data = {"status": r.status}
+                            await write_integration_log(
+                                enterprise_number=enterprise_number,
+                                event_type=f"call_event:{event_type}",
+                                request_data={"uniqueId": unique_id, "payload": payload},
+                                response_data=data,
+                                status_ok=ok,
+                                error_message=None if ok else f"http={r.status}",
+                                integration_type="uon",
+                            )
+                    except Exception as er:
+                        await write_integration_log(
+                            enterprise_number=enterprise_number,
+                            event_type=f"call_event:{event_type}",
+                            request_data={"uniqueId": unique_id, "payload": payload},
+                            response_data=None,
+                            status_ok=False,
+                            error_message=str(er),
+                            integration_type="uon",
+                        )
+                elif event_type == "hangup":
+                    duration_val = raw.get("Duration") or raw.get("Billsec") or 0
+                    try:
+                        duration = int(duration_val)
+                    except Exception:
+                        duration = 0
+                    start_ts = str(
+                        raw.get("StartTime")
+                        or raw.get("start")
+                        or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                    )
+                    direction = "in" if event_kind == "in" else "out"
+                    payload = {
+                        "enterprise_number": enterprise_number,
+                        "phone": external_phone_e164,
+                        "extension": internal_code or "",
+                        "start": start_ts,
+                        "duration": duration,
+                        "direction": direction,
+                    }
+                    try:
+                        async with session.post("http://127.0.0.1:8022/internal/uon/log-call", json=payload) as r:
+                            ok = (r.status == 200)
+                            try:
+                                data = await r.json()
+                            except Exception:
+                                data = {"status": r.status}
+                            await write_integration_log(
+                                enterprise_number=enterprise_number,
+                                event_type="call_history",
+                                request_data={"uniqueId": unique_id, "payload": payload},
+                                response_data=data,
+                                status_ok=ok,
+                                error_message=None if ok else f"http={r.status}",
+                                integration_type="uon",
+                            )
+                    except Exception as er:
+                        await write_integration_log(
+                            enterprise_number=enterprise_number,
+                            event_type="call_history",
+                            request_data={"uniqueId": unique_id, "payload": payload},
+                            response_data=None,
+                            status_ok=False,
+                            error_message=str(er),
+                            integration_type="uon",
+                        )
+        except Exception as e:
+            logger.error(f"❌ U-ON forward failed: {e}")
+
     return {"success": True}
+
+# Совместимость с вызовами со слэшем на конце
+@app.post("/dispatch/call-event/")
+async def dispatch_call_event_slash(request: Request):
+    return await dispatch_call_event(request)
 
 @app.post("/cache/invalidate/{enterprise_number}")
 async def invalidate_cache(enterprise_number: str):
@@ -655,6 +835,51 @@ async def get_cache_entries():
         enterprise: entry.to_dict() 
         for enterprise, entry in integration_cache.items()
     }
+
+
+@app.post("/notify/incoming")
+async def notify_incoming(payload: dict = Body(...)):
+    """Унифицированный вход: { enterprise_number, phone, extension } → вызвать всплывашку в primary-интеграции (сейчас U‑ON)."""
+    try:
+        enterprise_number = str(payload.get("enterprise_number") or "").strip()
+        phone = str(payload.get("phone") or "").strip()
+        extension = str(payload.get("extension") or "").strip()
+
+        if not enterprise_number:
+            raise HTTPException(status_code=400, detail="enterprise_number required")
+
+        if not pg_pool:
+            await init_database()
+        async with pg_pool.acquire() as conn:
+            primary = await _get_enterprise_smart_primary(conn, enterprise_number)
+
+        if primary == "uon":
+            # Проксируем в 8022
+            try:
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    forward_payload = {
+                        "enterprise_number": enterprise_number,
+                        "phone": phone,
+                        "extension": extension,
+                    }
+                    try:
+                        if isinstance(payload.get("extensions_all"), list):
+                            forward_payload["extensions_all"] = [str(x) for x in payload["extensions_all"]]
+                    except Exception:
+                        pass
+                    r = await client.post("http://127.0.0.1:8022/internal/uon/notify-incoming", json=forward_payload)
+                    ok = (r.status_code == 200 and (r.json() or {}).get("success"))
+                    return {"success": ok, "provider": "uon", "status": r.status_code}
+            except Exception as e:
+                logger.error(f"forward to uon failed: {e}")
+                return {"success": False, "provider": "uon", "error": str(e)}
+
+        return {"success": False, "provider": primary, "error": "provider_not_implemented"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"notify_incoming error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 async def _get_enterprise_smart_primary(conn: asyncpg.Connection, enterprise_number: str) -> str:

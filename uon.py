@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import logging
 import time
+import urllib.parse
 
 # Настраиваем логирование
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +23,10 @@ _CONFIG: Dict[str, Any] = {
     "enabled": False,
     "log_calls": False
 }
+
+# Антидубль всплывашек: (enterprise, manager_id, phone_digits) → last_ts
+_RECENT_NOTIFIES: Dict[Tuple[str, str, str], float] = {}
+_RECENT_WINDOW_SEC = 5.0
 
 
 def _get_api_key_or_raise() -> str:
@@ -250,13 +255,280 @@ async def test_endpoints():
 
 @app.post("/internal/uon/log-call")
 async def log_call(payload: dict):
-    return {"received": True}
+    """Создать запись истории звонка в U-ON по факту hangup.
+    Ожидает: { enterprise_number, phone, extension, start, duration, direction }
+    U-ON: POST /{key}/call_history/create.json с telephony-полями.
+    """
+    try:
+        api_key = None
+        enterprise_number = str(payload.get("enterprise_number") or "").strip()
+        phone = str(payload.get("phone") or "").strip()
+        start = str(payload.get("start") or "").strip()
+        duration = int(payload.get("duration") or 0)
+        direction = str(payload.get("direction") or "in").strip()
+        manager_ext = str(payload.get("extension") or "").strip()
+
+        # 1) Берём api_key из БД
+        try:
+            import asyncpg, json as _json
+            conn = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+            row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+            await conn.close()
+            if row and row.get("integrations_config"):
+                cfg = row["integrations_config"]
+                if isinstance(cfg, str):
+                    try:
+                        cfg = _json.loads(cfg)
+                    except Exception:
+                        cfg = None
+                if isinstance(cfg, dict):
+                    api_key = ((cfg.get("uon") or {}).get("api_key") or "").strip()
+        except Exception:
+            api_key = None
+        if not api_key:
+            api_key = _CONFIG.get("api_key") or ""
+        if not api_key:
+            raise HTTPException(status_code=400, detail="U-ON api_key missing")
+
+        # 2) direction → код U-ON: in→2, out→1 (по документации: 1 — исходящий, 2 — входящий)
+        dir_code = 2 if direction == "in" else 1
+
+        # 3) Определяем manager_id по extension, если есть карта user_extensions
+        manager_id = None
+        try:
+            import asyncpg, json as _json
+            conn = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+            row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+            if row and row.get("integrations_config"):
+                cfg = row["integrations_config"]
+                if isinstance(cfg, str):
+                    try:
+                        cfg = _json.loads(cfg)
+                    except Exception:
+                        cfg = None
+                if isinstance(cfg, dict):
+                    u = cfg.get("uon") or {}
+                    m = u.get("user_extensions") or {}
+                    if isinstance(m, dict) and manager_ext:
+                        for uid, ext in m.items():
+                            if str(ext) == manager_ext:
+                                manager_id = uid
+                                break
+            await conn.close()
+        except Exception:
+            pass
+
+        # 4) Формируем запрос к U-ON
+        digits = _normalize_phone_digits(phone)
+        payload_uon = {
+            "phone": digits,
+            "start": start,
+            "duration": duration,
+            "direction": dir_code,
+        }
+        if manager_id:
+            payload_uon["manager_id"] = manager_id
+
+        async with await _uon_client() as client:
+            url = f"https://api.u-on.ru/{api_key}/call_history/create.json"
+            r = await client.post(url, json=payload_uon)
+            try:
+                data = r.json()
+            except Exception:
+                data = {"status": r.status_code}
+
+        ok = (r.status_code == 200)
+        # Пишем диагностические файлы (как и раньше для трейсинга)
+        try:
+            Path('logs').mkdir(exist_ok=True)
+            Path('logs/uon_call_history.meta').write_text(f"HTTP_CODE={r.status_code}\n")
+            Path('logs/uon_call_history.hdr').write_text("")
+            Path('logs/uon_call_history.body').write_text(json.dumps(data, ensure_ascii=False, indent=2))
+        except Exception:
+            pass
+
+        return {"success": ok, "status": r.status_code, "data": data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"log_call error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 @app.post("/uon/webhook")
 async def webhook(req: Request):
-    body = await req.json()
-    return {"ok": True, "data": body}
+    """Приём вебхуков от U‑ON.
+    Поддерживаем как JSON, так и form-urlencoded. В случае method=call инициируем исходящий звонок.
+    Ожидаемые поля (или их русские аналоги из интерфейса U‑ON):
+      - uon_id | uon_subdomain — идентификатор/субдомен аккаунта U‑ON
+      - method (метод) == 'call'
+      - user_id (ID пользователя) — ID менеджера в U‑ON
+      - phone (телефон) — номер абонента без '+'
+      - client (клиент) — JSON с данными клиента (опционально)
+    """
+    try:
+        # 1) Унифицированный разбор тела запроса
+        content_type = req.headers.get("content-type", "").lower()
+        data: Dict[str, Any] = {}
+        raw_body = await req.body()
+        if "application/json" in content_type:
+            try:
+                data = json.loads(raw_body.decode("utf-8")) if raw_body else {}
+            except Exception:
+                data = {}
+        else:
+            # form or query-like
+            try:
+                form = await req.form()
+                data = dict(form)
+            except Exception:
+                # пробуем разобрать как querystring
+                try:
+                    parsed = urllib.parse.parse_qs(raw_body.decode("utf-8")) if raw_body else {}
+                    data = {k: v[0] if isinstance(v, list) and v else v for k, v in parsed.items()}
+                except Exception:
+                    data = {}
+
+        # 2) Извлечение полей с учётом русских ключей
+        def pick(d: Dict[str, Any], candidates: List[str]) -> Optional[str]:
+            for k in candidates:
+                if k in d:
+                    v = d.get(k)
+                    return str(v) if v is not None else None
+            # попробуем без регистра
+            low = {str(k).lower(): v for k, v in d.items()}
+            for k in candidates:
+                lk = str(k).lower()
+                if lk in low:
+                    v = low.get(lk)
+                    return str(v) if v is not None else None
+            return None
+
+        uon_id = pick(data, ["uon_id", "account_id", "u_id", "аккаунт", "аккаунт_id"]) or ""
+        subdomain = pick(data, ["uon_subdomain", "subdomain", "домен", "субдомен"]) or ""
+        method = pick(data, ["method", "метод"]) or ""
+        user_id = pick(data, ["user_id", "ID пользователя", "userid", "user"]) or ""
+        phone = pick(data, ["phone", "телефон"]) or ""
+        client_raw = pick(data, ["client", "клиент"]) or ""
+        try:
+            client_obj = json.loads(client_raw) if client_raw and isinstance(client_raw, str) else None
+        except Exception:
+            client_obj = None
+
+        # 3) Интересует только метод call
+        if (method or "").strip().lower() != "call":
+            return {"ok": True, "ignored": True}
+
+        # 4) Определяем предприятие по uon_id/subdomain
+        ent = await _find_enterprise_by_uon(uon_id, subdomain)
+        if not ent:
+            return {"ok": False, "error": "enterprise_not_found"}
+
+        # 5) Маппим user_id→extension из integrations_config.uon.user_extensions
+        internal_extension = await _map_uon_user_to_extension(ent["number"], user_id)
+        if not internal_extension:
+            return {"ok": False, "error": "extension_not_configured", "user_id": user_id}
+
+        # 6) Нормализация телефона
+        phone_e164 = phone
+        if phone_e164 and not phone_e164.startswith("+"):
+            phone_e164 = "+" + phone_e164
+
+        # 7) Вызываем asterisk.py
+        res = await _asterisk_make_call(code=internal_extension, phone=phone_e164, client_id=ent["secret"])
+
+        # 8) Локальный лог
+        try:
+            Path('logs').mkdir(exist_ok=True)
+            Path('logs/uon_webhook_call.meta').write_text(
+                f"uon_id={uon_id}\nsubdomain={subdomain}\nmanager_id={user_id}\next={internal_extension}\nphone={phone_e164}\n", encoding="utf-8")
+            Path('logs/uon_webhook_call.body').write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+        return {"ok": res.get("success", False), "asterisk": res}
+    except Exception as e:
+        logger.error(f"webhook error: {e}")
+        return {"ok": False, "error": str(e)}
+
+async def _find_enterprise_by_uon(uon_id: str, subdomain: str) -> Optional[Dict[str, Any]]:
+    """Ищем предприятие по полям integrations_config.uon: account_id или subdomain.
+    Фолбэк: единственное активное предприятие с включённой uon-интеграцией.
+    """
+    try:
+        import asyncpg
+        conn = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+        # 1) Точное совпадение по account_id/subdomain
+        row = None
+        if uon_id or subdomain:
+            row = await conn.fetchrow(
+                """
+                SELECT number, name, secret, integrations_config
+                FROM enterprises
+                WHERE active = true
+                  AND integrations_config ? 'uon'
+                  AND (
+                        (integrations_config->'uon'->>'account_id' = $1 AND $1 <> '')
+                     OR (integrations_config->'uon'->>'subdomain' = $2 AND $2 <> '')
+                  )
+                LIMIT 1
+                """,
+                str(uon_id or ""), str(subdomain or "")
+            )
+        # 2) Если не нашли — фолбэк на единственную запись с enabled=true
+        if not row:
+            row = await conn.fetchrow(
+                """
+                SELECT number, name, secret FROM enterprises
+                WHERE active = true
+                  AND (integrations_config->'uon'->>'enabled')::boolean = true
+                LIMIT 1
+                """
+            )
+        await conn.close()
+        if row:
+            return {"number": row["number"], "name": row["name"], "secret": row["secret"]}
+        return None
+    except Exception as e:
+        logger.error(f"find_enterprise_by_uon error: {e}")
+        return None
+
+async def _map_uon_user_to_extension(enterprise_number: str, user_id: str) -> Optional[str]:
+    try:
+        import asyncpg, json as _json
+        conn = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+        row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+        await conn.close()
+        if not row:
+            return None
+        cfg = row["integrations_config"]
+        if isinstance(cfg, str):
+            try:
+                cfg = _json.loads(cfg)
+            except Exception:
+                cfg = None
+        if not isinstance(cfg, dict):
+            return None
+        u = cfg.get("uon") or {}
+        mapping = u.get("user_extensions") or {}
+        return str(mapping.get(str(user_id))) if mapping else None
+    except Exception as e:
+        logger.error(f"map_uon_user_to_extension error: {e}")
+        return None
+
+async def _asterisk_make_call(code: str, phone: str, client_id: str) -> Dict[str, Any]:
+    try:
+        async with await _uon_client() as client:
+            url = "http://localhost:8018/api/makecallexternal"
+            params = {"code": code, "phone": phone, "clientId": client_id}
+            r = await client.get(url, params=params)
+            try:
+                data = r.json()
+            except Exception:
+                data = {"text": r.text, "status": r.status_code}
+            return {"success": r.status_code == 200, "status": r.status_code, "data": data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 # =============================================================================
@@ -951,6 +1223,224 @@ async def admin_api_send_test_notification(enterprise_number: str, payload: dict
         return {"success": r.status_code == 200, "status": r.status_code, "data": data}
     except Exception as e:
         logger.error(f"Error send-test-notification for {enterprise_number}: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/internal/uon/notify-incoming")
+async def internal_notify_incoming(payload: dict):
+    """Внутренний вызов: отправить всплывашку при реальном звонке.
+    Ожидает: { enterprise_number, phone, extension }
+    Текст: "Фамилия Имя клиента — Фамилия Имя менеджера (ext)".
+    """
+    try:
+        enterprise_number = str(payload.get("enterprise_number") or "").strip()
+        phone = str(payload.get("phone") or "").strip()
+        extension = str(payload.get("extension") or "").strip()
+        extensions_all = payload.get("extensions_all") or []
+        try:
+            extensions_all = [str(e).strip() for e in extensions_all if str(e).strip()]
+        except Exception:
+            extensions_all = []
+
+        # Достаём api_key и маппинг user_extensions из БД
+        import asyncpg
+        api_key = None
+        user_extensions = {}
+        conn = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+        row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+        if row and row.get("integrations_config"):
+            cfg = row["integrations_config"]
+            if isinstance(cfg, str):
+                try:
+                    cfg = json.loads(cfg)
+                except Exception:
+                    cfg = None
+            if isinstance(cfg, dict):
+                u = cfg.get("uon") or {}
+                api_key = (u.get("api_key") or "").strip()
+                user_extensions = (u.get("user_extensions") or {})
+        # На всякий случай
+        if not api_key:
+            api_key = _CONFIG.get("api_key") or ""
+        if not api_key:
+            return {"success": False, "error": "U-ON api_key missing"}
+
+        # Формируем имя клиента
+        customer_name = None
+        try:
+            async with await _uon_client() as client:
+                digits = _normalize_phone_digits(phone)
+                url = f"https://api.u-on.ru/{api_key}/user/phone/{digits}.json"
+                r = await client.get(url)
+                if r.status_code == 200:
+                    data = r.json() or {}
+                    arr = data.get("users") or []
+                    if arr and isinstance(arr, list):
+                        item = arr[0]
+                        ln = item.get("u_surname") or ""
+                        fn = item.get("u_name") or ""
+                        customer_name = f"{ln} {fn}".strip()
+        except Exception:
+            pass
+        if not customer_name:
+            customer_name = phone
+
+        # Находим uon user_id по extension (с нормализацией)
+        manager_id = None
+        ext_raw = str(extension)
+        ext_norm = ''.join(ch for ch in ext_raw if ch.isdigit())
+        if isinstance(user_extensions, dict):
+            for uid, ext in user_extensions.items():
+                try:
+                    ext_str = str(ext).strip()
+                except Exception:
+                    ext_str = str(ext)
+                # Совпадение по основному extension
+                if ext_str == ext_norm or ext_str == extension:
+                    manager_id = uid
+                    break
+            if manager_id is None and extensions_all:
+                # Доп. попытка: пробегаем по всем кандидатам из события
+                for cand in extensions_all:
+                    c_norm = ''.join(ch for ch in str(cand) if ch.isdigit())
+                    for uid, ext in user_extensions.items():
+                        try:
+                            ext_str = str(ext).strip()
+                        except Exception:
+                            ext_str = str(ext)
+                        if ext_str == c_norm or ext_str == str(cand):
+                            manager_id = uid
+                            ext_norm = c_norm
+                            extension = str(cand)
+                            break
+                    if manager_id is not None:
+                        break
+
+        # Имя менеджера: сначала пробуем локальную БД users
+        manager_name = None
+        try:
+            if extension:
+                row = await conn.fetchrow(
+                    "SELECT COALESCE(u.full_name, u.first_name || ' ' || u.last_name) AS name FROM user_internal_phones p LEFT JOIN users u ON u.id = p.user_id AND u.enterprise_number = p.enterprise_number WHERE p.enterprise_number = $1 AND p.phone_number = $2",
+                    enterprise_number,
+                    extension,
+                )
+                if row and row.get("name"):
+                    manager_name = str(row["name"]).strip()
+        except Exception:
+            pass
+        await conn.close()
+
+        text = f"{customer_name} — {manager_name or 'менеджер'}"
+        if extension:
+            text += f" ({extension})"
+
+        # Если manager_id не найден — пробуем отправить всем, кто есть в карте user_extensions (fallback на группу/очередь)
+        if not manager_id:
+            broadcast_ids = []
+            if isinstance(user_extensions, dict) and user_extensions:
+                try:
+                    broadcast_ids = [str(uid) for uid in user_extensions.keys()]
+                except Exception:
+                    broadcast_ids = []
+            if not broadcast_ids:
+                try:
+                    Path('logs').mkdir(exist_ok=True)
+                    Path('logs/uon_notification.meta').write_text(
+                        f"HTTP_CODE=0\nEP=skip_no_manager_id\next_raw={ext_raw}\next_norm={ext_norm}\next_all={','.join(extensions_all)}\n",
+                        encoding="utf-8",
+                    )
+                    Path('logs/uon_notification.body').write_text(
+                        json.dumps({
+                            "success": False,
+                            "error": "manager_id_not_mapped",
+                            "extension_raw": ext_raw,
+                            "extension_normalized": ext_norm,
+                            "user_extensions_keys": list((user_extensions or {}).keys()),
+                            "extensions_all": extensions_all,
+                        }, ensure_ascii=False, indent=2),
+                        encoding="utf-8",
+                    )
+                except Exception:
+                    pass
+                return {"success": False, "error": "manager_id_not_mapped", "extension": extension}
+            # Шлём каждому менеджеру из карты (c антидублем)
+            statuses: list[tuple[str,int]] = []
+            async with await _uon_client() as client:
+                ep = f"https://api.u-on.ru/{api_key}/notification/create.json"
+                for uid in broadcast_ids:
+                    # антидубль
+                    digits = _normalize_phone_digits(phone)
+                    key = (enterprise_number, str(uid), digits)
+                    now = time.time()
+                    last = _RECENT_NOTIFIES.get(key)
+                    if last and (now - last) < _RECENT_WINDOW_SEC:
+                        statuses.append((uid, 200))
+                        continue
+                    notify_payload = {"text": text, "manager_id": str(uid)}
+                    try:
+                        r = await client.post(ep, json=notify_payload)
+                        if r.status_code == 200:
+                            _RECENT_NOTIFIES[key] = now
+                        statuses.append((uid, r.status_code))
+                    except Exception:
+                        statuses.append((uid, -1))
+            ok_any = any(code == 200 for _, code in statuses)
+            try:
+                Path('logs').mkdir(exist_ok=True)
+                Path('logs/uon_notification.meta').write_text(
+                    f"HTTP_CODE={'200' if ok_any else '0'}\nEP=broadcast:{len(statuses)}\next_raw={ext_raw}\next_norm={ext_norm}\next_all={','.join(extensions_all)}\n",
+                    encoding="utf-8",
+                )
+                Path('logs/uon_notification.body').write_text(
+                    json.dumps({"sent_to": statuses}, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+            except Exception:
+                pass
+            return {"success": ok_any, "status": 200 if ok_any else 0}
+
+        # Антидублирование: один и тот же клиент для того же менеджера в небольшом окне не шлём повторно
+        digits = _normalize_phone_digits(phone)
+        key = (enterprise_number, str(manager_id), digits)
+        now = time.time()
+        last = _RECENT_NOTIFIES.get(key)
+        if last and (now - last) < _RECENT_WINDOW_SEC:
+            ok = True
+            class Dummy:
+                status_code = 200
+            r = Dummy()
+            ep = f"https://api.u-on.ru/{api_key}/notification/create.json"
+        else:
+            async with await _uon_client() as client:
+                ep = f"https://api.u-on.ru/{api_key}/notification/create.json"
+                notify_payload = {"text": text, "manager_id": str(manager_id)}
+                r = await client.post(ep, json=notify_payload)
+                ok = (r.status_code == 200)
+            if ok:
+                _RECENT_NOTIFIES[key] = now
+
+        # Диагностика
+        try:
+            Path('logs').mkdir(exist_ok=True)
+            Path('logs/uon_notification.meta').write_text(
+                f"HTTP_CODE={r.status_code}\nEP={ep}\next_raw={ext_raw}\next_norm={ext_norm}\next_all={','.join(extensions_all)}\n",
+                encoding="utf-8",
+            )
+            try:
+                rb = r.json()
+            except Exception:
+                rb = {"status": r.status_code}
+            Path('logs/uon_notification.body').write_text(
+                json.dumps(rb, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
+
+        return {"success": ok, "status": r.status_code}
+    except Exception as e:
+        logger.error(f"internal_notify_incoming error: {e}")
         return {"success": False, "error": str(e)}
 
 

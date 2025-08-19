@@ -195,6 +195,21 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                 logging.warning(f"[process_dial] gateway dispatch error: {e}")
 
         asyncio.create_task(_dispatch_to_gateway())
+
+        # Дополнительно: уведомление U‑ON через 8020
+        try:
+            caller_digits = (caller or "").lstrip("+")
+            ext_for_notify = exts[0] if exts else ""
+            notify_payload = {
+                "enterprise_number": token,  # token у нас == enterprise_number
+                "phone": caller,
+                "extension": ext_for_notify,
+            }
+            timeout2 = aiohttp.ClientTimeout(total=2)
+            async with aiohttp.ClientSession(timeout=timeout2) as session:
+                await session.post("http://localhost:8020/notify/incoming", json=notify_payload)
+        except Exception as e:
+            logging.warning(f"[process_dial] notify incoming failed: {e}")
     except Exception as e:
         logging.warning(f"[process_dial] failed to schedule gateway dispatch: {e}")
 

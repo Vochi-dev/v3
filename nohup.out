@@ -64,3 +64,17 @@
 2025-06-09 18:40:37,329 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/dashboard HTTP/1.0" 200
 2025-06-09 18:43:35,970 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /auth/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjAxIiwiaXNfYWRtaW4iOnRydWUsImV4cCI6MTc0OTQ5NDkxNX0.kmkMA4eMPsxROHOJC8Kqs13ZTF5E_4PfZcYiKKFck28 HTTP/1.0" 303
 2025-06-09 18:43:37,968 - uvicorn.access - INFO - 51.159.107.216:0 - "GET /enterprise/0201/dashboard HTTP/1.0" 200
+bash: -c: line 1: syntax error near unexpected token `do'
+bash: -c: line 1: `UID1=sim18987.1922; UID2=sim757.23838; NOW=2025-08-18 15:27:08; \nfor ext in 151 152; do \n  UID=; [  -eq 152 ] && UID=; \n  curl -sS -m 8 -X POST http://127.0.0.1:8020/dispatch/call-event -H 'Content-Type: application/json' -d '{\n    token:0367,\n    uniqueId:"$UID",\n    event_type:dial,\n    raw:{\n      CallType:0,\n      Phone:+375296254070,\n      CallerIDNum:+375296254070,\n      Extensions:["$ext"],\n      TrunkId:SIP_LINE_0367\n    }\n  }' >> logs/sim_call_.log 2>&1; \n  sleep 1; \n  curl -sS -m 8 -X POST http://127.0.0.1:8020/dispatch/call-event -H 'Content-Type: application/json' -d '{\n    token:0367,\n    uniqueId:"$UID",\n    event_type:hangup,\n    raw:{\n      CallType:0,\n      Phone:+375296254070,\n      CallerIDNum:+375296254070,\n      Extensions:["$ext"],\n      Duration:12,\n      StartTime:"$NOW",\n      TrunkId:SIP_LINE_0367\n    }\n  }' >> logs/sim_call_.log 2>&1; \n  sleep 1; \ndone'
+bash: line 1: UID: readonly variable
+bash: line 1: UID: readonly variable
+bash: line 1: UID: readonly variable
+bash: -c: line 14: syntax error near unexpected token `newline'
+bash: -c: line 14: `fi; echo '=== NGINX TEST ==='; nginx -t; echo '=== RELOAD ==='; (systemctl reload nginx || nginx -s reload); echo '=== DONE ==='; } &> '
+U-ON: -c: line 1: unexpected EOF while looking for matching `''
+U-ON: -c: line 2: syntax error: unexpected end of file
+bash: -c: line 14: syntax error near unexpected token `newline'
+bash: -c: line 14: `set -e; SNIP=/etc/nginx/snippets/uon_admin.conf; cp -a  .bak.1755598260; cat <<'EOF' >> '
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+grep: (standard input): Bad file descriptor

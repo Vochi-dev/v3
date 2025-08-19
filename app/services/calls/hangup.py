@@ -557,6 +557,20 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             is_int
         )
         
+        # ───────── Шаг 11. Уведомление U‑ON через 8020 (реальный звонок завершён) ─────────
+        try:
+            ext_for_notify = exts[0] if exts else (connected or "")
+            notify_payload = {
+                "enterprise_number": token,
+                "phone": caller,
+                "extension": ext_for_notify,
+            }
+            timeout2 = aiohttp.ClientTimeout(total=2)
+            async with aiohttp.ClientSession(timeout=timeout2) as session:
+                await session.post("http://localhost:8020/notify/incoming", json=notify_payload)
+        except Exception as e:
+            logging.warning(f"[process_hangup] notify incoming failed: {e}")
+
         logging.info(f"[process_hangup] Successfully sent hangup message {sent.message_id} for {phone_for_grouping}")
 
         # ───────── Fire-and-forget обновление customers ─────────
