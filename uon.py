@@ -1392,7 +1392,7 @@ async def admin_api_get_config(enterprise_number: str):
 async def admin_api_put_config(enterprise_number: str, config: dict):
     """Сохранить конфигурацию U-ON для предприятия"""
     try:
-        import asyncpg
+        import asyncpg, json
         
         conn = await asyncpg.connect(
             host="localhost",
@@ -1402,16 +1402,41 @@ async def admin_api_put_config(enterprise_number: str, config: dict):
             password="r/Yskqh/ZbZuvjb2b3ahfg=="
         )
         
-        # Создаем новую конфигурацию U-ON
+        # Читаем текущую конфигурацию, чтобы не затирать user_extensions
+        existing_cfg_row = await conn.fetchrow(
+            "SELECT integrations_config FROM enterprises WHERE number = $1",
+            enterprise_number
+        )
+        existing_uon: dict = {}
+        if existing_cfg_row and existing_cfg_row.get("integrations_config") is not None:
+            raw_cfg = existing_cfg_row["integrations_config"]
+            if isinstance(raw_cfg, str):
+                try:
+                    raw_cfg = json.loads(raw_cfg) or {}
+                except Exception:
+                    raw_cfg = {}
+            if isinstance(raw_cfg, dict):
+                existing_uon = (raw_cfg.get("uon") or {}) if isinstance(raw_cfg.get("uon"), dict) else {}
+
+        # Берём имеющуюся карту назначений, если в запросе не передали новую
+        existing_user_ext = {}
+        if isinstance(existing_uon, dict):
+            existing_user_ext = existing_uon.get("user_extensions") or {}
+
+        incoming_user_ext = config.get("user_extensions")
+        if not isinstance(incoming_user_ext, dict):
+            incoming_user_ext = None
+
+        # Формируем новую конфигурацию, НЕ трогая user_extensions без явного запроса
         uon_config = {
-            "api_url": config.get("api_url", "https://api.u-on.ru"),
-            "api_key": config.get("api_key", ""),
-            "enabled": config.get("enabled", False),
-            "log_calls": config.get("log_calls", False)
+            "api_url": config.get("api_url", existing_uon.get("api_url", "https://api.u-on.ru")),
+            "api_key": config.get("api_key", existing_uon.get("api_key", "")),
+            "enabled": config.get("enabled", existing_uon.get("enabled", False)),
+            "log_calls": config.get("log_calls", existing_uon.get("log_calls", False)),
+            "user_extensions": incoming_user_ext if incoming_user_ext is not None else existing_user_ext,
         }
         
         # Обновляем в БД используя jsonb_set
-        import json
         await conn.execute("""
             UPDATE enterprises 
             SET integrations_config = jsonb_set(
