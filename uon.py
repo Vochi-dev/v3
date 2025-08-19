@@ -28,6 +28,9 @@ _CONFIG: Dict[str, Any] = {
 _RECENT_NOTIFIES: Dict[Tuple[str, str, str], float] = {}
 _RECENT_WINDOW_SEC = 5.0
 
+# Наш публичный URL для приёма вебхуков из U‑ON
+_DEFAULT_WEBHOOK_URL = "https://bot.vochi.by/uon/webhook"
+
 
 def _get_api_key_or_raise() -> str:
     api_key = _CONFIG.get("api_key") or ""
@@ -165,6 +168,208 @@ async def _search_customer_in_uon_by_phone(api_key: str, phone: str) -> Optional
     
     logger.info(f"Customer not found for phone {phone} across all endpoints")
     return None
+
+
+async def _register_default_webhook(api_key: str) -> Dict[str, Any]:
+    """Регистрирует вебхук "Клик по номеру телефона клиента" в U‑ON.
+    Эквивалент экрана на скришоте: Тип=Клик по номеру телефона клиента, URL=_DEFAULT_WEBHOOK_URL, Метод=POST.
+    Документация: /{key}/webhook/create.json
+    На практике у U‑ON отличаются имена полей в разных версиях, поэтому пробуем несколько вариантов тела.
+    Возвращаем диагностический объект со статусом.
+    """
+    try:
+        async with await _uon_client() as client:
+            url = f"https://api.u-on.ru/{api_key}/webhook/create.json"
+            payloads = [
+                # Основной вариант: type_id 47 (Клик по номеру телефона клиента), section_id 0, method POST
+                {"type_id": 47, "section_id": 0, "method": "POST", "url": _DEFAULT_WEBHOOK_URL},
+                # Альтернативные названия полей (если API ожидает другие ключи)
+                {"type": 47, "section": 0, "method": "POST", "url": _DEFAULT_WEBHOOK_URL},
+            ]
+            last_status = None
+            last_body: Any = None
+            for pl in payloads:
+                try:
+                    r = await client.post(url, json=pl)
+                    last_status = r.status_code
+                    try:
+                        last_body = r.json()
+                    except Exception:
+                        last_body = {"text": r.text}
+                    # Успех
+                    if r.status_code == 200:
+                        break
+                except Exception as e:
+                    last_status = -1
+                    last_body = {"error": str(e)}
+
+        # Локальная диагностика
+        try:
+            Path('logs').mkdir(exist_ok=True)
+            Path('logs/uon_webhook_create.meta').write_text(f"HTTP_CODE={last_status}\n", encoding="utf-8")
+            Path('logs/uon_webhook_create.body').write_text(json.dumps(last_body, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+        return {"status": last_status, "data": last_body}
+    except Exception as e:
+        logger.error(f"register_default_webhook error: {e}")
+      
+        try:
+            Path('logs').mkdir(exist_ok=True)
+            Path('logs/uon_webhook_create.meta').write_text("HTTP_CODE=0\n", encoding="utf-8")
+            Path('logs/uon_webhook_create.body').write_text(json.dumps({"error": str(e)}, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+        return {"status": 0, "error": str(e)}
+
+
+async def _list_all_webhooks(api_key: str) -> Dict[str, Any]:
+    """Получить список всех вебхуков аккаунта U‑ON.
+    Документация: GET /{key}/webhook.json (или /webhooks.json — у U‑ON могут отличаться пути)
+    Пробуем несколько вариантов.
+    """
+    endpoints = ["/webhook.json", "/webhooks.json", "/webhook/list.json"]
+    last_status = None
+    last_body: Any = None
+    async with await _uon_client() as client:
+        for ep in endpoints:
+            url = f"https://api.u-on.ru/{api_key}{ep}"
+            try:
+                r = await client.get(url)
+                last_status = r.status_code
+                try:
+                    last_body = r.json()
+                except Exception:
+                    last_body = {"text": r.text}
+                if r.status_code == 200:
+                    break
+            except Exception as e:
+                last_status = -1
+                last_body = {"error": str(e)}
+                break
+    try:
+        Path('logs').mkdir(exist_ok=True)
+        Path('logs/uon_webhook_list.meta').write_text(f"HTTP_CODE={last_status}\n", encoding="utf-8")
+        Path('logs/uon_webhook_list.body').write_text(json.dumps(last_body, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+    return {"status": last_status, "data": last_body}
+
+
+async def _delete_webhook(api_key: str, webhook_id: str) -> Dict[str, Any]:
+    """Удалить вебхук по id. Пробуем несколько вариантов путей/методов.
+    Основной: POST /{key}/webhook/delete.json с {"id": <id>}.
+    Альт: DELETE /{key}/webhook/{id}.json
+    """
+    async with await _uon_client() as client:
+        # Вариант 1: POST delete.json
+        try:
+            url1 = f"https://api.u-on.ru/{api_key}/webhook/delete.json"
+            r1 = await client.post(url1, json={"id": webhook_id})
+            try:
+                body1 = r1.json()
+            except Exception:
+                body1 = {"text": r1.text}
+            if r1.status_code == 200:
+                return {"status": 200, "data": body1}
+        except Exception:
+            body1 = None
+        # Вариант 2: DELETE /webhook/{id}.json
+        try:
+            url2 = f"https://api.u-on.ru/{api_key}/webhook/{webhook_id}.json"
+            r2 = await client.delete(url2)
+            try:
+                body2 = r2.json()
+            except Exception:
+                body2 = {"text": r2.text}
+            return {"status": r2.status_code, "data": body2}
+        except Exception as e:
+            return {"status": 0, "error": str(e)}
+
+
+@app.get("/uon-admin/api/webhooks/{enterprise_number}")
+async def admin_api_list_webhooks(enterprise_number: str):
+    """Список всех вебхуков U‑ON для аккаунта предприятия (по api_key из БД)."""
+    try:
+        import asyncpg, json as _json
+        conn = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+        row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+        await conn.close()
+        api_key = None
+        if row and row.get("integrations_config"):
+            cfg = row["integrations_config"]
+            if isinstance(cfg, str):
+                try:
+                    cfg = _json.loads(cfg)
+                except Exception:
+                    cfg = None
+            if isinstance(cfg, dict):
+                api_key = ((cfg.get("uon") or {}).get("api_key") or "").strip()
+        if not api_key:
+            api_key = _CONFIG.get("api_key") or ""
+        if not api_key:
+            return {"success": False, "error": "U-ON api_key missing"}
+        res = await _list_all_webhooks(api_key)
+        return {"success": res.get("status") == 200, "status": res.get("status"), "data": res.get("data")}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.delete("/uon-admin/api/webhooks/{enterprise_number}")
+async def admin_api_delete_all_webhooks(enterprise_number: str):
+    """Удалить ВСЕ вебхуки аккаунта U‑ON (для чистой пере‑регистрации)."""
+    try:
+        import asyncpg, json as _json
+        conn = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+        row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+        await conn.close()
+        api_key = None
+        if row and row.get("integrations_config"):
+            cfg = row["integrations_config"]
+            if isinstance(cfg, str):
+                try:
+                    cfg = _json.loads(cfg)
+                except Exception:
+                    cfg = None
+            if isinstance(cfg, dict):
+                api_key = ((cfg.get("uon") or {}).get("api_key") or "").strip()
+        if not api_key:
+            api_key = _CONFIG.get("api_key") or ""
+        if not api_key:
+            return {"success": False, "error": "U-ON api_key missing"}
+
+        listed = await _list_all_webhooks(api_key)
+        data = listed.get("data") or {}
+        # Попробуем собрать id из возможных структур
+        ids: List[str] = []
+        if isinstance(data, dict):
+            # Варианты: {"webhooks": [{"id":..}, ...]} или {"data": [...]}
+            for key in ("webhooks", "data", "items", "result", "message"):
+                arr = data.get(key)
+                if isinstance(arr, list):
+                    for it in arr:
+                        if isinstance(it, dict) and ("id" in it or "webhook_id" in it):
+                            ids.append(str(it.get("id") or it.get("webhook_id")))
+        elif isinstance(data, list):
+            for it in data:
+                if isinstance(it, dict) and ("id" in it or "webhook_id" in it):
+                    ids.append(str(it.get("id") or it.get("webhook_id")))
+
+        results = []
+        for wid in ids:
+            res = await _delete_webhook(api_key, wid)
+            results.append({"id": wid, "status": res.get("status"), "data": res.get("data")})
+
+        try:
+            Path('logs').mkdir(exist_ok=True)
+            Path('logs/uon_webhook_delete.body').write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+        return {"success": True, "deleted": results}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @app.get("/")
@@ -370,7 +575,12 @@ async def webhook(req: Request):
         # 1) Унифицированный разбор тела запроса
         content_type = req.headers.get("content-type", "").lower()
         data: Dict[str, Any] = {}
+        raw_text = None
         raw_body = await req.body()
+        try:
+            raw_text = raw_body.decode("utf-8") if raw_body else ""
+        except Exception:
+            raw_text = None
         if "application/json" in content_type:
             try:
                 data = json.loads(raw_body.decode("utf-8")) if raw_body else {}
@@ -384,10 +594,26 @@ async def webhook(req: Request):
             except Exception:
                 # пробуем разобрать как querystring
                 try:
-                    parsed = urllib.parse.parse_qs(raw_body.decode("utf-8")) if raw_body else {}
+                    parsed = urllib.parse.parse_qs(raw_text or "") if raw_body else {}
                     data = {k: v[0] if isinstance(v, list) and v else v for k, v in parsed.items()}
                 except Exception:
                     data = {}
+
+        # 2.1) Собираем поля вида client[u_id] → data["client"]["u_id"]
+        try:
+            bracket_groups: Dict[str, Dict[str, Any]] = {}
+            for k, v in list(data.items()):
+                if isinstance(k, str) and "[" in k and "]" in k:
+                    base = k.split("[", 1)[0]
+                    inner = k[k.find("[") + 1:k.rfind("]")]
+                    if base and inner:
+                        bracket_groups.setdefault(base, {})[inner] = v
+            for base, group in bracket_groups.items():
+                # не перетирать JSON-строку, если есть
+                if base not in data or not isinstance(data.get(base), (dict, str)):
+                    data[base] = group
+        except Exception:
+            pass
 
         # 2) Извлечение полей с учётом русских ключей
         def pick(d: Dict[str, Any], candidates: List[str]) -> Optional[str]:
@@ -410,8 +636,12 @@ async def webhook(req: Request):
         user_id = pick(data, ["user_id", "ID пользователя", "userid", "user"]) or ""
         phone = pick(data, ["phone", "телефон"]) or ""
         client_raw = pick(data, ["client", "клиент"]) or ""
+        client_obj = None
         try:
-            client_obj = json.loads(client_raw) if client_raw and isinstance(client_raw, str) else None
+            if isinstance(client_raw, dict):
+                client_obj = client_raw
+            elif client_raw and isinstance(client_raw, str):
+                client_obj = json.loads(client_raw)
         except Exception:
             client_obj = None
 
@@ -429,7 +659,14 @@ async def webhook(req: Request):
         if not internal_extension:
             return {"ok": False, "error": "extension_not_configured", "user_id": user_id}
 
-        # 6) Нормализация телефона
+        # 6) Нормализация телефона: если нет phone, берём из client[u_phone]
+        if (not phone) and isinstance(client_obj, dict):
+            phone = (
+                str(client_obj.get("u_phone") or client_obj.get("u_phone_mobile") or "").strip()
+            )
+            # client может прислать с плюсом
+            if phone.startswith("+"):
+                phone = phone[1:]
         phone_e164 = phone
         if phone_e164 and not phone_e164.startswith("+"):
             phone_e164 = "+" + phone_e164
@@ -437,12 +674,19 @@ async def webhook(req: Request):
         # 7) Вызываем asterisk.py
         res = await _asterisk_make_call(code=internal_extension, phone=phone_e164, client_id=ent["secret"])
 
-        # 8) Локальный лог
+        # 8) Локальный лог (вход, парсинг и результат)
         try:
             Path('logs').mkdir(exist_ok=True)
             Path('logs/uon_webhook_call.meta').write_text(
-                f"uon_id={uon_id}\nsubdomain={subdomain}\nmanager_id={user_id}\next={internal_extension}\nphone={phone_e164}\n", encoding="utf-8")
-            Path('logs/uon_webhook_call.body').write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
+                f"content_type={content_type}\n"
+                f"uon_id={uon_id}\nsubdomain={subdomain}\nmanager_id={user_id}\n"
+                f"ext={internal_extension}\nphone={phone_e164}\n", encoding="utf-8")
+            Path('logs/uon_webhook_call.body').write_text(json.dumps({
+                "raw": raw_text,
+                "form": data,
+                "client": client_obj,
+                "asterisk": res,
+            }, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
             pass
 
@@ -642,6 +886,12 @@ UON_ADMIN_HTML = """
         const jr = await r.json();
         if(!jr.success) throw new Error(jr.error||'Ошибка сохранения');
         if (msg) { msg.textContent='Сохранено'; msg.className='hint success'; }
+        // Пытаемся зарегистрировать вебхук после сохранения (сервер сделает это сам, но покажем статус)
+        try {
+          if (jr.webhook) {
+            msg.textContent += ` • Вебхук: HTTP ${jr.webhook.status||0}`;
+          }
+        } catch(_){ }
       } catch(e) {
         if (msg) { msg.textContent= 'Ошибка: '+ e.message; msg.className='hint error'; }
       } finally {
@@ -1177,8 +1427,16 @@ async def admin_api_put_config(enterprise_number: str, config: dict):
         
         # Также обновляем локальную конфигурацию для текущей сессии
         _CONFIG.update(uon_config)
+
+        # Если интеграция включена — регистрируем вебхук в U‑ON
+        reg_status: Dict[str, Any] = {"status": 0}
+        try:
+            if uon_config.get("enabled") and uon_config.get("api_key"):
+                reg_status = await _register_default_webhook(uon_config.get("api_key"))
+        except Exception as e:
+            logger.error(f"Webhook register error: {e}")
         
-        return {"success": True, "message": "Configuration saved"}
+        return {"success": True, "message": "Configuration saved", "webhook": reg_status}
     except Exception as e:
         logger.error(f"Error saving config for {enterprise_number}: {e}")
         return {"success": False, "error": str(e)}
