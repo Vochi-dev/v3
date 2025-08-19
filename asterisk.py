@@ -77,8 +77,22 @@ async def validate_client_secret(client_id: str, conn: asyncpg.Connection) -> Op
 def ssh_originate_call(host_ip: str, from_ext: str, to_phone: str) -> Tuple[bool, str]:
     """Инициация звонка через SSH CLI команды"""
     try:
-        # Формируем SSH команду
-        cli_command = f'asterisk -rx "channel originate LOCAL/{from_ext}@inoffice application Dial LOCAL/{to_phone}@inoffice"'
+        # 1) Перед originate кладём номер абонента в Asterisk DB, чтобы диалплан мог выставить CallerID на первой ноге
+        try:
+            db_put_cmd = [
+                'sshpass', '-p', ASTERISK_CONFIG['ssh_password'],
+                'ssh', '-p', str(ASTERISK_CONFIG['ssh_port']),
+                '-o', 'StrictHostKeyChecking=no',
+                '-o', 'ConnectTimeout=10',
+                f"{ASTERISK_CONFIG['ssh_user']}@{host_ip}",
+                f"asterisk -rx \"database put extcall nextcall_{from_ext} {to_phone}\"",
+            ]
+            subprocess.run(db_put_cmd, capture_output=True, text=True, timeout=6)
+        except Exception as _:
+            pass
+
+        # 2) Формируем SSH команду ORIGINATE
+        cli_command = f'asterisk -rx "channel originate LOCAL/{from_ext}@web-originate application Dial LOCAL/{to_phone}@inoffice"'
         
         ssh_command = [
             'sshpass', '-p', ASTERISK_CONFIG['ssh_password'],

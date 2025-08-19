@@ -78,3 +78,17 @@ bash: -c: line 14: `set -e; SNIP=/etc/nginx/snippets/uon_admin.conf; cp -a  .bak
 nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
 nginx: configuration file /etc/nginx/nginx.conf test is successful
 grep: (standard input): Bad file descriptor
+show: -c: line 1: unexpected EOF while looking for matching `''
+show: -c: line 2: syntax error: unexpected end of file
+reload; asterisk -rx dialplan: -c: line 1: unexpected EOF while looking for matching `''
+reload; asterisk -rx dialplan: -c: line 2: syntax error: unexpected end of file
+reload; asterisk -rx dialplan: -c: line 1: unexpected EOF while looking for matching `''
+reload; asterisk -rx dialplan: -c: line 2: syntax error: unexpected end of file
+reload; asterisk -rx dialplan: -c: line 1: unexpected EOF while looking for matching `''
+reload; asterisk -rx dialplan: -c: line 2: syntax error: unexpected end of file
+bash: -c: line 1: unexpected EOF while looking for matching `''
+bash: -c: line 2: syntax error: unexpected end of file
+LASTMOD:: -c: line 1: unexpected EOF while looking for matching `''
+LASTMOD:: -c: line 2: syntax error: unexpected end of file
+reload; echo ===: -c: line 1: unexpected EOF while looking for matching `''
+reload; echo ===: -c: line 2: syntax error: unexpected end of file
