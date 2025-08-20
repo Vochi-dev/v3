@@ -431,6 +431,7 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
         # Если явно запрещена маршрутизация, оставляем dialplan=None
         if isinstance(line_settings, dict):
             do_routing = bool(line_settings.get("do_routing")) and bool(line_settings.get("enabled")) and mode == "routing+name"
+
             if do_routing:
                 algorithm = str(line_settings.get("algorithm") or "").lower()
                 # Пытаемся вычислить контекст

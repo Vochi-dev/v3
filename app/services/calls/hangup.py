@@ -748,6 +748,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             asyncio.create_task(_dispatch_to_gateway())
         except Exception as e:
             logging.warning(f"[process_hangup] failed to schedule gateway dispatch: {e}")
+        # Уведомления U‑ON и прочих провайдеров перенесены в 8020; здесь не рассылаем напрямую.
 
         return {"status": "sent", "message_id": sent.message_id}
     except Exception as e:

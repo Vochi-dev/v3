@@ -454,6 +454,17 @@ async def load_incoming_transform_map(enterprise_number: str) -> Dict[str, str]:
         logger.error(f"❌ load_incoming_transform_map error: {e}")
         return {}
 
+async def get_enterprise_name2(enterprise_number: str) -> Optional[str]:
+    """Получить name2 для предприятия (для токенов RetailCRM)"""
+    try:
+        await init_database()
+        async with pg_pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT name2 FROM enterprises WHERE number = $1", enterprise_number)
+            return row["name2"] if row else None
+    except Exception as e:
+        logger.error(f"get_enterprise_name2 error: {e}")
+        return None
+
 async def invalidate_enterprise_cache(enterprise_number: str):
     """Инвалидация кэша для конкретного предприятия"""
     if enterprise_number in integration_cache:
@@ -662,8 +673,10 @@ async def dispatch_call_event(request: Request):
             recent_dials[unique_id] = time.time()
         try:
             import aiohttp
+            # Получаем name2 для RetailCRM (токен != enterprise_number)
+            retailcrm_token = await get_enterprise_name2(enterprise_number)
             payload_forward = {
-                "token": token,
+                "token": retailcrm_token or token,  # fallback на enterprise_number если name2 не найден
                 "uniqueId": unique_id,
                 "event_type": event_type,
                 "raw": raw,
