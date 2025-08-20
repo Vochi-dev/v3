@@ -63,6 +63,36 @@ def _extract_candidate_name(item: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+async def _register_client_change_webhooks(api_key: str) -> Dict[str, Any]:
+    """Регистрирует вебхуки клиента: 3=Создание клиента, 4=Изменение клиента.
+    POST /{key}/webhook/create.json, url = наш /uon/webhook
+    Возвращает {status, created: [{type_id, id, data}], errors: [...]}.
+    """
+    try:
+        results: Dict[str, Any] = {"status": 0, "created": [], "errors": []}
+        async with await _uon_client() as client:
+            for t in (3, 4):
+                url = f"https://api.u-on.ru/{api_key}/webhook/create.json"
+                payload = {"type_id": t, "method": "POST", "url": _DEFAULT_WEBHOOK_URL}
+                try:
+                    r = await client.post(url, json=payload)
+                    ok = (r.status_code == 200)
+                    data = None
+                    try:
+                        data = r.json()
+                    except Exception:
+                        data = {"status": r.status_code}
+                    if ok:
+                        results["created"].append({"type_id": t, "id": (data.get("id") if isinstance(data, dict) else None), "data": data})
+                    else:
+                        results["errors"].append({"type_id": t, "status": r.status_code, "data": data})
+                except Exception as e:
+                    results["errors"].append({"type_id": t, "error": str(e)})
+        results["status"] = 200 if results["created"] else 0
+        return results
+    except Exception as e:
+        return {"status": 0, "error": str(e)}
+
 def _item_has_phone(item: Dict[str, Any], target_digits: str) -> bool:
     if not target_digits:
         return False
@@ -398,12 +428,18 @@ async def customer_by_phone(phone: str):
     # Сначала быстрая попытка реального поиска клиента по номеру
     found = await _search_customer_in_uon_by_phone(api_key, phone)
     if found:
+        src = found.get("source") or {}
+        raw = found.get("raw")
+        if isinstance(src, dict):
+            src = {**src, "raw": raw}
+        else:
+            src = {"raw": raw}
         return {
             "phone": phone,
             "profile": {
                 "display_name": found.get("name") or "",
             },
-            "source": found.get("source"),
+            "source": src,
         }
     # Фоллбэк — проверка ключа (countries) и пустой профайл
     async with await _uon_client() as client:
@@ -457,6 +493,115 @@ async def test_endpoints():
     
     return {"api_key_suffix": api_key[-4:] if api_key else "none", "endpoints": results}
 
+
+@app.get("/internal/uon/responsible-extension")
+async def uon_responsible_extension(phone: str, enterprise_number: Optional[str] = None):
+    """Возвращает extension ответственного менеджера для номера.
+    Улучшено: поддержка enterprise_number, фолбэк получения api_key из БД и до-запрос client.json для извлечения manager_id.
+    Формат ответа: {"extension": str|null, "manager_id": int|null}
+    """
+    try:
+        # 0) Получаем api_key: из локальной конфигурации, либо из БД по enterprise_number, либо по единственному включённому U-ON юниту
+        api_key = None
+        try:
+            api_key = _get_api_key_or_raise()
+        except HTTPException:
+            api_key = None
+
+        import asyncpg
+        cfg_row = None
+        if not api_key or enterprise_number:
+            conn0 = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+            if enterprise_number:
+                cfg_row = await conn0.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+            else:
+                cfg_row = await conn0.fetchrow("SELECT integrations_config FROM enterprises WHERE active = true AND integrations_config -> 'uon' ->> 'enabled' = 'true' LIMIT 1")
+            await conn0.close()
+            if cfg_row and cfg_row.get("integrations_config"):
+                cfgv = cfg_row["integrations_config"]
+                if isinstance(cfgv, str):
+                    try:
+                        cfgv = json.loads(cfgv)
+                    except Exception:
+                        cfgv = None
+                if isinstance(cfgv, dict):
+                    api_key = api_key or ((cfgv.get("uon") or {}).get("api_key") or "").strip()
+
+        if not api_key:
+            raise HTTPException(status_code=400, detail="U-ON api_key не сконфигурирован")
+
+        # 1) Пытаемся найти клиента по номеру
+        found = await _search_customer_in_uon_by_phone(api_key, phone)
+        manager_id: Optional[int] = None
+        raw = found.get("raw") if isinstance(found, dict) else None
+
+        def _find_manager_id(obj: Any) -> Optional[int]:
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    lk = str(k).lower()
+                    if any(t in lk for t in ("manager", "user")) and isinstance(v, (str, int)) and str(v).isdigit():
+                        return int(v)
+                    if isinstance(v, (dict, list)):
+                        x = _find_manager_id(v)
+                        if x is not None:
+                            return x
+            elif isinstance(obj, list):
+                for it in obj:
+                    x = _find_manager_id(it)
+                    if x is not None:
+                        return x
+            return None
+
+        if isinstance(raw, dict):
+            manager_id = _find_manager_id(raw)
+
+        # 1.1) Если manager_id не нашли, но есть id клиента — запрашиваем карточку клиента отдельно
+        if manager_id is None and isinstance(raw, dict):
+            cid = None
+            for key in ("u_id", "id", "client_id"):
+                if str(raw.get(key) or "").strip():
+                    cid = str(raw.get(key)).strip()
+                    break
+            if cid:
+                async with await _uon_client() as client:
+                    url = f"https://api.u-on.ru/{api_key}/client.json?id={cid}"
+                    try:
+                        r = await client.get(url)
+                        if r.status_code == 200:
+                            body = r.json()
+                            manager_id = _find_manager_id(body)
+                    except Exception:
+                        pass
+
+        # 2) Читаем карту manager_id→extension для нужного предприятия
+        conn = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+        if enterprise_number:
+            row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+        else:
+            row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE active = true AND integrations_config -> 'uon' ->> 'enabled' = 'true' LIMIT 1")
+        await conn.close()
+
+        user_map = {}
+        if row and row.get("integrations_config"):
+            cfg = row["integrations_config"]
+            if isinstance(cfg, str):
+                try:
+                    cfg = json.loads(cfg)
+                except Exception:
+                    cfg = None
+            if isinstance(cfg, dict):
+                user_map = (cfg.get("uon") or {}).get("user_extensions") or {}
+
+        mapped_ext = None
+        if manager_id is not None and isinstance(user_map, dict):
+            m = user_map.get(str(manager_id))
+            if isinstance(m, str) and m.isdigit():
+                mapped_ext = m
+
+        return {"extension": mapped_ext, "manager_id": manager_id}
+    except Exception as e:
+        logger.error(f"uon_responsible_extension error: {e}")
+        return {"extension": None}
 
 @app.post("/internal/uon/log-call")
 async def log_call(payload: dict):
@@ -616,18 +761,18 @@ async def webhook(req: Request):
             pass
 
         # 2) Извлечение полей с учётом русских ключей
-        def pick(d: Dict[str, Any], candidates: List[str]) -> Optional[str]:
+        def pick(d: Dict[str, Any], candidates: List[str]):
             for k in candidates:
                 if k in d:
                     v = d.get(k)
-                    return str(v) if v is not None else None
+                    return v
             # попробуем без регистра
             low = {str(k).lower(): v for k, v in d.items()}
             for k in candidates:
                 lk = str(k).lower()
                 if lk in low:
                     v = low.get(lk)
-                    return str(v) if v is not None else None
+                    return v
             return None
 
         uon_id = pick(data, ["uon_id", "account_id", "u_id", "аккаунт", "аккаунт_id"]) or ""
@@ -635,17 +780,95 @@ async def webhook(req: Request):
         method = pick(data, ["method", "метод"]) or ""
         user_id = pick(data, ["user_id", "ID пользователя", "userid", "user"]) or ""
         phone = pick(data, ["phone", "телефон"]) or ""
-        client_raw = pick(data, ["client", "клиент"]) or ""
+        type_id = pick(data, ["type_id", "type", "тип"]) or ""
+        client_raw = pick(data, ["client", "клиент"])  # может быть dict или json-строка
         client_obj = None
         try:
             if isinstance(client_raw, dict):
                 client_obj = client_raw
-            elif client_raw and isinstance(client_raw, str):
+            elif isinstance(client_raw, str) and client_raw.strip():
                 client_obj = json.loads(client_raw)
+            else:
+                # собрать из client[u_*]
+                grouped: Dict[str, Any] = {}
+                for k, v in data.items():
+                    if isinstance(k, str) and k.startswith("client[") and k.endswith("]"):
+                        inner = k[len("client["):-1]
+                        grouped[inner] = v
+                if grouped:
+                    client_obj = grouped
         except Exception:
             client_obj = None
 
-        # 3) Интересует только метод call
+        # 3) События клиента (type_id 3/4): синхронизация ФИО/телефонов
+        tid = None
+        try:
+            tid = int(str(type_id)) if str(type_id).isdigit() else None
+        except Exception:
+            tid = None
+        if tid in (3, 4):
+            ent = await _find_enterprise_by_uon(uon_id, subdomain)
+            if not ent:
+                return {"ok": False, "error": "enterprise_not_found"}
+            enterprise_number = ent["number"]
+
+            ln = None
+            fn = None
+            mn = None
+            if isinstance(client_obj, dict):
+                ln = (client_obj.get("u_surname") or client_obj.get("u_surname_en") or "").strip() or None
+                fn = (client_obj.get("u_name") or client_obj.get("u_name_en") or "").strip() or None
+                mn = (client_obj.get("u_sname") or "").strip() or None
+            ext_id = str(data.get("client_id") or (client_obj.get("u_id") if isinstance(client_obj, dict) else "") or "").strip() or None
+
+            phones: List[str] = []
+            if isinstance(client_obj, dict):
+                for k in ("u_phone", "u_phone_mobile", "u_phone_home"):
+                    v = client_obj.get(k)
+                    if isinstance(v, str) and v.strip():
+                        digits = ''.join(ch for ch in v if ch.isdigit())
+                        if digits:
+                            phones.append(("+" + digits) if not v.startswith("+") else "+" + digits)
+
+            is_primary = False
+            try:
+                import asyncpg, json as _json
+                connp = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+                rowp = await connp.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+                await connp.close()
+                cfg = rowp["integrations_config"] if rowp else None
+                if isinstance(cfg, str):
+                    try:
+                        cfg = _json.loads(cfg)
+                    except Exception:
+                        cfg = None
+                if isinstance(cfg, dict):
+                    uon_cfg = cfg.get("uon") or {}
+                    if isinstance(uon_cfg, dict) and bool(uon_cfg.get("primary")):
+                        is_primary = True
+                    smart_cfg = cfg.get("smart") or {}
+                    if isinstance(smart_cfg, dict) and str(smart_cfg.get("primary") or "").lower() == "uon":
+                        is_primary = True
+            except Exception:
+                is_primary = False
+
+            if ext_id and phones:
+                try:
+                    from app.services.customers import merge_customer_identity
+                    for ph in phones:
+                        await merge_customer_identity(
+                            enterprise_number=str(enterprise_number),
+                            phone_e164=str(ph),
+                            source="uon",
+                            external_id=str(ext_id),
+                            fio={"last_name": ln, "first_name": fn, "middle_name": mn},
+                            set_primary=is_primary,
+                        )
+                except Exception:
+                    pass
+            return {"ok": True, "handled": "client", "type_id": tid, "phones": len(phones)}
+
+        # 4) Интересует только метод call
         if (method or "").strip().lower() != "call":
             return {"ok": True, "ignored": True}
 
@@ -671,8 +894,15 @@ async def webhook(req: Request):
         if phone_e164 and not phone_e164.startswith("+"):
             phone_e164 = "+" + phone_e164
 
+        # 6.1) Имя клиента для CallerID(name)
+        display_name = None
+        if isinstance(client_obj, dict):
+            ln = str(client_obj.get("u_surname") or client_obj.get("last_name") or "").strip()
+            fn = str(client_obj.get("u_name") or client_obj.get("first_name") or "").strip()
+            display_name = (f"{ln} {fn}".strip() if (ln or fn) else None)
+
         # 7) Вызываем asterisk.py
-        res = await _asterisk_make_call(code=internal_extension, phone=phone_e164, client_id=ent["secret"])
+        res = await _asterisk_make_call(code=internal_extension, phone=phone_e164, client_id=ent["secret"], display=display_name)
 
         # 8) Локальный лог (вход, парсинг и результат)
         try:
@@ -685,6 +915,7 @@ async def webhook(req: Request):
                 "raw": raw_text,
                 "form": data,
                 "client": client_obj,
+                "display": display_name,
                 "asterisk": res,
             }, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
@@ -760,11 +991,13 @@ async def _map_uon_user_to_extension(enterprise_number: str, user_id: str) -> Op
         logger.error(f"map_uon_user_to_extension error: {e}")
         return None
 
-async def _asterisk_make_call(code: str, phone: str, client_id: str) -> Dict[str, Any]:
+async def _asterisk_make_call(code: str, phone: str, client_id: str, display: Optional[str] = None) -> Dict[str, Any]:
     try:
         async with await _uon_client() as client:
             url = "http://localhost:8018/api/makecallexternal"
             params = {"code": code, "phone": phone, "clientId": client_id}
+            if display:
+                params["display"] = display
             r = await client.get(url, params=params)
             try:
                 data = r.json()
@@ -1434,6 +1667,7 @@ async def admin_api_put_config(enterprise_number: str, config: dict):
             "enabled": config.get("enabled", existing_uon.get("enabled", False)),
             "log_calls": config.get("log_calls", existing_uon.get("log_calls", False)),
             "user_extensions": incoming_user_ext if incoming_user_ext is not None else existing_user_ext,
+            "webhooks": existing_uon.get("webhooks", {}),
         }
         
         # Обновляем в БД используя jsonb_set
@@ -1453,15 +1687,80 @@ async def admin_api_put_config(enterprise_number: str, config: dict):
         # Также обновляем локальную конфигурацию для текущей сессии
         _CONFIG.update(uon_config)
 
-        # Если интеграция включена — регистрируем вебхук в U‑ON
+        # Удаляем старые вебхуки при пересохранении/выключении
+        try:
+            old_hooks = existing_uon.get("webhooks", {}) if isinstance(existing_uon, dict) else {}
+            old_ids = []
+            for group in ("client", "click_phone"):
+                ids = old_hooks.get(group) or []
+                if isinstance(ids, list):
+                    old_ids.extend([i for i in ids if i])
+            if old_ids and existing_uon.get("api_key"):
+                try:
+                    del_results = []
+                    for wid in old_ids:
+                        try:
+                            res = await _delete_webhook(existing_uon.get("api_key"), wid)
+                            del_results.append({"id": wid, "status": res.get("status"), "data": res.get("data")})
+                        except Exception as ee:
+                            del_results.append({"id": wid, "error": str(ee)})
+                    # Очистим поле webhooks в БД
+                    import asyncpg
+                    conn_d = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+                    await conn_d.execute(
+                        """
+                        UPDATE enterprises SET integrations_config = jsonb_set(
+                            integrations_config,
+                            '{uon,webhooks}',
+                            '{}'::jsonb,
+                            true
+                        ) WHERE number = $1
+                        """,
+                        enterprise_number,
+                    )
+                    await conn_d.close()
+                except Exception as _:
+                    pass
+        except Exception:
+            pass
+
+        # Если интеграция включена — регистрируем новые вебхуки в U‑ON
         reg_status: Dict[str, Any] = {"status": 0}
+        reg_clients: Dict[str, Any] = {"status": 0}
         try:
             if uon_config.get("enabled") and uon_config.get("api_key"):
                 reg_status = await _register_default_webhook(uon_config.get("api_key"))
+                reg_clients = await _register_client_change_webhooks(uon_config.get("api_key"))
+                # Сохраняем ID вебхуков в БД (подключимся заново, чтобы не держать прошлое соединение)
+                try:
+                    import asyncpg
+                    conn2 = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+                    webhooks_cfg = existing_uon.get("webhooks", {}) if isinstance(existing_uon, dict) else {}
+                    client_ids = [item.get("id") for item in (reg_clients.get("created") or []) if isinstance(item, dict)]
+                    click_ids = [item.get("id") for item in (reg_status.get("created") or []) if isinstance(item, dict)]
+                    webhooks_cfg.update({
+                        "client": client_ids,
+                        "click_phone": click_ids,
+                    })
+                    await conn2.execute(
+                        """
+                        UPDATE enterprises SET integrations_config = jsonb_set(
+                            integrations_config,
+                            '{uon,webhooks}',
+                            $2::jsonb,
+                            true
+                        ) WHERE number = $1
+                        """,
+                        enterprise_number,
+                        json.dumps(webhooks_cfg),
+                    )
+                    await conn2.close()
+                except Exception as ee:
+                    logger.error(f"save webhooks ids failed: {ee}")
         except Exception as e:
             logger.error(f"Webhook register error: {e}")
         
-        return {"success": True, "message": "Configuration saved", "webhook": reg_status}
+        return {"success": True, "message": "Configuration saved", "webhook": reg_status, "webhooks_client": reg_clients}
     except Exception as e:
         logger.error(f"Error saving config for {enterprise_number}: {e}")
         return {"success": False, "error": str(e)}

@@ -964,6 +964,39 @@ async def sync_enterprise_data(enterprise_id: str, force_all: bool = False,
                                                         """,
                                                         ln, fn, mn, en, ent, ph if str(ph).startswith('+') else '+' + ''.join(ch for ch in str(ph) if ch.isdigit())
                                                     )
+                                            # Связываем идентичность, если профиль пришёл от U-ON и есть внешний ID
+                                            try:
+                                                raw = (prof.get('source') or {}).get('raw') if isinstance(prof, dict) else None
+                                                if isinstance(raw, dict):
+                                                    for key in ('client_id', 'id', 'customer_id', 'clientId'):
+                                                        ext_id = raw.get(key)
+                                                        if isinstance(ext_id, (str, int)) and str(ext_id).strip():
+                                                            from app.services.customers import merge_customer_identity
+                                                            await merge_customer_identity(
+                                                                enterprise_number=str(ent),
+                                                                phone_e164=str(ph) if str(ph).startswith('+') else '+' + ''.join(ch for ch in str(ph) if ch.isdigit()),
+                                                                source='uon',
+                                                                external_id=str(ext_id).strip(),
+                                                                fio={'last_name': ln, 'first_name': fn, 'middle_name': mn},
+                                                                set_primary=True,
+                                                            )
+                                                            break
+                                            except Exception:
+                                                pass
+
+                                            # Обновляем ФИО по person_uid, если он присутствует
+                                            try:
+                                                person_uid = prof.get('person_uid') if isinstance(prof, dict) else None
+                                                if person_uid and (ln or fn or mn):
+                                                    from app.services.customers import update_fio_for_person
+                                                    await update_fio_for_person(
+                                                        enterprise_number=str(ent),
+                                                        person_uid=str(person_uid),
+                                                        fio={'last_name': ln, 'first_name': fn, 'middle_name': mn},
+                                                        is_primary_source=True,
+                                                    )
+                                            except Exception:
+                                                pass
                         except Exception as enrich_err:
                             logger.warning(f"[download] enrich profile failed for {call_data.get('unique_id')}: {enrich_err}")
                             

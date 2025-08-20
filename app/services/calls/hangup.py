@@ -603,11 +603,17 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 # 3) Запрос профиля через 8020
                 import httpx
                 prof = None
+                uon_source_raw = None
                 try:
                     async with httpx.AsyncClient(timeout=2.5) as client:
                         r = await client.get(f"http://127.0.0.1:8020/customer-profile/{enterprise_number}/{phone}")
                         if r.status_code == 200:
                             prof = r.json() or {}
+                            # Если профиль получен через U-ON адаптер, 8020 может вернуть source.raw
+                            try:
+                                uon_source_raw = (prof.get("source") or {}).get("raw") if isinstance(prof, dict) else None
+                            except Exception:
+                                uon_source_raw = None
                 except Exception:
                     prof = None
 
@@ -636,6 +642,47 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                         ln or None, fn or None, mn or None, en or None,
                         enterprise_number, phone if phone.startswith("+") else "+" + ''.join(ch for ch in phone if ch.isdigit())
                     )
+
+                # 4b) Связываем номер с person_uid при приоритетной U-ON, если смогли извлечь внешний ID
+                try:
+                    if uon_source_raw and isinstance(uon_source_raw, dict):
+                        # пробуем достать customer/client id по распространённым ключам
+                        for key in ("client_id", "id", "customer_id", "clientId"):
+                            ext_id = uon_source_raw.get(key)
+                            if isinstance(ext_id, (str, int)) and str(ext_id).strip():
+                                try:
+                                    from app.services.customers import merge_customer_identity
+                                    await merge_customer_identity(
+                                        enterprise_number=enterprise_number,
+                                        phone_e164=phone if phone.startswith("+") else "+" + ''.join(ch for ch in phone if ch.isdigit()),
+                                        source="uon",
+                                        external_id=str(ext_id).strip(),
+                                        fio={"last_name": ln, "first_name": fn, "middle_name": mn},
+                                        set_primary=True,
+                                    )
+                                except Exception:
+                                    pass
+                                break
+                except Exception:
+                    pass
+
+                # 4c) Если удалось получить person_uid из профиля — обновим ФИО по всем номерам этого клиента
+                try:
+                    person_uid = None
+                    try:
+                        person_uid = (prof.get("person_uid") or None) if isinstance(prof, dict) else None
+                    except Exception:
+                        person_uid = None
+                    if person_uid and (ln or fn or mn):
+                        from app.services.customers import update_fio_for_person
+                        await update_fio_for_person(
+                            enterprise_number=enterprise_number,
+                            person_uid=str(person_uid),
+                            fio={"last_name": ln, "first_name": fn, "middle_name": mn},
+                            is_primary_source=True,
+                        )
+                except Exception:
+                    pass
 
                 # 5) Формируем подпись и edit Telegram сообщения
                 parts = []

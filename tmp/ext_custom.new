@@ -1,0 +1,574 @@
+
+; ## Modifed Evgeny Popichev Evgeny pat333333@gmail.com
+;    15.04.2024
+;    09.05.2024 Fix offline dial
+;    15.05.2024 transition to system curl + ping (${SHELL(curl ...)) for Fix offline dial
+;    20.05.2024 add same => n,Set(CALLERID(num)=3881301) in macro-outcall_dial +fix
+;    22.05.2024 add DebugInfo
+;    27.05.2024 Delete same => n,Set(CALLERID(num)=3881301) in macro-outcall_dial
+;    28.06.2024 preparing for use with Listen AMI Python script.
+;    15.07.2024 add LisAMI_EventData
+
+; for conference
+[conf]
+exten => 750,1,NoOp(Conferenc)
+exten => 750,n,Confbridge(750)
+
+[default]
+exten => s,1,NoOp(Qualify response)
+
+; must add
+[from-mts]
+exten => +375336953344,1,NoOp(==MTS FOREVER==)
+same => n,Goto(from-out-office,${EXTEN:1},1)
+
+
+; ${ARG1} - API
+; ${ARG2} - C_POST_DATA
+; ${ARG3} - macroName
+; ${ARG4} - Event name: start, dial, hangup
+
+[macro-SendCurl]
+exten => s,1,Set(SendCurlStart=-------------- Start --------------)
+
+;  RCAnswer
+same => n,Set(RCAnswer="")
+
+;  http://www.asterisk.ru/knowledgebase/Asterisk+variables
+same => n,NoOp(DebugInfoGlobal: UNIQUEID:${UNIQUEID} ACCOUNTCODE:${ACCOUNTCODE} CALLERID(num):${CALLERID(num)} CALLERID(name):${CALLERID(name)} CALLERID(all):${CALLERID(all)} BLINDTRANSFER:${BLINDTRANSFER} CALLINGPRES:${CALLINGPRES} CHANNEL:${CHANNEL} EXTEN:${EXTEN} CONTEXT:${CONTEXT} PRIORITY:${PRIORITY} RDNIS:${RDNIS} SIPDOMAIN:${SIPDOMAIN} DATETIME:${DATETIME} DIALEDPEERNAME:${DIALEDPEERNAME} DIALEDPEERNUMBER:${DIALEDPEERNUMBER} SIP_CODEC:${SIP_CODEC} SIPCALLID:${SIPCALLID} SIPUSERAGENT:${SIPUSERAGENT} TRANSFERCAPABILITY:${TRANSFERCAPABILITY} TXTCIDNAME:${TXTCIDNAME} )
+same => n,NoOp(DebugInfoChannel: AGENTBYCALLERID_CALLERID:${AGENTBYCALLERID_${CALLERID}} AVAILCHAN:${AVAILCHAN} VXML_URL:${VXML_URL} ALERT_INFO${ALERT_INFO} CAUSECODE:${CAUSECODE} DIALSTATUS:${DIALSTATUS} TRANSFER_CONTEXT:${TRANSFER_CONTEXT} PLAYBACKSTATUS:${PLAYBACKSTATUS} QUEUESTATUS:${QUEUESTATUS} TXTCIDNAME:${TXTCIDNAME})
+
+same => n,Set(API=${ARG1})
+same => n,Set(POST=${BASE64_DECODE(${ARG2})})
+same => n,Set(CDR(${ARG4}JsonData)=${BASE64_DECODE(${ARG2})})
+
+; repeat count
+same => n,Set(RepeatCount=0)
+
+;  CURL Send
+same => n(Send),Set(pingRC=${SHELL(time ping -W 1 -c 1 178.172.161.176)})  ; bot.vochi.by
+same => n,Set(pingRC=${pingRC:61:2})
+same => n,set(pingRC=${REPLACE(pingRC,-,)})
+same => n,Gotoif($["${pingRC}" != "64"]?REZ_PingError)
+
+same => n,Set(RC=${SHELL(curl --location 'https://bot.vochi.by/${ARG1}' --header 'Token: "${ID_TOKEN}"' --header 'Content-Type: application/json' --data '${POST}')})
+
+; repeat count
+same => n,Set(RepeatCount=$[${RepeatCount} + 1])
+same => n,Set(CDR(${ARG4}Count)=${RepeatCount})
+
+same => n,Set(CDR(${ARG4}Answer${RepeatCount})=${RC})
+
+;  Save Answer
+same => n,Set(RCAnswer=${RCAnswer} Answer ${RepeatCount}:${RC})
+
+
+
+; log
+same => n,Set(Rez=(${ARG3} ${API} ${POST})
+
+; removing special symbols
+same => n,Gotoif($[${LEN(${RC})} = 0]?REZ_error)
+same => n,Set(RC=${RC:0:2})
+same => n,set(RC=${REPLACE(RC,\",)})
+same => n,set(RCLen=${LEN(${RC})})
+same => n,Gotoif($[${RCLen} = 1]?REZ_error)
+
+; Answer OK?
+same => n,Gotoif($["${RC}" = "OK"]?REZ_ok)
+
+; repeat count
+same => n,Set(RepeatCount=$[${RepeatCount} + 1])
+same => n,Set(CDR(${ARG4}Count)=${RepeatCount})
+
+; repeat RepeatCount < 4
+same => n,Gotoif($[${RepeatCount} < 4]?Send:REZ_error)
+
+
+same => n(REZ_PingError),Set(RCAnswer=${RCAnswer}  Ping error, ingnore send data)
+same => n,Set(CDR(${ARG4}Status)=PingError)
+
+; log
+same => n,Set(Rez=(${ARG3} ${API} ${POST})
+
+same => n(REZ_error),Set(RezStatus=Error)
+same => n,Goto(exit)
+
+same => n(REZ_ok),Set(RezStatus=OK)
+same => n,Set(CDR(${ARG4}Status)=OK)
+same => n(exit),Set(FILE(/var/log/asterisk/event.log,,,al,u)=${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)}:${UNIQUEID} ${RezStatus}(${RepeatCount}): ${Rez}  -- ${RCAnswer})
+same => n,Set(SendCurlEnd=-------------- End -------------- ${RezStatus}(${RepeatCount}))
+same => n,Macroexit
+
+
+
+
+
+
+
+
+
+
+; send ${ARG1} - EXTEN (Trunk)
+
+[macro-localcall_start_old]
+exten => s,1,Set(API=api/callevent/dial)
+;same => n,NoOp(MacroBegin: ----------------- localcall_start)
+same => n,Set(CallStartDT=${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)})   ; 2024-03-28 14:35:43    2024-03-28 14:36:58
+
+; JSON Data build
+same => n,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${CALLERID(num)}","Extensions":["${ARG1}"],"CallType":"2","Trunk":"","ExtTrunk":"","ExtPhone":""})
+
+; Send Curl
+same => n,Macro(SendCurl,${API},${BASE64_ENCODE(${POST})},localcall_start,dial)
+same => n,Macroexit
+
+
+[macro-localcall_start]
+exten => s,1,Set(LisAMI_CallType=local)
+same => n,Set(LisAMI_DialNum=${ARG1})
+;same => n,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${CALLERID(num)}","Extensions":["${ARG1}"],"CallType":"2","Trunk":"","ExtTrunk":"","ExtPhone":""})
+same => n,Set(LisAMI_EventData=localcallStart_${CALLERID(num)}_${ARG1})
+same => n,Set(CallStartDT=${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)})   ; 2024-03-28 14:35:43    2024-03-28 14:36:58
+same => n,Macroexit
+
+
+
+
+
+
+
+
+
+
+[macro-localcall_end_old]
+exten => s,1,Set(API=api/callevent/hangup)
+;same => n,NoOp(MacroBegin: ----------------- localcall_end)
+
+; DIALSTATUS string to CallStatus Int
+
+; Server status list
+;ANSWER = 2
+;CANCEL = 0
+;OTHER = 1
+;TALK = 5
+
+; Asterisk status list
+;CANCEL: Вызов отменен
+;ANSWER: На вызов был получен ответ
+;NOANSWER: На вызов не ответили
+;BUSY: Получен сигнал занято
+;CONGESTION: Канал перегружен
+;CHANUNAVAIL: Кана
+
+
+same => n,Goto(lceds-${DIALSTATUS},1)
+
+; non status
+exten => lceds-,1,Set(CallStatus=1)
+same => n,Goto(s,33)
+
+exten => lceds-CANCEL,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => lceds-OTHER,1,Set(CallStatus=1)
+same => n,Goto(s,33)
+
+exten => lceds-ANSWER,1,Set(CallStatus=2)
+same => n,Goto(s,33)
+
+exten => lceds-TALK,1,Set(CallStatus=5)
+same => n,Goto(s,33)
+
+exten => lceds-NOANSWER,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => lceds-BUSY,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => lceds-CONGESTION,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => lceds-CHANUNAVAIL,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => s,33,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${CALLERID(num)}","Extensions":["${DIALEDPEERNUMBER}"],"CallType":"2","DateReceived":"${CDR(start)}","StartTime":"${CallStartDT}","EndTime":"${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)}","CallStatus":"${CallStatus}"})
+
+; Send Curl
+same => n,Macro(SendCurl,${API},${BASE64_ENCODE(${POST})},localcall_end,hangup)
+same => n,Macroexit
+
+
+[macro-localcall_end]
+;exten => s,33,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${CALLERID(num)}","Extensions":["${DIALEDPEERNUMBER}"],"CallType":"2","DateReceived":"${CDR(start)}","StartTime":"${CallStartDT}","EndTime":"${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)}","CallStatus":"${CallStatus}"})
+exten => s,1,Set(LisAMI_EventData=localcallEnd_${CALLERID(num)}_${DIALEDPEERNUMBER}_${CDR(start)}_${CallStartDT}_${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)}_${DIALSTATUS})
+same => n,Macroexit
+
+
+
+
+
+
+
+
+
+; send ${ARG1} - EXTEN (Trunk)
+
+[macro-incall_start_old]
+exten => s,1,Set(API=api/callevent/start)
+;same => n,NoOp(MacroBegin: ----------------- incall_start)
+same => n,Set(CallStartDT=${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)})   ; 2024-03-28 14:35:43    2024-03-28 14:36:58
+
+; JSON Data
+same => n,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${CALLERID(num)}","CallType":"0","Trunk":"${ARG1}"})
+
+; Send Curl
+same => n,Macro(SendCurl,${API},${BASE64_ENCODE(${POST})},incall_start,start)
+same => n,Macroexit
+
+
+
+
+[macro-incall_start]
+exten => s,1,Set(LisAMI_CallType=in)
+;same => n,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${CALLERID(num)}","CallType":"0","Trunk":"${ARG1}"})
+same => n,Set(LisAMI_EventData=incallStart_${CALLERID(num)}_${ARG1})
+same => n,Set(CallStartDT=${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)})   ; 2024-03-28 14:35:43    2024-03-28 14:36:58
+same => n,Macroexit
+
+
+
+
+
+; send ${ARG1} - EXTEN (Trunk)
+; send ${ARG2} - Array [Extensions] (example: "152&154&158&159&234&236&240&242&244")
+
+[macro-incall_dial_old]
+exten => s,1,Set(API=api/callevent/dial)
+;same => n,NoOp(MacroBegin: ----------------- incall_dial)
+
+; loop for arguments extensions preparation
+
+same => n,Set(COUNT=1)
+same => n,Set(ARG2Value=0)
+same => n,While($["${ARG2Value}" != ""])
+same => n,Set(ARG2REZ=${ARG2REZ}${IF($[${COUNT} > 1]?${ARG2Value}\",\")})
+same => n,Set(ARG2Value=${CUT(ARG2,&,${COUNT})})
+same => n,Set(COUNT=$[${COUNT} + 1])
+same => n,EndWhile()
+
+same => n,Set(Exten=${ARG2REZ:0:$[${LEN(${ARG2REZ})} - 3]})
+
+
+; JSON Data
+same => n,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${CALLERID(num)}","Extensions":["${Exten}"],"CallType":"0","Trunk":"${ARG1}","ExtTrunk":"","ExtPhone":"${CALLERID(num)}"})
+
+; Send Curl
+same => n,Macro(SendCurl,${API},${BASE64_ENCODE(${POST})},incall_dial,dial)
+same => n,Macroexit
+
+
+
+[macro-incall_dial]
+exten => s,1,Set(LisAMI_CallType=in)
+same => n,Set(LisAMI_DialNum=${ARG2})
+;same => n,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${CALLERID(num)}","Extensions":["${Exten}"],"CallType":"0","Trunk":"${ARG1}","ExtTrunk":"","ExtPhone":"${CALLERID(num)}"})
+same => n,Set(LisAMI_EventData=incallDial_${CALLERID(num)}_${ARG2}_${ARG1})
+same => n,Macroexit
+
+
+
+
+
+
+
+
+; send ${ARG1} - EXTEN (Trunk)
+; send ${ARG2} - EXTEN (Trunk)
+
+[macro-incall_end_old]
+exten => s,1,Set(API=api/callevent/hangup)
+;same => n,NoOp(MacroBegin: ----------------- incall_end)
+
+; DIALSTATUS string to CallStatus Int
+
+; Server status list
+;ANSWER = 2
+;CANCEL = 0
+;OTHER = 1
+;TALK = 5
+
+; Asterisk status list
+;CANCEL: Вызов отменен
+;ANSWER: На вызов был получен ответ
+;NOANSWER: На вызов не ответили
+;BUSY: Получен сигнал занято
+;CONGESTION: Канал перегружен
+;CHANUNAVAIL: Кана
+
+same => n,Goto(iceds-${DIALSTATUS},1)
+
+; non status
+exten => iceds-,1,Set(CallStatus=1)
+same => n,Goto(s,33)
+
+exten => iceds-CANCEL,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => iceds-OTHER,1,Set(CallStatus=1)
+same => n,Goto(s,33)
+
+exten => iceds-ANSWER,1,Set(CallStatus=2)
+same => n,Goto(s,33)
+
+exten => iceds-TALK,1,Set(CallStatus=5)
+same => n,Goto(s,33)
+
+exten => iceds-NOANSWER,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => iceds-BUSY,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => iceds-CONGESTION,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => iceds-CHANUNAVAIL,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+; JSON Data
+exten => s,33,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${CALLERID(num)}","Extensions":["${DIALEDPEERNUMBER}"],"CallType":"2","DateReceived":"${CDR(start)}","StartTime":"${CallStartDT}","EndTime":"${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)}","CallStatus":"${CallStatus}","Trunk":"${ARG1}"})
+
+; Send Curl
+same => n,Macro(SendCurl,${API},${BASE64_ENCODE(${POST})},incall_end,hangup)
+same => n,Macroexit
+
+
+
+[macro-incall_end]
+;exten => s,33,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${CALLERID(num)}","Extensions":["${DIALEDPEERNUMBER}"],"CallType":"2","DateReceived":"${CDR(start)}","StartTime":"${CallStartDT}","EndTime":"${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)}","CallStatus":"${CallStatus}","Trunk":"${ARG1}"})
+exten => s,1,Set(LisAMI_EventData=incallEnd_${CALLERID(num)}_${DIALEDPEERNUMBER}_${CDR(start)}_${CallStartDT}_${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)}_${ARG1}_${DIALSTATUS})
+same => n,Macroexit
+
+
+
+
+
+
+
+; send ${ARG1} - Trunk
+; send ${ARG2} - Phone (${EXTEN})
+
+
+[macro-outcall_dial_old]
+exten => s,1,Set(API=api/callevent/dial)
+;same => n,NoOp(MacroBegin: ----------------- outcall_dial)
+same => n,Set(CallStartDT=${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)})   ; 2024-03-28 14:35:43    2024-03-28 14:36:58
+same => n,Set(PhoneTo=${ARG2})
+
+same => n,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${ARG2}","Extensions":["${CALLERID(num)}"],"CallType":"1","Trunk":"${ARG1}","ExtTrunk":"","ExtPhone":""})
+
+; Send Curl
+same => n,Macro(SendCurl,${API},${BASE64_ENCODE(${POST})},outcall_dial,dial)
+same => n,Macroexit
+
+
+
+[macro-outcall_dial]
+exten => s,1,Set(LisAMI_CallType=out)
+same => n,Set(CallStartDT=${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)})   ; 2024-03-28 14:35:43    2024-03-28 14:36:58
+same => n,Set(PhoneTo=${ARG2})
+same => n,Set(LisAMI_DialNum=${ARG2})
+same => n,Set(LisAMI_Trunk=${ARG1})
+same => n,Set(Trunk=${ARG1})
+same => n,Set(LisAMI_PhoneTo=${ARG2})
+;same => n,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${ARG2}","Extensions":["${CALLERID(num)}"],"CallType":"1","Trunk":"${ARG1}","ExtTrunk":"","ExtPhone":""})
+same => n,Set(LisAMI_EventData=outcallDial_${ARG2}_${CALLERID(num)}_${ARG1})
+same => n,Macroexit
+
+
+
+
+
+
+
+
+
+
+
+
+; send ${ARG1} - Trunk
+
+[macro-outcall_end_old]
+exten => s,1,Set(API=api/callevent/hangup)
+;same => n,NoOp(MacroBegin: ----------------- outcall_end)
+; DIALSTATUS string to CallStatus Int
+
+; Server status list
+;ANSWER = 2
+;CANCEL = 0
+;OTHER = 1
+;TALK = 5
+
+; Asterisk status list
+;CANCEL: Вызов отменен
+;ANSWER: На вызов был получен ответ
+;NOANSWER: На вызов не ответили
+;BUSY: Получен сигнал занято
+;CONGESTION: Канал перегружен
+;CHANUNAVAIL: Кана
+
+same => n,Goto(oceds-${DIALSTATUS},1)
+
+; non status
+exten => oceds-,1,Set(CallStatus=1)
+same => n,Goto(s,33)
+
+exten => oceds-CANCEL,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => oceds-OTHER,1,Set(CallStatus=1)
+same => n,Goto(s,33)
+
+exten => oceds-ANSWER,1,Set(CallStatus=2)
+same => n,Goto(s,33)
+
+exten => oceds-TALK,1,Set(CallStatus=5)
+same => n,Goto(s,33)
+
+exten => oceds-NOANSWER,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => oceds-BUSY,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => oceds-CONGESTION,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+exten => oceds-CHANUNAVAIL,1,Set(CallStatus=0)
+same => n,Goto(s,33)
+
+; JSON Data
+exten => s,33,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${PhoneTo}","Extensions":["${CALLERID(num)}"],"CallType":"1","DateReceived":"${CDR(start)}","StartTime":"${CallStartDT}","EndTime":"${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)}","CallStatus":"${CallStatus}","Trunk":"${ARG1}"})
+
+; Send Curl
+same => n,Macro(SendCurl,${API},${BASE64_ENCODE(${POST})},outcall_end,hangup)
+same => n,Macroexit
+
+
+
+; send ${ARG1} - Trunk
+
+[macro-outcall_end]
+;exten => s,33,Set(POST={"Token":"${ID_TOKEN}","UniqueId":"${UNIQUEID}","Phone":"${PhoneTo}","Extensions":["${CALLERID(num)}"],"CallType":"1","DateReceived":"${CDR(start)}","StartTime":"${CallStartDT}","EndTime":"${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)}","CallStatus":"${CallStatus}","Trunk":"${ARG1}"})
+exten => s,1,Set(LisAMI_EventData=outcallEnd_${PhoneTo}_${CALLERID(num)}_${CDR(start)}_${CallStartDT}_${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)}_${ARG1}_${DIALSTATUS})
+same => n,Macroexit
+
+
+
+
+
+
+
+
+
+
+
+;same => n,AGI(/var/www/html/install/variant.php,${CALLERID(num)}:${EXTEN})   ->
+;same => n,Macro(getcustomerdata,${CALLERID(num)},${EXTEN})
+
+; send ${ARG1} - Phone
+; send ${ARG2} - Trunk
+
+[macro-getcustomerdata]
+exten => s,1,Set(API=api/callevent/getcustomerdata)
+same => n,NoOp(MacroBegin: ----------------- getcustomerdata)
+same => n,NoOp(-------------- SendCurl Start --------------)
+
+; JSON Data
+same => n,Set(POST={"UniqueId":"${UNIQUEID}","Phone":"${ARG1}","TrunkId":"${ARG2}","LoadDialPlan":"true"})
+same => n,Set(CDR(getcustomerdataJsonData)=${POST})
+
+;  Header Settings
+same => n,Set(CURL_HTTP_HEADERS=Content-Type: application/json||Token: ${ID_TOKEN})
+
+;  CURL OPTIONS Settings
+same => n,Set(CURLOPT(ssl_verifypeer)=0)
+same => n,Set(CURLOPT(conntimeout)=3)
+
+; repeat count
+same => n,Set(RepeatCount=0)
+same => n,Set(CDR(getcustomerdataCount)=${RepeatCount})
+
+;  CURL Send
+same => n(Send),Gotoif($[${RepeatCount} > 2]?REZ_error)
+same => n,Set(RC=${CURL(https://bot.vochi.by/${API},${POST})})
+same => n,Set(CDR(getcustomerdataAnswer1)=${RC})
+same => n,Set(LisAMI_GetCustomerData=${POST}_Answer_${RC})
+
+; repeat count
+same => n,Set(RepeatCount=$[${RepeatCount} + 1])
+same => n,Set(CDR(getcustomerdataCount)=${RepeatCount})
+
+; 4 log
+same => n,Set(Rez=getcustomerdata (${API}) ${POST}: ${RC})
+
+; ansvwer variants:
+;same => n,Set(TestAnswer={"Name":"375257627266","DialPlan":null})
+;same => n,Set(TestAnswer={"Name":"375 17 330-19-75 - Входящий звонок","DialPlan":"mngr536_3881848_1"})
+
+; length check
+same => n,set(RCLen=${LEN(${RC})})
+same => n,Gotoif($[${RCLen} < 30]?REZ_error)
+same => n,Goto(REZ_ok)
+
+
+
+
+
+; if Answer Error
+same => n(REZ_error),Set(RezStatus=Error)
+same => n,Set(CDR(getcustomerdataStatus)=Error)
+same => n,Goto(exit)
+
+; if Answer OK
+same => n(REZ_ok),Set(RezStatus=OK)
+same => n,Set(CDR(getcustomerdataStatus)=OK)
+
+same => n,Set(RC=${RC:9})
+same => n,set(RCLenBefore=${LEN(${RC})})
+same => n,set(RC=${STRREPLACE(RC,\"\,\"DialPlan\":,\,)})
+same => n,set(RCLenAfter=${LEN(${RC})})
+
+same => n,set(RCLenRez=$[${RCLenBefore} - 12])
+same => n,Gotoif($[${RCLenRez} = {RCLenAfter}]?Send)
+
+same => n,set(RC=${REPLACE(RC,\",)})
+same => n,set(RC=${RC:0:-1})
+
+same => n,set(CALLNAME=${CUT(RC,\,,1)})
+same => n,set(NEXT=${CUT(RC,\,,2)})
+
+;delete "null"
+same => n,Set(NEXT=${IF($["${NEXT}" = "null"]?"":${NEXT})})
+
+; Log to File
+same => n(exit),Set(FILE(/var/log/asterisk/event.log,,,al,u)=${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)}:${UNIQUEID} ${RezStatus}(${RepeatCount}): ${Rez})
+same => n,NoOp(-------------- SendCurl End --------------${RezStatus}(${RepeatCount}))
+same => n,Macroexit
+
+
+[web-originate]
+exten => _X.,1,GoSub(set-extcall-callerid,${EXTEN},1)
+ same => n,Goto(inoffice,${EXTEN},1)
+
+[set-extcall-callerid]
+exten => _X.,1,NoOp(SET EXT CALLERID for ${CHANNEL} ext ${EXTEN})
+ same => n,Set(_EXTCALL=${DB(extcall/nextcall_${EXTEN})})
+ same => n,Set(_EXTNAME=${DB(extcall/nextname_${EXTEN})})
+ same => n,ExecIf($[${LEN(${EXTCALL})} > 0]?Set(CALLERID(num)=${EXTCALL}))
+ same => n,ExecIf($[${LEN(${EXTNAME})} > 0]?Set(CALLERID(name)=${EXTNAME}))
+ same => n,ExecIf($[${LEN(${EXTNAME})}=0 & ${LEN(${EXTCALL})}>0]?Set(CALLERID(name)=Call ${EXTCALL}))
+ same => n,ExecIf($[${LEN(${EXTCALL})} > 0]?Set(DB_DELETE(extcall/nextcall_${EXTEN})=1))
+ same => n,ExecIf($[${LEN(${EXTNAME})} > 0]?Set(DB_DELETE(extcall/nextname_${EXTEN})=1))
+ same => n,Return()

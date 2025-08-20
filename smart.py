@@ -221,7 +221,8 @@ async def _compute_dialplan(
     algorithm: str,
 ) -> Optional[str]:
     """Выбирает нужный mngr-контекст согласно алгоритму.
-    algorithm: 'retailcrm' | 'first_call' | 'last_call' (пока реализуем first/last, retailcrm — позже)
+    algorithm: 'retailcrm' | 'uon' | 'primary' | 'first_call' | 'last_call'
+    - 'retailcrm'/'uon'/'primary' — онлайн-запрос ответственного менеджера через 8020 (primary-интеграция)
     """
     algo = (algorithm or "").lower()
     chosen_ext: Optional[str] = None
@@ -229,7 +230,7 @@ async def _compute_dialplan(
     if algo in {"first_call", "last_call"}:
         order = "asc" if algo == "first_call" else "desc"
         chosen_ext = await _pick_extension_by_history(conn, enterprise_number, phone, order=order)
-    elif algo == "retailcrm":
+    elif algo in {"retailcrm", "uon", "primary"}:
         e164 = "+" + phone if not phone.startswith("+") else phone
         chosen_ext = await _get_responsible_extension_via_8020(enterprise_number, e164)
     else:
@@ -431,7 +432,7 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
                 # Пытаемся вычислить контекст
                 retailcrm_ext = None
                 retailcrm_internal_id = None
-                if algorithm == "retailcrm":
+                if algorithm in {"retailcrm", "uon", "primary"}:
                     e164 = "+" + phone_norm if not phone_norm.startswith("+") else phone_norm
                     retailcrm_ext = await _get_responsible_extension_via_8020(enterprise_number, e164)
                     if isinstance(retailcrm_ext, str) and retailcrm_ext.isdigit():

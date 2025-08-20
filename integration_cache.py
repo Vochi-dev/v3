@@ -925,6 +925,7 @@ async def get_customer_name(enterprise_number: str, phone: str):
             primary = await _get_enterprise_smart_primary(conn, enterprise_number)
             name: Optional[str] = None
 
+            extra_source: dict = {}
             if primary == "retailcrm":
                 # Query local retailcrm service for name
                 url = "http://127.0.0.1:8019/internal/retailcrm/customer-name"
@@ -1035,12 +1036,16 @@ async def get_customer_profile(enterprise_number: str, phone: str):
                                     v = raw_data.get(uon_key)
                                     if isinstance(v, str) and v.strip():
                                         prof[our_key] = v.strip()
+                                extra_source = {"raw": raw_data}
                 except Exception as e:
                     logger.warning(f"customer-profile uon lookup failed: {e}")
             else:
                 pass
 
             customer_profile_cache[cache_key] = {**prof, "expires": now + TTL_SECONDS}
+            # Возвращаем профиль, добавляя source (без кэширования source)
+            if extra_source:
+                return {**prof, "source": extra_source}
             return prof
     except Exception as e:
         logger.error(f"get_customer_profile error: {e}")
@@ -1081,8 +1086,14 @@ async def get_responsible_extension(enterprise_number: str, phone: str, nocache:
                     except Exception:
                         cfg = None
                 if isinstance(cfg, dict):
-                    retail = cfg.get("retailcrm") or {}
-                    user_ext_map = retail.get("user_extensions") or {}
+                    if primary == "retailcrm":
+                        retail = cfg.get("retailcrm") or {}
+                        user_ext_map = retail.get("user_extensions") or {}
+                    elif primary == "uon":
+                        uon = cfg.get("uon") or {}
+                        user_ext_map = uon.get("user_extensions") or {}
+                    else:
+                        user_ext_map = {}
                 else:
                     user_ext_map = {}
             except Exception as e:
@@ -1122,6 +1133,36 @@ async def get_responsible_extension(enterprise_number: str, phone: str, nocache:
                                 await asyncio.sleep(0.05)
                 except Exception as e:
                     logger.warning(f"responsible-extension retailcrm client setup failed: {e}")
+            elif primary == "uon":
+                url = f"http://127.0.0.1:8022/internal/uon/responsible-extension"
+                try:
+                    async with httpx.AsyncClient(timeout=2.0) as client:
+                        for attempt in range(2):
+                            try:
+                                resp = await client.get(url, params={"phone": phone_e164})
+                                if resp.status_code == 200:
+                                    data = resp.json() or {}
+                                    code = data.get("extension") if isinstance(data, dict) else None
+                                    mid = data.get("manager_id") if isinstance(data, dict) else None
+                                    if isinstance(code, str) and code.isdigit():
+                                        ext = code
+                                    try:
+                                        manager_id_from_api = int(mid) if str(mid).isdigit() else None
+                                    except Exception:
+                                        manager_id_from_api = None
+                                    if manager_id_from_api is not None:
+                                        mapped = user_ext_map.get(str(manager_id_from_api))
+                                        if isinstance(mapped, str) and mapped.isdigit():
+                                            mapped_ext = mapped
+                                    logger.info(f"responsible-extension uon ok ext={ext} mapped={mapped_ext} manager_id={manager_id_from_api} phone={phone_e164}")
+                                    break
+                                else:
+                                    logger.warning(f"responsible-extension uon http={resp.status_code} attempt={attempt+1}")
+                            except Exception as er:
+                                logger.warning(f"responsible-extension uon error attempt={attempt+1}: {er}")
+                                await asyncio.sleep(0.05)
+                except Exception as e:
+                    logger.warning(f"responsible-extension uon client setup failed: {e}")
             else:
                 ext = None
 

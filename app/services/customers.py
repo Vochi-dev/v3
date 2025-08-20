@@ -1,6 +1,7 @@
 import logging
+import json
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from app.services.postgres import get_pool
 
@@ -211,4 +212,183 @@ async def upsert_customer_from_hangup(data: dict) -> None:
     except Exception as e:
         logging.error(f"[customers] upsert failed: {e}")
 
+
+
+async def merge_customer_identity(
+    enterprise_number: str,
+    phone_e164: str,
+    source: str,
+    external_id: str,
+    fio: Optional[Dict[str, Optional[str]]] = None,
+    set_primary: bool = False,
+) -> None:
+    """
+    Гарантирует наличие строки в customers и мержит идентичность клиента:
+    - meta.ids.<source> += external_id (уникально)
+    - meta.person_uid устанавливается, если пуст ("<source>:<external_id>")
+    - при set_primary=true выставляет meta.primary_source=<source>
+    - обновляет ФИО: если set_primary или поля пустые, заполняет переданными значениями
+    """
+    try:
+        if not enterprise_number or not phone_e164 or not source or not external_id:
+            return
+
+        pool = await get_pool()
+        if not pool:
+            logging.error("[customers] PostgreSQL pool not available")
+            return
+
+        async with pool.acquire() as conn:
+            # 1) Ensure row exists (do nothing on conflict)
+            now_ts = datetime.utcnow()
+            await conn.execute(
+                """
+                INSERT INTO customers (enterprise_number, phone_e164, first_seen_at, last_seen_at)
+                VALUES ($1, $2, $3, $3)
+                ON CONFLICT (enterprise_number, phone_e164) DO NOTHING
+                """,
+                enterprise_number, phone_e164, now_ts,
+            )
+
+            # 2) Read current meta and fio
+            row = await conn.fetchrow(
+                """
+                SELECT id, meta, last_name, first_name, middle_name
+                FROM customers
+                WHERE enterprise_number=$1 AND phone_e164=$2
+                LIMIT 1
+                """,
+                enterprise_number, phone_e164,
+            )
+            if not row:
+                return
+
+            meta: Dict[str, Any] = {}
+            try:
+                meta = dict(row["meta"]) if row["meta"] is not None else {}
+            except Exception:
+                meta = {}
+
+            ids = meta.get("ids") or {}
+            source_ids = list(ids.get(source) or [])
+            if external_id not in source_ids:
+                source_ids.append(external_id)
+            ids[source] = source_ids
+            meta["ids"] = ids
+
+            if not meta.get("person_uid"):
+                meta["person_uid"] = f"{source}:{external_id}"
+
+            if set_primary:
+                meta["primary_source"] = source
+
+            # 3) Merge FIO according to rules
+            cur_ln = row["last_name"]
+            cur_fn = row["first_name"]
+            cur_mn = row["middle_name"]
+
+            new_ln = None
+            new_fn = None
+            new_mn = None
+            if fio:
+                in_ln = (fio.get("last_name") or "").strip() or None
+                in_fn = (fio.get("first_name") or "").strip() or None
+                in_mn = (fio.get("middle_name") or "").strip() or None
+                if set_primary:
+                    new_ln = in_ln or cur_ln
+                    new_fn = in_fn or cur_fn
+                    new_mn = in_mn or cur_mn
+                else:
+                    new_ln = cur_ln or in_ln
+                    new_fn = cur_fn or in_fn
+                    new_mn = cur_mn or in_mn
+
+            # 4) Update
+            await conn.execute(
+                """
+                UPDATE customers
+                SET meta = $3::jsonb,
+                    last_name = COALESCE($4, last_name),
+                    first_name = COALESCE($5, first_name),
+                    middle_name = COALESCE($6, middle_name),
+                    last_seen_at = $7
+                WHERE enterprise_number=$1 AND phone_e164=$2
+                """,
+                enterprise_number,
+                phone_e164,
+                json.dumps(meta, ensure_ascii=False),
+                new_ln,
+                new_fn,
+                new_mn,
+                now_ts,
+            )
+
+            logging.info(
+                f"[customers] identity merged ent={enterprise_number} phone={phone_e164} src={source} id={external_id} primary={set_primary}"
+            )
+    except Exception as e:
+        logging.error(f"[customers] merge_identity failed: {e}")
+
+
+async def update_fio_for_person(
+    enterprise_number: str,
+    person_uid: str,
+    fio: Optional[Dict[str, Optional[str]]] = None,
+    is_primary_source: bool = False,
+) -> None:
+    """
+    Обновляет ФИО для всех записей клиента (по person_uid).
+    - Если источник primary, то новое непустое значение замещает текущее.
+    - Если не primary, то заполняем только пустые поля (fill-if-empty).
+    """
+    try:
+        if not enterprise_number or not person_uid or not fio:
+            return
+        ln = (fio.get("last_name") or "").strip() or None
+        fn = (fio.get("first_name") or "").strip() or None
+        mn = (fio.get("middle_name") or "").strip() or None
+
+        if not (ln or fn or mn):
+            return
+
+        pool = await get_pool()
+        if not pool:
+            logging.error("[customers] PostgreSQL pool not available")
+            return
+
+        async with pool.acquire() as conn:
+            now_ts = datetime.utcnow()
+            if is_primary_source:
+                # Приоритетный источник: подменяем непустыми значениями
+                await conn.execute(
+                    """
+                    UPDATE customers
+                    SET last_name = COALESCE($3, last_name),
+                        first_name = COALESCE($4, first_name),
+                        middle_name = COALESCE($5, middle_name),
+                        last_seen_at = $6
+                    WHERE enterprise_number = $1
+                      AND meta ->> 'person_uid' = $2
+                    """,
+                    enterprise_number, person_uid, ln, fn, mn, now_ts,
+                )
+            else:
+                # Не приоритетный: только заполнение пустых
+                await conn.execute(
+                    """
+                    UPDATE customers
+                    SET last_name = COALESCE(last_name, $3),
+                        first_name = COALESCE(first_name, $4),
+                        middle_name = COALESCE(middle_name, $5),
+                        last_seen_at = $6
+                    WHERE enterprise_number = $1
+                      AND meta ->> 'person_uid' = $2
+                    """,
+                    enterprise_number, person_uid, ln, fn, mn, now_ts,
+                )
+            logging.info(
+                f"[customers] fio updated for person_uid ent={enterprise_number} uid={person_uid} primary={is_primary_source}"
+            )
+    except Exception as e:
+        logging.error(f"[customers] update_fio_for_person failed: {e}")
 
