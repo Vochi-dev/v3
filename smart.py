@@ -221,8 +221,7 @@ async def _compute_dialplan(
     algorithm: str,
 ) -> Optional[str]:
     """Выбирает нужный mngr-контекст согласно алгоритму.
-    algorithm: 'retailcrm' | 'uon' | 'primary' | 'first_call' | 'last_call'
-    - 'retailcrm'/'uon'/'primary' — онлайн-запрос ответственного менеджера через 8020 (primary-интеграция)
+    algorithm: 'retailcrm' | 'first_call' | 'last_call' (пока реализуем first/last, retailcrm — позже)
     """
     algo = (algorithm or "").lower()
     chosen_ext: Optional[str] = None
@@ -230,7 +229,7 @@ async def _compute_dialplan(
     if algo in {"first_call", "last_call"}:
         order = "asc" if algo == "first_call" else "desc"
         chosen_ext = await _pick_extension_by_history(conn, enterprise_number, phone, order=order)
-    elif algo in {"retailcrm", "uon", "primary"}:
+    elif algo == "retailcrm":
         e164 = "+" + phone if not phone.startswith("+") else phone
         chosen_ext = await _get_responsible_extension_via_8020(enterprise_number, e164)
     else:
@@ -320,6 +319,14 @@ async def _get_responsible_extension_via_8020(enterprise_number: str, phone_e164
     return None
 
 
+async def _get_customer_name_via_8020(enterprise_number: str, phone_e164: str) -> Optional[str]:
+    """Заглушка: позже подключим 8020 (primary интеграция) для получения имени клиента."""
+    try:
+        return None
+    except Exception:
+        return None
+
+
 @app.post("/api/callevent/getcustomerdata")
 async def get_customer_data(request: Request, body: GetCustomerDataRequest, Token: Optional[str] = Header(default=None)):
     start_ts = time.time()
@@ -329,11 +336,32 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
     if not Token:
         raise HTTPException(status_code=401, detail="Token header is required")
 
+    cache_key = f"{Token}|{body.Phone}|{body.TrunkId}"
     metrics["requests_total"] += 1
+    cached = await cache.get(cache_key)
+    if cached is not None:
+        name_cached, dialplan_cached = cached
+        metrics["cache_hits"] += 1
+        decisions_logger.info(
+            json.dumps({
+                "req_id": req_id,
+                "enterprise": "cache",  # enterprise неизвестен до БД
+                "trunk": body.TrunkId,
+                "phone": body.Phone,
+                "mode": "cache",
+                "flags": None,
+                "algorithm": None,
+                "result": {"Name": (name_cached or ""), "DialPlan": dialplan_cached},
+                "reason": "cache_hit"
+            }, ensure_ascii=False)
+        )
+        safe_name = name_cached or ""
+        return JSONResponse(GetCustomerDataResponse(Name=safe_name, DialPlan=dialplan_cached).dict())
 
     conn = await _get_conn()
     if not conn:
         # В случае проблем с БД: безопасный дефолт — ничего не перенаправляем
+        await cache.set(cache_key, (None, None))
         elapsed = int((time.time() - start_ts) * 1000)
         latencies_ms.append(elapsed)
         decisions_logger.info(
@@ -365,38 +393,13 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
         phone_norm = _normalize_phone(body.Phone)
         key = None
         if trunk:
-            # Сначала пытаемся найти точное соответствие среди известных ключей
-            if f"sip:{trunk}" in lines_cfg:
-                key = f"sip:{trunk}"
-            elif f"gsm:{trunk}" in lines_cfg:
+            # Определяем тип линии: пробуем как GSM (все цифры) или как SIP (строка)
+            if trunk.isdigit():
                 key = f"gsm:{trunk}"
             else:
-                # Фоллбек-эвристика: цифры → GSM, иначе → SIP
-                key = f"gsm:{trunk}" if trunk.isdigit() else f"sip:{trunk}"
+                key = f"sip:{trunk}"
 
         line_settings = lines_cfg.get(key) if key else None
-
-        # 1) Попробуем применить входящее преобразование номера для SIP/GSM линий (приоритет SIP)
-        try:
-            if enterprise_number and trunk:
-                async with httpx.AsyncClient(timeout=1.0) as client:
-                    r = await client.get(f"http://127.0.0.1:8020/incoming-transform/{enterprise_number}")
-                    if r.status_code == 200:
-                        m = (r.json() or {}).get("map") or {}
-                        # Не полагаться на эвристику key: явно пробуем sip:<trunk>, затем gsm:<trunk>
-                        rule = m.get(f"sip:{trunk}") or m.get(f"gsm:{trunk}")
-                        if isinstance(rule, str) and "{" in rule and "}" in rule:
-                            # правило вида "+375{9}"
-                            pref = rule.split("{")[0]
-                            try:
-                                n = int(rule.split("{")[1].split("}")[0])
-                            except Exception:
-                                n = None
-                            digits = ''.join([c for c in phone_norm if c.isdigit()])
-                            if n and len(digits) >= n:
-                                phone_norm = f"{pref}{digits[-n:]}"
-        except Exception:
-            pass
 
         # Режим: управляет тем, что возвращаем
         # name: отображаемое имя (пока заглушка), dialplan: имя контекста
@@ -405,6 +408,7 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
 
         # Если режим выключен — выходим сразу
         if mode == "off":
+            await cache.set(cache_key, (None, None))
             elapsed = int((time.time() - start_ts) * 1000)
             logger.info(f"smart.getcustomerdata req_id={req_id} ent={enterprise_number} mode=off trunk={trunk} result=NONE ms={elapsed}")
             latencies_ms.append(elapsed)
@@ -432,7 +436,7 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
                 # Пытаемся вычислить контекст
                 retailcrm_ext = None
                 retailcrm_internal_id = None
-                if algorithm in {"retailcrm", "uon", "primary"}:
+                if algorithm == "retailcrm":
                     e164 = "+" + phone_norm if not phone_norm.startswith("+") else phone_norm
                     retailcrm_ext = await _get_responsible_extension_via_8020(enterprise_number, e164)
                     if isinstance(retailcrm_ext, str) and retailcrm_ext.isdigit():
@@ -456,36 +460,21 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
             send_customer_name = bool(line_settings.get("send_customer_name"))
             if send_line_name or send_shop_name or send_customer_name:
                 line_name, shop_name = await _get_line_and_shop_names(conn, enterprise_number, trunk)
-                # Порядок отображения: значения 1..3, отсутствующие — в конец по умолчанию
-                items: list[tuple[int, str]] = []
-                try:
-                    line_order = int((line_settings or {}).get("line_name_order")) if isinstance(line_settings, dict) else None
-                except Exception:
-                    line_order = None
-                try:
-                    cust_order = int((line_settings or {}).get("customer_name_order")) if isinstance(line_settings, dict) else None
-                except Exception:
-                    cust_order = None
-                try:
-                    shop_order = int((line_settings or {}).get("shop_name_order")) if isinstance(line_settings, dict) else None
-                except Exception:
-                    shop_order = None
-
+                parts = []
                 if send_line_name and line_name:
-                    items.append((line_order if line_order in (1,2,3) else 99, str(line_name)))
+                    parts.append(str(line_name))
+                if send_shop_name and shop_name:
+                    parts.append(str(shop_name))
                 if send_customer_name:
                     e164 = "+" + phone_norm if not phone_norm.startswith("+") else phone_norm
                     customer_name = await _get_customer_name_via_8020(enterprise_number, e164)
                     if customer_name:
-                        items.append((cust_order if cust_order in (1,2,3) else 99, customer_name))
-                if send_shop_name and shop_name:
-                    items.append((shop_order if shop_order in (1,2,3) else 99, str(shop_name)))
-
-                if items:
-                    items_sorted = sorted(items, key=lambda x: x[0])
-                    name = " | ".join([v for _, v in items_sorted])
+                        parts.append(customer_name)
+                if parts:
+                    name = " | ".join(parts)
 
         safe_name = name or ""
+        await cache.set(cache_key, (safe_name, dialplan))
         elapsed = int((time.time() - start_ts) * 1000)
         latencies_ms.append(elapsed)
         logger.info(f"smart.getcustomerdata req_id={req_id} ent={enterprise_number} trunk={trunk} result={{Name:{name},DialPlan:{dialplan}}} ms={elapsed}")
@@ -520,6 +509,7 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
         logger.error(f"get_customer_data unexpected error: {e}", exc_info=True)
         metrics["errors_total"] += 1
         # При ошибках — безопасный ответ без маршрутизации
+        await cache.set(cache_key, (None, None))
         elapsed = int((time.time() - start_ts) * 1000)
         latencies_ms.append(elapsed)
         decisions_logger.info(
