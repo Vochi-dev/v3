@@ -579,244 +579,73 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         except Exception:
             pass
 
-        # ───────── Fire-and-forget обогащение профиля и обновление customers, затем edit Telegram ─────────
+        # 🔄 УНИВЕРСАЛЬНОЕ ОБОГАЩЕНИЕ ПРОФИЛЯ ЧЕРЕЗ 8020
         async def _enrich_and_edit(data: dict):
+            """Универсальная задача для обогащения профиля клиента"""
             try:
                 logging.info(f"[hangup] _enrich_and_edit called with data: {data}")
-                # 1) Определяем предприятие и его настройки интеграции
+                
+                # Получаем enterprise_number из токена
                 pool = await get_pool()
                 if not pool:
                     return
+                    
                 async with pool.acquire() as conn:
                     row = await conn.fetchrow(
-                        "SELECT number, integrations_config FROM enterprises WHERE name2 = $1 OR secret = $1 OR number = $1 LIMIT 1",
+                        "SELECT number FROM enterprises WHERE name2 = $1 OR secret = $1 OR number = $1 LIMIT 1",
                         data.get("Token", "")
                     )
                     if not row:
                         return
-                    enterprise_number = row["number"]
-                    integrations_config_raw = row["integrations_config"] or {}
-                    
-                    # Если это строка, парсим JSON
-                    if isinstance(integrations_config_raw, str):
-                        import json
-                        try:
-                            integrations_config = json.loads(integrations_config_raw)
-                        except Exception:
-                            integrations_config = {}
-                    else:
-                        integrations_config = integrations_config_raw
-                    
-                    logging.info(f"[hangup] integrations_config parsed type: {type(integrations_config)}")
+                    current_enterprise_number = row["number"]
                 
-                # Получаем приоритетную интеграцию
-                primary_integration = integrations_config.get("smart", {}).get("primary")
-                if not primary_integration:
-                    logging.info(f"[hangup] No primary integration set for enterprise {enterprise_number}")
-                    return
-
-                # 2) Определяем внешний номер для профиля
+                # Определяем внешний номер для профиля
                 phone = data.get("Phone") or data.get("CallerIDNum") or data.get("ConnectedLineNum") or ""
                 if not phone:
                     return
                 
-                # Нормализуем номер в E.164 формат для запроса к 8020
+                # Нормализуем номер в E.164 формат
                 if not phone.startswith("+"):
                     phone_e164 = "+" + ''.join(ch for ch in phone if ch.isdigit())
                 else:
                     phone_e164 = phone
 
-                # 3) Запрос профиля через 8020
+                # 📡 УНИВЕРСАЛЬНЫЙ ЗАПРОС К СЕРВИСУ 8020
                 import httpx
-                prof = None
-                source_raw = None
-                source_type = None
                 try:
                     async with httpx.AsyncClient(timeout=2.5) as client:
-                        r = await client.get(f"http://127.0.0.1:8020/customer-profile/{enterprise_number}/{phone_e164}")
+                        # Запрос на обновление профиля клиента со всеми связями
+                        r = await client.post(f"http://127.0.0.1:8020/enrich-customer/{current_enterprise_number}/{phone_e164}")
                         if r.status_code == 200:
-                            prof = r.json() or {}
-                            logging.info(f"[hangup] Profile response type: {type(prof)}, data: {prof}")
-                            # Получаем source.raw и source.type из ответа
-                            try:
-                                source_info = prof.get("source") or {}
-                                source_raw = source_info.get("raw") if isinstance(source_info, dict) else None
-                                source_type = source_info.get("type", "").lower() if isinstance(source_info, dict) else None
-                                logging.info(f"[hangup] Extracted source_type: {source_type}, source_raw exists: {source_raw is not None}")
-                            except Exception as e:
-                                logging.warning(f"[hangup] Error extracting source info: {e}")
-                                source_raw = None
-                                source_type = None
-                except Exception as e:
-                    logging.warning(f"[hangup] Error fetching profile: {e}")
-                    prof = None
-
-                if not isinstance(prof, dict):
-                    return
-
-                ln = (prof.get("last_name") or "").strip()
-                fn = (prof.get("first_name") or "").strip()
-                mn = (prof.get("middle_name") or "").strip()
-                en = (prof.get("enterprise_name") or "").strip()
-
-                if not (ln or fn or en):
-                    return
-
-                # 4) Обновляем таблицу customers, если поле пустое
-                async with pool.acquire() as conn:
-                    await conn.execute(
-                        """
-                        UPDATE customers
-                        SET last_name = COALESCE($1, last_name),
-                            first_name = COALESCE($2, first_name),
-                            middle_name = COALESCE($3, middle_name),
-                            enterprise_name = COALESCE($4, enterprise_name)
-                        WHERE enterprise_number = $5 AND phone_e164 = $6
-                        """,
-                        ln or None, fn or None, mn or None, en or None,
-                        enterprise_number, phone if phone.startswith("+") else "+" + ''.join(ch for ch in phone if ch.isdigit())
-                    )
-
-                # 4b) Обновляем ФИО ТОЛЬКО если источник является приоритетной интеграцией
-                logging.info(f"[hangup] Primary integration: {primary_integration}, Source type: {source_type}")
-                
-                if source_type == primary_integration and (ln or fn or mn or en):
-                    # Связываем номер с external_id для приоритетной интеграции
-                    try:
-                        if source_raw and isinstance(source_raw, dict):
-                            ext_id = None
+                            result = r.json() or {}
+                            logging.info(f"[hangup] Customer enrichment result: {result}")
                             
-                            # Для U-ON ищем client_id
-                            if source_type == "uon":
-                                for key in ("client_id", "id", "customer_id", "clientId"):
-                                    ext_id = source_raw.get(key)
-                                    if isinstance(ext_id, (str, int)) and str(ext_id).strip():
-                                        ext_id = str(ext_id).strip()
-                                        break
-                            
-                            # Для RetailCRM ищем id клиента
-                            elif source_type == "retailcrm":
-                                ext_id = source_raw.get("id")
-                                if isinstance(ext_id, (str, int)) and str(ext_id).strip():
-                                    ext_id = str(ext_id).strip()
-                            
-                            if ext_id:
+                            # Получаем обновленные данные для UI
+                            full_name = result.get("full_name")
+                            if full_name and sent and sent.message_id:
+                                updated_text = f"{text}\n👤 {full_name}"
                                 try:
-                                    from app.services.customers import merge_customer_identity
-                                    await merge_customer_identity(
-                                        enterprise_number=enterprise_number,
-                                        phone_e164=phone_e164,
-                                        source=source_type,
-                                        external_id=ext_id,
-                                        fio={
-                                            "first_name": fn if fn else None,
-                                            "last_name": ln if ln else None,
-                                            "middle_name": mn if mn else None,
-                                            "enterprise_name": en if en else None
-                                        },
-                                        set_primary=True  # Устанавливаем как приоритетный для главной интеграции
+                                    await bot.edit_message_text(
+                                        text=updated_text,
+                                        chat_id=chat_id,
+                                        message_id=sent.message_id,
+                                        parse_mode="HTML"
                                     )
-                                    logging.info(f"[hangup] Updated customer identity from PRIMARY {source_type}: phone={phone}, external_id={ext_id}")
-                                    
-                                    # 4c) Обновляем ФИО для всех номеров этого клиента через person_uid
-                                    try:
-                                        # Получаем person_uid из созданной записи
-                                        async with pool.acquire() as conn:
-                                            customer_row = await conn.fetchrow(
-                                                "SELECT meta FROM customers WHERE enterprise_number = $1 AND phone_e164 = $2",
-                                                enterprise_number, phone_e164
-                                            )
-                                            if customer_row and customer_row["meta"]:
-                                                meta = customer_row["meta"]
-                                                if isinstance(meta, str):
-                                                    import json
-                                                    meta = json.loads(meta)
-                                                person_uid = meta.get("person_uid")
-                                                
-                                                if person_uid:
-                                                    from app.services.customers import update_fio_for_person
-                                                    await update_fio_for_person(
-                                                        enterprise_number=enterprise_number,
-                                                        person_uid=str(person_uid),
-                                                        fio={
-                                                            "first_name": fn if fn else None,
-                                                            "last_name": ln if ln else None,
-                                                            "middle_name": mn if mn else None,
-                                                            "enterprise_name": en if en else None
-                                                        },
-                                                        is_primary_source=True
-                                                    )
-                                                    logging.info(f"[hangup] Updated FIO for person_uid {person_uid} (PRIMARY integration)")
-                                    except Exception as e:
-                                        logging.warning(f"[hangup] Error updating FIO for person: {e}")
-                                        
+                                    logging.info(f"[hangup] Updated message {sent.message_id} with FIO: {full_name}")
                                 except Exception as e:
-                                    logging.warning(f"[hangup] Failed to merge customer identity from PRIMARY {source_type}: {e}")
-                    except Exception as e:
-                        logging.warning(f"[hangup] Error processing PRIMARY integration data: {e}")
-                else:
-                    logging.info(f"[hangup] Skipping FIO update - source '{source_type}' is not primary integration '{primary_integration}'")
-
-                    # Для НЕ приоритетных интеграций только записываем external_id без обновления ФИО
-                    if source_raw and isinstance(source_raw, dict) and source_type:
-                        ext_id = None
-                        
-                        if source_type == "uon":
-                            for key in ("client_id", "id", "customer_id", "clientId"):
-                                ext_id = source_raw.get(key)
-                                if isinstance(ext_id, (str, int)) and str(ext_id).strip():
-                                    ext_id = str(ext_id).strip()
-                                    break
-                        elif source_type == "retailcrm":
-                            ext_id = source_raw.get("id")
-                            if isinstance(ext_id, (str, int)) and str(ext_id).strip():
-                                ext_id = str(ext_id).strip()
-                        
-                        if ext_id:
-                            try:
-                                from app.services.customers import merge_customer_identity
-                                await merge_customer_identity(
-                                    enterprise_number=enterprise_number,
-                                    phone_e164=phone_e164,
-                                    source=source_type,
-                                    external_id=ext_id,
-                                    fio=None,  # НЕ обновляем ФИО для не приоритетных
-                                    set_primary=False
-                                )
-                                logging.info(f"[hangup] Recorded external_id from NON-PRIMARY {source_type}: phone={phone}, external_id={ext_id}")
-                            except Exception as e:
-                                logging.warning(f"[hangup] Failed to record external_id from NON-PRIMARY {source_type}: {e}")
-
-                # 5) Формируем подпись и edit Telegram сообщения
-                parts = []
-                if ln:
-                    parts.append(ln)
-                if fn:
-                    parts.append(fn)
-                full_name = " ".join(parts).strip()
-                suffix = ""
-                if full_name and en:
-                    suffix = f"\n👤 {full_name} ({en})"
-                elif full_name:
-                    suffix = f"\n👤 {full_name}"
-                elif en:
-                    suffix = f"\n🏢 {en}"
-                if not suffix:
-                    return
-
-                try:
-                    # Edit последнего отправленного сообщения (sent.message_id уже есть в замыкании)
-                    new_text = safe_text + suffix
-                    await bot.edit_message_text(chat_id=chat_id, message_id=sent.message_id, text=new_text, parse_mode="HTML")
-                    logging.info(f"[hangup] Updated Telegram message with customer info: {full_name}")
+                                    logging.warning(f"[hangup] Failed to update message with FIO: {e}")
+                        else:
+                            logging.warning(f"[hangup] Customer enrichment failed: {r.status_code}")
+                            
                 except Exception as e:
-                    logging.warning(f"[hangup] Failed to edit Telegram message: {e}")
+                    logging.warning(f"[hangup] Error calling customer enrichment service: {e}")
+
             except Exception as e:
-                logging.warning(f"[hangup] Error in profile enrichment: {e}")
+                logging.error(f"[hangup] Error in _enrich_and_edit: {e}")
 
         try:
-            logging.info(f"[hangup] Starting profile enrichment task for {data.get('UniqueId')}")
-            await _enrich_and_edit(data)  # Временно делаем синхронно для отладки
+            logging.info(f"[hangup] Starting profile enrichment task for {uid}")
+            await _enrich_and_edit(data)
         except Exception as e:
             logging.warning(f"[hangup] Failed to create enrichment task: {e}")
 

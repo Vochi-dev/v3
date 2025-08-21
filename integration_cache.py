@@ -1203,6 +1203,279 @@ async def get_responsible_extension(enterprise_number: str, phone: str, nocache:
         logger.error(f"get_responsible_extension error: {e}")
         return {"extension": None}
 
+@app.post("/enrich-customer/{enterprise_number}/{phone_e164}")
+async def enrich_customer(enterprise_number: str, phone_e164: str):
+    """
+    🔄 УНИВЕРСАЛЬНЫЙ ENDPOINT ДЛЯ ОБОГАЩЕНИЯ ПРОФИЛЯ КЛИЕНТА
+    
+    Получает профиль клиента из всех доступных CRM, определяет приоритетную интеграцию,
+    обновляет данные в customers со всеми связанными номерами через person_uid.
+    
+    Returns:
+    {
+        "success": true,
+        "full_name": "Фамилия Имя Отчество", 
+        "source": "retailcrm",
+        "external_id": "12345",
+        "person_uid": "retailcrm:12345",
+        "linked_phones": ["+375296254070", "+375297003134"],
+        "updated_count": 2
+    }
+    """
+    try:
+        logger.info(f"[enrich-customer] Starting enrichment for {enterprise_number}/{phone_e164}")
+        
+        # 1. Получаем конфигурацию интеграций предприятия
+        global pg_pool
+        if not pg_pool:
+            return {"success": False, "error": "Database connection failed"}
+            
+        async with pg_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1",
+                enterprise_number
+            )
+            if not row or not row["integrations_config"]:
+                return {"success": False, "error": "No integrations configured"}
+                
+            integrations_config = row["integrations_config"]
+            if isinstance(integrations_config, str):
+                import json
+                try:
+                    integrations_config = json.loads(integrations_config)
+                except Exception:
+                    integrations_config = {}
+            
+            primary_integration = integrations_config.get("smart", {}).get("primary")
+            if not primary_integration:
+                return {"success": False, "error": "No primary integration configured"}
+        
+        # 2. Получаем профиль клиента из CRM
+        prof = await get_customer_profile(enterprise_number, phone_e164)
+        if not prof:
+            return {"success": False, "error": "No customer profile found"}
+            
+        source_info = prof.get("source", {})
+        source_raw = source_info.get("raw")
+        source_type = source_info.get("type", "").lower()
+        
+        if not source_raw or not source_type:
+            return {"success": False, "error": "Invalid profile data"}
+        
+        # 3. Извлекаем ФИО из профиля
+        fn = (prof.get("first_name") or "").strip()
+        ln = (prof.get("last_name") or "").strip() 
+        mn = (prof.get("middle_name") or "").strip()
+        en = (prof.get("enterprise_name") or "").strip()
+        
+        if not (fn or ln or en):
+            return {"success": False, "error": "No name data in profile"}
+        
+        # 4. Определяем external_id в зависимости от CRM
+        external_id = None
+        if source_type == "uon":
+            for key in ("client_id", "id", "customer_id", "clientId"):
+                ext_id = source_raw.get(key)
+                if isinstance(ext_id, (str, int)) and str(ext_id).strip():
+                    external_id = str(ext_id).strip()
+                    break
+        elif source_type == "retailcrm":
+            ext_id = source_raw.get("id")
+            if isinstance(ext_id, (str, int)) and str(ext_id).strip():
+                external_id = str(ext_id).strip()
+        
+        if not external_id:
+            return {"success": False, "error": f"No external_id found for {source_type}"}
+        
+        # 🔥 НОВАЯ ЛОГИКА: Извлекаем ВСЕ номера клиента из CRM
+        all_client_phones = []
+        if source_type == "retailcrm":
+            # У RetailCRM в source_raw.phones есть массив номеров
+            phones_data = source_raw.get("phones", [])
+            if isinstance(phones_data, list):
+                for phone_entry in phones_data:
+                    if isinstance(phone_entry, dict):
+                        phone_num = phone_entry.get("number", "").strip()
+                        if phone_num and phone_num.startswith("+"):
+                            all_client_phones.append(phone_num)
+        elif source_type == "uon":
+            # Для U-ON можно добавить аналогичную логику, если данные доступны
+            # Пока добавляем только текущий номер
+            all_client_phones.append(phone_e164)
+        else:
+            all_client_phones.append(phone_e164)
+        
+        # Удаляем дублирование и нормализуем
+        all_client_phones = list(set(all_client_phones))
+        logger.info(f"[enrich-customer] Found {len(all_client_phones)} phone(s) for client: {all_client_phones}")
+        
+        # 5. 🔥 НОВАЯ ЛОГИКА: Обрабатываем ВСЕ номера клиента и объединяем их под одним person_uid
+        updated_count = 0
+        person_uid = None
+        linked_phones = []
+        
+        if source_type == primary_integration:
+            from app.services.customers import merge_customer_identity, update_fio_for_person
+            
+            # 📞 Обрабатываем ВСЕ номера клиента из CRM
+            existing_person_uids = set()
+            primary_person_uid = None
+            
+            async with pg_pool.acquire() as conn:
+                # 🔍 Проверяем существующие записи для всех номеров клиента
+                for phone in all_client_phones:
+                    existing_row = await conn.fetchrow(
+                        "SELECT meta FROM customers WHERE enterprise_number = $1 AND phone_e164 = $2",
+                        enterprise_number, phone
+                    )
+                    if existing_row and existing_row["meta"]:
+                        try:
+                            meta = existing_row["meta"]
+                            if isinstance(meta, str):
+                                import json
+                                meta = json.loads(meta)
+                            existing_uid = meta.get("person_uid")
+                            if existing_uid:
+                                existing_person_uids.add(existing_uid)
+                        except Exception:
+                            pass
+                
+                # 🎯 Определяем основной person_uid (приоритет - текущий source_type)
+                target_person_uid = f"{source_type}:{external_id}"
+                if target_person_uid in existing_person_uids:
+                    primary_person_uid = target_person_uid
+                elif existing_person_uids:
+                    # Если есть другие person_uid, выбираем первый (будем мигрировать к основному)
+                    primary_person_uid = list(existing_person_uids)[0]
+                else:
+                    # Создаем новый
+                    primary_person_uid = target_person_uid
+                
+                logger.info(f"[enrich-customer] Using person_uid: {primary_person_uid}, merging from: {existing_person_uids}")
+            
+            # 📝 Обрабатываем каждый номер клиента
+            for phone in all_client_phones:
+                await merge_customer_identity(
+                    enterprise_number=enterprise_number,
+                    phone_e164=phone,
+                    source=source_type,
+                    external_id=external_id,
+                    fio={
+                        "first_name": fn if fn else None,
+                        "last_name": ln if ln else None,
+                        "middle_name": mn if mn else None,
+                        "enterprise_name": en if en else None
+                    },
+                    set_primary=True
+                )
+            
+            # 🔗 Объединяем все номера под одним person_uid
+            async with pg_pool.acquire() as conn:
+                # Обновляем person_uid для всех номеров клиента
+                for phone in all_client_phones:
+                    await conn.execute("""
+                        UPDATE customers 
+                        SET meta = jsonb_set(
+                            COALESCE(meta, '{}'::jsonb), 
+                            '{person_uid}', 
+                            $3::jsonb
+                        )
+                        WHERE enterprise_number = $1 AND phone_e164 = $2
+                    """, enterprise_number, phone, f'"{primary_person_uid}"')
+                
+                # Обновляем ФИО для всех номеров с этим person_uid
+                await update_fio_for_person(
+                    enterprise_number=enterprise_number,
+                    person_uid=primary_person_uid,
+                    fio={
+                        "first_name": fn if fn else None,
+                        "last_name": ln if ln else None,
+                        "middle_name": mn if mn else None,
+                        "enterprise_name": en if en else None
+                    },
+                    is_primary_source=True
+                )
+                
+                # 🧹 ОЧИСТКА УСТАРЕВШИХ СВЯЗЕЙ
+                # Находим номера в БД с этим person_uid, которых НЕТ в актуальном списке CRM
+                all_linked_rows = await conn.fetch(
+                    "SELECT phone_e164 FROM customers WHERE enterprise_number = $1 AND meta->>'person_uid' = $2",
+                    enterprise_number, primary_person_uid
+                )
+                all_linked_phones = [row["phone_e164"] for row in all_linked_rows]
+                
+                # Номера, которые нужно удалить (есть в БД, но НЕТ в CRM)
+                phones_to_remove = [phone for phone in all_linked_phones if phone not in all_client_phones]
+                
+                if phones_to_remove:
+                    logger.info(f"[enrich-customer] 🗑️ Removing outdated phone links: {phones_to_remove}")
+                    for phone_to_remove in phones_to_remove:
+                        # Удаляем person_uid и external_id для устаревших номеров
+                        await conn.execute("""
+                            UPDATE customers 
+                            SET meta = jsonb_set(
+                                jsonb_set(
+                                    COALESCE(meta, '{}'::jsonb), 
+                                    '{person_uid}', 
+                                    'null'::jsonb
+                                ),
+                                '{ids}',
+                                '{}'::jsonb
+                            )
+                            WHERE enterprise_number = $1 AND phone_e164 = $2
+                        """, enterprise_number, phone_to_remove)
+                        
+                        logger.info(f"[enrich-customer] ✅ Cleaned outdated link for {phone_to_remove}")
+                
+                # Получаем финальный список связанных номеров (только актуальных)
+                linked_rows = await conn.fetch(
+                    "SELECT phone_e164 FROM customers WHERE enterprise_number = $1 AND meta->>'person_uid' = $2",
+                    enterprise_number, primary_person_uid
+                )
+                linked_phones = [row["phone_e164"] for row in linked_rows]
+                updated_count = len(linked_phones)
+                person_uid = primary_person_uid
+                
+        else:
+            # Для НЕ приоритетных интеграций только записываем external_id без обновления ФИО
+            from app.services.customers import merge_customer_identity
+            await merge_customer_identity(
+                enterprise_number=enterprise_number,
+                phone_e164=phone_e164,
+                source=source_type,
+                external_id=external_id,
+                fio=None,  # НЕ обновляем ФИО для не приоритетных
+                set_primary=False
+            )
+            linked_phones = [phone_e164]
+            updated_count = 1
+        
+        # 6. Формируем полное имя для ответа
+        full_name_parts = []
+        if ln: full_name_parts.append(ln)
+        if fn: full_name_parts.append(fn)
+        if mn: full_name_parts.append(mn)
+        full_name = " ".join(full_name_parts)
+        
+        logger.info(f"[enrich-customer] SUCCESS: {phone_e164} -> {full_name} (source: {source_type}, primary: {source_type == primary_integration})")
+        
+        return {
+            "success": True,
+            "full_name": full_name,
+            "source": source_type,
+            "external_id": external_id,
+            "person_uid": person_uid,
+            "linked_phones": linked_phones,
+            "updated_count": updated_count,
+            "is_primary_source": source_type == primary_integration
+        }
+        
+    except Exception as e:
+        logger.error(f"[enrich-customer] ERROR for {enterprise_number}/{phone_e164}: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
+
 # Background tasks
 
 async def background_refresh_task():
