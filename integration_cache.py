@@ -1019,6 +1019,7 @@ async def get_customer_profile(enterprise_number: str, phone: str):
                                     prof[k] = v.strip() or None
                             
                             # Получаем сырые данные клиента из RetailCRM для merge_customer_identity
+                            # Сначала ищем среди обычных клиентов
                             url_customer = "http://127.0.0.1:8019/test/search-customer"
                             try:
                                 customer_resp = await client.get(url_customer, params={"phone": phone_e164})
@@ -1032,6 +1033,58 @@ async def get_customer_profile(enterprise_number: str, phone: str):
                                                 extra_source = {"raw": customers[0], "type": "retailcrm"}
                             except Exception:
                                 pass
+                            
+                            # Корпоративный поиск (новый эндпоинт): выполняем всегда и при наличии компании — ПРЕИМУЩЕСТВЕННО используем его
+                            url_company = "http://127.0.0.1:8019/internal/retailcrm/company-by-phone/" + phone_e164
+                            try:
+                                company_resp = await client.get(url_company)
+                                if company_resp.status_code == 200:
+                                    payload = company_resp.json() or {}
+                                    logger.info(f"[get_customer_profile] Company response: {payload}")
+                                    if payload.get("success"):
+                                        results = (payload.get("data") or {}).get("results") or []
+                                        logger.info(f"[get_customer_profile] Results: {results}")
+                                        if results:
+                                            result = results[0]
+                                            company = result.get("company", {})
+                                            contacts_list = result.get("contacts") or []
+                                            company_id = company.get("id")
+                                            company_name = company.get("name")
+                                        # Найдем контакт, чей телефон совпадает с искомым
+                                        chosen_contact = None
+                                        for c in contacts_list:
+                                            for ph in (c.get("phones") or []):
+                                                if ph == phone_e164:
+                                                    chosen_contact = c
+                                                    break
+                                            if chosen_contact:
+                                                break
+                                        if not chosen_contact and contacts_list:
+                                            # fallback: основной, иначе первый
+                                            chosen_contact = next((c for c in contacts_list if c.get("isMain")), contacts_list[0])
+
+                                        # Собираем corp_profile с полной матрицей контактов
+                                        corp_profile = {
+                                            "company_info": {"id": company_id, "name": company_name},
+                                            "contacts": contacts_list,
+                                        }
+                                        if chosen_contact:
+                                            corp_profile.update({
+                                                "firstName": chosen_contact.get("firstName"),
+                                                "lastName": chosen_contact.get("lastName"),
+                                                "patronymic": chosen_contact.get("patronymic"),
+                                                "phones": [{"number": p} for p in (chosen_contact.get("phones") or [])],
+                                            })
+
+                                        # Переопределяем extra_source на corporate
+                                        extra_source = {"raw": corp_profile, "type": "retailcrm_corporate"}
+                                        logger.info(f"[get_customer_profile] Corporate found - company: {company_name}, chosen_contact: {chosen_contact}")
+                                        prof["first_name"] = (chosen_contact or {}).get("firstName") or prof.get("first_name")
+                                        prof["last_name"] = (chosen_contact or {}).get("lastName") or prof.get("last_name")
+                                        prof["middle_name"] = (chosen_contact or {}).get("patronymic") or prof.get("middle_name")
+                                        prof["enterprise_name"] = company_name or prof.get("enterprise_name")
+                            except Exception as e:
+                                logger.warning(f"Company search failed: {e}")
                 except Exception as e:
                     logger.warning(f"customer-profile retailcrm lookup failed: {e}")
             elif primary == "uon":
@@ -1075,6 +1128,24 @@ async def get_customer_profile(enterprise_number: str, phone: str):
             # Возвращаем профиль, добавляя source (без кэширования source)
             if extra_source:
                 return {**prof, "source": extra_source}
+            # Если данные есть, но source не найден, добавляем дефолтный source с минимальным raw
+            if any(prof.get(k) for k in ("last_name", "first_name", "enterprise_name")):
+                # Создаем минимальный raw для совместимости с enrich_customer
+                minimal_raw = {
+                    "id": "unknown",  # Заглушка для external_id
+                    "lastName": prof.get("last_name"),
+                    "firstName": prof.get("first_name"),
+                    "patronymic": prof.get("middle_name"),
+                    "phones": [{"number": phone_e164}]
+                }
+                if prof.get("enterprise_name"):
+                    minimal_raw["company"] = {"name": prof.get("enterprise_name")}
+                    # Если есть enterprise_name, это корпоративный клиент
+                    source_type = f"{primary}_corporate" if primary else "unknown_corporate"
+                else:
+                    source_type = primary if primary else "unknown"
+                default_source = {"raw": minimal_raw, "type": source_type}
+                return {**prof, "source": default_source}
             return prof
     except Exception as e:
         logger.error(f"get_customer_profile error: {e}")
@@ -1246,12 +1317,14 @@ async def enrich_customer(enterprise_number: str, phone_e164: str):
                 except Exception:
                     integrations_config = {}
             
-            primary_integration = integrations_config.get("smart", {}).get("primary")
+            primary_integration = integrations_config.get("smart", {}).get("primary") if isinstance(integrations_config, dict) else None
+            # Fallback по умолчанию: используем retailcrm как primary, если явно не задано
             if not primary_integration:
-                return {"success": False, "error": "No primary integration configured"}
+                primary_integration = "retailcrm"
         
         # 2. Получаем профиль клиента из CRM
         prof = await get_customer_profile(enterprise_number, phone_e164)
+        logger.info(f"[enrich-customer] Profile from CRM: {prof}")
         if not prof:
             return {"success": False, "error": "No customer profile found"}
             
@@ -1283,6 +1356,12 @@ async def enrich_customer(enterprise_number: str, phone_e164: str):
             ext_id = source_raw.get("id")
             if isinstance(ext_id, (str, int)) and str(ext_id).strip():
                 external_id = str(ext_id).strip()
+        elif source_type == "retailcrm_corporate":
+            # Для корпоративных клиентов используем ID компании
+            company_info = source_raw.get("company_info", {})
+            company_id = company_info.get("id")
+            if isinstance(company_id, (str, int)) and str(company_id).strip():
+                external_id = str(company_id).strip()
         
         if not external_id:
             return {"success": False, "error": f"No external_id found for {source_type}"}
@@ -1298,6 +1377,17 @@ async def enrich_customer(enterprise_number: str, phone_e164: str):
                         phone_num = phone_entry.get("number", "").strip()
                         if phone_num and phone_num.startswith("+"):
                             all_client_phones.append(phone_num)
+        elif source_type == "retailcrm_corporate":
+            # Для корпоративных клиентов собираем телефоны ВСЕХ контактных лиц компании
+            # source_raw содержит: company_info, contacts, phones (выбранного контакта)
+            contacts_data = source_raw.get("contacts") or []
+            if isinstance(contacts_data, list):
+                for contact in contacts_data:
+                    contact_phones = contact.get("phones") or []
+                    # phones - это список строк для корпоративных контактов
+                    for phone_str in contact_phones:
+                        if isinstance(phone_str, str) and phone_str.strip().startswith("+"):
+                            all_client_phones.append(phone_str.strip())
         elif source_type == "uon":
             # Для U-ON можно добавить аналогичную логику, если данные доступны
             # Пока добавляем только текущий номер
@@ -1314,7 +1404,30 @@ async def enrich_customer(enterprise_number: str, phone_e164: str):
         person_uid = None
         linked_phones = []
         
-        if source_type == primary_integration:
+        # Для корпоративных клиентов подготовим карту телефон → contact_id и подтянем название компании
+        phone_to_contact_id: Dict[str, Any] = {}
+        if source_type == "retailcrm_corporate":
+            try:
+                company_info = (source_raw or {}).get("company_info") or {}
+                en = company_info.get("name") or en  # обновим enterprise_name, если есть
+                for contact in (source_raw or {}).get("contacts") or []:
+                    contact_id = contact.get("id")
+                    contact_phones = contact.get("phones") or []
+                    # phones - это список строк для корпоративных контактов
+                    for phone_str in contact_phones:
+                        if isinstance(phone_str, str) and phone_str.strip():
+                            phone_to_contact_id[phone_str.strip()] = contact_id
+            except Exception:
+                phone_to_contact_id = {}
+        
+        # Источник считается первичным, если совпадает с primary,
+        # либо если primary == retailcrm и источник retailcrm_corporate
+        is_primary_src = (
+            source_type == primary_integration or
+            (primary_integration == "retailcrm" and source_type in ("retailcrm", "retailcrm_corporate"))
+        )
+
+        if is_primary_src:
             from app.services.customers import merge_customer_identity, update_fio_for_person
             
             # 📞 Обрабатываем ВСЕ номера клиента из CRM
@@ -1341,7 +1454,11 @@ async def enrich_customer(enterprise_number: str, phone_e164: str):
                             pass
                 
                 # 🎯 Определяем основной person_uid (приоритет - текущий source_type)
-                target_person_uid = f"{source_type}:{external_id}"
+                if source_type == "retailcrm_corporate":
+                    # Для корпоративных используем специальный формат с company_id
+                    target_person_uid = f"retailcrm_corp:{external_id}"
+                else:
+                    target_person_uid = f"{source_type}:{external_id}"
                 if target_person_uid in existing_person_uids:
                     primary_person_uid = target_person_uid
                 elif existing_person_uids:
@@ -1355,18 +1472,47 @@ async def enrich_customer(enterprise_number: str, phone_e164: str):
             
             # 📝 Обрабатываем каждый номер клиента
             for phone in all_client_phones:
+                # Для corporate формируем per-phone source_raw с конкретным contact_id и ФИО
+                per_phone_source_raw = source_raw
+                phone_fio = {
+                    "first_name": fn if fn else None,
+                    "last_name": ln if ln else None,
+                    "middle_name": mn if mn else None,
+                    "enterprise_name": en if en else None
+                }
+                
+                if source_type == "retailcrm_corporate":
+                    try:
+                        import copy
+                        per_phone_source_raw = copy.deepcopy(source_raw) if source_raw else {}
+                        per_phone_source_raw.setdefault("company_info", {})
+                        per_phone_source_raw["company_info"]["contact_id"] = phone_to_contact_id.get(phone)
+                        
+                        # Найдем конкретные ФИО для этого номера из contacts
+                        contacts_data = source_raw.get("contacts") or []
+                        for contact in contacts_data:
+                            contact_phones = contact.get("phones") or []
+                            if phone in contact_phones:
+                                # Используем ФИО конкретного контакта
+                                phone_fio = {
+                                    "first_name": (contact.get("firstName") or "").strip() or None,
+                                    "last_name": (contact.get("lastName") or "").strip() or None,
+                                    "middle_name": (contact.get("patronymic") or "").strip() or None,
+                                    "enterprise_name": en if en else None
+                                }
+                                break
+                    except Exception:
+                        per_phone_source_raw = source_raw
+                        
                 await merge_customer_identity(
                     enterprise_number=enterprise_number,
                     phone_e164=phone,
                     source=source_type,
                     external_id=external_id,
-                    fio={
-                        "first_name": fn if fn else None,
-                        "last_name": ln if ln else None,
-                        "middle_name": mn if mn else None,
-                        "enterprise_name": en if en else None
-                    },
-                    set_primary=True
+                    fio=phone_fio,
+                    set_primary=True,
+                    person_uid=primary_person_uid,
+                    source_raw=per_phone_source_raw
                 )
             
             # 🔗 Объединяем все номера под одним person_uid
@@ -1383,18 +1529,8 @@ async def enrich_customer(enterprise_number: str, phone_e164: str):
                         WHERE enterprise_number = $1 AND phone_e164 = $2
                     """, enterprise_number, phone, f'"{primary_person_uid}"')
                 
-                # Обновляем ФИО для всех номеров с этим person_uid
-                await update_fio_for_person(
-                    enterprise_number=enterprise_number,
-                    person_uid=primary_person_uid,
-                    fio={
-                        "first_name": fn if fn else None,
-                        "last_name": ln if ln else None,
-                        "middle_name": mn if mn else None,
-                        "enterprise_name": en if en else None
-                    },
-                    is_primary_source=True
-                )
+                # ФИО уже обновлены индивидуально для каждого номера выше
+                # Для корпоративных клиентов не делаем глобальное обновление ФИО
                 
                 # 🧹 ОЧИСТКА УСТАРЕВШИХ СВЯЗЕЙ
                 # Находим номера в БД с этим person_uid, которых НЕТ в актуальном списке CRM
@@ -1457,7 +1593,7 @@ async def enrich_customer(enterprise_number: str, phone_e164: str):
         if mn: full_name_parts.append(mn)
         full_name = " ".join(full_name_parts)
         
-        logger.info(f"[enrich-customer] SUCCESS: {phone_e164} -> {full_name} (source: {source_type}, primary: {source_type == primary_integration})")
+        logger.info(f"[enrich-customer] SUCCESS: {phone_e164} -> {full_name} (source: {source_type}, primary: {is_primary_src})")
         
         return {
             "success": True,
@@ -1467,7 +1603,7 @@ async def enrich_customer(enterprise_number: str, phone_e164: str):
             "person_uid": person_uid,
             "linked_phones": linked_phones,
             "updated_count": updated_count,
-            "is_primary_source": source_type == primary_integration
+            "is_primary_source": is_primary_src
         }
         
     except Exception as e:

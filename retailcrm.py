@@ -406,6 +406,335 @@ class RetailCRMClient:
         data = customer_data.dict(exclude_none=True)
         return await self._make_request("POST", f"/customers/{customer_id}/edit", data=data)
     
+    async def search_company_by_phone(self, phone: str) -> RetailCRMResponse:
+        """Найти корпоративного клиента по номеру телефона основного контакта"""
+        # Шаг 1: Ищем обычного клиента по телефону
+        customer_result = await self.search_customer_by_phone(phone)
+        if not customer_result.success or not customer_result.data or not customer_result.data.get("customers"):
+            return RetailCRMResponse(
+                success=False,
+                data=None,
+                error="Customer not found",
+                response_time=0.0,
+                endpoint="/customers-corporate"
+            )
+        
+        customers = customer_result.data.get("customers", [])
+        if not customers:
+            return RetailCRMResponse(success=False, data=None, error="No customers found", response_time=0.0, endpoint="/customers-corporate")
+        
+        customer = customers[0]
+        customer_id = customer.get("id")
+        
+        if not customer_id:
+            return RetailCRMResponse(success=False, data=None, error="Customer ID not found", response_time=0.0, endpoint="/customers-corporate")
+        
+        # Шаг 2: Получаем все корпоративные клиенты и ищем среди них тех, у кого основной контакт = наш клиент
+        companies_result = await self._make_request("GET", "/customers-corporate", params={"limit": 100})
+        if not companies_result.success:
+            return RetailCRMResponse(
+                success=False, 
+                data=None, 
+                error="Failed to fetch corporate customers", 
+                response_time=0.0, 
+                endpoint="/customers-corporate"
+            )
+        
+        companies = companies_result.data.get("customersCorporate", [])
+        matching_companies = []
+        
+        for company in companies:
+            # Проверяем основной контакт
+            main_contact = company.get("mainCustomerContact", {})
+            contact_customer = main_contact.get("customer", {})
+            if contact_customer.get("id") == customer_id:
+                matching_companies.append(company)
+                continue
+            
+            # Проверяем всех дополнительных контактов
+            customer_contacts = company.get("customerContacts", [])
+            for contact in customer_contacts:
+                contact_customer = contact.get("customer", {})
+                if contact_customer.get("id") == customer_id:
+                    matching_companies.append(company)
+                    break
+        
+        if matching_companies:
+            return RetailCRMResponse(success=True, data={"customersCorporate": matching_companies}, error=None, response_time=0.0, endpoint="/customers-corporate")
+        else:
+            return RetailCRMResponse(
+                success=False, 
+                data=None, 
+                error="No corporate customers found for this phone", 
+                response_time=0.0, 
+                endpoint="/customers-corporate"
+            )
+    
+    async def get_company_contact(self, contact_id: str) -> RetailCRMResponse:
+        """Получить основного контакта компании"""
+        return await self._make_request("GET", f"/customers/{contact_id}")
+    
+    async def get_customer_by_id(self, customer_id: str) -> RetailCRMResponse:
+        """Получить клиента по ID"""
+        return await self._make_request("GET", f"/customers/{customer_id}")
+
+    # ---------------------------------------------------------------------
+    # КОРПОРАТИВНЫЕ КОНТАКТЫ
+    # ---------------------------------------------------------------------
+    async def get_corporate_contacts_by_company(
+        self, company_id: int, site: Optional[str] = None, limit: int = 100
+    ) -> RetailCRMResponse:
+        """Получить контактные лица корпоративного клиента по company_id.
+
+        Использует endpoint /customers-corporate/contacts с фильтром
+        filter[customerCorporate]=<id>. Некоторые инсталляции требуют параметр
+        site, поэтому пробуем как с ним, так и без него на вызывающей стороне.
+        """
+        params: Dict[str, Any] = {"filter[customerCorporate]": company_id, "limit": limit}
+        if site:
+            params["site"] = site
+        return await self._make_request("GET", "/customers-corporate/contacts", params=params)
+
+    async def get_corporate_contacts_by_customer(
+        self, customer_id: int, site: Optional[str] = None, limit: int = 100
+    ) -> RetailCRMResponse:
+        """Получить все связи customer -> corporate через список контактов.
+
+        Использует endpoint /customers-corporate/contacts с фильтром
+        filter[customer]=<customer_id>.
+        """
+        params: Dict[str, Any] = {"filter[customer]": customer_id, "limit": limit}
+        if site:
+            params["site"] = site
+        return await self._make_request("GET", "/customers-corporate/contacts", params=params)
+    
+    async def get_company_contacts_via_path(
+        self, company_id: int, site: Optional[str] = None
+    ) -> RetailCRMResponse:
+        """Получить контакты компании через путь /customers-corporate/{id}/contacts.
+
+        На некоторых установках этот вариант (+ параметр by=id и site) работает стабильнее,
+        чем фильтрованный список /customers-corporate/contacts.
+        """
+        params: Dict[str, Any] = {"by": "id"}
+        if site:
+            params["site"] = site
+        return await self._make_request("GET", f"/customers-corporate/{company_id}/contacts", params=params)
+
+    async def find_company_and_all_contacts_by_phone(self, phone: str) -> RetailCRMResponse:
+        """Найти корпоративного клиента по телефону контактного лица и вернуть всех его контактов.
+
+        Алгоритм:
+        1) /customers?filter[phone]=<phone> → список customer.id
+        2) /customers-corporate?filter[contactIds][]=<id> → company ids
+        3) Для каждой компании получить всех контактов:
+           - /customers-corporate/{id}/contacts?by=id&site=<site>
+             (fallback: /customers-corporate/contacts?filter[customerCorporate]=<id>&site=<site>)
+        4) Для каждого contact.customer.id → /customers/{id}?by=id, достать ФИО и телефоны
+        """
+        # 1) Ищем клиентов по телефону (+ fallback через пагинированный обход)
+        customer_result = await self.search_customer_by_phone(phone)
+        if not customer_result.success:
+            return RetailCRMResponse(success=False, data=None, error=customer_result.error or "Customer search failed", response_time=0.0, endpoint="/customers")
+        customers_list = (customer_result.data or {}).get("customers") or []
+        # Fallback: постраничный обход, если прямой поиск ничего не дал
+        if not customers_list:
+            page = 1
+            max_pages = 10
+            found: List[Dict[str, Any]] = []
+            while page <= max_pages:
+                resp = await self._make_request("GET", "/customers", params={"limit": 100, "page": page})
+                if not resp.success or not resp.data:
+                    break
+                items = resp.data.get("customers") or []
+                for c in items:
+                    phones = [p.get("number") for p in (c.get("phones") or []) if isinstance(p, dict)]
+                    if phone in phones:
+                        found.append(c)
+                total_pages = (resp.data.get("pagination", {}) or {}).get("totalPageCount") or 1
+                if found or page >= total_pages:
+                    break
+                page += 1
+            customers_list = found
+        if not customers_list:
+            # Корпоративный fallback: обходим корпоративных клиентов и их контакты,
+            # проверяем наличие целевого телефона у контактных лиц
+            sites_codes_fb: List[Optional[str]] = []
+            sites_info_fb = await self.get_sites()
+            if sites_info_fb.success and sites_info_fb.data:
+                sites_dict = sites_info_fb.data.get("sites", {})
+                if isinstance(sites_dict, dict):
+                    sites_codes_fb = [s.get("code") for s in sites_dict.values() if isinstance(s, dict) and s.get("code")]
+            if not sites_codes_fb:
+                sites_codes_fb = [None]
+
+            companies_fb_resp = await self._make_request("GET", "/customers-corporate", params={"limit": 100})
+            companies_fb = (companies_fb_resp.data or {}).get("customersCorporate") or []
+            for comp in companies_fb:
+                company_id = comp.get("id")
+                company_site = comp.get("site")
+                company_name = comp.get("nickName") or comp.get("name") or ""
+                if not company_id:
+                    continue
+
+                # порядок сайтов: сначала сайт компании, затем остальные
+                site_try_order_fb: List[Optional[str]] = []
+                if company_site:
+                    site_try_order_fb.append(company_site)
+                for sc in sites_codes_fb:
+                    if sc not in site_try_order_fb:
+                        site_try_order_fb.append(sc)
+
+                contacts_items_fb: List[Dict[str, Any]] = []
+                for sc in site_try_order_fb:
+                    via_path_fb = await self.get_company_contacts_via_path(company_id, site=sc)
+                    if via_path_fb.success and (via_path_fb.data or {}).get("contacts"):
+                        contacts_items_fb = (via_path_fb.data or {}).get("contacts") or []
+                        break
+                    fallback_fb = await self.get_corporate_contacts_by_company(company_id, site=sc, limit=100)
+                    if fallback_fb.success and (fallback_fb.data or {}).get("customerContacts"):
+                        contacts_items_fb = (fallback_fb.data or {}).get("customerContacts") or []
+                        break
+
+                # Проверяем телефоны у контактов
+                match_found = False
+                contacts_out_fb: List[Dict[str, Any]] = []
+                for item in contacts_items_fb:
+                    is_main = bool(item.get("isMain"))
+                    cust = (item or {}).get("customer") or {}
+                    cust_id = cust.get("id")
+                    if not cust_id:
+                        continue
+                    cust_resp = await self._make_request("GET", f"/customers/{cust_id}", params={"by": "id"})
+                    if not cust_resp.success:
+                        continue
+                    cust_data = (cust_resp.data or {}).get("customer") or {}
+                    phones = [p.get("number") for p in (cust_data.get("phones") or []) if p and p.get("number")]
+                    if phone in phones:
+                        match_found = True
+                    contacts_out_fb.append({
+                        "id": cust_id,
+                        "firstName": cust_data.get("firstName"),
+                        "lastName": cust_data.get("lastName"),
+                        "patronymic": cust_data.get("patronymic"),
+                        "phones": phones,
+                        "isMain": is_main
+                    })
+
+                if match_found:
+                    return RetailCRMResponse(
+                        success=True,
+                        data={
+                            "results": [{
+                                "company": {"id": company_id, "name": company_name, "site": company_site},
+                                "contacts": contacts_out_fb,
+                            }]
+                        },
+                        error=None,
+                        response_time=0.0,
+                        endpoint="/customers-corporate"
+                    )
+
+            # Ничего не нашли даже через корпоративный fallback
+            return RetailCRMResponse(success=False, data=None, error="Customer not found", response_time=0.0, endpoint="/customers")
+
+        customer_ids: List[int] = [c.get("id") for c in customers_list if c and c.get("id")]
+        if not customer_ids:
+            return RetailCRMResponse(success=False, data=None, error="Customer ID not found", response_time=0.0, endpoint="/customers")
+
+        # 2) Ищем компании по contactIds (надёжный способ)
+        params: Dict[str, Any] = {"limit": 100}
+        for cid in customer_ids:
+            params.setdefault("filter[contactIds][]", [])
+            params["filter[contactIds][]"].append(cid)
+
+        companies_resp = await self._make_request("GET", "/customers-corporate", params=params)
+        if not companies_resp.success:
+            return RetailCRMResponse(success=False, data=None, error=companies_resp.error or "Corporate search failed", response_time=0.0, endpoint="/customers-corporate")
+        companies = (companies_resp.data or {}).get("customersCorporate") or []
+        if not companies:
+            return RetailCRMResponse(success=False, data=None, error="No corporate customers found for this phone", response_time=0.0, endpoint="/customers-corporate")
+
+        # Подготовим список сайтов для перебора
+        sites_codes: List[Optional[str]] = []
+        sites_info = await self.get_sites()
+        if sites_info.success and sites_info.data:
+            sites_dict = sites_info.data.get("sites", {})
+            if isinstance(sites_dict, dict):
+                sites_codes = [s.get("code") for s in sites_dict.values() if isinstance(s, dict) and s.get("code")]
+        if not sites_codes:
+            sites_codes = [None]
+
+        result_payload: List[Dict[str, Any]] = []
+        for comp in companies:
+            company_id = comp.get("id")
+            company_site = comp.get("site")
+            company_name = comp.get("nickName") or comp.get("name") or ""
+            if not company_id:
+                continue
+
+            # 3) Получаем контакты компании (пробуем через path, затем через фильтрованный список)
+            contacts_items: List[Dict[str, Any]] = []
+            last_error: Optional[str] = None
+
+            # Список сайтов: сперва тот, что указан у компании, затем остальные
+            site_try_order: List[Optional[str]] = []
+            if company_site:
+                site_try_order.append(company_site)
+            for sc in sites_codes:
+                if sc not in site_try_order:
+                    site_try_order.append(sc)
+
+            for sc in site_try_order:
+                via_path = await self.get_company_contacts_via_path(company_id, site=sc)
+                if via_path.success and (via_path.data or {}).get("contacts"):
+                    contacts_items = (via_path.data or {}).get("contacts") or []
+                    break
+                last_error = via_path.error
+                # fallback через фильтрованный список
+                fallback = await self.get_corporate_contacts_by_company(company_id, site=sc, limit=100)
+                if fallback.success and (fallback.data or {}).get("customerContacts"):
+                    contacts_items = (fallback.data or {}).get("customerContacts") or []
+                    break
+                last_error = fallback.error
+
+            if not contacts_items:
+                # Даже если не удалось получить контакты, вернём компанию без контактов
+                result_payload.append({
+                    "company": {"id": company_id, "name": company_name, "site": company_site},
+                    "contacts": []
+                })
+                continue
+
+            # 4) Для каждого контакта достаём карточку, чтобы получить ФИО и телефоны
+            contacts_out: List[Dict[str, Any]] = []
+            for item in contacts_items:
+                is_main = bool(item.get("isMain"))
+                cust = (item or {}).get("customer") or {}
+                cust_id = cust.get("id")
+                if not cust_id:
+                    continue
+                cust_resp = await self._make_request("GET", f"/customers/{cust_id}", params={"by": "id"})
+                if not cust_resp.success:
+                    continue
+                cust_data = (cust_resp.data or {}).get("customer") or {}
+                phones = [p.get("number") for p in (cust_data.get("phones") or []) if p and p.get("number")]
+                contacts_out.append({
+                    "id": cust_id,
+                    "firstName": cust_data.get("firstName"),
+                    "lastName": cust_data.get("lastName"),
+                    "patronymic": cust_data.get("patronymic"),
+                    "phones": phones,
+                    "isMain": is_main
+                })
+
+            result_payload.append({
+                "company": {"id": company_id, "name": company_name, "site": company_site},
+                "contacts": contacts_out
+            })
+
+        return RetailCRMResponse(success=True, data={"results": result_payload}, error=None, response_time=0.0, endpoint="/customers-corporate")
+    
     # =========================================================================
     # 4. СОБЫТИЯ ТЕЛЕФОНИИ
     # =========================================================================
@@ -1070,6 +1399,15 @@ async def internal_retailcrm_call_event(request: Request):
                         exists = False
                         if sr and sr.success and sr.data and isinstance(sr.data.get("customers"), list):
                             exists = len(sr.data.get("customers") or []) > 0
+                        # Дополнительная проверка: корпоративные клиенты по этому номеру
+                        if not exists:
+                            try:
+                                corp = await client.find_company_and_all_contacts_by_phone(normalized_phone)
+                                if corp and corp.success and corp.data:
+                                    results = corp.data.get("results") or corp.data.get("companies") or []
+                                    exists = len(results) > 0
+                            except Exception:
+                                pass
                         if exists:
                             try:
                                 await write_integration_log(
@@ -2960,6 +3298,39 @@ async def test_search_customer(phone: str):
         result = await client.search_customer_by_phone(phone)
         return result.dict()
 
+@app.get("/test/search-company")
+async def test_search_company(phone: str):
+    """Тест поиска компании по телефону"""
+    async with RetailCRMClient(RETAILCRM_CONFIG) as client:
+        result = await client.find_company_and_all_contacts_by_phone(phone)
+        return result.dict()
+
+@app.get("/internal/retailcrm/customer/{customer_id}")
+async def get_customer_by_id(customer_id: str):
+    """Получить клиента по ID"""
+    async with RetailCRMClient(RETAILCRM_CONFIG) as client:
+        result = await client.get_customer_by_id(customer_id)
+        return result.dict()
+
+
+@app.get("/internal/retailcrm/company-by-phone/{phone}")
+async def internal_company_by_phone(phone: str):
+    """Найти компанию и всех её контактов по номеру контактного лица.
+
+    Возвращает структуру:
+    {
+      success: true/false,
+      data: {
+        results: [
+          { company: {id, name}, contacts: [{id, firstName, lastName, phones: []}] }
+        ]
+      }
+    }
+    """
+    async with RetailCRMClient(RETAILCRM_CONFIG) as client:
+        result = await client.find_company_and_all_contacts_by_phone(phone)
+        return result.dict()
+
 
 @app.post("/test/create-customer")
 async def test_create_customer(customer: CustomerData):
@@ -3260,12 +3631,15 @@ async def internal_get_customer_name(phone: str):
 @app.get("/internal/retailcrm/customer-profile")
 async def internal_get_customer_profile(phone: str):
     """Возвращает профиль клиента по номеру телефона (Фамилия/Имя/Отчество/Компания).
+    Сначала ищет среди обычных клиентов, затем среди корпоративных.
     Формат ответа: {"last_name": str|null, "first_name": str|null, "middle_name": str|null, "enterprise_name": str|null}
     """
     try:
         async with RetailCRMClient(RETAILCRM_CONFIG) as client:
-            result = await client.search_customer_by_phone(phone)
             prof = {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
+            
+            # 1. Сначала ищем среди обычных клиентов
+            result = await client.search_customer_by_phone(phone)
             if result and result.success and isinstance(result.data, dict):
                 customers = result.data.get("customers") or []
                 if customers:
@@ -3280,6 +3654,37 @@ async def internal_get_customer_profile(phone: str):
                     )
                     en = (comp or "").strip() or None
                     prof = {"last_name": ln, "first_name": fn, "middle_name": mn, "enterprise_name": en}
+                    return prof
+            
+            # 2. Если не найден среди обычных, ищем среди корпоративных клиентов
+            corp_result = await client.find_company_and_all_contacts_by_phone(phone)
+            if corp_result and corp_result.success and isinstance(corp_result.data, dict):
+                results = corp_result.data.get("results") or []
+                if results:
+                    result = results[0]
+                    company = result.get("company", {})
+                    contacts = result.get("contacts") or []
+                    
+                    # Найдем контакт с нужным номером телефона
+                    chosen_contact = None
+                    for contact in contacts:
+                        contact_phones = contact.get("phones") or []
+                        if phone in contact_phones:
+                            chosen_contact = contact
+                            break
+                    
+                    # Если не найден точный контакт, берем главный или первый
+                    if not chosen_contact and contacts:
+                        chosen_contact = next((c for c in contacts if c.get("isMain")), contacts[0])
+                    
+                    if chosen_contact:
+                        prof = {
+                            "last_name": (chosen_contact.get("lastName") or "").strip() or None,
+                            "first_name": (chosen_contact.get("firstName") or "").strip() or None,
+                            "middle_name": (chosen_contact.get("patronymic") or "").strip() or None,
+                            "enterprise_name": (company.get("name") or "").strip() or None
+                        }
+            
             return prof
     except Exception as e:
         logger.error(f"internal_get_customer_profile error: {e}")

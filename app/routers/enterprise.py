@@ -16,7 +16,6 @@ from fastapi import Depends
 from asyncpg.connection import Connection as AsyncConnection
 from sqlalchemy.exc import NoResultFound
 from app.services import postgres as db_services
-from main import templates
 from app.services.postgres import get_db
 
 from app.services.database import get_all_enterprises

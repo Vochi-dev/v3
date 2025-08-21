@@ -221,6 +221,8 @@ async def merge_customer_identity(
     external_id: str,
     fio: Optional[Dict[str, Optional[str]]] = None,
     set_primary: bool = False,
+    person_uid: Optional[str] = None,
+    source_raw: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
     Гарантирует наличие строки в customers и мержит идентичность клиента:
@@ -277,10 +279,26 @@ async def merge_customer_identity(
             meta["ids"] = ids
 
             if not meta.get("person_uid"):
-                meta["person_uid"] = f"{source}:{external_id}"
+                if person_uid:
+                    meta["person_uid"] = person_uid
+                elif source == "retailcrm_corporate":
+                    meta["person_uid"] = f"retailcrm_corp:{external_id}"
+                else:
+                    meta["person_uid"] = f"{source}:{external_id}"
+            elif person_uid and person_uid != meta.get("person_uid"):
+                # Обновляем person_uid если передан новый
+                meta["person_uid"] = person_uid
 
             if set_primary:
                 meta["primary_source"] = source
+
+            # Добавляем специальные поля для корпоративных клиентов
+            if source == "retailcrm_corporate" and source_raw:
+                company_info = source_raw.get("company_info", {})
+                if company_info:
+                    meta["client_type"] = "corporate"
+                    meta["company_id"] = company_info.get("id")
+                    meta["contact_id"] = company_info.get("contact_id")
 
             # 3) Merge FIO according to rules
             cur_ln = row["last_name"]

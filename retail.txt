@@ -1,0 +1,2014 @@
+
+<!doctype html>
+<html class="no-js" lang="ru">
+<head
+    data-env="prod"
+    data-user-id="16"
+    data-user-email="evgeny.baevski@gmail.com"
+>
+            <meta charset="utf-8">
+        <title>    Список клиентов /
+        Клиенты /
+        RetailCRM</title>
+        <meta name="theme-color" content="#FFFFFF">
+<link type="image/x-icon" rel="shortcut icon" href="https://s3-s1.retailcrm.tech/ru-central1/retailcrm-static/branding/retailcrm/favicon/favicon.ico">
+<link rel="icon" href="https://s3-s1.retailcrm.tech/ru-central1/retailcrm-static/branding/retailcrm/favicon/favicon.svg">
+<link rel="apple-touch-icon" href="https://s3-s1.retailcrm.tech/ru-central1/retailcrm-static/branding/retailcrm/favicon/apple-touch-icon.png">
+<link rel="manifest" href="https://s3-s1.retailcrm.tech/ru-central1/retailcrm-static/branding/retailcrm/favicon/manifest.json">
+            <link rel="stylesheet" type="text/css" href="/build/css/main.c56b45f5.css" media="screen,project" />
+    <link rel="stylesheet" type="text/css" href="/build/common.1913185b.css" media="screen,project" />
+    <link rel="stylesheet" type="text/css" href="/build-next/bootstrap.fe8cae23.css" media="screen,project" />
+    <link rel="stylesheet" type="text/css" href="/build-next/modules/banner-box.9526e815.css" media="screen,project" />
+    <link rel="stylesheet" type="text/css" href="/build-next/app/next.85aac051.css" media="screen,project" />
+        <script type="options" data-root="sectionUniqueName">"Customer"</script>
+                <script type="options" data-root="SETTINGS">{"ajaxUpdateNewListDelay":60000,"locale":"ru_RU","orderProductDuplicatesAllowed":false,"orderProductQuantityIsFractional":false,"isSinglePriceType":true,"changeNotAvailablePriceType":false,"geohelper":{"useAutocomplete":true,"getTimeByPhone":true},"currencyHtml":"\u0022\u003Cspan class=\\\u0022currency-symbol byn\\\u0022\u003E\\u0440\\u0443\\u0431.\u003C\/span\u003E\u0022","entityCurrencyHtml":null,"currencyCode":"BYN","entityCurrencyCode":null,"billingCurrencyCode":"RUB","image_preview_workers":["worker1.retailcrm.tech"],"tag_colors":"{\u0022available\u0022:[\u0022light-red\u0022,\u0022light-blue\u0022,\u0022light-green\u0022,\u0022light-orange\u0022,\u0022light-gray\u0022,\u0022light-grayish-blue\u0022,\u0022red\u0022,\u0022blue\u0022,\u0022green\u0022,\u0022orange\u0022,\u0022gray\u0022,\u0022grayish-blue\u0022],\u0022light\u0022:[\u0022light-red\u0022,\u0022light-blue\u0022,\u0022light-green\u0022,\u0022light-orange\u0022,\u0022light-gray\u0022,\u0022light-grayish-blue\u0022]}","account_url":"https:\/\/account.retailcrm.ru","date_format":"d.m.Y","postMaxSizeString":"35 MB","cdnBaseUrl":"https:\/\/s3-s1.retailcrm.tech\/ru-central1\/retailcrm-static","system_name":"RetailCRM","theme_name":"retailcrm","systemCreatedBeforeAdminMovedToGroups":false,"chatBot":{"isModuleEnabled":false,"isReplyTrackerEnabled":false},"marketingLettersLifetime":"2Y","customerPhoneVisibility":true,"timezone":3,"uiExtensions":[{"uuid":"promoCodes","targets":["order\/card:list.after"],"entrypoint":"https:\/\/artem.p.radis.io\/dist\/promoCodes\/index.html","stylesheet":"https:\/\/artem.p.radis.io\/dist\/promoCodes\/extension.da0edc00.css"}]}</script><script type="options" data-root="features">{"common.mg_order_form.available":false,"communication.sms.write":false,"communication.sms_send.available":false,"communication.telephony_call_tagging_based_on_transcription.available":true,"communication.telephony_call_tags.available":true,"customer.duplicate.auto_combine.available":false,"internal.show_release_11_features.available":false,"marketing.cart.available":true,"marketing.customer_reactivation.available":true,"marketing.mailings.split_test.available":true,"marketing.mailings.whatsapp_slowmode.available":true,"marketing.warmup.available":true,"marketing.whatsapp_mailings.available":true,"operating.canvas.available":false,"operating.loyalty_program_level_conditions.available":true,"operating.order_page_setting.available":true,"operating.task_comments.available":true,"operating.task_history.available":true,"operating.task_tags.available":true,"operating.validation_constructor.available":true,"operating.validation_task.available":true}</script><script type="options" data-root="currentRoute">"crm_customer"</script><script type="options" data-root="viewedOnboardings">{"whats_new_menu":{"onboardingCode":"whats_new_menu","createdAt":1754408231},"getting_started_onboarding_close":{"onboardingCode":"getting_started_onboarding_close","createdAt":1754408325},"marketing_settings":{"onboardingCode":"marketing_settings","createdAt":1754459465},"customer_timeline_note":{"onboardingCode":"customer_timeline_note","createdAt":1754459531},"import_clients_onboarding_1":{"onboardingCode":"import_clients_onboarding_1","createdAt":1754459541},"task_history_onboarding_1":{"onboardingCode":"task_history_onboarding_1","createdAt":1754463305},"task_comments_onboarding_1":{"onboardingCode":"task_comments_onboarding_1","createdAt":1754463390},"task_tags_onboarding_1":{"onboardingCode":"task_tags_onboarding_1","createdAt":1754463413},"telephony_tag_call_list":{"onboardingCode":"telephony_tag_call_list","createdAt":1754468027},"telephony_tag_customer_view":{"onboardingCode":"telephony_tag_customer_view","createdAt":1754468039},"telephony_tag_call_history_popup":{"onboardingCode":"telephony_tag_call_history_popup","createdAt":1755686098},"automation_main_menu":{"onboardingCode":"automation_main_menu","createdAt":1683666000}}</script><script type="options" data-root="notificationOptions">{"voiceNotifications":0}</script>
+<script type="options" data-root="crmGlobalOptions">{"loginUrl":"\/login"}</script>
+<script type="options" data-root="userOptions">{"onlineTimeout":95}</script>
+<script type="options" data-root="pushStreamOptions">{"pushStreamHost":"worker2.retailcrm.tech","pushStreamChannel":"notice_evgenybaevski_16_b885115b0e839363aa5db5827f6fa48d019a740bb5f7435d91b98948cde96585","messageLifetime":10}</script>
+<script type="options" data-root="SAAS_SETTINGS">{"tariff":{"emailsLeft":0,"code":"TrialRetailcrm","region":"cis"},"theme":"retailcrm","onboardingHotjarMetricsId":3748093,"onboardingYandexMetricsId":null,"yandexMetrikaCounter":21338455}</script><script type="options" data-root="consultantOptions">{"token":"5fbfb1f8269feb4223a5817306e35e6d3903647c46afadfcaeee558d087c844d","urlLoader":"https:\/\/c.retailcrm.tech\/widget\/loader.js","customer":{"nickname":"Баевский Евгений Леонидович","customerId":"a6134570-6007-4df1-8695-b177ecc3e0ce","userId":"16@a6134570-6007-4df1-8695-b177ecc3e0ce"}}</script><script type="options" data-root="specialOffersAvailable">false</script>
+<script type="options" data-root="messageGatewayOptions">{"api_url":"\/mg\/api\/client\/v1","gql_url":"\/mg\/api\/graphql\/v1","widgets":[{"name":"client","opened":true,"enabled":true,"channels":[]},{"name":"tags","opened":true,"enabled":true,"channels":[]},{"name":"order","opened":false,"enabled":true,"channels":[]},{"name":"notes","opened":false,"enabled":true,"channels":[]},{"name":"visits","opened":false,"enabled":true,"channels":[]},{"name":"tasks","opened":false,"enabled":true,"channels":[]},{"name":"products","opened":false,"enabled":true,"channels":[]},{"name":"cart","opened":false,"enabled":true,"channels":[]},{"name":"stats","opened":false,"enabled":true,"channels":[]}],"modules_by_channels_map":[],"channels_supported_widgets":[],"hide_consultant_connect_banner":false,"channels_sites_map":[],"getting_started_visible":true,"closed_integrations_banner":false,"suggest_connect_integrations":true,"assets_version":"95a24c54ac01087d11d44db2807290f45debe4c6"}</script>
+<script type="options" data-root="stripoOptions">{"domain":"evgenybaevski","products-in-mailings-extension-url":"\/stripo\/products-in-mailings.e8346e2c6adfa083.extension.js","products-in-rules-extension-url":"\/stripo\/products-in-rules.533cdf5869576fee.extension.js","cart-in-rules-extension-url":"\/stripo\/cart-in-rules.d82b2ea41cc9b73c.extension.js"}</script><script type="options" data-root="simlaWebOptions">{"token":"4ujrf6haziioooogwckoog0wwgcs04k484wg48co4gwsk0c4co","backendUrl":"https:\/\/z0s8qb86x8t816st1a32b0zs24sdtnec.s1-simlaweb.tech\/api","language":"RU"}</script><script type="options" data-root="analyticsOptions">{"amplitudeApiKey":"7ebf443505ca9e527154f9250495298f","amplitudeDevApiKey":"bf34591786ec995d2444ce66ccba1721","appVersion":"11.0.52","devEvents":[],"debug":false,"allowedEvents":["Jump to unpurchased section","Connecting an unpurchased section","Creator first login","Upload a list","Import completed","Open payment sidebar","Click on the pay button","Click on connect module","View filter tips","Scoring completed","Go to entity setup","Creating an entity","Showing the onboarding","Completed setup steps","Back to onboarding","Create new mailing","Save task","Payment","Action on comment task","Save validation","Open history","Add tag","Click on Autopayment","Close Autopayment","Connect Autopayment","Activated Autopayment","Disconnect Autopayment","Click min balance Autopayment","Click amount Autopayment","Assign dialog","Close dialog","Go to dialog","Filter by dialogs","Add contacts","Open order-widget in chat","Create order from order-widget in chat","Send product","Open product-widget in chat","Add product in widget","Save chat widget settings","Generate summary","Open message context menu","Quote message","Save quick response","Send WABA template","Send quick response","Send message to chat","Send new outcome message in chat","Create new rule","Save rule action type","Rule activity","Clicked add step rules","Rule delete","Exclude inactive clients","Save exclude inactive clients","Create new segments","Click filter group segments","Add filter group segments","Save segments","Open new support ticket sidebar","Open Support Premium payment","Open Support Premium popup","Close new support ticket sidebar","Create new order","Save order","Press call required","Press order expired","Press VIP","Press BAD","Print order documents","Press order actions","Open task list","Open file list","Add file","Delete file","Change product ordering","Click on connect Consultant module","Open visits-widget in chat","Open cart-widget in chat","Click on connect cart in cart-widget in chat","Save blocks: Recipients","Save blocks: Mailing","Save blocks: Conversion","Add mailing list name","Add segment mailing","Add exclusion segment mailing","Choose WhatsApp template","Choose Email template","Click on the conversion of new orders","Send mailing","Add next step","Click button new Site","Create new Site","Click on preview Site","Publication Site","Add scripts on Site","Click button restore","Jump to order section","Action note","Mass actions in chats","Open product popup","Click on menu item","Save currency","Add price product","Add price offer","Remove entity","Click on configure the page order","Disable page template block","Collapse page template block","Change page template block ordering","Click to view AI transcription and tagging settings","Activation of AI tools in calls","Automatic tagging. Step 2","Automatic tagging for manager performance ratings. Step 3","Delete mailing","Send in parts","Continue manually","Continue cancel","Schedule send","Showing the onboarding","Click on the Order setup button","Сreate a new appeal","Click on confirm email","Confirm email","Click on setting the store","Set up a store","Click on add an INN","Save INN data","Click on the full setup","Go to the next step empty","Сlick on data import","Importing data","Importing Excel","Importing CMS","Сlick on adding employees","Adding employees","Skip the step of adding employees","Сlick on adding modules","Сlick on the module documentation","Сlick on the module video","Connect modules","Skip the step of adding modules","Click on the social","Go to social networks","Close onboarding","Close the onboarding completely","Back to onboarding","Jump to popup professional tariff benefits","Click to open Top up balance","Account replenishment","Click button Write to us","Automatic license payment","Go to payment","Click on submenu item","Click on connect Consultant module in automessage","Create new automessage","Save automessage","Open what's new","Click button in what's new","Jump to marketplace section","Add template","Click button Send for verification WABA","Send for verification WABA","General statistics by channel","Dynamics of the subscriber base by channel","Click on date selection gs","Click on date selection dsb","Click on segments selection gs","Click on segments selection dsb","Click on mailings selection gs","Click on mailings selection dsb","Click on site selection dsb","Click on connect waba widget","Click on templates waba widget","Click on templates quality waba widget","Home click to onboarding banner","Сlick on setting up the first onboarding marketing email","Click for help in setting up onboarding marketing","Follow the setup steps in marketing email onboarding","Finish setting up email in onboarding","Follow the setup steps in marketing sms onboarding","Finish setting up SMS in onboarding","Follow the setup steps in marketing waba onboarding","Finish setting up waba in onboarding","Follow the setup steps in marketing ok onboarding","Finish setting up online consultant in onboarding","Сlick on finish your onboarding training","Showing record playback hint","Click on merge duplicate manually","Click on duplicates found","Click on expand pack duplicates","Click on merge selected duplicate","Click on remove from merging duplicate","Click on new duplicate check","Click on verification history duplicate","Click on repeat duplicate check","Click on autocheck duplicate","Save automatic check duplicate","Create the search checking duplicates","Open duplicate check","Switch a new version system","Open section duplicate handling"],"userId":"16@Z0S8QB86X8T816ST1A32B0ZS24SDTNEC","userProperties":{"crmName":"evgenybaevski","crmDomain":"retailcrm.ru","supportAccount":false,"demoMode":false,"tariffCode":"trial_retailcrm","tariffTrial":true,"isAdmin":true},"properties":{"deviceType":"DESKTOP"}}</script>                                    
+<script type="options" data-root="crmTelephonyOptions">{"service":"serverTelephony","enabled":true,"params":{"urls":{"makeCall":"\/telephony\/make-call"},"missedCallDelay":20,"managerCode":"152"}}</script>
+
+        
+    
+    <script>
+        assetsVersion = "5c7c747f887335c7f5f37248fc0df5d76a4a37b1" ;
+    </script>
+    <script src="/build/runtime.822aa78a.js"></script>
+    <script src="/build-parts/ace/runtime.26b0c30e.js"></script>
+    <script src="/build-parts/ace/bootstrap.c04e577a.js"></script>
+    <script src="/build-parts/ace/index.7c88be5c.js"></script>
+    <script src="/build-parts/tinymce/runtime.b8b954f7.js"></script>
+    <script src="/build-parts/tinymce/bootstrap.06cfa7ce.js"></script>
+    <script src="/build-parts/tinymce/index.ea92e5e7.js"></script>
+    <script src="/build/vendor.1d30a8e7.js"></script>
+    <script src="/build/vue2.234e6bce.js"></script>
+    <script src="/build/vue2-i18n.5c88ba10.js"></script>
+    <script src="/build/omnica.59d89c69.js"></script>
+    <script src="/build/omnica-vue2.1885a3e8.js"></script>
+    <script src="/build/core.0f7141c2.js"></script>
+    <script src="/build-next/runtime.be139a31.js"></script>
+    <script src="/build-next/vendor.1a5f9b76.js"></script>
+    <script src="/build-next/remote-ui.3073ea1c.js"></script>
+    <script src="/build-next/vue3.ecc2ad0d.js"></script>
+    <script src="/build-next/vue3-i18n.9ea155e8.js"></script>
+    <script src="/build-next/bootstrap.ab9fda75.js"></script>
+    <script src="/build-next/index.ba4235ed.js"></script>
+    <script src="/build/common.e56d4b49.js"></script>
+
+</head>
+
+<body
+    class="modern  filter-page responsive open-menu  retailcrm">
+<div class="inner-wrapper">
+    <div class="top-planks-wrap top-planks-wrap_hidden">
+        <div class="top-planks">
+            
+        </div>
+    </div>
+    <div id="navigation"
+         data-initial-path="crm_customer"
+         data-help-link="https://docs.retailcrm.ru/Users/OperatingActivity/Clients/Clientlist?account=https://evgenybaevski.retailcrm.ru"
+         data-user-hash="993f1e0a7942e330fcc0c33b27c0258d"
+    >
+    </div>
+    <div class="inner-wrapper__content">
+        <div id="content-wrapper" class="content-wrapper" data-module-name="customers">
+                                                                            <div class="bg">
+                <div id="wrap">
+                                        <div>
+                        <div id="main" class="">
+                                                        
+                                                            <div class="header-main ">
+                                    <div class="hm-left ">
+                                                                                <div>
+                                            <div class="bread-crumb">
+                                                                                                                                    <a href="/customers/">Клиенты</a> →                             
+                                                                                            </div>
+                                            <div class="header-main__title-wrap"><h1 class="header-main__title">
+                                                        Список клиентов                                                    </h1><div class="header-main__review"><a href="https://docs.retailcrm.ru/Users/OperatingActivity/Clients/Clientlist?account=https://evgenybaevski.retailcrm.ru" target="_black" class="rewiew-btn rewiew-btn_info inline-tooltip-trigger"><svg class="rewiew-btn__icon"><use xlink:href="/build/icons.ae86da8b.svg#help" /></svg></a><div class="inline-tooltip inline-tooltip_normal inline-tooltip_down">Документация по&nbsp;разделу</div></div><button class="header-main__toggle js-toggle-filter" type="button" style="display: none;">
+                                                    Свернуть фильтр
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="hm-right">
+                                                    <div class="btn-wrapper btn-wrapper_group new d-flex">
+                                                
+<span class="inline-tooltip-wrap mr-4" >
+    <button
+        class="omnica-button omnica-button_locked omnica-button_secondary omnica-button_md omnica-button_ellipsis inline-tooltip-trigger duplicate-btn"
+        type="button"
+            >
+        <span class="omnica-button__inner">
+            <span class="omnica-button__icon">
+                <svg class="svg-icon">
+                    <use xlink:href="/build/icons.ae86da8b.svg#lock" />
+                </svg>
+            </span>
+
+            <span class="omnica-button__text">
+                Работа с дублями
+            </span>
+        </span>
+    </button>
+
+            <span class="inline-tooltip inline-tooltip_light inline-tooltip_down" style="overflow: visible">
+            Работа с дублями доступна на тарифе «Профессиональный»
+        </span>
+    </span>
+                
+            
+                            <a
+            href="/customers/import"
+            title="Импорт клиентов"
+                            class="white btn_md import btn"
+                            data-js="import-button"
+                        data-ya-target
+        ><div class="btn-content btn-content_icon btn-content_import">Импорт клиентов</div></a>            
+            <a
+            href="/customers/add"
+            title="Новый клиент"
+                            class="btn_md m0 btn"
+                        data-ya-target
+        ><div class="btn-content btn-content_icon btn-content_new">Новый клиент</div></a>        </div>
+                                        </div>
+                                </div>
+                                                            
+        
+    
+
+<div class="m-filter">
+            
+
+
+
+    
+    <div class="container cleared filtered">
+
+        <form action="/customers/" method="get" class="default-form-filter">
+            <div class="filter-content cleared filter__row">
+                
+    
+
+            </div>
+            <input type="submit" class="hidden-submit" name="">
+            <div class="hide">                                                                                                                                                                                                                                            <input type="hidden" id="filter_loyaltyProgramOrdersByPeriodType" name="filter[loyaltyProgramOrdersByPeriodType]" value="0" />                                                                                                                <input type="hidden" id="filter_classSegment" name="filter[classSegment]" />                                                        <input type="hidden" id="filter_sort" name="filter[sort]" class="sort-input" />        <input type="hidden" id="filter_direction" name="filter[direction]" class="direction-input" value="asc" />        <input type="hidden" id="filter_vip" name="filter[vip]" />        <input type="hidden" id="filter_bad" name="filter[bad]" />                        </div>
+                            
+
+
+
+                    </form>
+
+        <div class="filter__row cleared">
+            <div class="filter-control cleared">
+                <button type="submit" class="apply text">
+                    <span class="ur-hr-no">Применить</span>
+                </button>
+                                    <span class="filter-cancel"><span class="ur-hr-no">Сброс</span></span>
+                            </div>
+                
+<div class="parameters with-modal parameters_with-static-list">
+    <div class="button_tertiary parameters__btn_tertiary">
+        <svg class="button__icon">
+            <use xlink:href="/build/icons.ae86da8b.svg#settings_outlined" />
+        </svg>
+        <div class="inline-tooltip">
+            <span>Настройка фильтров</span>
+        </div>
+    </div>
+    <div class="parameters-popup-content stat-box-popup stat-box-popup-content">
+        <h2>Фильтры</h2>
+        <div class="input-area">
+            <svg class="parameters__search-icon">
+                <use xlink:href="/build/icons.ae86da8b.svg#search" />
+            </svg>
+            <input type="text" class="input-area__input js-parameters-search" placeholder="Поиск" />
+        </div>
+        <a href="javascript:void(0)" class="close"><i></i></a>
+        <div class="stat-content">
+            <form action="/list/filter/customer/edit" method="POST">
+                <div class="parameters__form-wrap">
+                    <div class="table columns">
+                        <div class="td td_first">
+                            <div class="scroll left">
+                                
+                                <div class="disabled-label">
+                                    Фильтры не выбраны
+                                </div>
+
+                                <ul class="enabled sortable"></ul>
+                            </div>
+                        </div>
+                        <div class="td">
+                            <div class="scroll right">
+                                <div class="disabled"><div class="parameters-group">
+                                            <div class="group-field" data-group="analytics">Аналитика</div>
+                                            <ul><li data-group="analytics" class="parameters__item" value="sources">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][sources]"
+                                                                id="list_profile_filter[defaultFilterFields]_sources"value="sources">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_sources"
+                                                                title="Источники">Источники</label>
+                                                        </li><li data-group="analytics" class="parameters__item" value="campaigns">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][campaigns]"
+                                                                id="list_profile_filter[defaultFilterFields]_campaigns"value="campaigns">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_campaigns"
+                                                                title="Кампании">Кампании</label>
+                                                        </li><li data-group="analytics" class="parameters__item" value="mediums">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][mediums]"
+                                                                id="list_profile_filter[defaultFilterFields]_mediums"value="mediums">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_mediums"
+                                                                title="Каналы">Каналы</label>
+                                                        </li><li data-group="analytics" class="parameters__item" value="keywords">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][keywords]"
+                                                                id="list_profile_filter[defaultFilterFields]_keywords"value="keywords">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_keywords"
+                                                                title="Ключевые слова">Ключевые слова</label>
+                                                        </li><li data-group="analytics" class="parameters__item" value="ordersCount">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][ordersCount]"
+                                                                id="list_profile_filter[defaultFilterFields]_ordersCount"value="ordersCount">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_ordersCount"
+                                                                title="Количество заказов">Количество заказов</label>
+                                                        </li><li data-group="analytics" class="parameters__item" value="online">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][online]"
+                                                                id="list_profile_filter[defaultFilterFields]_online"value="online">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_online"
+                                                                title="На сайте">На сайте</label>
+                                                        </li><li data-group="analytics" class="parameters__item" value="firstWebVisit">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][firstWebVisit]"
+                                                                id="list_profile_filter[defaultFilterFields]_firstWebVisit"value="firstWebVisit">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_firstWebVisit"
+                                                                title="Первое посещение">Первое посещение</label>
+                                                        </li><li data-group="analytics" class="parameters__item" value="firstOrder">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][firstOrder]"
+                                                                id="list_profile_filter[defaultFilterFields]_firstOrder"value="firstOrder">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_firstOrder"
+                                                                title="Первый заказ">Первый заказ</label>
+                                                        </li><li data-group="analytics" class="parameters__item" value="lastWebVisit">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][lastWebVisit]"
+                                                                id="list_profile_filter[defaultFilterFields]_lastWebVisit"value="lastWebVisit">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_lastWebVisit"
+                                                                title="Последнее посещение">Последнее посещение</label>
+                                                        </li><li data-group="analytics" class="parameters__item" value="lastOrder">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][lastOrder]"
+                                                                id="list_profile_filter[defaultFilterFields]_lastOrder"value="lastOrder">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_lastOrder"
+                                                                title="Последний заказ">Последний заказ</label>
+                                                        </li><li data-group="analytics" class="parameters__item" value="segment">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][segment]"
+                                                                id="list_profile_filter[defaultFilterFields]_segment"value="segment">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_segment"
+                                                                title="Сегменты">Сегменты</label>
+                                                        </li><li data-group="analytics" class="parameters__item" value="adContents">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][adContents]"
+                                                                id="list_profile_filter[defaultFilterFields]_adContents"value="adContents">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_adContents"
+                                                                title="Содержания кампании">Содержания кампании</label>
+                                                        </li></ul>
+                                        </div><div class="parameters-group">
+                                            <div class="group-field" data-group="cost">Стоимость</div>
+                                            <ul><li data-group="cost" class="parameters__item" value="averageSumm">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][averageSumm]"
+                                                                id="list_profile_filter[defaultFilterFields]_averageSumm"value="averageSumm">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_averageSumm"
+                                                                title="Средний чек">Средний чек</label>
+                                                        </li><li data-group="cost" class="parameters__item" value="totalSumm">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][totalSumm]"
+                                                                id="list_profile_filter[defaultFilterFields]_totalSumm"value="totalSumm">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_totalSumm"
+                                                                title="Сумма заказов">Сумма заказов</label>
+                                                        </li><li data-group="cost" class="parameters__item" value="costSumm">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][costSumm]"
+                                                                id="list_profile_filter[defaultFilterFields]_costSumm"value="costSumm">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_costSumm"
+                                                                title="Сумма расходов по заказам">Сумма расходов по заказам</label>
+                                                        </li></ul>
+                                        </div><div class="parameters-group">
+                                            <div class="group-field" data-group="customer">Клиент</div>
+                                            <ul><li data-group="customer" class="parameters__item" value="email">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][email]"
+                                                                id="list_profile_filter[defaultFilterFields]_email"value="email">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_email"
+                                                                title="E-mail">E-mail</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="abandonedCart">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][abandonedCart]"
+                                                                id="list_profile_filter[defaultFilterFields]_abandonedCart"value="abandonedCart">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_abandonedCart"
+                                                                title="Брошенная корзина">Брошенная корзина</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="externalId">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][externalId]"
+                                                                id="list_profile_filter[defaultFilterFields]_externalId"value="externalId">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_externalId"
+                                                                title="Внешний ID">Внешний ID</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="city">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][city]"
+                                                                id="list_profile_filter[defaultFilterFields]_city"value="city">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_city"
+                                                                title="Город">Город</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="managerGroups">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][managerGroups]"
+                                                                id="list_profile_filter[defaultFilterFields]_managerGroups"value="managerGroups">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_managerGroups"
+                                                                title="Группы менеджеров">Группы менеджеров</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="createdAt">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][createdAt]"
+                                                                id="list_profile_filter[defaultFilterFields]_createdAt"value="createdAt">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_createdAt"
+                                                                title="Дата регистрации">Дата регистрации</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="tasksCounts">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][tasksCounts]"
+                                                                id="list_profile_filter[defaultFilterFields]_tasksCounts"value="tasksCounts">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_tasksCounts"
+                                                                title="Задачи">Задачи</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="notes">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][notes]"
+                                                                id="list_profile_filter[defaultFilterFields]_notes"value="notes">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_notes"
+                                                                title="Заметки">Заметки</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="name">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][name]"
+                                                                id="list_profile_filter[defaultFilterFields]_name"value="name">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_name"
+                                                                title="Клиент">Клиент</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="sites">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][sites]"
+                                                                id="list_profile_filter[defaultFilterFields]_sites"value="sites">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_sites"
+                                                                title="Магазины">Магазины</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="managers">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][managers]"
+                                                                id="list_profile_filter[defaultFilterFields]_managers"value="managers">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_managers"
+                                                                title="Менеджеры">Менеджеры</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="phoneAvailability">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][phoneAvailability]"
+                                                                id="list_profile_filter[defaultFilterFields]_phoneAvailability"value="phoneAvailability">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_phoneAvailability"
+                                                                title="Наличие телефона">Наличие телефона</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="discountCardNumber">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][discountCardNumber]"
+                                                                id="list_profile_filter[defaultFilterFields]_discountCardNumber"value="discountCardNumber">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_discountCardNumber"
+                                                                title="Номер дисконтной карты">Номер дисконтной карты</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="subscriptions">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][subscriptions]"
+                                                                id="list_profile_filter[defaultFilterFields]_subscriptions"value="subscriptions">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_subscriptions"
+                                                                title="Подписки">Подписки</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="sex">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][sex]"
+                                                                id="list_profile_filter[defaultFilterFields]_sex"value="sex">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_sex"
+                                                                title="Пол">Пол</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="flags">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][flags]"
+                                                                id="list_profile_filter[defaultFilterFields]_flags"value="flags">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_flags"
+                                                                title="Пометки">Пометки</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="attachments">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][attachments]"
+                                                                id="list_profile_filter[defaultFilterFields]_attachments"value="attachments">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_attachments"
+                                                                title="Прикрепленные файлы">Прикрепленные файлы</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="region">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][region]"
+                                                                id="list_profile_filter[defaultFilterFields]_region"value="region">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_region"
+                                                                title="Регион">Регион</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="countries">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][countries]"
+                                                                id="list_profile_filter[defaultFilterFields]_countries"value="countries">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_countries"
+                                                                title="Страны">Страны</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="tags">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][tags]"
+                                                                id="list_profile_filter[defaultFilterFields]_tags"value="tags">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_tags"
+                                                                title="Теги">Теги</label>
+                                                        </li><li data-group="customer" class="parameters__item" value="isContact">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][isContact]"
+                                                                id="list_profile_filter[defaultFilterFields]_isContact"value="isContact">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_isContact"
+                                                                title="Тип клиентов">Тип клиентов</label>
+                                                        </li></ul>
+                                        </div><div class="parameters-group">
+                                            <div class="group-field" data-group="retailcrm_chat">Коммуникации</div>
+                                            <ul><li data-group="retailcrm_chat" class="parameters__item" value="lastManagerCommunicatedAt">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][lastManagerCommunicatedAt]"
+                                                                id="list_profile_filter[defaultFilterFields]_lastManagerCommunicatedAt"value="lastManagerCommunicatedAt">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_lastManagerCommunicatedAt"
+                                                                title="Дата последнего ответа менеджера в чатах">Дата последнего ответа менеджера в чатах</label>
+                                                        </li><li data-group="retailcrm_chat" class="parameters__item" value="mgChannels">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][mgChannels]"
+                                                                id="list_profile_filter[defaultFilterFields]_mgChannels"value="mgChannels">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_mgChannels"
+                                                                title="Чаты">Чаты</label>
+                                                        </li></ul>
+                                        </div><div class="parameters-group">
+                                            <div class="group-field" data-group="loyalty">Программа лояльности</div>
+                                            <ul><li data-group="loyalty" class="parameters__item" value="loyaltyProgramRegDate">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][loyaltyProgramRegDate]"
+                                                                id="list_profile_filter[defaultFilterFields]_loyaltyProgramRegDate"value="loyaltyProgramRegDate">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_loyaltyProgramRegDate"
+                                                                title="Дата регистрации в ПЛ">Дата регистрации в ПЛ</label>
+                                                        </li><li data-group="loyalty" class="parameters__item" value="loyaltyProgramOrdersByPeriod">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][loyaltyProgramOrdersByPeriod]"
+                                                                id="list_profile_filter[defaultFilterFields]_loyaltyProgramOrdersByPeriod"value="loyaltyProgramOrdersByPeriod">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_loyaltyProgramOrdersByPeriod"
+                                                                title="Заказы с ПЛ">Заказы с ПЛ</label>
+                                                        </li><li data-group="loyalty" class="parameters__item" value="loyaltyPrograms">
+                                                            <input type="checkbox"
+                                                                name="list_profile_filter[defaultFilterFields][loyaltyPrograms]"
+                                                                id="list_profile_filter[defaultFilterFields]_loyaltyPrograms"value="loyaltyPrograms">&nbsp;
+
+                                                            <label for="list_profile_filter[defaultFilterFields]_loyaltyPrograms"
+                                                                title="Программа лояльности">Программа лояльности</label>
+                                                        </li></ul>
+                                        </div><div class="parameters-group">
+                                            <div class="group-field" data-group="custom_fields_group">Пользовательские поля</div>
+                                            <ul></ul>
+                                        </div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bottom-controls">
+                    <input type="hidden" id="list_profile_filter_backUrl" name="list_profile_filter[backUrl]" value="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc" />
+                    <button
+                            type="submit"
+                            class="small btn"
+                    >Сохранить</button>                    <a href="/list/filter/customer/reset" class="reset" title="Вернуть настройки по умолчанию" data-confirm-text="Вы действительно хотите сбросить настройки фильтра?">Сбросить</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+            <div class="filter-save">
+    <div class="inner-lt inline-tooltip-wrap">
+        <span class="filter-save__btn inline-tooltip-trigger">Сохранить шаблон</span>
+        <div class="inline-tooltip inline-tooltip_top-end">
+            Сохранить шаблон фильтров
+        </div>
+    </div>
+    <div class="hide-lt-bk">
+        <form name="add_filter_template" method="post" action="/filter/template/customer/add">
+                        <fieldset>
+                <label for="add_filter_template_name">Название</label>
+                <input type="text" id="add_filter_template_name" name="add_filter_template[name]" maxlength="255" placeholder="Укажите название шаблона" />
+                <div class="cleared both"></div>
+                <div class="check">
+                    <input type="checkbox" id="add_filter_template_isGlobal" name="add_filter_template[isGlobal]" value="1" />
+                    <label for="add_filter_template_isGlobal">Сохранить для всех</label>
+                </div>
+                <input type="hidden" id="add_filter_template_filter" name="add_filter_template[filter]" value="filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc" />
+            </fieldset>
+            <input type="submit" class="btn small ft-lt fs12" value="Сохранить">
+            <div class="cancel fs12 gray">Отмена</div>
+            <div class="hide"><input type="hidden" id="add_filter_template_back" name="add_filter_template[back]" value="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc" /><input type="hidden" id="add_filter_template__token" name="add_filter_template[_token]" value="35602.BBvq4bvxtxVTArsXT6KNuAwdNj7W86hjnxoF7Um1Vs0.KSy7kve-4lQybsohLeP69zx0V2e8wOI6-1kw2gSCBrp-aYGw1KD4IT8y0A" /></div>
+        </form>
+    </div>
+</div>
+
+            
+        </div>
+    </div>
+</div>
+    <div class="container">
+                    <div class="m-box cleared">
+                <div class="cleared scroll-x">
+                    <div class="parameters not-null with-modal parameters_with-static-list">
+    <div class="parameters__btn">
+        <svg class="parameters__btn-icon">
+            <use xlink:href="/build/icons.ae86da8b.svg#settings_filled" />
+        </svg>
+        <div class="inline-tooltip">
+            <span>Настройка таблицы</span>
+        </div>
+    </div>
+    <div class="parameters-popup-content stat-box-popup stat-box-popup-content">
+        <h2>Колонки в таблице</h2>
+        <div class="input-area">
+            <svg class="parameters__search-icon">
+                <use xlink:href="/build/icons.ae86da8b.svg#search" />
+            </svg>
+            <input type="text" class="input-area__input js-parameters-search" placeholder="Поиск" />
+        </div>
+        <a href="javascript:void(0)" class="close"><i></i></a>
+        <form action="/list/list/customer/edit" method="POST">
+            <div class="parameters__form-wrap">
+                <div class="table columns">
+                    <div class="td td_first">
+                        <div class="scroll left">
+                            
+                            <ul class="enabled sortable"><li data-group="customer"
+                                        class="parameters__item"
+                                        data-id="list_profile_list[defaultListFields]_nickName"
+                                        value="nickName">
+                                        <input type="checkbox"
+                                            name="list_profile_list[defaultListFields][nickName]"
+                                            value="nickName"
+                                            checked="checked"
+                                            >&nbsp;
+
+                                        <label title="ФИО">ФИО</label>
+                                        <span class="parameters__remove-icon"></span></li><li data-group="customer"
+                                        class="parameters__item"
+                                        data-id="list_profile_list[defaultListFields]_createdAt"
+                                        value="createdAt">
+                                        <input type="checkbox"
+                                            name="list_profile_list[defaultListFields][createdAt]"
+                                            value="createdAt"
+                                            checked="checked"
+                                            >&nbsp;
+
+                                        <label title="Дата регистрации">Дата регистрации</label>
+                                        <span class="parameters__remove-icon"></span></li><li data-group="customer"
+                                        class="parameters__item"
+                                        data-id="list_profile_list[defaultListFields]_email"
+                                        value="email">
+                                        <input type="checkbox"
+                                            name="list_profile_list[defaultListFields][email]"
+                                            value="email"
+                                            checked="checked"
+                                            >&nbsp;
+
+                                        <label title="E-mail">E-mail</label>
+                                        <span class="parameters__remove-icon"></span></li><li data-group="customer"
+                                        class="parameters__item"
+                                        data-id="list_profile_list[defaultListFields]_phone"
+                                        value="phone">
+                                        <input type="checkbox"
+                                            name="list_profile_list[defaultListFields][phone]"
+                                            value="phone"
+                                            checked="checked"
+                                            >&nbsp;
+
+                                        <label title="Телефон">Телефон</label>
+                                        <span class="parameters__remove-icon"></span></li><li data-group="customer"
+                                        class="parameters__item"
+                                        data-id="list_profile_list[defaultListFields]_manager"
+                                        value="manager">
+                                        <input type="checkbox"
+                                            name="list_profile_list[defaultListFields][manager]"
+                                            value="manager"
+                                            checked="checked"
+                                            >&nbsp;
+
+                                        <label title="Менеджер">Менеджер</label>
+                                        <span class="parameters__remove-icon"></span></li><li data-group="analytics"
+                                        class="parameters__item"
+                                        data-id="list_profile_list[defaultListFields]_ordersCount"
+                                        value="ordersCount">
+                                        <input type="checkbox"
+                                            name="list_profile_list[defaultListFields][ordersCount]"
+                                            value="ordersCount"
+                                            checked="checked"
+                                            >&nbsp;
+
+                                        <label title="Кол-во заказов">Кол-во заказов</label>
+                                        <span class="parameters__remove-icon"></span></li><li data-group="cost"
+                                        class="parameters__item"
+                                        data-id="list_profile_list[defaultListFields]_averageSumm"
+                                        value="averageSumm">
+                                        <input type="checkbox"
+                                            name="list_profile_list[defaultListFields][averageSumm]"
+                                            value="averageSumm"
+                                            checked="checked"
+                                            >&nbsp;
+
+                                        <label title="Средний чек">Средний чек</label>
+                                        <span class="parameters__remove-icon"></span></li><li data-group="cost"
+                                        class="parameters__item"
+                                        data-id="list_profile_list[defaultListFields]_totalSumm"
+                                        value="totalSumm">
+                                        <input type="checkbox"
+                                            name="list_profile_list[defaultListFields][totalSumm]"
+                                            value="totalSumm"
+                                            checked="checked"
+                                            >&nbsp;
+
+                                        <label title="Сумма заказов">Сумма заказов</label>
+                                        <span class="parameters__remove-icon"></span></li><li data-group="retailcrm_chat"
+                                        class="parameters__item"
+                                        data-id="list_profile_list[defaultListFields]_mgChannels"
+                                        value="mgChannels">
+                                        <input type="checkbox"
+                                            name="list_profile_list[defaultListFields][mgChannels]"
+                                            value="mgChannels"
+                                            checked="checked"
+                                            >&nbsp;
+
+                                        <label title="Чаты">Чаты</label>
+                                        <span class="parameters__remove-icon"></span></li></ul>
+                        </div>
+                    </div>
+                    <div class="td">
+                        <div class="scroll right">
+                            <div class="disabled"><div class="parameters-group">
+                                        <div class="group-field" data-group="analytics">Аналитика</div>
+                                        <ul><li data-group="analytics" class="parameters__item" value="maturationTime">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][maturationTime]"
+                                                            id="list_profile_list[defaultListFields]_maturationTime"value="maturationTime">&nbsp;<label for="list_profile_list[defaultListFields]_maturationTime"
+                                                            title="Время «созревания»">Время «созревания»</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="tasksCounts">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][tasksCounts]"
+                                                            id="list_profile_list[defaultListFields]_tasksCounts"value="tasksCounts">&nbsp;<label for="list_profile_list[defaultListFields]_tasksCounts"
+                                                            title="Задачи">Задачи</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="source">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][source]"
+                                                            id="list_profile_list[defaultListFields]_source"value="source">&nbsp;<label for="list_profile_list[defaultListFields]_source"
+                                                            title="Источник">Источник</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="campaign">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][campaign]"
+                                                            id="list_profile_list[defaultListFields]_campaign"value="campaign">&nbsp;<label for="list_profile_list[defaultListFields]_campaign"
+                                                            title="Кампания">Кампания</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="medium">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][medium]"
+                                                            id="list_profile_list[defaultListFields]_medium"value="medium">&nbsp;<label for="list_profile_list[defaultListFields]_medium"
+                                                            title="Канал">Канал</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="keyword">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][keyword]"
+                                                            id="list_profile_list[defaultListFields]_keyword"value="keyword">&nbsp;<label for="list_profile_list[defaultListFields]_keyword"
+                                                            title="Ключевое слово">Ключевое слово</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="ordersCount">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][ordersCount]"
+                                                            id="list_profile_list[defaultListFields]_ordersCount"checked="checked"value="ordersCount">&nbsp;<label for="list_profile_list[defaultListFields]_ordersCount"
+                                                            title="Кол-во заказов">Кол-во заказов</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="firstWebVisit">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][firstWebVisit]"
+                                                            id="list_profile_list[defaultListFields]_firstWebVisit"value="firstWebVisit">&nbsp;<label for="list_profile_list[defaultListFields]_firstWebVisit"
+                                                            title="Первое посещение">Первое посещение</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="firstClientId">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][firstClientId]"
+                                                            id="list_profile_list[defaultListFields]_firstClientId"value="firstClientId">&nbsp;<label for="list_profile_list[defaultListFields]_firstClientId"
+                                                            title="Первый clientId">Первый clientId</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="firstOrder">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][firstOrder]"
+                                                            id="list_profile_list[defaultListFields]_firstOrder"value="firstOrder">&nbsp;<label for="list_profile_list[defaultListFields]_firstOrder"
+                                                            title="Первый заказ">Первый заказ</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="lastWebVisit">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][lastWebVisit]"
+                                                            id="list_profile_list[defaultListFields]_lastWebVisit"value="lastWebVisit">&nbsp;<label for="list_profile_list[defaultListFields]_lastWebVisit"
+                                                            title="Последнее посещение">Последнее посещение</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="lastClientId">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][lastClientId]"
+                                                            id="list_profile_list[defaultListFields]_lastClientId"value="lastClientId">&nbsp;<label for="list_profile_list[defaultListFields]_lastClientId"
+                                                            title="Последний clientId">Последний clientId</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="lastOrder">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][lastOrder]"
+                                                            id="list_profile_list[defaultListFields]_lastOrder"value="lastOrder">&nbsp;<label for="list_profile_list[defaultListFields]_lastOrder"
+                                                            title="Последний заказ">Последний заказ</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="segments">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][segments]"
+                                                            id="list_profile_list[defaultListFields]_segments"value="segments">&nbsp;<label for="list_profile_list[defaultListFields]_segments"
+                                                            title="Сегменты">Сегменты</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="adContent">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][adContent]"
+                                                            id="list_profile_list[defaultListFields]_adContent"value="adContent">&nbsp;<label for="list_profile_list[defaultListFields]_adContent"
+                                                            title="Содержание кампании">Содержание кампании</label>
+                                                    </li><li data-group="analytics" class="parameters__item" value="avgSecondsBetweenOrders">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][avgSecondsBetweenOrders]"
+                                                            id="list_profile_list[defaultListFields]_avgSecondsBetweenOrders"value="avgSecondsBetweenOrders">&nbsp;<label for="list_profile_list[defaultListFields]_avgSecondsBetweenOrders"
+                                                            title="Среднее время между заказами">Среднее время между заказами</label>
+                                                    </li></ul>
+                                    </div><div class="parameters-group">
+                                        <div class="group-field" data-group="cost">Стоимость</div>
+                                        <ul><li data-group="cost" class="parameters__item" value="marginSumm">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][marginSumm]"
+                                                            id="list_profile_list[defaultListFields]_marginSumm"value="marginSumm">&nbsp;<label for="list_profile_list[defaultListFields]_marginSumm"
+                                                            title="LTV">LTV</label>
+                                                    </li><li data-group="cost" class="parameters__item" value="averageSumm">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][averageSumm]"
+                                                            id="list_profile_list[defaultListFields]_averageSumm"checked="checked"value="averageSumm">&nbsp;<label for="list_profile_list[defaultListFields]_averageSumm"
+                                                            title="Средний чек">Средний чек</label>
+                                                    </li><li data-group="cost" class="parameters__item" value="totalSumm">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][totalSumm]"
+                                                            id="list_profile_list[defaultListFields]_totalSumm"checked="checked"value="totalSumm">&nbsp;<label for="list_profile_list[defaultListFields]_totalSumm"
+                                                            title="Сумма заказов">Сумма заказов</label>
+                                                    </li><li data-group="cost" class="parameters__item" value="costSumm">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][costSumm]"
+                                                            id="list_profile_list[defaultListFields]_costSumm"value="costSumm">&nbsp;<label for="list_profile_list[defaultListFields]_costSumm"
+                                                            title="Сумма расходов по заказам">Сумма расходов по заказам</label>
+                                                    </li></ul>
+                                    </div><div class="parameters-group">
+                                        <div class="group-field" data-group="customer">Клиент</div>
+                                        <ul><li data-group="customer" class="parameters__item" value="email">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][email]"
+                                                            id="list_profile_list[defaultListFields]_email"checked="checked"value="email">&nbsp;<label for="list_profile_list[defaultListFields]_email"
+                                                            title="E-mail">E-mail</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="address">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][address]"
+                                                            id="list_profile_list[defaultListFields]_address"value="address">&nbsp;<label for="list_profile_list[defaultListFields]_address"
+                                                            title="Адрес">Адрес</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="externalId">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][externalId]"
+                                                            id="list_profile_list[defaultListFields]_externalId"value="externalId">&nbsp;<label for="list_profile_list[defaultListFields]_externalId"
+                                                            title="Внешний ID">Внешний ID</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="city">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][city]"
+                                                            id="list_profile_list[defaultListFields]_city"value="city">&nbsp;<label for="list_profile_list[defaultListFields]_city"
+                                                            title="Город">Город</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="createdAt">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][createdAt]"
+                                                            id="list_profile_list[defaultListFields]_createdAt"checked="checked"value="createdAt">&nbsp;<label for="list_profile_list[defaultListFields]_createdAt"
+                                                            title="Дата регистрации">Дата регистрации</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="birthday">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][birthday]"
+                                                            id="list_profile_list[defaultListFields]_birthday"value="birthday">&nbsp;<label for="list_profile_list[defaultListFields]_birthday"
+                                                            title="День рождения">День рождения</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="notes">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][notes]"
+                                                            id="list_profile_list[defaultListFields]_notes"value="notes">&nbsp;<label for="list_profile_list[defaultListFields]_notes"
+                                                            title="Заметки">Заметки</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="firstName">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][firstName]"
+                                                            id="list_profile_list[defaultListFields]_firstName"value="firstName">&nbsp;<label for="list_profile_list[defaultListFields]_firstName"
+                                                            title="Имя">Имя</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="index">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][index]"
+                                                            id="list_profile_list[defaultListFields]_index"value="index">&nbsp;<label for="list_profile_list[defaultListFields]_index"
+                                                            title="Индекс">Индекс</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="site">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][site]"
+                                                            id="list_profile_list[defaultListFields]_site"value="site">&nbsp;<label for="list_profile_list[defaultListFields]_site"
+                                                            title="Магазин">Магазин</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="manager">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][manager]"
+                                                            id="list_profile_list[defaultListFields]_manager"checked="checked"value="manager">&nbsp;<label for="list_profile_list[defaultListFields]_manager"
+                                                            title="Менеджер">Менеджер</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="discountCardNumber">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][discountCardNumber]"
+                                                            id="list_profile_list[defaultListFields]_discountCardNumber"value="discountCardNumber">&nbsp;<label for="list_profile_list[defaultListFields]_discountCardNumber"
+                                                            title="Номер дисконтной карты">Номер дисконтной карты</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="patronymic">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][patronymic]"
+                                                            id="list_profile_list[defaultListFields]_patronymic"value="patronymic">&nbsp;<label for="list_profile_list[defaultListFields]_patronymic"
+                                                            title="Отчество">Отчество</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="customerSubscriptions">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][customerSubscriptions]"
+                                                            id="list_profile_list[defaultListFields]_customerSubscriptions"value="customerSubscriptions">&nbsp;<label for="list_profile_list[defaultListFields]_customerSubscriptions"
+                                                            title="Подписки">Подписки</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="sex">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][sex]"
+                                                            id="list_profile_list[defaultListFields]_sex"value="sex">&nbsp;<label for="list_profile_list[defaultListFields]_sex"
+                                                            title="Пол">Пол</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="region">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][region]"
+                                                            id="list_profile_list[defaultListFields]_region"value="region">&nbsp;<label for="list_profile_list[defaultListFields]_region"
+                                                            title="Регион">Регион</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="country">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][country]"
+                                                            id="list_profile_list[defaultListFields]_country"value="country">&nbsp;<label for="list_profile_list[defaultListFields]_country"
+                                                            title="Страна">Страна</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="tags">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][tags]"
+                                                            id="list_profile_list[defaultListFields]_tags"value="tags">&nbsp;<label for="list_profile_list[defaultListFields]_tags"
+                                                            title="Теги">Теги</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="phone">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][phone]"
+                                                            id="list_profile_list[defaultListFields]_phone"checked="checked"value="phone">&nbsp;<label for="list_profile_list[defaultListFields]_phone"
+                                                            title="Телефон">Телефон</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="nickName">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][nickName]"
+                                                            id="list_profile_list[defaultListFields]_nickName"checked="checked"value="nickName">&nbsp;<label for="list_profile_list[defaultListFields]_nickName"
+                                                            title="ФИО">ФИО</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="attachments">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][attachments]"
+                                                            id="list_profile_list[defaultListFields]_attachments"value="attachments">&nbsp;<label for="list_profile_list[defaultListFields]_attachments"
+                                                            title="Файлы / Вложения">Файлы / Вложения</label>
+                                                    </li><li data-group="customer" class="parameters__item" value="lastName">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][lastName]"
+                                                            id="list_profile_list[defaultListFields]_lastName"value="lastName">&nbsp;<label for="list_profile_list[defaultListFields]_lastName"
+                                                            title="Фамилия">Фамилия</label>
+                                                    </li></ul>
+                                    </div><div class="parameters-group">
+                                        <div class="group-field" data-group="retailcrm_chat">Коммуникации</div>
+                                        <ul><li data-group="retailcrm_chat" class="parameters__item" value="lastManagerCommunicatedAt">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][lastManagerCommunicatedAt]"
+                                                            id="list_profile_list[defaultListFields]_lastManagerCommunicatedAt"value="lastManagerCommunicatedAt">&nbsp;<label for="list_profile_list[defaultListFields]_lastManagerCommunicatedAt"
+                                                            title="Дата последнего ответа менеджера в чатах">Дата последнего ответа менеджера в чатах</label>
+                                                    </li><li data-group="retailcrm_chat" class="parameters__item" value="mgChannels">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][mgChannels]"
+                                                            id="list_profile_list[defaultListFields]_mgChannels"checked="checked"value="mgChannels">&nbsp;<label for="list_profile_list[defaultListFields]_mgChannels"
+                                                            title="Чаты">Чаты</label>
+                                                    </li></ul>
+                                    </div><div class="parameters-group">
+                                        <div class="group-field" data-group="loyalty">Программа лояльности</div>
+                                        <ul><li data-group="loyalty" class="parameters__item" value="loyaltyProgramRegDate">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][loyaltyProgramRegDate]"
+                                                            id="list_profile_list[defaultListFields]_loyaltyProgramRegDate"value="loyaltyProgramRegDate">&nbsp;<label for="list_profile_list[defaultListFields]_loyaltyProgramRegDate"
+                                                            title="Дата регистрации в ПЛ">Дата регистрации в ПЛ</label>
+                                                    </li><li data-group="loyalty" class="parameters__item" value="loyaltyPrograms">
+                                                        <input type="checkbox"
+                                                            name="list_profile_list[defaultListFields][loyaltyPrograms]"
+                                                            id="list_profile_list[defaultListFields]_loyaltyPrograms"value="loyaltyPrograms">&nbsp;<label for="list_profile_list[defaultListFields]_loyaltyPrograms"
+                                                            title="Программа лояльности">Программа лояльности</label>
+                                                    </li></ul>
+                                    </div><div class="parameters-group">
+                                        <div class="group-field" data-group="custom_fields_group">Пользовательские поля</div>
+                                        <ul></ul>
+                                    </div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bottom-controls">
+                <input type="hidden" id="list_profile_list_backUrl" name="list_profile_list[backUrl]" value="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc" />
+                <button
+                            type="submit"
+                            class="small btn"
+                    >Сохранить</button>                <a href="/list/list/customer/reset" class="reset" title="Вернуть настройки по умолчанию" data-confirm-text="Вы действительно хотите сбросить настройки списка?">Сбросить</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+                                        <table class="modern-table list batch-tbl">
+                        <tr >
+            <th class="batch-container batch-container_checkbox-out">
+            <div class="batch-container__inner">
+                <div class="batch-checkbox">
+                    <input type="checkbox"
+                           class="batch-select-page"
+                    />
+                </div>
+                <i></i>
+                <div class="batch-popup">
+                    <i></i>
+                    <ul>
+                        <li class="batch-select-page">Выделить все элементы на странице</li>
+                        <li class="batch-select-all">Выделить все элементы в списке</li>
+                    </ul>
+                </div>
+            </div>
+        </th>
+                <th class="w1p">&nbsp;</th>
+                                    <th
+            class=""
+            >
+
+                                        
+            
+            
+            <a href="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc&amp;filter%5Bsort%5D=nick_name"
+               >
+                ФИО
+            </a>
+        </th>
+                                <th
+            class="active"
+            >
+
+                                        
+                                        
+            
+            <a href="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc&amp;filter%5Bsort%5D=created_at"
+               class="asc">
+                Дата регистрации
+            </a>
+        </th>
+                                <th
+            class=""
+            >
+
+                                        
+            
+            
+            <a href="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc&amp;filter%5Bsort%5D=email"
+               >
+                E-mail
+            </a>
+        </th>
+                <th>
+            Телефон
+
+                    </th>
+                                <th
+            class=""
+            >
+
+                                        
+            
+            
+            <a href="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc&amp;filter%5Bsort%5D=manager"
+               >
+                Менеджер
+            </a>
+        </th>
+                                <th
+            class=" numeric"
+            >
+
+                                        
+            
+            
+            <a href="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=desc&amp;filter%5Bsort%5D=orders_count"
+               >
+                Кол-во заказов
+            </a>
+        </th>
+                                <th
+            class=" numeric"
+            >
+
+                                        
+            
+            
+            <a href="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=desc&amp;filter%5Bsort%5D=average_summ"
+               >
+                Средний чек
+            </a>
+        </th>
+                                <th
+            class=" numeric"
+            >
+
+                                        
+            
+            
+            <a href="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=desc&amp;filter%5Bsort%5D=total_summ"
+               >
+                Сумма заказов
+            </a>
+        </th>
+                                <th
+            class=""
+            >
+
+                                        
+            
+            
+            <a href="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc&amp;filter%5Bsort%5D=mg_channels"
+               >
+                Чаты
+            </a>
+        </th>
+    </tr>
+                        <tr>
+    <td id="upload" data-datetime="2025-08-21 14:31:24" colspan="11" data-check="/customers/list/check-count" data-update="/customers/list/last">
+        <div><a id="upload-btn" class="upload-btn" href="#"><span></span></a></div>
+    </td>
+</tr>
+    
+            <tr data-url="/customers/113" class="">
+                        <td class="no-click center">
+                <input type="checkbox"
+                   name="batch[element][113]"
+                   id="batch_element_113"
+                   class="batch-element-checkbox"
+                   value="113" />
+            </td>
+        
+                    <td class="no-click center">
+                <a title="Редактировать" href="https://evgenybaevski.retailcrm.ru/customers/113/edit" class="tr-edit btn white box"></a>
+            </td>
+        
+                    
+
+                                                                                                             <td>
+        <div class="flex-td-wrapp">
+            <div class="avatar-block"><span>ТП</span></div>
+                            <a href="/customers/113" class="important-flag__link">Попробуйтолькообмани Тестовый Менеджер</a>
+                                            </div>
+    </td>                                                                                                                 <td>21.08.2025 13:47</td>                                                                                                                 <td>
+                    &mdash;            </td>                                                                                                                 <td>
+        
+                        
+                                        <span class="with-phone-icon" data-site="" data-canonical-number="+375290000005">+375290000005</span>
+                        </td>                                                                                                                 <td class="word-wrap">
+                    &mdash;            </td>                                                                                                                 <td class="numeric">0</td>                                                                                                                 <td class="price">0&nbsp;<span class="currency-symbol byn">руб.</span></td>                                                                                                                 <td class="price">
+        0&nbsp;<span class="currency-symbol byn">руб.</span>
+    </td>                                                                                                                 
+<td>
+        &mdash;            </td>        </tr>
+    
+            <tr data-url="/customers/112" class="">
+                        <td class="no-click center">
+                <input type="checkbox"
+                   name="batch[element][112]"
+                   id="batch_element_112"
+                   class="batch-element-checkbox"
+                   value="112" />
+            </td>
+        
+                    <td class="no-click center">
+                <a title="Редактировать" href="https://evgenybaevski.retailcrm.ru/customers/112/edit" class="tr-edit btn white box"></a>
+            </td>
+        
+                    
+
+                                                                                                             <td>
+        <div class="flex-td-wrapp">
+            <div class="avatar-block"><span>ТЧ</span></div>
+                            <a href="/customers/112" class="important-flag__link">Четвертый Тестовый Менеджер</a>
+                                            </div>
+    </td>                                                                                                                 <td>21.08.2025 13:41</td>                                                                                                                 <td>
+                    &mdash;            </td>                                                                                                                 <td>
+        
+                        
+                                        <span class="with-phone-icon" data-site="" data-canonical-number="+375290000004">+375290000004</span>
+                        </td>                                                                                                                 <td class="word-wrap">
+                    &mdash;            </td>                                                                                                                 <td class="numeric">0</td>                                                                                                                 <td class="price">0&nbsp;<span class="currency-symbol byn">руб.</span></td>                                                                                                                 <td class="price">
+        0&nbsp;<span class="currency-symbol byn">руб.</span>
+    </td>                                                                                                                 
+<td>
+        &mdash;            </td>        </tr>
+    
+            <tr data-url="/customers/111" class="">
+                        <td class="no-click center">
+                <input type="checkbox"
+                   name="batch[element][111]"
+                   id="batch_element_111"
+                   class="batch-element-checkbox"
+                   value="111" />
+            </td>
+        
+                    <td class="no-click center">
+                <a title="Редактировать" href="https://evgenybaevski.retailcrm.ru/customers/111/edit" class="tr-edit btn white box"></a>
+            </td>
+        
+                    
+
+                                                                                                             <td>
+        <div class="flex-td-wrapp">
+            <div class="avatar-block"><span>ТТ</span></div>
+                            <a href="/customers/111" class="important-flag__link">Третий Тестовый Менеджер</a>
+                                            </div>
+    </td>                                                                                                                 <td>21.08.2025 13:11</td>                                                                                                                 <td>
+                    &mdash;            </td>                                                                                                                 <td>
+        
+                        
+                                        <span class="with-phone-icon" data-site="" data-canonical-number="+375290000003">+375290000003</span>
+                        </td>                                                                                                                 <td class="word-wrap">
+                    &mdash;            </td>                                                                                                                 <td class="numeric">0</td>                                                                                                                 <td class="price">0&nbsp;<span class="currency-symbol byn">руб.</span></td>                                                                                                                 <td class="price">
+        0&nbsp;<span class="currency-symbol byn">руб.</span>
+    </td>                                                                                                                 
+<td>
+        &mdash;            </td>        </tr>
+    
+            <tr data-url="/customers/110" class="">
+                        <td class="no-click center">
+                <input type="checkbox"
+                   name="batch[element][110]"
+                   id="batch_element_110"
+                   class="batch-element-checkbox"
+                   value="110" />
+            </td>
+        
+                    <td class="no-click center">
+                <a title="Редактировать" href="https://evgenybaevski.retailcrm.ru/customers/110/edit" class="tr-edit btn white box"></a>
+            </td>
+        
+                    
+
+                                                                                                             <td>
+        <div class="flex-td-wrapp">
+            <div class="avatar-block"><span>ТВ</span></div>
+                            <a href="/customers/110" class="important-flag__link">Второй Тестовый Менеджер</a>
+                                            </div>
+    </td>                                                                                                                 <td>21.08.2025 13:11</td>                                                                                                                 <td>
+                    &mdash;            </td>                                                                                                                 <td>
+        
+                        
+                                        <span class="with-phone-icon" data-site="" data-canonical-number="+375290000002">+375290000002</span>
+                        </td>                                                                                                                 <td class="word-wrap">
+                    &mdash;            </td>                                                                                                                 <td class="numeric">0</td>                                                                                                                 <td class="price">0&nbsp;<span class="currency-symbol byn">руб.</span></td>                                                                                                                 <td class="price">
+        0&nbsp;<span class="currency-symbol byn">руб.</span>
+    </td>                                                                                                                 
+<td>
+        &mdash;            </td>        </tr>
+    
+            <tr data-url="/customers/109" class="">
+                        <td class="no-click center">
+                <input type="checkbox"
+                   name="batch[element][109]"
+                   id="batch_element_109"
+                   class="batch-element-checkbox"
+                   value="109" />
+            </td>
+        
+                    <td class="no-click center">
+                <a title="Редактировать" href="https://evgenybaevski.retailcrm.ru/customers/109/edit" class="tr-edit btn white box"></a>
+            </td>
+        
+                    
+
+                                                                                                             <td>
+        <div class="flex-td-wrapp">
+            <div class="avatar-block"><span>ТП</span></div>
+                            <a href="/customers/109" class="important-flag__link">Первый Тестовый Менеджер</a>
+                                            </div>
+    </td>                                                                                                                 <td>21.08.2025 13:10</td>                                                                                                                 <td>
+                    &mdash;            </td>                                                                                                                 <td>
+        
+                        
+                                        <span class="with-phone-icon" data-site="" data-canonical-number="+375290000001">+375290000001</span>
+                        </td>                                                                                                                 <td class="word-wrap">
+                    &mdash;            </td>                                                                                                                 <td class="numeric">0</td>                                                                                                                 <td class="price">0&nbsp;<span class="currency-symbol byn">руб.</span></td>                                                                                                                 <td class="price">
+        0&nbsp;<span class="currency-symbol byn">руб.</span>
+    </td>                                                                                                                 
+<td>
+        &mdash;            </td>        </tr>
+    
+            <tr data-url="/customers/107" class="">
+                        <td class="no-click center">
+                <input type="checkbox"
+                   name="batch[element][107]"
+                   id="batch_element_107"
+                   class="batch-element-checkbox"
+                   value="107" />
+            </td>
+        
+                    <td class="no-click center">
+                <a title="Редактировать" href="https://evgenybaevski.retailcrm.ru/customers/107/edit" class="tr-edit btn white box"></a>
+            </td>
+        
+                    
+
+                                                                                                             <td>
+        <div class="flex-td-wrapp">
+            <div class="avatar-block"><span>+</span></div>
+                            <a href="/customers/107" class="important-flag__link">+375297003134</a>
+                                            </div>
+    </td>                                                                                                                 <td>21.08.2025 12:45</td>                                                                                                                 <td>
+                    &mdash;            </td>                                                                                                                 <td>
+        
+                                                    
+                                        <span class="with-phone-icon" data-site="2" data-canonical-number="+375297003134">+375297003134</span>
+                        </td>                                                                                                                 <td class="word-wrap">
+        
+    <a href="/managers/18">Джуновый Джулай</a>    </td>                                                                                                                 <td class="numeric">0</td>                                                                                                                 <td class="price">0&nbsp;<span class="currency-symbol byn">руб.</span></td>                                                                                                                 <td class="price">
+        0&nbsp;<span class="currency-symbol byn">руб.</span>
+    </td>                                                                                                                 
+<td>
+        &mdash;            </td>        </tr>
+    
+            <tr data-url="/customers/106" class="">
+                        <td class="no-click center">
+                <input type="checkbox"
+                   name="batch[element][106]"
+                   id="batch_element_106"
+                   class="batch-element-checkbox"
+                   value="106" />
+            </td>
+        
+                    <td class="no-click center">
+                <a title="Редактировать" href="https://evgenybaevski.retailcrm.ru/customers/106/edit" class="tr-edit btn white box"></a>
+            </td>
+        
+                    
+
+                                                                                                             <td>
+        <div class="flex-td-wrapp">
+            <div class="avatar-block"><span>АБ</span></div>
+                            <a href="/customers/106" class="important-flag__link">Бузыкин Андрей Николаевич</a>
+                                            </div>
+    </td>                                                                                                                 <td>21.08.2025 12:29</td>                                                                                                                 <td>
+                    &mdash;            </td>                                                                                                                 <td>
+        
+                        
+                                        <span class="with-phone-icon" data-site="" data-canonical-number="+375297003134">+375297003134</span>
+                        </td>                                                                                                                 <td class="word-wrap">
+        
+    <a href="/managers/18">Джуновый Джулай</a>    </td>                                                                                                                 <td class="numeric">0</td>                                                                                                                 <td class="price">0&nbsp;<span class="currency-symbol byn">руб.</span></td>                                                                                                                 <td class="price">
+        0&nbsp;<span class="currency-symbol byn">руб.</span>
+    </td>                                                                                                                 
+<td>
+        &mdash;            </td>        </tr>
+    
+            <tr data-url="/customers/105" class="">
+                        <td class="no-click center">
+                <input type="checkbox"
+                   name="batch[element][105]"
+                   id="batch_element_105"
+                   class="batch-element-checkbox"
+                   value="105" />
+            </td>
+        
+                    <td class="no-click center">
+                <a title="Редактировать" href="https://evgenybaevski.retailcrm.ru/customers/105/edit" class="tr-edit btn white box"></a>
+            </td>
+        
+                    
+
+                                                                                                             <td>
+        <div class="flex-td-wrapp">
+            <div class="avatar-block"><span>ЕБ</span></div>
+                            <a href="/customers/105" class="important-flag__link">Баевский Евгений</a>
+                                            </div>
+    </td>                                                                                                                 <td>21.08.2025 12:08</td>                                                                                                                 <td>
+                    &mdash;            </td>                                                                                                                 <td>
+        
+                        
+                                        <span class="with-phone-icon" data-site="" data-canonical-number="+375293332211">+375293332211</span>
+                        </td>                                                                                                                 <td class="word-wrap">
+        
+    <a href="/managers/18">Джуновый Джулай</a>    </td>                                                                                                                 <td class="numeric">0</td>                                                                                                                 <td class="price">0&nbsp;<span class="currency-symbol byn">руб.</span></td>                                                                                                                 <td class="price">
+        0&nbsp;<span class="currency-symbol byn">руб.</span>
+    </td>                                                                                                                 
+<td>
+        &mdash;            </td>        </tr>
+    
+            <tr data-url="/customers/101" class="">
+                        <td class="no-click center">
+                <input type="checkbox"
+                   name="batch[element][101]"
+                   id="batch_element_101"
+                   class="batch-element-checkbox"
+                   value="101" />
+            </td>
+        
+                    <td class="no-click center">
+                <a title="Редактировать" href="https://evgenybaevski.retailcrm.ru/customers/101/edit" class="tr-edit btn white box"></a>
+            </td>
+        
+                    
+
+                                                                                                             <td>
+        <div class="flex-td-wrapp">
+            <div class="avatar-block"><span>ОБ</span></div>
+                            <a href="/customers/101" class="important-flag__link">Бендер Остап Ибрагимович</a>
+                                            </div>
+    </td>                                                                                                                 <td>21.08.2025 09:42</td>                                                                                                                 <td>
+                    &mdash;            </td>                                                                                                                 <td>
+        
+                        
+                                        <span class="with-phone-icon" data-site="" data-canonical-number="+375290011001">+375290011001</span>
+                        </td>                                                                                                                 <td class="word-wrap">
+                    &mdash;            </td>                                                                                                                 <td class="numeric">0</td>                                                                                                                 <td class="price">0&nbsp;<span class="currency-symbol byn">руб.</span></td>                                                                                                                 <td class="price">
+        0&nbsp;<span class="currency-symbol byn">руб.</span>
+    </td>                                                                                                                 
+<td>
+        &mdash;            </td>        </tr>
+    
+            <tr data-url="/customers/60" class="">
+                        <td class="no-click center">
+                <input type="checkbox"
+                   name="batch[element][60]"
+                   id="batch_element_60"
+                   class="batch-element-checkbox"
+                   value="60" />
+            </td>
+        
+                    <td class="no-click center">
+                <a title="Редактировать" href="https://evgenybaevski.retailcrm.ru/customers/60/edit" class="tr-edit btn white box"></a>
+            </td>
+        
+                    
+
+                                                                                                             <td>
+        <div class="flex-td-wrapp">
+            <div class="avatar-block"><span>АК</span></div>
+                            <a href="/customers/60" class="important-flag__link">Козлевич Адам Казимирович</a>
+                                            </div>
+    </td>                                                                                                                 <td>06.08.2025 08:51</td>                                                                                                                 <td>
+                    &mdash;            </td>                                                                                                                 <td>
+        
+                        
+                                        <span class="with-phone-icon" data-site="" data-canonical-number="+375296254070">+375296254070</span>
+                        </td>                                                                                                                 <td class="word-wrap">
+        
+    <a href="/managers/18">Джуновый Джулай</a>    </td>                                                                                                                 <td class="numeric">0</td>                                                                                                                 <td class="price">0&nbsp;<span class="currency-symbol byn">руб.</span></td>                                                                                                                 <td class="price">
+        0&nbsp;<span class="currency-symbol byn">руб.</span>
+    </td>                                                                                                                 
+<td>
+        &mdash;            </td>        </tr>
+                    </table>
+                </div>
+
+                <div class="list-bottom">
+                    <div class="list-total-stripe">
+                        <span id="list-total-count" data-total-count="10">
+    10&nbsp;<span>элементов</span>
+</span>
+                    </div>
+                    <div class="m-pagination">
+                        <div class="pagination">
+    </div>
+
+        <div class="limit">
+        Показывать:
+                    
+            <a class="active" href="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc&amp;limit=20&amp;page=1" >по 20</a>
+                    <span>/</span> 
+            <a  href="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc&amp;limit=50&amp;page=1" >по 50</a>
+                    <span>/</span> 
+            <a  href="/customers/?filter%5BloyaltyProgramOrdersByPeriodType%5D=0&amp;filter%5Bdirection%5D=asc&amp;limit=100&amp;page=1" >по 100</a>
+            </div>
+
+    <a href="#export" class="list-export"><span>Выгрузить таблицу</span></a>
+
+                    </div>
+                </div>
+            </div>
+        	</div>
+
+                        </div>
+                                            </div>
+                                    </div>
+                <div id="push"></div>
+            </div>
+            <div class="pseudo-footer"></div>
+                <div class="batch-box">
+    <div class="wrapper">
+        <div class="elements-count">
+        </div>
+        <form name="batch" action="" id="list-batch-form" method="POST">
+            <input type="hidden" name="batch[all]" id="batch_all" value="" />
+            
+    <span class="dropdown tiny-dropdown dropdown-up up">
+        <button
+                            type="button"
+                            class="batch-actions white small down-icon btn"
+                    >Действия</button>        <div class="ul-scroll-dropdown-wrapper batch-menu">
+            <ul class="left-list">
+                                                                                <li class="button">
+                            <a href="javascript:void(0);"  data-url="/customers/delete-batch"
+                                data-alert-message="Вы уверены, что хотите удалить выбранных клиентов и все оформленные ими заказы? Данная операция необратима."
+                                id="customer-delete-batch-button">
+                                Удалить
+
+                                <div class="batch_popup_warning"
+                                    data-count="10000000">
+                                    Для&nbsp;первых&nbsp;10000000&nbsp;клиентов
+                                </div>
+                            </a>
+                        </li>
+                    
+                                            <li class="button">
+                            <a id="task-add-batch-button" href="javascript:void(0)">
+                                Создать задачу
+                                <div class="batch_popup_warning" data-count="100">
+                                    Для&nbsp;первых&nbsp;100&nbsp;клиентов
+                                </div>
+                            </a>
+                         </li>
+                    
+                                            <li class="button">
+                            <a href="javascript:void(0);"
+                               data-alert-message="Вы уверены, что хотите удалить файлы для выбранных клиентов? Данная операция необратима."
+                               data-url="/attachment/customer/remove-bunch"
+                               id="attachment-remove-button">
+                                Удалить файлы
+                            </a>
+                        </li>
+                    
+                    
+                                                                <li>
+                            <a href="javascript:void(0);">
+                                Сменить менеджера
+                                <div class="batch_popup_warning"
+                                    data-count="100">
+                                    Для&nbsp;первых&nbsp;100&nbsp;клиентов
+                                </div>
+                            </a>
+                            <div class="drop save_batch" id="multiple-manager-change"
+                                data-url="/customers/manager">
+                                <ul class="scroll-x border" id="batch-managers">
+                                                                            <li data-id="16">
+                                            <a href="javascript:void(0);">Баевский Евгений Леонидович</a>
+                                        </li>
+                                                                            <li data-id="18">
+                                            <a href="javascript:void(0);">Джуновый Джулай</a>
+                                        </li>
+                                                                            <li data-id="19">
+                                            <a href="javascript:void(0);">Тимлидовый Аугуст</a>
+                                        </li>
+                                                                    </ul>
+                            </div>
+                        </li>
+                    
+                                                                    <li
+                            class="tags-group-action"
+                            id="tags-group-action-add"
+                            data-allow-tag-create="true"
+                        ></li>
+                                                                        <li class="tags-group-action"
+                            id="tags-group-action-remove">
+                        </li>
+                                                                        </ul>
+        </div>
+    </span>
+
+        </form>
+    </div>
+</div>
+    <div id="task-add-batch-popup" class="stat-box-popup" data-url="/popup/tasks/add-batch/Customer">
+    </div>
+
+        
+<div class="parameters with-modal export-modal parameters_with-static-list">
+    <div class="parameters-popup-content stat-box-popup stat-box-popup-content">
+        <h2>Выгрузка таблицы</h2>
+
+        <div class="parameters__header-widgets">
+            <div class="template-list hide">
+    <div class="export-tpl-place" data-url="/list/customer/templates">
+        <div class="control-group">
+            <div class="controls ft-none dropdown unloading export-tpl-list">
+                <a href="#">Применить шаблон</a>
+                <div class="ul-scroll-dropdown-wrapper">
+                    <ul></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+            <div class="input-area">
+                <svg class="parameters__search-icon">
+                    <use xlink:href="/build/icons.ae86da8b.svg#search" />
+                </svg>
+                <input type="text" class="input-area__input js-parameters-search" placeholder="Поиск" />
+            </div>
+        </div>
+
+        <a href="javascript:void(0)" class="close"><i></i></a>
+
+        <form action="/list/customer/export?bundle=CRMBundle" method="POST"
+              id="list-export" target="_blank">
+            
+            <div class="parameters__form-wrap">
+                <div class="table format-list">
+                    <div class="td">
+                        <div class="scroll left">
+                            <ul class="enabled">
+                                <li>
+                                    <label><span>
+        Формат выгрузки
+        </span></label>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="td">
+                        <div class="parameters-group disabled">
+                            <div id="listexport_format" data-placeholder=""><input type="radio" id="listexport_format_0" name="listexport[format]" value="xlsx" checked="checked" /><label for="listexport_format_0"><span>
+        xlsx
+        </span></label><input type="radio" id="listexport_format_1" name="listexport[format]" value="csv" /><label for="listexport_format_1"><span>
+        csv
+        </span></label><input type="radio" id="listexport_format_2" name="listexport[format]" value="xml" /><label for="listexport_format_2"><span>
+        xml
+        </span></label><input type="radio" id="listexport_format_3" name="listexport[format]" value="json" /><label for="listexport_format_3"><span>
+        json
+        </span></label></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table columns">
+                    <div class="td td_first">
+                        <div class="scroll left">
+                            <ul>
+                                <li><label>Выгружаемые поля</label></li>
+                            </ul>
+                            <ul class="enabled sortable"></ul>
+                        </div>
+                    </div>
+                    <div class="td">
+                        <div class="scroll right">
+                            <div class="disabled"><div class="parameters-group">
+                                        <div class="group-field" data-group="analytics" >Аналитика</div>
+                                        <ul><li data-group="analytics" class="parameters__item" value="orders_count"><input type="checkbox" id="listexport_columns_22" name="listexport[columns][]" value="orders_count" checked="checked" /><label title="Кол-во заказов" for="listexport_columns_22"><span>
+        Кол-во заказов
+        </span></label></li><li data-group="analytics" class="parameters__item" value="source"><input type="checkbox" id="listexport_columns_23" name="listexport[columns][]" value="source" /><label title="Источник" for="listexport_columns_23"><span>
+        Источник
+        </span></label></li><li data-group="analytics" class="parameters__item" value="medium"><input type="checkbox" id="listexport_columns_24" name="listexport[columns][]" value="medium" /><label title="Канал" for="listexport_columns_24"><span>
+        Канал
+        </span></label></li><li data-group="analytics" class="parameters__item" value="campaign"><input type="checkbox" id="listexport_columns_25" name="listexport[columns][]" value="campaign" /><label title="Кампания" for="listexport_columns_25"><span>
+        Кампания
+        </span></label></li><li data-group="analytics" class="parameters__item" value="keyword"><input type="checkbox" id="listexport_columns_26" name="listexport[columns][]" value="keyword" /><label title="Ключевое слово" for="listexport_columns_26"><span>
+        Ключевое слово
+        </span></label></li><li data-group="analytics" class="parameters__item" value="ad_content"><input type="checkbox" id="listexport_columns_27" name="listexport[columns][]" value="ad_content" /><label title="Содержание кампании" for="listexport_columns_27"><span>
+        Содержание кампании
+        </span></label></li><li data-group="analytics" class="parameters__item" value="segments"><input type="checkbox" id="listexport_columns_28" name="listexport[columns][]" value="segments" /><label title="Сегменты" for="listexport_columns_28"><span>
+        Сегменты
+        </span></label></li><li data-group="analytics" class="parameters__item" value="first_web_visit"><input type="checkbox" id="listexport_columns_29" name="listexport[columns][]" value="first_web_visit" /><label title="Первое посещение" for="listexport_columns_29"><span>
+        Первое посещение
+        </span></label></li><li data-group="analytics" class="parameters__item" value="last_web_visit"><input type="checkbox" id="listexport_columns_30" name="listexport[columns][]" value="last_web_visit" /><label title="Последнее посещение" for="listexport_columns_30"><span>
+        Последнее посещение
+        </span></label></li><li data-group="analytics" class="parameters__item" value="first_order"><input type="checkbox" id="listexport_columns_31" name="listexport[columns][]" value="first_order" /><label title="Первый заказ" for="listexport_columns_31"><span>
+        Первый заказ
+        </span></label></li><li data-group="analytics" class="parameters__item" value="last_order"><input type="checkbox" id="listexport_columns_32" name="listexport[columns][]" value="last_order" /><label title="Последний заказ" for="listexport_columns_32"><span>
+        Последний заказ
+        </span></label></li><li data-group="analytics" class="parameters__item" value="avg_seconds_between_orders"><input type="checkbox" id="listexport_columns_33" name="listexport[columns][]" value="avg_seconds_between_orders" /><label title="Среднее время между заказами" for="listexport_columns_33"><span>
+        Среднее время между заказами
+        </span></label></li><li data-group="analytics" class="parameters__item" value="maturation_time"><input type="checkbox" id="listexport_columns_34" name="listexport[columns][]" value="maturation_time" /><label title="Время «созревания»" for="listexport_columns_34"><span>
+        Время «созревания»
+        </span></label></li><li data-group="analytics" class="parameters__item" value="first_client_id"><input type="checkbox" id="listexport_columns_35" name="listexport[columns][]" value="first_client_id" /><label title="Первый clientId" for="listexport_columns_35"><span>
+        Первый clientId
+        </span></label></li><li data-group="analytics" class="parameters__item" value="last_client_id"><input type="checkbox" id="listexport_columns_36" name="listexport[columns][]" value="last_client_id" /><label title="Последний clientId" for="listexport_columns_36"><span>
+        Последний clientId
+        </span></label></li><li data-group="analytics" class="parameters__item" value="tasks_counts"><input type="checkbox" id="listexport_columns_37" name="listexport[columns][]" value="tasks_counts" /><label title="Задачи" for="listexport_columns_37"><span>
+        Задачи
+        </span></label></li></ul>
+                                    </div><div class="parameters-group">
+                                        <div class="group-field" data-group="cost" >Стоимость</div>
+                                        <ul><li data-group="cost" class="parameters__item" value="average_summ"><input type="checkbox" id="listexport_columns_38" name="listexport[columns][]" value="average_summ" checked="checked" /><label title="Средний чек" for="listexport_columns_38"><span>
+        Средний чек
+        </span></label></li><li data-group="cost" class="parameters__item" value="total_summ"><input type="checkbox" id="listexport_columns_39" name="listexport[columns][]" value="total_summ" checked="checked" /><label title="Сумма заказов" for="listexport_columns_39"><span>
+        Сумма заказов
+        </span></label></li><li data-group="cost" class="parameters__item" value="margin_summ"><input type="checkbox" id="listexport_columns_40" name="listexport[columns][]" value="margin_summ" /><label title="LTV" for="listexport_columns_40"><span>
+        LTV
+        </span></label></li><li data-group="cost" class="parameters__item" value="cost_summ"><input type="checkbox" id="listexport_columns_41" name="listexport[columns][]" value="cost_summ" /><label title="Сумма расходов по заказам" for="listexport_columns_41"><span>
+        Сумма расходов по заказам
+        </span></label></li></ul>
+                                    </div><div class="parameters-group">
+                                        <div class="group-field" data-group="customer" >Клиент</div>
+                                        <ul><li data-group="customer" class="parameters__item" value="nick_name"><input type="checkbox" id="listexport_columns_0" name="listexport[columns][]" value="nick_name" checked="checked" /><label title="ФИО" for="listexport_columns_0"><span>
+        ФИО
+        </span></label></li><li data-group="customer" class="parameters__item" value="created_at"><input type="checkbox" id="listexport_columns_1" name="listexport[columns][]" value="created_at" checked="checked" /><label title="Дата регистрации" for="listexport_columns_1"><span>
+        Дата регистрации
+        </span></label></li><li data-group="customer" class="parameters__item" value="email"><input type="checkbox" id="listexport_columns_2" name="listexport[columns][]" value="email" checked="checked" /><label title="E-mail" for="listexport_columns_2"><span>
+        E-mail
+        </span></label></li><li data-group="customer" class="parameters__item" value="phone"><input type="checkbox" id="listexport_columns_3" name="listexport[columns][]" value="phone" checked="checked" /><label title="Телефон" for="listexport_columns_3"><span>
+        Телефон
+        </span></label></li><li data-group="customer" class="parameters__item" value="manager"><input type="checkbox" id="listexport_columns_4" name="listexport[columns][]" value="manager" checked="checked" /><label title="Менеджер" for="listexport_columns_4"><span>
+        Менеджер
+        </span></label></li><li data-group="customer" class="parameters__item" value="external_id"><input type="checkbox" id="listexport_columns_5" name="listexport[columns][]" value="external_id" /><label title="Внешний ID" for="listexport_columns_5"><span>
+        Внешний ID
+        </span></label></li><li data-group="customer" class="parameters__item" value="region"><input type="checkbox" id="listexport_columns_6" name="listexport[columns][]" value="region" /><label title="Регион" for="listexport_columns_6"><span>
+        Регион
+        </span></label></li><li data-group="customer" class="parameters__item" value="city"><input type="checkbox" id="listexport_columns_7" name="listexport[columns][]" value="city" /><label title="Город" for="listexport_columns_7"><span>
+        Город
+        </span></label></li><li data-group="customer" class="parameters__item" value="address"><input type="checkbox" id="listexport_columns_8" name="listexport[columns][]" value="address" /><label title="Адрес" for="listexport_columns_8"><span>
+        Адрес
+        </span></label></li><li data-group="customer" class="parameters__item" value="discount_card_number"><input type="checkbox" id="listexport_columns_9" name="listexport[columns][]" value="discount_card_number" /><label title="Номер дисконтной карты" for="listexport_columns_9"><span>
+        Номер дисконтной карты
+        </span></label></li><li data-group="customer" class="parameters__item" value="site"><input type="checkbox" id="listexport_columns_10" name="listexport[columns][]" value="site" /><label title="Магазин" for="listexport_columns_10"><span>
+        Магазин
+        </span></label></li><li data-group="customer" class="parameters__item" value="notes"><input type="checkbox" id="listexport_columns_11" name="listexport[columns][]" value="notes" /><label title="Заметки" for="listexport_columns_11"><span>
+        Заметки
+        </span></label></li><li data-group="customer" class="parameters__item" value="birthday"><input type="checkbox" id="listexport_columns_12" name="listexport[columns][]" value="birthday" /><label title="День рождения" for="listexport_columns_12"><span>
+        День рождения
+        </span></label></li><li data-group="customer" class="parameters__item" value="sex"><input type="checkbox" id="listexport_columns_13" name="listexport[columns][]" value="sex" /><label title="Пол" for="listexport_columns_13"><span>
+        Пол
+        </span></label></li><li data-group="customer" class="parameters__item" value="attachments"><input type="checkbox" id="listexport_columns_14" name="listexport[columns][]" value="attachments" /><label title="Файлы / Вложения" for="listexport_columns_14"><span>
+        Файлы / Вложения
+        </span></label></li><li data-group="customer" class="parameters__item" value="customer_subscriptions"><input type="checkbox" id="listexport_columns_15" name="listexport[columns][]" value="customer_subscriptions" /><label title="Подписки" for="listexport_columns_15"><span>
+        Подписки
+        </span></label></li><li data-group="customer" class="parameters__item" value="tags"><input type="checkbox" id="listexport_columns_16" name="listexport[columns][]" value="tags" /><label title="Теги" for="listexport_columns_16"><span>
+        Теги
+        </span></label></li><li data-group="customer" class="parameters__item" value="country"><input type="checkbox" id="listexport_columns_17" name="listexport[columns][]" value="country" /><label title="Страна" for="listexport_columns_17"><span>
+        Страна
+        </span></label></li><li data-group="customer" class="parameters__item" value="index"><input type="checkbox" id="listexport_columns_18" name="listexport[columns][]" value="index" /><label title="Индекс" for="listexport_columns_18"><span>
+        Индекс
+        </span></label></li><li data-group="customer" class="parameters__item" value="first_name"><input type="checkbox" id="listexport_columns_19" name="listexport[columns][]" value="first_name" /><label title="Имя" for="listexport_columns_19"><span>
+        Имя
+        </span></label></li><li data-group="customer" class="parameters__item" value="last_name"><input type="checkbox" id="listexport_columns_20" name="listexport[columns][]" value="last_name" /><label title="Фамилия" for="listexport_columns_20"><span>
+        Фамилия
+        </span></label></li><li data-group="customer" class="parameters__item" value="patronymic"><input type="checkbox" id="listexport_columns_21" name="listexport[columns][]" value="patronymic" /><label title="Отчество" for="listexport_columns_21"><span>
+        Отчество
+        </span></label></li></ul>
+                                    </div><div class="parameters-group">
+                                        <div class="group-field" data-group="retailcrm_chat" >Коммуникации</div>
+                                        <ul><li data-group="retailcrm_chat" class="parameters__item" value="mg_channels"><input type="checkbox" id="listexport_columns_42" name="listexport[columns][]" value="mg_channels" checked="checked" /><label title="Чаты" for="listexport_columns_42"><span>
+        Чаты
+        </span></label></li><li data-group="retailcrm_chat" class="parameters__item" value="last_manager_communicated_at"><input type="checkbox" id="listexport_columns_43" name="listexport[columns][]" value="last_manager_communicated_at" /><label title="Дата последнего ответа менеджера в чатах" for="listexport_columns_43"><span>
+        Дата последнего ответа менеджера в чатах
+        </span></label></li></ul>
+                                    </div><div class="parameters-group">
+                                        <div class="group-field" data-group="loyalty" >Программа лояльности</div>
+                                        <ul><li data-group="loyalty" class="parameters__item" value="loyalty_programs"><input type="checkbox" id="listexport_columns_44" name="listexport[columns][]" value="loyalty_programs" /><label title="Программа лояльности" for="listexport_columns_44"><span>
+        Программа лояльности
+        </span></label></li><li data-group="loyalty" class="parameters__item" value="loyalty_program_reg_date"><input type="checkbox" id="listexport_columns_45" name="listexport[columns][]" value="loyalty_program_reg_date" /><label title="Дата регистрации в ПЛ" for="listexport_columns_45"><span>
+        Дата регистрации в ПЛ
+        </span></label></li></ul>
+                                    </div><div class="parameters-group">
+                                        <div class="group-field" data-group="custom_fields_group" >Пользовательские поля</div>
+                                        <ul></ul>
+                                    </div><div class="parameters-toggle">
+                                    <button type="button" class="check">Выбрать все</button>
+                                    <button type="button" class="un-check">Снять все</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <ul class="format-table__wrap">
+                    <li class="format-option table" data-group="csv">
+                        <div class="td">
+                            <label><span>
+        Опции
+        </span></label>
+                        </div>
+                        <div class="td">
+                            <div id="listexport_csvOptions" data-placeholder=""><input type="checkbox" id="listexport_csvOptions_0" name="listexport[csvOptions][]" value="setHeader" checked="checked" /><label for="listexport_csvOptions_0"><span>
+        Установить заголовки у колонок
+        </span></label></div>
+                        </div>
+                    </li>
+                    <li class="format-option table" data-group="xlsx">
+                        <div class="td">
+                            <label><span>
+        Опции
+        </span></label>
+                        </div>
+                        <div class="td">
+                            <div id="listexport_xlsxOptions" data-placeholder=""><input type="checkbox" id="listexport_xlsxOptions_0" name="listexport[xlsxOptions][]" value="setHeader" checked="checked" /><label for="listexport_xlsxOptions_0"><span>
+        Установить заголовки у колонок
+        </span></label></div>
+                        </div>
+                    </li>
+                    <li class="format-option table" data-group="xml">
+                        <div class="td">
+                            <label><span>
+        Опции
+        </span></label>
+                        </div>
+                        <div class="td">
+                            <div id="listexport_xmlOptions" data-placeholder=""></div>
+                        </div>
+                    </li>
+                    <li class="format-option table" data-group="json">
+                        <div class="td">
+                            <label><span>
+        Опции
+        </span></label>
+                        </div>
+                        <div class="td">
+                            <div id="listexport_jsonOptions" data-placeholder=""></div>
+                        </div>
+                    </li>
+                    <li class="format-option table" data-group="csv">
+                        <div class="td">
+                            <label><span>
+        Тип разделителя
+        </span></label>
+                        </div>
+                        <div class="td">
+                            <div id="listexport_csvDelimiter" data-placeholder=""><input type="radio" id="listexport_csvDelimiter_0" name="listexport[csvDelimiter]" value="semicolon" checked="checked" /><label for="listexport_csvDelimiter_0"><span>
+        Точка с запятой
+        </span></label><input type="radio" id="listexport_csvDelimiter_1" name="listexport[csvDelimiter]" value="comma" /><label for="listexport_csvDelimiter_1"><span>
+        Запятая
+        </span></label><input type="radio" id="listexport_csvDelimiter_2" name="listexport[csvDelimiter]" value="tab" /><label for="listexport_csvDelimiter_2"><span>
+        Табуляция
+        </span></label><input type="radio" id="listexport_csvDelimiter_3" name="listexport[csvDelimiter]" value="space" /><label for="listexport_csvDelimiter_3"><span>
+        Пробел
+        </span></label></div>
+                        </div>
+                    </li>
+                                            <li class="format-option table">
+                            <div class="td td_empty">&nbsp;</div>
+                            <div class="td">
+                                <div class="cleared mb-3">
+                                    <input type="checkbox" id="listexport_explodeAddress" name="listexport[explodeAddress]" value="1" />
+                                    <label for="listexport_explodeAddress"><span>
+        Выводить адрес в подробном формате
+        </span></label>
+                                    </div>
+                                <div id="listexport_detailAddressColumns">
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_0" name="listexport[detailAddressColumns][]" value="index" />
+                                            <label for="listexport_detailAddressColumns_0"><span>
+        Почтовый индекс
+        </span></label>
+                                        </div>
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_1" name="listexport[detailAddressColumns][]" value="region" />
+                                            <label for="listexport_detailAddressColumns_1"><span>
+        Регион
+        </span></label>
+                                        </div>
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_2" name="listexport[detailAddressColumns][]" value="city" checked="checked" />
+                                            <label for="listexport_detailAddressColumns_2"><span>
+        Город
+        </span></label>
+                                        </div>
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_3" name="listexport[detailAddressColumns][]" value="street" checked="checked" />
+                                            <label for="listexport_detailAddressColumns_3"><span>
+        Улица
+        </span></label>
+                                        </div>
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_4" name="listexport[detailAddressColumns][]" value="building" checked="checked" />
+                                            <label for="listexport_detailAddressColumns_4"><span>
+        Дом
+        </span></label>
+                                        </div>
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_5" name="listexport[detailAddressColumns][]" value="flat" checked="checked" />
+                                            <label for="listexport_detailAddressColumns_5"><span>
+        Квартира
+        </span></label>
+                                        </div>
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_6" name="listexport[detailAddressColumns][]" value="house" checked="checked" />
+                                            <label for="listexport_detailAddressColumns_6"><span>
+        Строение
+        </span></label>
+                                        </div>
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_7" name="listexport[detailAddressColumns][]" value="housing" />
+                                            <label for="listexport_detailAddressColumns_7"><span>
+        Корпус
+        </span></label>
+                                        </div>
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_8" name="listexport[detailAddressColumns][]" value="block" />
+                                            <label for="listexport_detailAddressColumns_8"><span>
+        Подъезд
+        </span></label>
+                                        </div>
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_9" name="listexport[detailAddressColumns][]" value="floor" />
+                                            <label for="listexport_detailAddressColumns_9"><span>
+        Этаж
+        </span></label>
+                                        </div>
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_10" name="listexport[detailAddressColumns][]" value="metro" />
+                                            <label for="listexport_detailAddressColumns_10"><span>
+        Метро
+        </span></label>
+                                        </div>
+                                                                            <div class="cleared mt5">
+                                            <input type="checkbox" id="listexport_detailAddressColumns_11" name="listexport[detailAddressColumns][]" value="text" />
+                                            <label for="listexport_detailAddressColumns_11"><span>
+        Адрес в виде текста
+        </span></label>
+                                        </div>
+                                                                    </div>
+                            </div>
+                        </li>
+                                    </ul>
+
+                                    <div class="field-group bottom-controls export-tpl-save" style="display: block;">
+                        <div class="controls export-tpl-activate">
+                            <a class="export-tpl-create" href="#"><i class="ico"></i><span
+                                        class="">Создать новый шаблон</span></a>
+                        </div>
+                        <div class="control-group hide export-tpl-name"><label for="listexport_templateName"><span>
+        Название шаблона
+        </span></label><input type="text" id="listexport_templateName" name="listexport[templateName]" maxlength="250" autocomplete="off" class="input-field ft-none" style="width: 200px" /><a class="export-tpl-cancel" href="#"></a>
+                        </div>
+                    </div>
+                            </div>
+
+            <div class="bottom-controls">
+                <button
+                            type="submit"
+                            class="small btn"
+                    >Выгрузить</button>            </div>
+        </form>
+    </div>
+</div>
+
+            <div class="wa-onboarding-overlay hide"></div>
+        <div id="whatsapp-messages"></div>
+    <div id="whatsapp-notification" class="whatsapp-notification" style="display: none;">Сообщения отправляются</div>
+            <div id="independent-popup-dialin-reminder-add-bk" class="stat-box-popup not-close"></div>
+
+
+                
+                
+            <div id="getting-started-retailcrm"></div>
+    
+    
+        <!-- Yandex.Metrika counter -->
+    <noscript>
+        <div>
+            <img
+                src="https://mc.yandex.ru/watch/21338455"
+                style="position:absolute; left:-9999px;" alt=""
+            />
+        </div>
+    </noscript>
+    <!-- /Yandex.Metrika counter -->
+        </div>
+
+        <div id="content-loader" class="content-loader">
+            <div class="content-loader__inner">
+                <div class="content-loader__content">
+                    <div class="content-loader__spinner loader"></div>
+                    <div class="content-loader__txt"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="right-bottom-box">
+            <div id="notification-box"></div>
+        <script type="text/template" id="notification_template_common">
+            <div class="notification <%=(typeof n.important != 'undefined' && n.important ? " important" : "")%><%=(typeof n.error != 'undefined' && n.error ? " error" : "")%>" id="">
+    <div class="close notification__close"><a href="#close">&nbsp;</a></div>
+    <div class="content notification__content">
+        <div class="head notification__head">
+            <span class="time notification__time"><%=n.createdAt%></span>
+                <% if (typeof n.title != 'undefined') { %>
+    <span class="title notification__title"><%=n.title%></span>
+    <% } %>
+        </div>
+        <div class="body notification__body"><%=n.message%></div>
+    </div>
+        </div>
+        </script>
+                <div id="right-bottom-banner"></div>
+                <div id="banner-box"></div>
+    </div>
+
+
+<script type="text/template" id="messageMgTemplate">
+    <div class="notification notification_icon _show  mgNotification mg-style "  data-chat-id="<%-n.chatId%>"  id="">
+    <div class="close notification__close"><a href="#close">&nbsp;</a></div>
+    <div class="content notification__content">
+        <div class="icon-notification">
+            <div class="icon-notification__col">
+                <span class="icon-notification-ava  icon-notification-ava_<%-n.messenger %> ">
+                        <%-n.initials %>
+    <% if (n.image) { %>
+        <img src="<%-n.image%>" class="icon-notification-ava__img" alt=""/>
+    <% } %>
+                </span>
+            </div>
+            <div class="icon-notification__col icon-notification__col_content">
+                <div class="icon-notification__head">
+                                            <a class="openChat icon-notification__title">
+                                <%-n.title%>
+                        </a>
+                                    </div>
+                <div class="icon-notification__descript ">
+                        <%-n.content%>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</script>
+
+<script type="text/template" id="messageMgAssignmentTemplate">
+    <div class="notification notification_icon _show  mgNotification mg-style notification_assignment "  id="">
+    <div class="close notification__close"><a href="#close">&nbsp;</a></div>
+    <div class="content notification__content">
+        <div class="icon-notification">
+            <div class="icon-notification__col">
+                <span class="icon-notification-ava ">
+                        <svg class="icon-notification__svg">
+        <use xlink:href="/build/icons.ae86da8b.svg#sms_chat_outlined" />
+    </svg>
+                </span>
+            </div>
+            <div class="icon-notification__col icon-notification__col_content">
+                <div class="icon-notification__head">
+                                            <a class="openChat icon-notification__title">
+                                <%-n.title%>
+                        </a>
+                                    </div>
+                <div class="icon-notification__descript ">
+                        <%= n.content%>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</script>
+
+<div id="mgPageModeBlockHidden" style="display: none">
+    <div id="messageGatewayApp"></div>
+</div>
+
+<script src="https://mg-s1.retailcrm.pro/frontend/loader.js"></script>
+
+<!-- markup -->
+<div id="vue-sms-counter-info"></div>
+<!-- /markup -->
+<div class="preview-window-wrap">
+    <div id="message-preview"></div>
+</div>
+</body>
+</html>
