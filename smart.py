@@ -288,6 +288,7 @@ async def _get_line_and_shop_names(
 
 
 async def _get_customer_name_via_8020(enterprise_number: str, phone_e164: str) -> Optional[str]:
+    # Получаем актуальные данные напрямую из CRM
     url = f"http://127.0.0.1:8020/customer-name/{enterprise_number}/{phone_e164}"
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:

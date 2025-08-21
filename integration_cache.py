@@ -916,17 +916,10 @@ async def _get_enterprise_smart_primary(conn: asyncpg.Connection, enterprise_num
 
 @app.get("/customer-name/{enterprise_number}/{phone}")
 async def get_customer_name(enterprise_number: str, phone: str):
-    """Return customer display name via primary integration (cached)."""
+    """Return customer display name via primary integration (always fresh)."""
     global pg_pool
     # Normalize phone to E164
     phone_e164 = normalize_phone_e164(phone)
-    cache_key = f"{enterprise_number}|{phone_e164}"
-
-    # Check cache
-    now = time.time()
-    entry = customer_name_cache.get(cache_key)
-    if entry and entry.get("expires", 0) > now:
-        return {"name": entry.get("name")}
 
     if not pg_pool:
         await init_database()
@@ -940,16 +933,25 @@ async def get_customer_name(enterprise_number: str, phone: str):
 
             extra_source: dict = {}
             if primary == "retailcrm":
-                # Query local retailcrm service for name
-                url = "http://127.0.0.1:8019/internal/retailcrm/customer-name"
+                # Query local retailcrm service for fresh profile data (not cached)
+                url = "http://127.0.0.1:8019/internal/retailcrm/customer-profile"
                 try:
                     async with httpx.AsyncClient(timeout=2.5) as client:
                         resp = await client.get(url, params={"phone": phone_e164})
                         if resp.status_code == 200:
                             data = resp.json() or {}
-                            n = data.get("name")
-                            if isinstance(n, str) and n.strip():
-                                name = n.strip()
+                            # Формируем полное имя из компонентов
+                            fn = (data.get("first_name") or "").strip()
+                            ln = (data.get("last_name") or "").strip()
+                            mn = (data.get("middle_name") or "").strip()
+                            en = (data.get("enterprise_name") or "").strip()
+                            
+                            # Приоритет: enterprise_name (для корпоративных), затем ФИО
+                            if en:
+                                name = en
+                            elif fn or ln:
+                                name_parts = [ln, fn, mn]
+                                name = " ".join([p for p in name_parts if p])
                 except Exception as e:
                     logger.warning(f"retailcrm name lookup failed: {e}")
             elif primary == "uon":
@@ -970,8 +972,7 @@ async def get_customer_name(enterprise_number: str, phone: str):
                 # Other integrations can be added here
                 name = None
 
-            # Store in cache (TTL 90s)
-            customer_name_cache[cache_key] = {"name": name, "expires": now + TTL_SECONDS}
+            # Возвращаем свежее имя без кэширования
             return {"name": name}
     except Exception as e:
         logger.error(f"get_customer_name error: {e}")
