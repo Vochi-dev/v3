@@ -2894,29 +2894,53 @@
                             if (chkCust && chkCust.checked && selCust) activeSelects.push(selCust);
                             if (chkShop && chkShop.checked && selShop) activeSelects.push(selShop);
 
-                            // Сбрасываем блокировки
+                            // Сбрасываем блокировки - разрешаем выбор всех позиций
                             [selLine, selCust, selShop].forEach(s => {
                                 if (!s) return;
                                 Array.from(s.options).forEach(o => o.disabled = false);
                             });
 
-                            // Применяем уникальность
-                            activeSelects.forEach((currentSelect) => {
-                                const usedValues = new Set(
-                                    activeSelects.filter(s => s !== currentSelect).map(s => s.value)
-                                );
-                                Array.from(currentSelect.options).forEach(option => {
-                                    option.disabled = usedValues.has(option.value);
-                                });
+                            // Не применяем блокировки - позволяем выбрать любую позицию
+                            // Конфликты будут разрешаться через handleOrderConflict при изменении
+                        };
 
-                                // Если текущее значение уже занято, найдем свободное
-                                if (usedValues.has(currentSelect.value)) {
-                                    const availableValue = ['1', '2', '3'].find(v => !usedValues.has(v));
-                                    if (availableValue) {
-                                        currentSelect.value = availableValue;
+                        // Функция для автоматической перестановки при конфликтах
+                        const handleOrderConflict = (changedSelect) => {
+                            const selLine = document.getElementById('sr_line_name_order');
+                            const selCust = document.getElementById('sr_customer_name_order');
+                            const selShop = document.getElementById('sr_shop_name_order');
+                            
+                            const chkLine = document.getElementById('sr_send_line_name');
+                            const chkCust = document.getElementById('sr_send_customer_name');
+                            const chkShop = document.getElementById('sr_send_shop_name');
+
+                            // Получаем все активные селекты
+                            const selects = [
+                                {el: selLine, active: chkLine && chkLine.checked, name: 'line'},
+                                {el: selCust, active: chkCust && chkCust.checked, name: 'customer'},
+                                {el: selShop, active: chkShop && chkShop.checked, name: 'shop'}
+                            ].filter(s => s.active && s.el);
+
+                            const newValue = changedSelect.value;
+                            
+                            // Находим конфликтующий селект
+                            const conflicting = selects.find(s => 
+                                s.el !== changedSelect && s.el.value === newValue
+                            );
+                            
+                            if (conflicting) {
+                                // Находим свободную позицию для конфликтующего элемента
+                                const usedValues = selects
+                                    .filter(s => s.el !== conflicting.el)
+                                    .map(s => s.el.value);
+                                
+                                for (let i = 1; i <= 3; i++) {
+                                    if (!usedValues.includes(String(i))) {
+                                        conflicting.el.value = String(i);
+                                        break;
                                     }
                                 }
-                            });
+                            }
                         };
 
                         // Заполним порядок из сохраненных данных
@@ -2934,9 +2958,18 @@
                         enforceGsmOrders();
 
                         // Добавляем обработчики событий
-                        ['sr_send_line_name','sr_send_customer_name','sr_send_shop_name','sr_line_name_order','sr_customer_name_order','sr_shop_name_order'].forEach(id=>{
+                        ['sr_send_line_name','sr_send_customer_name','sr_send_shop_name'].forEach(id=>{
                             const el = document.getElementById(id);
                             if (el) el.addEventListener('change', enforceGsmOrders);
+                        });
+
+                        // Добавляем обработчики для dropdown'ов с автоматической перестановкой
+                        ['sr_line_name_order','sr_customer_name_order','sr_shop_name_order'].forEach(id=>{
+                            const el = document.getElementById(id);
+                            if (el) el.addEventListener('change', function() {
+                                handleOrderConflict(this);
+                                enforceGsmOrders();
+                            });
                         });
                     
                     // Инициализируем intlTelInput после заполнения данных
@@ -3284,28 +3317,73 @@
                     const selLine = document.getElementById('sip_sr_line_name_order');
                     const selCust = document.getElementById('sip_sr_customer_name_order');
                     const selShop = document.getElementById('sip_sr_shop_name_order');
-                    const active = [];
-                    if (chkLine && chkLine.checked && selLine) active.push(selLine);
-                    if (chkCust && chkCust.checked && selCust) active.push(selCust);
-                    if (chkShop && chkShop.checked && selShop) active.push(selShop);
-                    // Снимем все disable
-                    [selLine, selCust, selShop].forEach(s => { if (!s) return; Array.from(s.options).forEach(o=>o.disabled=false); });
-                    // Запретим дубликаты
-                    active.forEach((s, idx) => {
-                        const used = new Set(active.filter(x=>x!==s).map(x=>x.value));
-                        Array.from(s.options).forEach(o => { o.disabled = used.has(o.value); });
-                        if (used.has(s.value)) {
-                            // автоисправление на первую свободную
-                            const cand = ['1','2','3'].find(v=>!used.has(v));
-                            if (cand) s.value = cand;
-                        }
+                    
+                    // Показываем/скрываем селекты
+                    if (selLine) selLine.style.visibility = chkLine && chkLine.checked ? 'visible' : 'hidden';
+                    if (selCust) selCust.style.visibility = chkCust && chkCust.checked ? 'visible' : 'hidden';
+                    if (selShop) selShop.style.visibility = chkShop && chkShop.checked ? 'visible' : 'hidden';
+                    
+                    // Снимаем все блокировки - разрешаем выбор всех позиций
+                    [selLine, selCust, selShop].forEach(s => { 
+                        if (!s) return; 
+                        Array.from(s.options).forEach(o=>o.disabled=false); 
                     });
+                    
+                    // Не применяем блокировки - позволяем выбрать любую позицию
                 };
-                ['sip_sr_send_line_name','sip_sr_send_customer_name','sip_sr_send_shop_name',
-                 'sip_sr_line_name_order','sip_sr_customer_name_order','sip_sr_shop_name_order']
-                .forEach(id=>{
+
+                // Функция для автоматической перестановки при конфликтах SIP
+                const handleSipOrderConflict = (changedSelect) => {
+                    const selLine = document.getElementById('sip_sr_line_name_order');
+                    const selCust = document.getElementById('sip_sr_customer_name_order');
+                    const selShop = document.getElementById('sip_sr_shop_name_order');
+                    
+                    const chkLine = document.getElementById('sip_sr_send_line_name');
+                    const chkCust = document.getElementById('sip_sr_send_customer_name');
+                    const chkShop = document.getElementById('sip_sr_send_shop_name');
+
+                    // Получаем все активные селекты
+                    const selects = [
+                        {el: selLine, active: chkLine && chkLine.checked, name: 'line'},
+                        {el: selCust, active: chkCust && chkCust.checked, name: 'customer'},
+                        {el: selShop, active: chkShop && chkShop.checked, name: 'shop'}
+                    ].filter(s => s.active && s.el);
+
+                    const newValue = changedSelect.value;
+                    
+                    // Находим конфликтующий селект
+                    const conflicting = selects.find(s => 
+                        s.el !== changedSelect && s.el.value === newValue
+                    );
+                    
+                    if (conflicting) {
+                        // Находим свободную позицию для конфликтующего элемента
+                        const usedValues = selects
+                            .filter(s => s.el !== conflicting.el)
+                            .map(s => s.el.value);
+                        
+                        for (let i = 1; i <= 3; i++) {
+                            if (!usedValues.includes(String(i))) {
+                                conflicting.el.value = String(i);
+                                break;
+                            }
+                        }
+                    }
+                };
+
+                // Разделяем обработчики для checkbox'ов и dropdown'ов
+                ['sip_sr_send_line_name','sip_sr_send_customer_name','sip_sr_send_shop_name'].forEach(id=>{
                     const el = document.getElementById(id);
                     if (el) el.addEventListener('change', enforceSipOrders);
+                });
+
+                // Добавляем обработчики для dropdown'ов с автоматической перестановкой
+                ['sip_sr_line_name_order','sip_sr_customer_name_order','sip_sr_shop_name_order'].forEach(id=>{
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('change', function() {
+                        handleSipOrderConflict(this);
+                        enforceSipOrders();
+                    });
                 });
                 enforceSipOrders();
 
