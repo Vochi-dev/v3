@@ -1005,6 +1005,7 @@ async def get_customer_profile(enterprise_number: str, phone: str):
         async with pg_pool.acquire() as conn:
             primary = await _get_enterprise_smart_primary(conn, enterprise_number)
             prof = {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
+            extra_source = None
             if primary == "retailcrm":
                 url = "http://127.0.0.1:8019/internal/retailcrm/customer-profile"
                 try:
@@ -1016,6 +1017,21 @@ async def get_customer_profile(enterprise_number: str, phone: str):
                                 v = data.get(k)
                                 if isinstance(v, str):
                                     prof[k] = v.strip() or None
+                            
+                            # Получаем сырые данные клиента из RetailCRM для merge_customer_identity
+                            url_customer = "http://127.0.0.1:8019/test/search-customer"
+                            try:
+                                customer_resp = await client.get(url_customer, params={"phone": phone_e164})
+                                if customer_resp.status_code == 200:
+                                    customer_data = customer_resp.json() or {}
+                                    if customer_data.get("success") and customer_data.get("data"):
+                                        data_obj = customer_data.get("data", {})
+                                        if data_obj.get("customers"):
+                                            customers = data_obj.get("customers", [])
+                                            if customers:
+                                                extra_source = {"raw": customers[0], "type": "retailcrm"}
+                            except Exception:
+                                pass
                 except Exception as e:
                     logger.warning(f"customer-profile retailcrm lookup failed: {e}")
             elif primary == "uon":
