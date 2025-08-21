@@ -319,12 +319,7 @@ async def _get_responsible_extension_via_8020(enterprise_number: str, phone_e164
     return None
 
 
-async def _get_customer_name_via_8020(enterprise_number: str, phone_e164: str) -> Optional[str]:
-    """Заглушка: позже подключим 8020 (primary интеграция) для получения имени клиента."""
-    try:
-        return None
-    except Exception:
-        return None
+
 
 
 @app.post("/api/callevent/getcustomerdata")
@@ -461,18 +456,31 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
             send_customer_name = bool(line_settings.get("send_customer_name"))
             if send_line_name or send_shop_name or send_customer_name:
                 line_name, shop_name = await _get_line_and_shop_names(conn, enterprise_number, trunk)
-                parts = []
+                
+                # Получаем порядок отображения из настроек
+                line_name_order = line_settings.get("line_name_order", 999)
+                shop_name_order = line_settings.get("shop_name_order", 999)
+                customer_name_order = line_settings.get("customer_name_order", 999)
+                
+                # Собираем элементы с их порядковыми номерами
+                name_parts = []
+                
                 if send_line_name and line_name:
-                    parts.append(str(line_name))
+                    name_parts.append((line_name_order, str(line_name)))
+                    
                 if send_shop_name and shop_name:
-                    parts.append(str(shop_name))
+                    name_parts.append((shop_name_order, str(shop_name)))
+                    
                 if send_customer_name:
                     e164 = "+" + phone_norm if not phone_norm.startswith("+") else phone_norm
                     customer_name = await _get_customer_name_via_8020(enterprise_number, e164)
                     if customer_name:
-                        parts.append(customer_name)
-                if parts:
-                    name = " | ".join(parts)
+                        name_parts.append((customer_name_order, customer_name))
+                
+                # Сортируем по порядковому номеру и соединяем
+                if name_parts:
+                    name_parts.sort(key=lambda x: x[0])  # Сортировка по order
+                    name = " | ".join([part[1] for part in name_parts])
 
         safe_name = name or ""
         await cache.set(cache_key, (safe_name, dialplan))
