@@ -136,7 +136,20 @@ async def _get_smart_config(conn: asyncpg.Connection, enterprise_number: str) ->
 def _normalize_phone(phone: Optional[str]) -> str:
     if not phone:
         return ""
-    return "".join(ch for ch in phone if ch.isdigit())
+    # Извлекаем только цифры
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if not digits:
+        return ""
+    # Для белорусских номеров добавляем +375, если его нет
+    if digits.startswith("375") and len(digits) == 12:
+        return f"+{digits}"
+    # Для других форматов добавляем + если не начинается с +
+    elif phone.startswith("+"):
+        return f"+{digits}"
+    else:
+        # Если номер не начинается с 375, возможно это внутренний или иностранный
+        # Добавляем + для международного формата
+        return f"+{digits}"
 
 
 async def _get_internal_id_for_extension(conn: asyncpg.Connection, enterprise_number: str, extension: str) -> Optional[int]:
