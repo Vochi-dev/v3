@@ -74,9 +74,73 @@ async def validate_client_secret(client_id: str, conn: asyncpg.Connection) -> Op
         logger.error(f"Ошибка проверки clientId: {e}")
         return None
 
-def ssh_originate_call(host_ip: str, from_ext: str, to_phone: str) -> Tuple[bool, str]:
+async def get_customer_info_from_db(conn: asyncpg.Connection, enterprise_number: str, phone: str) -> Optional[Dict]:
+    """Получает информацию о клиенте из таблицы customers"""
+    try:
+        # Нормализуем номер телефона для поиска
+        phone_normalized = phone.strip()
+        if not phone_normalized.startswith("+"):
+            # Если номер без +, добавляем его для белорусских номеров
+            digits = ''.join(c for c in phone_normalized if c.isdigit())
+            if digits.startswith("375") and len(digits) == 12:
+                phone_normalized = f"+{digits}"
+            else:
+                phone_normalized = f"+{digits}"
+        
+        query = """
+        SELECT first_name, last_name, middle_name, enterprise_name, phone_e164,
+               meta->>'person_uid' as person_uid,
+               meta->>'source_type' as source_type
+        FROM customers 
+        WHERE enterprise_number = $1 AND phone_e164 = $2
+        LIMIT 1
+        """
+        
+        logger.info(f"🔍 Searching customer: enterprise={enterprise_number}, phone_orig='{phone}', phone_norm='{phone_normalized}'")
+        row = await conn.fetchrow(query, enterprise_number, phone_normalized)
+        
+        if row:
+            customer = dict(row)
+            
+            # Формируем отображаемое имя с приоритетом: enterprise_name > ФИО (без отчества)
+            display_parts = []
+            
+            # Приоритет: название компании
+            if customer.get('enterprise_name'):
+                display_parts.append(customer['enterprise_name'])
+            
+            # Затем ФИО (только Фамилия Имя без отчества)
+            fio_parts = []
+            if customer.get('last_name'):
+                fio_parts.append(customer['last_name'])
+            if customer.get('first_name'):
+                fio_parts.append(customer['first_name'])
+            # Отчество убираем: не добавляем middle_name
+            
+            if fio_parts:
+                fio = ' '.join(fio_parts)
+                if customer.get('enterprise_name'):
+                    display_parts.append(f"({fio})")
+                else:
+                    display_parts.append(fio)
+            
+            # Если ничего не найдено, используем номер телефона
+            display_name = ' '.join(display_parts) if display_parts else phone
+            
+            customer['display_name'] = display_name
+            return customer
+        else:
+            return None
+            
+    except Exception as e:
+        logger.error(f"Ошибка получения информации о клиенте: {e}")
+        return None
+
+def ssh_originate_call(host_ip: str, from_ext: str, to_phone: str, customer_name: str = None) -> Tuple[bool, str]:
     """Инициация звонка через SSH CLI команды"""
     try:
+        # Очищаем номер телефона от лишних пробелов
+        to_phone = to_phone.strip()
         # 1) Перед originate кладём номер абонента в Asterisk DB, чтобы диалплан мог выставить CallerID на первой ноге
         try:
             db_put_cmd = [
@@ -88,6 +152,21 @@ def ssh_originate_call(host_ip: str, from_ext: str, to_phone: str) -> Tuple[bool
                 f"asterisk -rx \"database put extcall nextcall_{from_ext} {to_phone}\"",
             ]
             subprocess.run(db_put_cmd, capture_output=True, text=True, timeout=6)
+            
+            # Дополнительно устанавливаем имя клиента, если оно есть
+            if customer_name:
+                # Заменяем пробелы на две точки между Фамилией и Именем
+                clean_name = '..'.join(customer_name.split())
+                db_put_name_cmd = [
+                    'sshpass', '-p', ASTERISK_CONFIG['ssh_password'],
+                    'ssh', '-p', str(ASTERISK_CONFIG['ssh_port']),
+                    '-o', 'StrictHostKeyChecking=no',
+                    '-o', 'ConnectTimeout=10',
+                    f"{ASTERISK_CONFIG['ssh_user']}@{host_ip}",
+                    f"asterisk -rx \"database put extcall nextname_{from_ext} {clean_name}\"",
+                ]
+                subprocess.run(db_put_name_cmd, capture_output=True, text=True, timeout=6)
+                logger.info(f"📝 Set customer name for ext {from_ext}: {clean_name}")
         except Exception as _:
             pass
 
@@ -493,7 +572,11 @@ async def make_call_external(
     start_time = time.time()
     
     try:
-        logger.info(f"🚀 Запрос на звонок: {code} -> {phone}, clientId: {clientId[:8]}...")
+        # Очищаем параметры от лишних пробелов
+        phone = phone.strip()
+        code = code.strip()
+        
+        logger.info(f"🚀 Запрос на звонок: {code} -> '{phone}', clientId: {clientId[:8]}...")
         
         # Валидация параметров
         if not code or not phone or not clientId:
@@ -527,8 +610,16 @@ async def make_call_external(
                     detail="Host IP not configured for this enterprise"
                 )
             
+            # Получаем информацию о клиенте из таблицы customers
+            customer_info = await get_customer_info_from_db(conn, enterprise_info['enterprise_number'], phone)
+            
+            # Извлекаем имя клиента для отображения на телефоне
+            customer_name = None
+            if customer_info:
+                customer_name = customer_info.get('display_name')
+            
             # Инициируем звонок через SSH CLI
-            success, message = ssh_originate_call(host_ip, code, phone)
+            success, message = ssh_originate_call(host_ip, code, phone, customer_name)
             
             if success:
                 # Логируем успешный звонок в БД (опционально)
@@ -563,18 +654,32 @@ async def make_call_external(
                 
                 response_time = round((time.time() - start_time) * 1000, 2)
                 
+                # Формируем расширенный ответ с информацией о клиенте
+                response_content = {
+                    "success": True,
+                    "message": message,
+                    "enterprise": enterprise_info['name'],
+                    "enterprise_number": enterprise_info['enterprise_number'],
+                    "from_ext": code,
+                    "to_phone": phone,
+                    "host_ip": host_ip,
+                    "response_time_ms": response_time
+                }
+                
+                # Добавляем информацию о клиенте, если найдена
+                if customer_info:
+                    response_content["customer"] = customer_info
+                    # Формируем полное отображаемое имя для удобства
+                    display_name = customer_info.get("display_name", phone)
+                    response_content["display_name"] = display_name
+                    logger.info(f"📞 Звонок {code} -> {phone} ({display_name})")
+                else:
+                    response_content["display_name"] = phone
+                    logger.info(f"📞 Звонок {code} -> {phone} (клиент не найден в БД)")
+                
                 return JSONResponse(
                     status_code=200,
-                    content={
-                        "success": True,
-                        "message": message,
-                        "enterprise": enterprise_info['name'],
-                        "enterprise_number": enterprise_info['enterprise_number'],
-                        "from_ext": code,
-                        "to_phone": phone,
-                        "host_ip": host_ip,
-                        "response_time_ms": response_time
-                    }
+                    content=response_content
                 )
             else:
                 logger.error(f"❌ Ошибка инициации звонка: {message}")
