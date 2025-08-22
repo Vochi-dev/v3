@@ -446,21 +446,150 @@ def insert_integration_log(
             # Не роняем поток синхронизации из‑за логов
             pass
 
-async def forward_event_to_gateway(
-    token: str,
+async def forward_to_all_integrations(
+    enterprise_number: str,
+    token: str, 
     unique_id: str,
     raw_event: Dict[str, Any],
-    record_url: Optional[str] = None,
+    record_url: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Отправляет событие hangup в Integration Gateway (8020). Возвращает краткий результат.
-    Не поднимает исключений наружу.
+    """Отправка recovery события во все активные интеграции предприятия
+    
+    Args:
+        enterprise_number: номер предприятия
+        token: токен предприятия
+        unique_id: уникальный ID звонка
+        raw_event: данные события
+        record_url: ссылка на запись (опционально)
+    
+    Returns:
+        {
+            "integrations_results": {
+                "retailcrm": {"status": 200, "body": "..."},
+                "uon": {"status": 400, "error": "..."}
+            },
+            "total_sent": 2,
+            "successful": 1,
+            "failed": 1
+        }
     """
+    # Получаем все активные интеграции
+    integrations_info = await get_enterprise_integrations(enterprise_number)
+    active_integrations = integrations_info.get("active", [])
+    
+    if not active_integrations:
+        logger.info(f"No active integrations for enterprise {enterprise_number}")
+        return {
+            "integrations_results": {},
+            "total_sent": 0,
+            "successful": 0,
+            "failed": 0
+        }
+    
+    # Подготавливаем payload для gateway
     payload: Dict[str, Any] = {
         "token": token,
         "uniqueId": unique_id,
         "event_type": "hangup",
         "raw": raw_event,
         # Маркер: событие восстановлено из download (для подавления synthetic dial в 8020)
+        "origin": "download",
+    }
+    if record_url:
+        payload["record_url"] = record_url
+    
+    results = {}
+    successful_count = 0
+    failed_count = 0
+    
+    logger.info(f"Sending recovery event {unique_id} to {len(active_integrations)} integrations: {active_integrations}")
+    
+    # Отправляем параллельно во все активные интеграции
+    tasks = []
+    for integration in active_integrations:
+        task = asyncio.create_task(
+            _send_to_single_integration(integration, payload, unique_id),
+            name=f"send_{integration}_{unique_id}"
+        )
+        tasks.append((integration, task))
+    
+    # Ждем результаты всех отправок
+    for integration, task in tasks:
+        try:
+            result = await task
+            results[integration] = result
+            
+            if result.get("status") == 200:
+                successful_count += 1
+                logger.info(f"✅ Recovery event {unique_id} successfully sent to {integration}")
+            else:
+                failed_count += 1
+                logger.warning(f"❌ Failed to send recovery event {unique_id} to {integration}: {result}")
+                
+        except Exception as e:
+            failed_count += 1
+            error_result = {"status": 0, "error": str(e)}
+            results[integration] = error_result
+            logger.error(f"❌ Exception sending recovery event {unique_id} to {integration}: {e}")
+    
+    logger.info(f"Recovery event {unique_id} sent to {len(active_integrations)} integrations: {successful_count} successful, {failed_count} failed")
+    
+    return {
+        "integrations_results": results,
+        "total_sent": len(active_integrations),
+        "successful": successful_count,
+        "failed": failed_count
+    }
+
+async def _send_to_single_integration(
+    integration: str,
+    payload: Dict[str, Any],
+    unique_id: str
+) -> Dict[str, Any]:
+    """Отправка события в одну конкретную интеграцию через gateway"""
+    attempt = 0
+    last_error: Optional[str] = None
+    
+    while attempt <= FORWARD_RETRIES:
+        attempt += 1
+        try:
+            timeout = aiohttp.ClientTimeout(total=FORWARD_TIMEOUT_SEC)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(GATEWAY_URL, json=payload) as resp:
+                    text = await resp.text()
+                    return {
+                        "status": resp.status, 
+                        "body": text,
+                        "integration": integration,
+                        "attempt": attempt
+                    }
+        except Exception as e:
+            last_error = str(e)
+            if attempt > FORWARD_RETRIES:
+                break
+            await asyncio.sleep(0.5 * attempt)  # exponential backoff
+    
+    return {
+        "status": 0, 
+        "error": last_error or "unknown error",
+        "integration": integration,
+        "attempts": attempt
+    }
+
+async def forward_event_to_gateway(
+    token: str,
+    unique_id: str,
+    raw_event: Dict[str, Any],
+    record_url: Optional[str] = None,
+) -> Dict[str, Any]:
+    """DEPRECATED: Используйте forward_to_all_integrations() для универсальной отправки.
+    Оставлено для обратной совместимости.
+    """
+    payload: Dict[str, Any] = {
+        "token": token,
+        "uniqueId": unique_id,
+        "event_type": "hangup",
+        "raw": raw_event,
         "origin": "download",
     }
     if record_url:
@@ -482,9 +611,18 @@ async def forward_event_to_gateway(
                 break
     return {"status": 0, "error": last_error or "unknown error"}
 
-async def is_retailcrm_enabled_in_cache(enterprise_number: str) -> bool:
-    """Проверяет через кэш 8020, включена ли интеграция retailcrm для юнита.
-    Делает короткие ретраи, чтобы пережить холодный старт сервисов.
+async def get_enterprise_integrations(enterprise_number: str) -> Dict[str, Any]:
+    """Получить все активные интеграции и приоритетную для предприятия
+    
+    Returns:
+        {
+            "active": ["retailcrm", "uon"],  # список активных интеграций
+            "primary": "retailcrm",          # приоритетная интеграция
+            "all_integrations": {            # детальная информация
+                "retailcrm": True,
+                "uon": False
+            }
+        }
     """
     attempts = 0
     last_exc: Optional[Exception] = None
@@ -496,21 +634,175 @@ async def is_retailcrm_enabled_in_cache(enterprise_number: str) -> bool:
                 url = GATEWAY_INTEGRATIONS_URL.format(enterprise_number=enterprise_number)
                 async with session.get(url) as resp:
                     if resp.status != 200:
-                        # подождём и попробуем ещё раз
                         if attempts < 3:
                             await asyncio.sleep(1)
                             continue
-                        return False
+                        logger.warning(f"Failed to get integrations for {enterprise_number}: HTTP {resp.status}")
+                        return {"active": [], "primary": None, "all_integrations": {}}
+                    
                     data = await resp.json()
                     integrations = (data or {}).get("integrations") or {}
-                    return bool(integrations.get("retailcrm"))
+                    
+                    # Определяем активные интеграции
+                    active_integrations = [name for name, enabled in integrations.items() if enabled]
+                    
+                    # Определяем приоритетную интеграцию (пока что берем первую активную, в будущем можно настраивать)
+                    primary_integration = None
+                    if "retailcrm" in active_integrations:
+                        primary_integration = "retailcrm"
+                    elif active_integrations:
+                        primary_integration = active_integrations[0]
+                    
+                    logger.info(f"Enterprise {enterprise_number} integrations: active={active_integrations}, primary={primary_integration}")
+                    
+                    return {
+                        "active": active_integrations,
+                        "primary": primary_integration,
+                        "all_integrations": integrations
+                    }
+                    
         except Exception as e:
             last_exc = e
             if attempts < 3:
                 await asyncio.sleep(1)
                 continue
-            return False
-    return False
+            logger.error(f"Error getting integrations for {enterprise_number}: {e}")
+            
+    return {"active": [], "primary": None, "all_integrations": {}}
+
+async def enrich_customer_profile_recovery(
+    enterprise_number: str,
+    phone: str,
+    primary_integration: str
+) -> Optional[Dict[str, Any]]:
+    """Обогащение профиля клиента по приоритетной интеграции для recovery событий
+    
+    Args:
+        enterprise_number: номер предприятия
+        phone: номер телефона для обогащения
+        primary_integration: приоритетная интеграция (retailcrm, uon и т.д.)
+    
+    Returns:
+        Профиль клиента с обогащенными данными или None при ошибках
+    """
+    try:
+        logger.info(f"[enrich-recovery] Starting enrichment for {enterprise_number}/{phone} via {primary_integration}")
+        
+        # Используем уже готовый endpoint обогащения из integration_cache.py
+        if ENRICH_AVAILABLE:
+            async with _httpx.AsyncClient(timeout=5.0) as client:
+                # Вызываем универсальный endpoint обогащения
+                resp = await client.post(f"http://127.0.0.1:8020/enrich-customer/{enterprise_number}/{phone}")
+                
+                if resp.status_code == 200:
+                    result = resp.json() or {}
+                    
+                    if result.get("success"):
+                        logger.info(f"✅ [enrich-recovery] Successfully enriched {phone} via {primary_integration}: {result.get('full_name', 'N/A')}")
+                        return {
+                            "success": True,
+                            "full_name": result.get("full_name"),
+                            "first_name": result.get("first_name"),
+                            "last_name": result.get("last_name"), 
+                            "middle_name": result.get("middle_name"),
+                            "enterprise_name": result.get("enterprise_name"),
+                            "source": result.get("source"),
+                            "external_id": result.get("external_id"),
+                            "person_uid": result.get("person_uid"),
+                            "linked_phones": result.get("linked_phones", []),
+                            "updated_count": result.get("updated_count", 0)
+                        }
+                    else:
+                        logger.warning(f"⚠️ [enrich-recovery] Enrichment failed for {phone}: {result.get('error', 'Unknown error')}")
+                        return None
+                else:
+                    logger.warning(f"⚠️ [enrich-recovery] Enrichment API error for {phone}: HTTP {resp.status_code}")
+                    return None
+                    
+        else:
+            logger.warning(f"⚠️ [enrich-recovery] Enrichment not available (missing dependencies)")
+            return None
+            
+    except Exception as e:
+        logger.error(f"❌ [enrich-recovery] Exception during enrichment for {phone}: {e}")
+        return None
+
+async def is_retailcrm_enabled_in_cache(enterprise_number: str) -> bool:
+    """Проверяет через кэш 8020, включена ли интеграция retailcrm для юнита.
+    DEPRECATED: Используйте get_enterprise_integrations() для более полной информации.
+    """
+    integrations = await get_enterprise_integrations(enterprise_number)
+    return "retailcrm" in integrations.get("active", [])
+
+def log_integration_results(
+    cursor,
+    enterprise_number: str,
+    unique_id: str,
+    integration_results: Dict[str, Any]
+):
+    """Логирование результатов отправки по всем интеграциям
+    
+    Args:
+        cursor: курсор БД
+        enterprise_number: номер предприятия
+        unique_id: уникальный ID события
+        integration_results: результаты отправки по интеграциям
+    """
+    try:
+        for integration_name, result in integration_results.get("integrations_results", {}).items():
+            status_ok = result.get("status") == 200
+            error_message = result.get("error") if not status_ok else None
+            
+            # Формируем краткие данные запроса и ответа
+            request_data = {
+                "uniqueId": unique_id,
+                "integration": integration_name,
+                "origin": "download_recovery"
+            }
+            
+            response_data = {
+                "status": result.get("status"),
+                "integration": result.get("integration"),
+                "attempt": result.get("attempt"),
+                "attempts": result.get("attempts")
+            }
+            
+            # Логируем результат для каждой интеграции
+            insert_integration_log(
+                cursor,
+                enterprise_number=enterprise_number,
+                event_type=f"download_recovery:{integration_name}",
+                request_data=request_data,
+                response_data=response_data,
+                status_ok=status_ok,
+                error_message=error_message,
+                integration_type=integration_name,
+            )
+            
+        # Общий лог по всем интеграциям
+        summary_data = {
+            "uniqueId": unique_id,
+            "total_sent": integration_results.get("total_sent", 0),
+            "successful": integration_results.get("successful", 0),
+            "failed": integration_results.get("failed", 0),
+            "integrations": list(integration_results.get("integrations_results", {}).keys())
+        }
+        
+        insert_integration_log(
+            cursor,
+            enterprise_number=enterprise_number,
+            event_type="download_recovery:summary",
+            request_data=summary_data,
+            response_data=integration_results,
+            status_ok=integration_results.get("successful", 0) > 0,
+            error_message=f"Failed: {integration_results.get('failed', 0)}" if integration_results.get("failed", 0) > 0 else None,
+            integration_type="download_service",
+        )
+        
+        logger.info(f"✅ Logged integration results for {unique_id}: {integration_results.get('successful', 0)}/{integration_results.get('total_sent', 0)} successful")
+        
+    except Exception as e:
+        logger.error(f"❌ Error logging integration results for {unique_id}: {e}")
 
 def update_sync_stats(cursor, enterprise_id: str, total_downloaded: int, new_events: int, failed_events: int):
     """Обновить статистику синхронизации"""
@@ -782,47 +1074,66 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                 else:
                                     logger.warning(f"Не удалось вставить событие {unique_id}")
                                 
-                                # Форвардинг в Integration Gateway (8020) — только если retailcrm включен в кэше 8020
-                                if FORWARD_TO_GATEWAY and await is_retailcrm_enabled_in_cache(ent_id):
+                                # 🆕 НОВОЕ: Универсальная отправка во все активные интеграции
+                                if FORWARD_TO_GATEWAY:
                                     try:
-                                        forward_result = await forward_event_to_gateway(
-                                            token=call_data["token"],
-                                            unique_id=call_data["unique_id"],
-                                            raw_event=event["data"],
-                                            record_url=(call_data.get("call_url") or None),
-                                        )
-                                        # Лог в integration_logs внутри той же транзакции
-                                        insert_integration_log(
-                                            cursor,
-                                            enterprise_number=ent_id,
-                                            event_type="download_forward:hangup",
-                                            request_data={
-                                                "uniqueId": call_data["unique_id"],
-                                                "has_record_url": bool(call_data.get("call_url")),
-                                                "raw_keys": list((event.get("data") or {}).keys()),
-                                            },
-                                            response_data=forward_result,
-                                            status_ok=bool(forward_result.get("status") and int(forward_result.get("status")) == 200),
-                                            error_message=str(forward_result.get("error")) if forward_result.get("error") else None,
-                                            integration_type="gateway",
-                                        )
+                                        # Получаем информацию о всех интеграциях предприятия
+                                        integrations_info = await get_enterprise_integrations(ent_id)
+                                        active_integrations = integrations_info.get("active", [])
+                                        primary_integration = integrations_info.get("primary")
+                                        
+                                        if active_integrations:
+                                            logger.info(f"🔄 Sending recovery event {unique_id} to integrations: {active_integrations} (primary: {primary_integration})")
+                                            
+                                            # Отправляем событие во все активные интеграции
+                                            integration_results = await forward_to_all_integrations(
+                                                enterprise_number=ent_id,
+                                                token=call_data["token"],
+                                                unique_id=call_data["unique_id"],
+                                                raw_event=event["data"],
+                                                record_url=call_data.get("call_url")
+                                            )
+                                            
+                                            # Логируем результаты по всем интеграциям
+                                            log_integration_results(cursor, ent_id, unique_id, integration_results)
+                                            
+                                            # Обогащение профиля клиента через приоритетную интеграцию
+                                            if primary_integration:
+                                                try:
+                                                    phone = call_data.get("phone_number")
+                                                    if phone:
+                                                        enrichment_result = await enrich_customer_profile_recovery(
+                                                            enterprise_number=ent_id,
+                                                            phone=phone,
+                                                            primary_integration=primary_integration
+                                                        )
+                                                        
+                                                        if enrichment_result and enrichment_result.get("success"):
+                                                            logger.info(f"✅ Profile enriched for {phone} via {primary_integration}: {enrichment_result.get('full_name', 'N/A')}")
+                                                        else:
+                                                            logger.warning(f"⚠️ Profile enrichment failed for {phone}")
+                                                            
+                                                except Exception as enrich_err:
+                                                    logger.error(f"❌ Enrichment error for {unique_id}: {enrich_err}")
+                                        else:
+                                            logger.info(f"ℹ️ No active integrations for {ent_id}, skipping forward")
+                                            
                                     except Exception as fwd_err:
-                                        # Пишем неуспешный лог и продолжаем
+                                        logger.error(f"❌ Universal forward error for {unique_id}: {fwd_err}")
+                                        # Пишем общий лог об ошибке
                                         try:
                                             insert_integration_log(
                                                 cursor,
                                                 enterprise_number=ent_id,
-                                                event_type="download_forward:hangup",
+                                                event_type="download_recovery:error",
                                                 request_data={"uniqueId": call_data["unique_id"]},
                                                 response_data=None,
                                                 status_ok=False,
                                                 error_message=str(fwd_err),
-                                                integration_type="gateway",
+                                                integration_type="download_service",
                                             )
                                         except Exception:
                                             pass
-                                else:
-                                    logger.info(f"Пропускаю форвард/логирование для {ent_id} — retailcrm выключен в 8020")
 
                                 conn.commit()
                                 
