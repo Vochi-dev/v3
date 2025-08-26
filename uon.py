@@ -1073,6 +1073,112 @@ UON_ADMIN_HTML = """
       <div id="usersList"></div>
       <div id="usersLoading" style="display:none; color:#8fb3da; font-style:italic;">Загрузка пользователей...</div>
     </div>
+    
+    <!-- Блок дополнительных настроек -->
+    <div class="card" style="margin-top:20px;">
+      <h2 style="margin:0 0 15px 0; font-size:20px; color:#e7eef8;">Дополнительные настройки</h2>
+      
+      <div style="margin-top:20px;">
+        <h3 style="margin:0 0 15px 0; font-size:18px; color:#e7eef8;">Уведомления</h3>
+        
+        <div style="margin-bottom:15px;">
+          <div style="color:#a8c0e0; font-size:14px; margin-bottom:8px;">Уведомления о звонке</div>
+          <div style="display:flex; gap:20px; align-items:center; margin-bottom:10px;">
+            <label style="display:flex; align-items:center; gap:8px; margin:0; color:#e7eef8; cursor:pointer;">
+              <input type="radio" name="callNotifyMode" value="none" style="width:16px; height:16px; accent-color:#2563eb;">
+              Не уведомлять
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; margin:0; color:#e7eef8; cursor:pointer;">
+              <input type="radio" name="callNotifyMode" value="during" checked style="width:16px; height:16px; accent-color:#2563eb;">
+              Во время дозвона
+            </label>
+          </div>
+        </div>
+        
+        <div style="display:flex; gap:20px; align-items:center;">
+          <label style="display:flex; align-items:center; gap:8px; margin:0; color:#e7eef8; cursor:pointer;">
+            <input type="checkbox" id="notifyIncoming" style="width:16px; height:16px; accent-color:#2563eb;" checked>
+            Уведомлять при входящем
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; margin:0; color:#e7eef8; cursor:pointer;">
+            <input type="checkbox" id="notifyOutgoing" style="width:16px; height:16px; accent-color:#2563eb;">
+            Уведомлять при исходящем
+          </label>
+        </div>
+      </div>
+      
+      <div style="margin-top:30px;">
+        <h3 style="margin:0 0 15px 0; font-size:18px; color:#e7eef8;">Действие при входящем звонке</h3>
+        
+        <div style="margin-bottom:15px;">
+          <label style="display:flex; align-items:center; gap:8px; margin:0 0 10px 0; color:#e7eef8; cursor:pointer;">
+            <input type="checkbox" id="createClientOnCall" style="width:16px; height:16px; accent-color:#2563eb;" checked>
+            Создание заказчика при неизвестном звонке
+          </label>
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <div style="color:#a8c0e0; font-size:14px; margin-bottom:8px;">Создание обращения</div>
+          <div style="display:flex; gap:15px; align-items:center; margin-bottom:10px;">
+            <label style="display:flex; align-items:center; gap:8px; margin:0; color:#e7eef8; cursor:pointer;">
+              <input type="radio" name="createRequest" value="none" style="width:16px; height:16px; accent-color:#2563eb;">
+              Не создавать
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; margin:0; color:#e7eef8; cursor:pointer;">
+              <input type="radio" name="createRequest" value="if_no_open" checked style="width:16px; height:16px; accent-color:#2563eb;">
+              Если нет открытых обращений
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; margin:0; color:#e7eef8; cursor:pointer;">
+              <input type="radio" name="createRequest" value="if_no_request" style="width:16px; height:16px; accent-color:#2563eb;">
+              Если нет обращений
+            </label>
+          </div>
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <label style="color:#a8c0e0; font-size:14px; margin-bottom:8px; display:block;">Статус обращения</label>
+          <select id="requestStatus" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:14px;">
+            <option value="work">В работе</option>
+            <option value="new">Новое</option>
+            <option value="pending">Ожидает</option>
+          </select>
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <label style="color:#a8c0e0; font-size:14px; margin-bottom:8px; display:block;">Источник обращения</label>
+          <input type="text" id="requestSource" value="Входящий звонок" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:14px;">
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <div style="color:#a8c0e0; font-size:14px; margin-bottom:8px;">Создание задачи</div>
+          <div style="display:flex; gap:15px; align-items:center; margin-bottom:10px;">
+            <label style="display:flex; align-items:center; gap:8px; margin:0; color:#e7eef8; cursor:pointer;">
+              <input type="radio" name="createTask" value="none" checked style="width:16px; height:16px; accent-color:#2563eb;">
+              Не создавать
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; margin:0; color:#e7eef8; cursor:pointer;">
+              <input type="radio" name="createTask" value="on_missed" style="width:16px; height:16px; accent-color:#2563eb;">
+              Создавать при пропущенном звонке
+            </label>
+          </div>
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <label style="color:#a8c0e0; font-size:14px; margin-bottom:8px; display:block;">Кол-во минут на выполнение задачи</label>
+          <input type="number" id="taskMinutes" value="15" min="1" max="999" style="width:100px; padding:8px 12px; border-radius:6px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:14px;">
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <label style="color:#a8c0e0; font-size:14px; margin-bottom:8px; display:block;">Изменение статуса обращения при пропущенном вызове</label>
+          <select id="missedCallStatus" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:14px;">
+            <option value="missed">Пропущенный</option>
+            <option value="pending">Ожидает</option>
+            <option value="work">В работе</option>
+            <option value="no_change">Не изменять</option>
+          </select>
+        </div>
+      </div>
+    </div>
   </div>
   <script>
   (function(){
@@ -1100,6 +1206,69 @@ UON_ADMIN_HTML = """
           enabledEl.checked = !!cfg.enabled;
         }
         
+        // Загружаем настройки уведомлений
+        const notifications = cfg.notifications || {};
+        const callModeNone = document.querySelector('input[name="callNotifyMode"][value="none"]');
+        const callModeDuring = document.querySelector('input[name="callNotifyMode"][value="during"]');
+        const notifyIncoming = document.getElementById('notifyIncoming');
+        const notifyOutgoing = document.getElementById('notifyOutgoing');
+        
+        if (callModeNone && callModeDuring) {
+          const mode = notifications.call_notify_mode || 'during';
+          callModeNone.checked = (mode === 'none');
+          callModeDuring.checked = (mode === 'during');
+        }
+        if (notifyIncoming) {
+          notifyIncoming.checked = notifications.notify_incoming !== false;
+        }
+        if (notifyOutgoing) {
+          notifyOutgoing.checked = !!notifications.notify_outgoing;
+        }
+        
+        // Загружаем настройки действий при входящем звонке
+        const actions = cfg.incoming_call_actions || {};
+        const createClientOnCall = document.getElementById('createClientOnCall');
+        const createRequestNone = document.querySelector('input[name="createRequest"][value="none"]');
+        const createRequestIfNoOpen = document.querySelector('input[name="createRequest"][value="if_no_open"]');
+        const createRequestIfNoRequest = document.querySelector('input[name="createRequest"][value="if_no_request"]');
+        const requestStatus = document.getElementById('requestStatus');
+        const requestSource = document.getElementById('requestSource');
+        const createTaskNone = document.querySelector('input[name="createTask"][value="none"]');
+        const createTaskOnMissed = document.querySelector('input[name="createTask"][value="on_missed"]');
+        const taskMinutes = document.getElementById('taskMinutes');
+        const missedCallStatus = document.getElementById('missedCallStatus');
+        
+        if (createClientOnCall) {
+          createClientOnCall.checked = actions.create_client_on_call !== false;
+        }
+        
+        if (createRequestNone && createRequestIfNoOpen && createRequestIfNoRequest) {
+          const createRequestMode = actions.create_request || 'if_no_open';
+          createRequestNone.checked = (createRequestMode === 'none');
+          createRequestIfNoOpen.checked = (createRequestMode === 'if_no_open');
+          createRequestIfNoRequest.checked = (createRequestMode === 'if_no_request');
+        }
+        
+        if (requestStatus) {
+          requestStatus.value = actions.request_status || 'work';
+        }
+        if (requestSource) {
+          requestSource.value = actions.request_source || 'Входящий звонок';
+        }
+        
+        if (createTaskNone && createTaskOnMissed) {
+          const createTaskMode = actions.create_task || 'none';
+          createTaskNone.checked = (createTaskMode === 'none');
+          createTaskOnMissed.checked = (createTaskMode === 'on_missed');
+        }
+        
+        if (taskMinutes) {
+          taskMinutes.value = actions.task_minutes || 15;
+        }
+        if (missedCallStatus) {
+          missedCallStatus.value = actions.missed_call_status || 'missed';
+        }
+        
         console.log('✅ Конфигурация загружена:', cfg);
       } catch(e) { 
         console.warn('load() error', e); 
@@ -1110,12 +1279,58 @@ UON_ADMIN_HTML = """
       const apiUrl = (document.getElementById('domain')||{}).value?.trim?.() || 'https://api.u-on.ru';
       const apiKey = (document.getElementById('apiKey')||{}).value?.trim?.() || '';
       const enabled = !!((document.getElementById('enabled')||{}).checked);
+      
+      // Собираем настройки уведомлений
+      const callModeNone = document.querySelector('input[name="callNotifyMode"][value="none"]');
+      const callModeDuring = document.querySelector('input[name="callNotifyMode"][value="during"]');
+      const notifyIncoming = document.getElementById('notifyIncoming');
+      const notifyOutgoing = document.getElementById('notifyOutgoing');
+      
+      const notifications = {
+        call_notify_mode: (callModeNone && callModeNone.checked) ? 'none' : 'during',
+        notify_incoming: !!(notifyIncoming && notifyIncoming.checked),
+        notify_outgoing: !!(notifyOutgoing && notifyOutgoing.checked)
+      };
+      
+      // Собираем настройки действий при входящем звонке
+      const createClientOnCall = document.getElementById('createClientOnCall');
+      const createRequestNone = document.querySelector('input[name="createRequest"][value="none"]');
+      const createRequestIfNoOpen = document.querySelector('input[name="createRequest"][value="if_no_open"]');
+      const createRequestIfNoRequest = document.querySelector('input[name="createRequest"][value="if_no_request"]');
+      const requestStatus = document.getElementById('requestStatus');
+      const requestSource = document.getElementById('requestSource');
+      const createTaskNone = document.querySelector('input[name="createTask"][value="none"]');
+      const createTaskOnMissed = document.querySelector('input[name="createTask"][value="on_missed"]');
+      const taskMinutes = document.getElementById('taskMinutes');
+      const missedCallStatus = document.getElementById('missedCallStatus');
+      
+      let createRequestMode = 'if_no_open';
+      if (createRequestNone && createRequestNone.checked) createRequestMode = 'none';
+      else if (createRequestIfNoRequest && createRequestIfNoRequest.checked) createRequestMode = 'if_no_request';
+      
+      let createTaskMode = 'none';
+      if (createTaskOnMissed && createTaskOnMissed.checked) createTaskMode = 'on_missed';
+      
+      const incoming_call_actions = {
+        create_client_on_call: !!(createClientOnCall && createClientOnCall.checked),
+        create_request: createRequestMode,
+        request_status: (requestStatus && requestStatus.value) || 'work',
+        request_source: (requestSource && requestSource.value) || 'Входящий звонок',
+        create_task: createTaskMode,
+        task_minutes: parseInt((taskMinutes && taskMinutes.value) || '15'),
+        missed_call_status: (missedCallStatus && missedCallStatus.value) || 'missed'
+      };
+      
       const btn = document.getElementById('saveBtn');
       const msg = document.getElementById('msg');
       if (msg) { msg.textContent=''; msg.className='hint'; }
       if (btn) btn.disabled = true;
       try {
-        let r = await fetch(`./api/config/${enterprise}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({api_url: apiUrl, api_key: apiKey, enabled}) });
+        let r = await fetch(`./api/config/${enterprise}`, { 
+          method:'PUT', 
+          headers:{'Content-Type':'application/json'}, 
+          body: JSON.stringify({api_url: apiUrl, api_key: apiKey, enabled, notifications, incoming_call_actions}) 
+        });
         const jr = await r.json();
         if(!jr.success) throw new Error(jr.error||'Ошибка сохранения');
         if (msg) { msg.textContent='Сохранено'; msg.className='hint success'; }
@@ -1610,11 +1825,27 @@ async def admin_api_get_config(enterprise_number: str):
                     cfg = {}
 
         uon_config = (cfg.get("uon") if isinstance(cfg, dict) else None) or {}
+        notifications = uon_config.get("notifications", {})
+        incoming_call_actions = uon_config.get("incoming_call_actions", {})
         return {
             "api_url": uon_config.get("api_url", "https://api.u-on.ru"),
             "api_key": uon_config.get("api_key", ""),
             "enabled": uon_config.get("enabled", False),
-            "log_calls": uon_config.get("log_calls", False)
+            "log_calls": uon_config.get("log_calls", False),
+            "notifications": {
+                "call_notify_mode": notifications.get("call_notify_mode", "during"),  # "none" или "during"
+                "notify_incoming": notifications.get("notify_incoming", True),
+                "notify_outgoing": notifications.get("notify_outgoing", False)
+            },
+            "incoming_call_actions": {
+                "create_client_on_call": incoming_call_actions.get("create_client_on_call", True),
+                "create_request": incoming_call_actions.get("create_request", "if_no_open"),  # "none", "if_no_open", "if_no_request"
+                "request_status": incoming_call_actions.get("request_status", "work"),
+                "request_source": incoming_call_actions.get("request_source", "Входящий звонок"),
+                "create_task": incoming_call_actions.get("create_task", "none"),  # "none", "on_missed"
+                "task_minutes": incoming_call_actions.get("task_minutes", 15),
+                "missed_call_status": incoming_call_actions.get("missed_call_status", "missed")
+            }
         }
     except Exception as e:
         logger.error(f"Error getting config for {enterprise_number}: {e}")
@@ -1660,12 +1891,46 @@ async def admin_api_put_config(enterprise_number: str, config: dict):
         if not isinstance(incoming_user_ext, dict):
             incoming_user_ext = None
 
+        # Обрабатываем настройки уведомлений
+        existing_notifications = existing_uon.get("notifications", {})
+        incoming_notifications = config.get("notifications")
+        if isinstance(incoming_notifications, dict):
+            # Если пришли новые настройки уведомлений, обновляем их
+            notifications_config = {
+                "call_notify_mode": incoming_notifications.get("call_notify_mode", existing_notifications.get("call_notify_mode", "during")),
+                "notify_incoming": incoming_notifications.get("notify_incoming", existing_notifications.get("notify_incoming", True)),
+                "notify_outgoing": incoming_notifications.get("notify_outgoing", existing_notifications.get("notify_outgoing", False))
+            }
+        else:
+            # Оставляем существующие настройки
+            notifications_config = existing_notifications
+            
+        # Обрабатываем настройки действий при входящем звонке
+        existing_actions = existing_uon.get("incoming_call_actions", {})
+        incoming_actions = config.get("incoming_call_actions")
+        if isinstance(incoming_actions, dict):
+            # Если пришли новые настройки действий, обновляем их
+            actions_config = {
+                "create_client_on_call": incoming_actions.get("create_client_on_call", existing_actions.get("create_client_on_call", True)),
+                "create_request": incoming_actions.get("create_request", existing_actions.get("create_request", "if_no_open")),
+                "request_status": incoming_actions.get("request_status", existing_actions.get("request_status", "work")),
+                "request_source": incoming_actions.get("request_source", existing_actions.get("request_source", "Входящий звонок")),
+                "create_task": incoming_actions.get("create_task", existing_actions.get("create_task", "none")),
+                "task_minutes": incoming_actions.get("task_minutes", existing_actions.get("task_minutes", 15)),
+                "missed_call_status": incoming_actions.get("missed_call_status", existing_actions.get("missed_call_status", "missed"))
+            }
+        else:
+            # Оставляем существующие настройки
+            actions_config = existing_actions
+
         # Формируем новую конфигурацию, НЕ трогая user_extensions без явного запроса
         uon_config = {
             "api_url": config.get("api_url", existing_uon.get("api_url", "https://api.u-on.ru")),
             "api_key": config.get("api_key", existing_uon.get("api_key", "")),
             "enabled": config.get("enabled", existing_uon.get("enabled", False)),
             "log_calls": config.get("log_calls", existing_uon.get("log_calls", False)),
+            "notifications": notifications_config,
+            "incoming_call_actions": actions_config,
             "user_extensions": incoming_user_ext if incoming_user_ext is not None else existing_user_ext,
             "webhooks": existing_uon.get("webhooks", {}),
         }
@@ -1808,10 +2073,63 @@ async def admin_api_send_test_notification(enterprise_number: str, payload: dict
         return {"success": False, "error": str(e)}
 
 
+async def _should_send_notification(enterprise_number: str, direction: str, phase: str) -> bool:
+    """Проверяет, нужно ли отправлять уведомление на основе настроек.
+    
+    Args:
+        enterprise_number: номер предприятия
+        direction: "incoming" или "outgoing"
+        phase: "dial" (во время дозвона) или "hangup" (после завершения)
+    
+    Returns:
+        True если нужно отправлять уведомление
+    """
+    try:
+        import asyncpg, json
+        
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, database="postgres", 
+            user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        row = await conn.fetchrow(
+            "SELECT integrations_config FROM enterprises WHERE number = $1",
+            enterprise_number
+        )
+        await conn.close()
+        
+        if not row or not row.get("integrations_config"):
+            return False
+            
+        cfg = row["integrations_config"]
+        if isinstance(cfg, str):
+            cfg = json.loads(cfg)
+            
+        uon_config = cfg.get("uon", {}) if isinstance(cfg, dict) else {}
+        notifications = uon_config.get("notifications", {})
+        
+        # Проверяем режим уведомлений о звонке
+        call_notify_mode = notifications.get("call_notify_mode", "during")
+        if call_notify_mode == "none":
+            return False
+        if call_notify_mode == "during" and phase != "dial":
+            return False
+            
+        # Проверяем настройки по направлению
+        if direction == "incoming":
+            return notifications.get("notify_incoming", True)
+        elif direction == "outgoing":
+            return notifications.get("notify_outgoing", False)
+            
+        return False
+        
+    except Exception as e:
+        logger.error(f"Error checking notification settings for {enterprise_number}: {e}")
+        return False
+
 @app.post("/internal/uon/notify-incoming")
 async def internal_notify_incoming(payload: dict):
     """Внутренний вызов: отправить всплывашку при реальном звонке.
-    Ожидает: { enterprise_number, phone, extension }
+    Ожидает: { enterprise_number, phone, extension, direction?, phase? }
     Текст: "Фамилия Имя клиента — Фамилия Имя менеджера (ext)".
     """
     try:
@@ -1819,6 +2137,14 @@ async def internal_notify_incoming(payload: dict):
         phone = str(payload.get("phone") or "").strip()
         extension = str(payload.get("extension") or "").strip()
         extensions_all = payload.get("extensions_all") or []
+        direction = str(payload.get("direction") or "incoming").strip()  # "incoming" или "outgoing"  
+        phase = str(payload.get("phase") or "dial").strip()  # "dial" или "hangup"
+        
+        # Проверяем настройки уведомлений
+        should_notify = await _should_send_notification(enterprise_number, direction, phase)
+        if not should_notify:
+            logger.info(f"Notification skipped for {enterprise_number} {direction} {phase} due to settings")
+            return {"success": True, "skipped": True, "reason": "disabled_by_settings"}
         try:
             extensions_all = [str(e).strip() for e in extensions_all if str(e).strip()]
         except Exception:
@@ -1867,35 +2193,45 @@ async def internal_notify_incoming(payload: dict):
         if not customer_name:
             customer_name = phone
 
-        # Находим uon user_id по extension (с нормализацией)
-        manager_id = None
+        # Находим ALL uon user_id для ВСЕХ extensions из события
+        matched_managers = []  # [(manager_id, extension, ext_norm), ...]
         ext_raw = str(extension)
         ext_norm = ''.join(ch for ch in ext_raw if ch.isdigit())
+        
+        # Создаем список всех extensions для проверки (основной + extensions_all)
+        all_exts_to_check = [extension] + (extensions_all or [])
+        
         if isinstance(user_extensions, dict):
-            for uid, ext in user_extensions.items():
-                try:
-                    ext_str = str(ext).strip()
-                except Exception:
-                    ext_str = str(ext)
-                # Совпадение по основному extension
-                if ext_str == ext_norm or ext_str == extension:
-                    manager_id = uid
-                    break
-            if manager_id is None and extensions_all:
-                # Доп. попытка: пробегаем по всем кандидатам из события
-                for cand in extensions_all:
-                    c_norm = ''.join(ch for ch in str(cand) if ch.isdigit())
-                    for uid, ext in user_extensions.items():
-                        try:
-                            ext_str = str(ext).strip()
-                        except Exception:
-                            ext_str = str(ext)
-                        if ext_str == c_norm or ext_str == str(cand):
-                            manager_id = uid
-                            ext_norm = c_norm
-                            extension = str(cand)
-                            break
-                    if manager_id is not None:
+            for check_ext in all_exts_to_check:
+                check_ext_str = str(check_ext).strip()
+                check_ext_norm = ''.join(ch for ch in check_ext_str if ch.isdigit())
+                
+                for uid, mapped_ext in user_extensions.items():
+                    try:
+                        mapped_ext_str = str(mapped_ext).strip()
+                    except Exception:
+                        mapped_ext_str = str(mapped_ext)
+                    
+                    # Проверяем совпадение (нормализованное и точное)
+                    if mapped_ext_str == check_ext_norm or mapped_ext_str == check_ext_str:
+                        # Проверяем, что этот manager_id еще не добавлен
+                        if not any(m[0] == uid for m in matched_managers):
+                            matched_managers.append((uid, check_ext_str, check_ext_norm))
+        
+        # Fallback: если никого не нашли, используем старую логику для основного extension
+        manager_id = None
+        if matched_managers:
+            manager_id = matched_managers[0][0]  # Первый найденный для совместимости
+        else:
+            # Старая логика для обратной совместимости
+            if isinstance(user_extensions, dict):
+                for uid, ext in user_extensions.items():
+                    try:
+                        ext_str = str(ext).strip()
+                    except Exception:
+                        ext_str = str(ext)
+                    if ext_str == ext_norm or ext_str == extension:
+                        manager_id = uid
                         break
 
         # Имя менеджера: сначала пробуем локальную БД users
@@ -1917,8 +2253,13 @@ async def internal_notify_incoming(payload: dict):
         if extension:
             text += f" ({extension})"
 
-        # Если manager_id не найден — пробуем отправить всем, кто есть в карте user_extensions (fallback на группу/очередь)
-        if not manager_id:
+        # Если найдено несколько менеджеров — отправляем всем найденным
+        # Если manager_id не найден — пробуем отправить всем, кто есть в карте user_extensions (fallback)
+        if len(matched_managers) > 1:
+            # Отправляем всем найденным менеджерам
+            broadcast_ids = [m[0] for m in matched_managers]
+            logger.info(f"Sending notifications to multiple managers: {broadcast_ids} for extensions: {[m[1] for m in matched_managers]}")
+        elif not manager_id:
             broadcast_ids = []
             if isinstance(user_extensions, dict) and user_extensions:
                 try:
@@ -1946,6 +2287,11 @@ async def internal_notify_incoming(payload: dict):
                 except Exception:
                     pass
                 return {"success": False, "error": "manager_id_not_mapped", "extension": extension}
+        else:
+            broadcast_ids = []
+            
+        # Если есть broadcast_ids (множественная отправка), отправляем всем
+        if broadcast_ids:
             # Шлём каждому менеджеру из карты (c антидублем)
             statuses: list[tuple[str,int]] = []
             async with await _uon_client() as client:
