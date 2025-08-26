@@ -1181,6 +1181,82 @@ UON_ADMIN_HTML = """
           </select>
         </div>
       </div>
+      
+      <!-- Действие при исходящем звонке -->
+      <div style="background:#1a2b42; border-radius:8px; padding:20px; margin-bottom:20px;">
+        <h3 style="color:#e7eef8; margin:0 0 20px 0; font-size:18px; font-weight:600;">📞 Действие при исходящем звонке</h3>
+        
+        <div style="margin-bottom:15px;">
+          <label style="display:flex; align-items:center; gap:8px; color:#e7eef8; font-size:14px; cursor:pointer;">
+            <input type="checkbox" id="createClientOnOutgoingCall" style="margin:0;">
+            Создание заказчика при неизвестном звонке
+          </label>
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <label style="color:#a8c0e0; font-size:14px; margin-bottom:8px; display:block;">Создание обращения</label>
+          <div style="display:flex; gap:15px; flex-wrap:wrap;">
+            <label style="display:flex; align-items:center; gap:8px; color:#e7eef8; font-size:14px; cursor:pointer;">
+              <input type="radio" name="createOutgoingRequest" value="none" id="createOutgoingRequestNone" style="margin:0;" checked>
+              Не создавать
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; color:#e7eef8; font-size:14px; cursor:pointer;">
+              <input type="radio" name="createOutgoingRequest" value="if_no_open" id="createOutgoingRequestIfNoOpen" style="margin:0;">
+              Если нет открытых обращений
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; color:#e7eef8; font-size:14px; cursor:pointer;">
+              <input type="radio" name="createOutgoingRequest" value="if_no_request" id="createOutgoingRequestIfNoRequest" style="margin:0;">
+              Если нет обращений
+            </label>
+          </div>
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <label style="color:#a8c0e0; font-size:14px; flex:1;">Статус обращения</label>
+          </div>
+          <select id="outgoingRequestStatus" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:14px;">
+            <option value="work">В работе</option>
+            <option value="new">Новое</option>
+            <option value="pending">Ожидает</option>
+          </select>
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <label style="color:#a8c0e0; font-size:14px; margin-bottom:8px; display:block;">Источник обращения</label>
+          <input type="text" id="outgoingRequestSource" value="Исходящий звонок" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:14px;">
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <label style="color:#a8c0e0; font-size:14px; margin-bottom:8px; display:block;">Создание задачи</label>
+          <div style="display:flex; gap:15px; flex-wrap:wrap;">
+            <label style="display:flex; align-items:center; gap:8px; color:#e7eef8; font-size:14px; cursor:pointer;">
+              <input type="radio" name="createOutgoingTask" value="none" id="createOutgoingTaskNone" style="margin:0;" checked>
+              Не создавать
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; color:#e7eef8; font-size:14px; cursor:pointer;">
+              <input type="radio" name="createOutgoingTask" value="on_missed" id="createOutgoingTaskOnMissed" style="margin:0;">
+              Создавать при пропущенном звонке
+            </label>
+          </div>
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <label style="color:#a8c0e0; font-size:14px; margin-bottom:8px; display:block;">Кол-во минут на выполнение задачи</label>
+          <input type="number" id="outgoingTaskMinutes" value="15" min="1" max="1440" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:14px;">
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <label style="color:#a8c0e0; font-size:14px; flex:1;">Изменение статуса обращения при пропущенном вызове</label>
+          </div>
+          <select id="outgoingMissedCallStatus" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:14px;">
+            <option value="no_change">Не изменять</option>
+            <option value="missed">Пропущенный</option>
+            <option value="work">В работе</option>
+          </select>
+        </div>
+      </div>
     </div>
   </div>
   <script>
@@ -1272,6 +1348,47 @@ UON_ADMIN_HTML = """
           missedCallStatus.value = actions.missed_call_status || 'missed';
         }
         
+        // Загружаем настройки исходящих звонков
+        const outgoingActions = cfg.outgoing_call_actions || {};
+        
+        const createClientOnOutgoingCall = document.getElementById('createClientOnOutgoingCall');
+        const createOutgoingRequestNone = document.getElementById('createOutgoingRequestNone');
+        const createOutgoingRequestIfNoOpen = document.getElementById('createOutgoingRequestIfNoOpen');
+        const createOutgoingRequestIfNoRequest = document.getElementById('createOutgoingRequestIfNoRequest');
+        const outgoingRequestStatus = document.getElementById('outgoingRequestStatus');
+        const outgoingRequestSource = document.getElementById('outgoingRequestSource');
+        const createOutgoingTaskNone = document.getElementById('createOutgoingTaskNone');
+        const createOutgoingTaskOnMissed = document.getElementById('createOutgoingTaskOnMissed');
+        const outgoingTaskMinutes = document.getElementById('outgoingTaskMinutes');
+        const outgoingMissedCallStatus = document.getElementById('outgoingMissedCallStatus');
+        
+        if (createClientOnOutgoingCall) {
+          createClientOnOutgoingCall.checked = outgoingActions.create_client_on_call !== false;
+        }
+        if (createOutgoingRequestNone && createOutgoingRequestIfNoOpen && createOutgoingRequestIfNoRequest) {
+          const reqMode = outgoingActions.create_request || 'none';
+          createOutgoingRequestNone.checked = (reqMode === 'none');
+          createOutgoingRequestIfNoOpen.checked = (reqMode === 'if_no_open');
+          createOutgoingRequestIfNoRequest.checked = (reqMode === 'if_no_request');
+        }
+        if (outgoingRequestStatus) {
+          outgoingRequestStatus.value = outgoingActions.request_status || 'work';
+        }
+        if (outgoingRequestSource) {
+          outgoingRequestSource.value = outgoingActions.request_source || 'Исходящий звонок';
+        }
+        if (createOutgoingTaskNone && createOutgoingTaskOnMissed) {
+          const taskMode = outgoingActions.create_task || 'none';
+          createOutgoingTaskNone.checked = (taskMode === 'none');
+          createOutgoingTaskOnMissed.checked = (taskMode === 'on_missed');
+        }
+        if (outgoingTaskMinutes) {
+          outgoingTaskMinutes.value = outgoingActions.task_minutes || 15;
+        }
+        if (outgoingMissedCallStatus) {
+          outgoingMissedCallStatus.value = outgoingActions.missed_call_status || 'no_change';
+        }
+        
         console.log('✅ Конфигурация загружена:', cfg);
         
         // Загружаем статусы обращений после загрузки основной конфигурации
@@ -1329,6 +1446,37 @@ UON_ADMIN_HTML = """
         missed_call_status: (missedCallStatus && missedCallStatus.value) || 'missed'
       };
       
+      // Собираем данные исходящих звонков
+      const createClientOnOutgoingCall = document.getElementById('createClientOnOutgoingCall');
+      const createOutgoingRequestNone = document.getElementById('createOutgoingRequestNone');
+      const createOutgoingRequestIfNoOpen = document.getElementById('createOutgoingRequestIfNoOpen');
+      const createOutgoingRequestIfNoRequest = document.getElementById('createOutgoingRequestIfNoRequest');
+      const outgoingRequestStatus = document.getElementById('outgoingRequestStatus');
+      const outgoingRequestSource = document.getElementById('outgoingRequestSource');
+      const createOutgoingTaskNone = document.getElementById('createOutgoingTaskNone');
+      const createOutgoingTaskOnMissed = document.getElementById('createOutgoingTaskOnMissed');
+      const outgoingTaskMinutes = document.getElementById('outgoingTaskMinutes');
+      const outgoingMissedCallStatus = document.getElementById('outgoingMissedCallStatus');
+      
+      let outgoingCreateRequestMode = 'none';
+      if (createOutgoingRequestNone && createOutgoingRequestNone.checked) outgoingCreateRequestMode = 'none';
+      if (createOutgoingRequestIfNoOpen && createOutgoingRequestIfNoOpen.checked) outgoingCreateRequestMode = 'if_no_open';
+      if (createOutgoingRequestIfNoRequest && createOutgoingRequestIfNoRequest.checked) outgoingCreateRequestMode = 'if_no_request';
+      
+      let outgoingCreateTaskMode = 'none';
+      if (createOutgoingTaskNone && createOutgoingTaskNone.checked) outgoingCreateTaskMode = 'none';
+      if (createOutgoingTaskOnMissed && createOutgoingTaskOnMissed.checked) outgoingCreateTaskMode = 'on_missed';
+      
+      const outgoing_call_actions = {
+        create_client_on_call: !!(createClientOnOutgoingCall && createClientOnOutgoingCall.checked),
+        create_request: outgoingCreateRequestMode,
+        request_status: (outgoingRequestStatus && outgoingRequestStatus.value) || 'work',
+        request_source: (outgoingRequestSource && outgoingRequestSource.value) || 'Исходящий звонок',
+        create_task: outgoingCreateTaskMode,
+        task_minutes: parseInt((outgoingTaskMinutes && outgoingTaskMinutes.value) || '15'),
+        missed_call_status: (outgoingMissedCallStatus && outgoingMissedCallStatus.value) || 'no_change'
+      };
+      
       const btn = document.getElementById('saveBtn');
       const msg = document.getElementById('msg');
       if (msg) { msg.textContent=''; msg.className='hint'; }
@@ -1337,7 +1485,7 @@ UON_ADMIN_HTML = """
         let r = await fetch(`./api/config/${enterprise}`, { 
           method:'PUT', 
           headers:{'Content-Type':'application/json'}, 
-          body: JSON.stringify({api_url: apiUrl, api_key: apiKey, enabled, notifications, incoming_call_actions}) 
+          body: JSON.stringify({api_url: apiUrl, api_key: apiKey, enabled, notifications, incoming_call_actions, outgoing_call_actions}) 
         });
         const jr = await r.json();
         if(!jr.success) throw new Error(jr.error||'Ошибка сохранения');
@@ -1438,6 +1586,8 @@ UON_ADMIN_HTML = """
     function populateStatusSelects(statuses) {
       const requestStatus = document.getElementById('requestStatus');
       const missedCallStatus = document.getElementById('missedCallStatus');
+      const outgoingRequestStatus = document.getElementById('outgoingRequestStatus');
+      const outgoingMissedCallStatus = document.getElementById('outgoingMissedCallStatus');
       
       if (requestStatus) {
         // Сохраняем текущее значение
@@ -1477,6 +1627,43 @@ UON_ADMIN_HTML = """
         
         // Восстанавливаем значение или ставим "Пропущенный" по умолчанию
         missedCallStatus.value = currentValue || 'missed';
+      }
+      
+      // Заполняем исходящие списки
+      if (outgoingRequestStatus) {
+        const currentValue = outgoingRequestStatus.value;
+        outgoingRequestStatus.innerHTML = '';
+        
+        statuses.forEach(status => {
+          const option = document.createElement('option');
+          option.value = status.id;
+          option.textContent = status.name;
+          outgoingRequestStatus.appendChild(option);
+        });
+        
+        outgoingRequestStatus.value = currentValue || 'work';
+      }
+      
+      if (outgoingMissedCallStatus) {
+        const currentValue = outgoingMissedCallStatus.value;
+        outgoingMissedCallStatus.innerHTML = '';
+        
+        // Добавляем специальную опцию "Не изменять"
+        const noChangeOption = document.createElement('option');
+        noChangeOption.value = 'no_change';
+        noChangeOption.textContent = 'Не изменять';
+        outgoingMissedCallStatus.appendChild(noChangeOption);
+        
+        statuses.forEach(status => {
+          if (status.id !== 'no_change') {
+            const option = document.createElement('option');
+            option.value = status.id;
+            option.textContent = status.name;
+            outgoingMissedCallStatus.appendChild(option);
+          }
+        });
+        
+        outgoingMissedCallStatus.value = currentValue || 'no_change';
       }
     }
 
@@ -1931,6 +2118,7 @@ async def admin_api_get_config(enterprise_number: str):
         uon_config = (cfg.get("uon") if isinstance(cfg, dict) else None) or {}
         notifications = uon_config.get("notifications", {})
         incoming_call_actions = uon_config.get("incoming_call_actions", {})
+        outgoing_call_actions = uon_config.get("outgoing_call_actions", {})
         return {
             "api_url": uon_config.get("api_url", "https://api.u-on.ru"),
             "api_key": uon_config.get("api_key", ""),
@@ -1949,6 +2137,15 @@ async def admin_api_get_config(enterprise_number: str):
                 "create_task": incoming_call_actions.get("create_task", "none"),  # "none", "on_missed"
                 "task_minutes": incoming_call_actions.get("task_minutes", 15),
                 "missed_call_status": incoming_call_actions.get("missed_call_status", "missed")
+            },
+            "outgoing_call_actions": {
+                "create_client_on_call": outgoing_call_actions.get("create_client_on_call", False),
+                "create_request": outgoing_call_actions.get("create_request", "none"),  # "none", "if_no_open", "if_no_request"
+                "request_status": outgoing_call_actions.get("request_status", "work"),
+                "request_source": outgoing_call_actions.get("request_source", "Исходящий звонок"),
+                "create_task": outgoing_call_actions.get("create_task", "none"),  # "none", "on_missed"
+                "task_minutes": outgoing_call_actions.get("task_minutes", 15),
+                "missed_call_status": outgoing_call_actions.get("missed_call_status", "no_change")
             }
         }
     except Exception as e:
@@ -2026,6 +2223,24 @@ async def admin_api_put_config(enterprise_number: str, config: dict):
         else:
             # Оставляем существующие настройки
             actions_config = existing_actions
+            
+        # Обрабатываем настройки действий при исходящем звонке
+        existing_outgoing_actions = existing_uon.get("outgoing_call_actions", {})
+        incoming_outgoing_actions = config.get("outgoing_call_actions")
+        if isinstance(incoming_outgoing_actions, dict):
+            # Если пришли новые настройки действий, обновляем их
+            outgoing_actions_config = {
+                "create_client_on_call": incoming_outgoing_actions.get("create_client_on_call", existing_outgoing_actions.get("create_client_on_call", False)),
+                "create_request": incoming_outgoing_actions.get("create_request", existing_outgoing_actions.get("create_request", "none")),
+                "request_status": incoming_outgoing_actions.get("request_status", existing_outgoing_actions.get("request_status", "work")),
+                "request_source": incoming_outgoing_actions.get("request_source", existing_outgoing_actions.get("request_source", "Исходящий звонок")),
+                "create_task": incoming_outgoing_actions.get("create_task", existing_outgoing_actions.get("create_task", "none")),
+                "task_minutes": incoming_outgoing_actions.get("task_minutes", existing_outgoing_actions.get("task_minutes", 15)),
+                "missed_call_status": incoming_outgoing_actions.get("missed_call_status", existing_outgoing_actions.get("missed_call_status", "no_change"))
+            }
+        else:
+            # Оставляем существующие настройки
+            outgoing_actions_config = existing_outgoing_actions
 
         # Формируем новую конфигурацию, НЕ трогая user_extensions без явного запроса
         uon_config = {
@@ -2035,6 +2250,7 @@ async def admin_api_put_config(enterprise_number: str, config: dict):
             "log_calls": config.get("log_calls", existing_uon.get("log_calls", False)),
             "notifications": notifications_config,
             "incoming_call_actions": actions_config,
+            "outgoing_call_actions": outgoing_actions_config,
             "user_extensions": incoming_user_ext if incoming_user_ext is not None else existing_user_ext,
             "webhooks": existing_uon.get("webhooks", {}),
         }
