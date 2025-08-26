@@ -1136,7 +1136,10 @@ UON_ADMIN_HTML = """
         </div>
         
         <div style="margin-bottom:15px;">
-          <label style="color:#a8c0e0; font-size:14px; margin-bottom:8px; display:block;">Статус обращения</label>
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <label style="color:#a8c0e0; font-size:14px; flex:1;">Статус обращения</label>
+            <button id="refreshStatusBtn" type="button" style="padding:4px 8px; background:#374151; color:#e7eef8; border:none; border-radius:4px; font-size:12px; cursor:pointer;">🔄 Обновить</button>
+          </div>
           <select id="requestStatus" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:14px;">
             <option value="work">В работе</option>
             <option value="new">Новое</option>
@@ -1270,6 +1273,11 @@ UON_ADMIN_HTML = """
         }
         
         console.log('✅ Конфигурация загружена:', cfg);
+        
+        // Загружаем статусы обращений после загрузки основной конфигурации
+        if (cfg.enabled && cfg.api_key) {
+          await loadStatusLead();
+        }
       } catch(e) { 
         console.warn('load() error', e); 
       }
@@ -1393,6 +1401,83 @@ UON_ADMIN_HTML = """
     function openJournal() {
       const url = `./journal?enterprise_number=${enterprise}`;
       window.open(url, '_blank');
+    }
+
+    async function loadStatusLead() {
+      try {
+        const r = await fetch(`./api/status-lead/${enterprise}`);
+        const j = await r.json();
+        
+        if (j.success && j.statuses) {
+          populateStatusSelects(j.statuses);
+          console.log('✅ Статусы обращений загружены:', j.statuses);
+        } else {
+          console.warn('Не удалось загрузить статусы обращений:', j.error || 'Unknown error');
+          // Используем статусы по умолчанию
+          populateStatusSelects([
+            {id: 'work', name: 'В работе'},
+            {id: 'new', name: 'Новое'},
+            {id: 'pending', name: 'Ожидает'},
+            {id: 'missed', name: 'Пропущенный'},
+            {id: 'no_change', name: 'Не изменять'}
+          ]);
+        }
+      } catch(e) {
+        console.warn('loadStatusLead() error', e);
+        // Используем статусы по умолчанию
+        populateStatusSelects([
+          {id: 'work', name: 'В работе'},
+          {id: 'new', name: 'Новое'},
+          {id: 'pending', name: 'Ожидает'},
+          {id: 'missed', name: 'Пропущенный'},
+          {id: 'no_change', name: 'Не изменять'}
+        ]);
+      }
+    }
+
+    function populateStatusSelects(statuses) {
+      const requestStatus = document.getElementById('requestStatus');
+      const missedCallStatus = document.getElementById('missedCallStatus');
+      
+      if (requestStatus) {
+        // Сохраняем текущее значение
+        const currentValue = requestStatus.value;
+        requestStatus.innerHTML = '';
+        
+        statuses.forEach(status => {
+          const option = document.createElement('option');
+          option.value = status.id;
+          option.textContent = status.name;
+          requestStatus.appendChild(option);
+        });
+        
+        // Восстанавливаем значение или ставим "В работе" по умолчанию
+        requestStatus.value = currentValue || 'work';
+      }
+      
+      if (missedCallStatus) {
+        // Сохраняем текущее значение
+        const currentValue = missedCallStatus.value;
+        missedCallStatus.innerHTML = '';
+        
+        // Добавляем специальную опцию "Не изменять"
+        const noChangeOption = document.createElement('option');
+        noChangeOption.value = 'no_change';
+        noChangeOption.textContent = 'Не изменять';
+        missedCallStatus.appendChild(noChangeOption);
+        
+        statuses.forEach(status => {
+          if (status.id !== 'no_change') { // Избегаем дублирования
+            const option = document.createElement('option');
+            option.value = status.id;
+            option.textContent = status.name;
+            missedCallStatus.appendChild(option);
+          }
+        });
+        
+        // Восстанавливаем значение или ставим "Пропущенный" по умолчанию
+        missedCallStatus.value = currentValue || 'missed';
+      }
     }
 
     // Функция отображения пользователей в специальном блоке
@@ -1730,11 +1815,30 @@ UON_ADMIN_HTML = """
     const deleteBtn = document.getElementById('deleteBtn');
     const refreshBtn = document.getElementById('refreshBtn');
     const journalBtn = document.getElementById('journalBtn');
+    const refreshStatusBtn = document.getElementById('refreshStatusBtn');
     
     if (saveBtn) saveBtn.addEventListener('click', save);
     if (deleteBtn) deleteBtn.addEventListener('click', deleteIntegration);
     if (refreshBtn) refreshBtn.addEventListener('click', refresh);
     if (journalBtn) journalBtn.addEventListener('click', openJournal);
+    if (refreshStatusBtn) refreshStatusBtn.addEventListener('click', async () => {
+      refreshStatusBtn.disabled = true;
+      refreshStatusBtn.textContent = '🔄 Загрузка...';
+      try {
+        await loadStatusLead();
+        refreshStatusBtn.textContent = '✅ Обновлено';
+        setTimeout(() => {
+          refreshStatusBtn.textContent = '🔄 Обновить';
+          refreshStatusBtn.disabled = false;
+        }, 2000);
+      } catch(e) {
+        refreshStatusBtn.textContent = '❌ Ошибка';
+        setTimeout(() => {
+          refreshStatusBtn.textContent = '🔄 Обновить';
+          refreshStatusBtn.disabled = false;
+        }, 2000);
+      }
+    });
 
     // Загружаем конфигурацию при открытии страницы
     load();
@@ -2371,6 +2475,85 @@ async def internal_notify_incoming(payload: dict):
         logger.error(f"internal_notify_incoming error: {e}")
         return {"success": False, "error": str(e)}
 
+
+@app.get("/uon-admin/api/status-lead/{enterprise_number}")
+async def admin_api_get_status_lead(enterprise_number: str):
+    """Получить список статусов обращений из U-ON для выпадающих списков"""
+    try:
+        import asyncpg, json, httpx
+        
+        # Подключаемся к БД и получаем API ключ
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, database="postgres", 
+            user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        row = await conn.fetchrow(
+            "SELECT integrations_config FROM enterprises WHERE number = $1",
+            enterprise_number
+        )
+        await conn.close()
+        
+        if not row or not row.get("integrations_config"):
+            return {"success": False, "error": "Enterprise config not found"}
+            
+        cfg = row["integrations_config"]
+        if isinstance(cfg, str):
+            cfg = json.loads(cfg)
+            
+        uon_config = cfg.get("uon", {}) if isinstance(cfg, dict) else {}
+        api_key = uon_config.get("api_key", "").strip()
+        
+        if not api_key:
+            return {"success": False, "error": "U-ON API key not configured"}
+        
+        # Запрашиваем статусы обращений из U-ON API
+        async with await _uon_client() as client:
+            url = f"https://api.u-on.ru/{api_key}/status_lead.json"
+            r = await client.get(url)
+            
+            if r.status_code != 200:
+                return {"success": False, "error": f"U-ON API error: {r.status_code}", "status_code": r.status_code}
+            
+            try:
+                data = r.json()
+            except Exception as e:
+                return {"success": False, "error": f"Invalid JSON response: {e}"}
+            
+            # Обрабатываем ответ и извлекаем статусы
+            statuses = []
+            if isinstance(data, dict):
+                # Проверяем разные возможные структуры ответа
+                status_list = data.get("records") or data.get("statuses") or data.get("status_lead") or data.get("data") or []
+                if isinstance(status_list, list):
+                    for status_item in status_list:
+                        if isinstance(status_item, dict):
+                            status_id = status_item.get("id") or status_item.get("status_id")
+                            status_name = status_item.get("name") or status_item.get("title") or status_item.get("status_name")
+                            is_archive = status_item.get("is_archive", 0)
+                            
+                            # Включаем все статусы (и активные, и архивные)
+                            if status_id and status_name:
+                                # Заменяем стрелку на дефис для корректного отображения
+                                display_name = status_name.replace("&rarr;", "-").replace("→", "-")
+                                statuses.append({
+                                    "id": str(status_id), 
+                                    "name": display_name,
+                                    "is_archive": bool(is_archive)
+                                })
+                        elif isinstance(status_item, str):
+                            # Если это просто строки
+                            statuses.append({"id": status_item, "name": status_item})
+                            
+            return {
+                "success": True, 
+                "statuses": statuses,
+                "total": len(statuses),
+                "raw_response": data  # Для отладки
+            }
+            
+    except Exception as e:
+        logger.error(f"Error getting status_lead for {enterprise_number}: {e}")
+        return {"success": False, "error": str(e)}
 
 @app.post("/uon-admin/api/refresh-managers/{enterprise_number}")
 async def admin_api_refresh_managers(enterprise_number: str):
