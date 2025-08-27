@@ -323,8 +323,7 @@ def generate_enriched_notification(client_data: dict, call_info: dict, config: d
         import html
         from datetime import datetime
         
-        # Получаем текущее время
-        current_time = datetime.now().strftime("%H:%M:%S")
+        # Убрали время - больше не используется
         
         # Определяем поддомен для ссылок
         api_url = config.get("api_url", "")
@@ -336,7 +335,6 @@ def generate_enriched_notification(client_data: dict, call_info: dict, config: d
         
         phone = call_info.get("phone", "")
         line = call_info.get("line", "")
-        manager = call_info.get("manager", "")
         direction = call_info.get("direction", "incoming")
         
         # Базовая информация
@@ -355,8 +353,6 @@ def generate_enriched_notification(client_data: dict, call_info: dict, config: d
 👤 <a href="https://{subdomain}/client_edit.php?client_id={user_id}" target="_blank">{html.escape(display_name)}</a><br/>
 📱 {phone}<br/>
 🏢 Линия: {line}<br/>
-👨‍💼 Менеджер: {manager}<br/>
-⏰ {current_time}<br/>
 {status_info}"""
             else:
                 # Существующий клиент
@@ -370,17 +366,13 @@ def generate_enriched_notification(client_data: dict, call_info: dict, config: d
 🏢 <a href="https://{subdomain}/client_edit.php?client_id={user_id}" target="_blank">{html.escape(company)}</a><br/>
 👤 {full_name} (контакт)<br/>
 📱 {phone}<br/>
-🏢 Линия: {line}<br/>
-👨‍💼 Менеджер: {manager}<br/>
-⏰ {current_time}"""
+🏢 Линия: {line}"""
                 else:
                     # Физическое лицо
                     html_text = f"""{direction_emoji} <b>{direction_text}</b><br/>
 👤 <a href="https://{subdomain}/client_edit.php?client_id={user_id}" target="_blank">{full_name}</a><br/>
 📱 {phone}<br/>
-🏢 Линия: {line}<br/>
-👨‍💼 Менеджер: {manager}<br/>
-⏰ {current_time}"""
+🏢 Линия: {line}"""
         else:
             # Клиент не найден
             if auto_create_enabled:
@@ -389,8 +381,6 @@ def generate_enriched_notification(client_data: dict, call_info: dict, config: d
 ❓ Неизвестный клиент<br/>
 📱 {phone}<br/>
 🏢 Линия: {line}<br/>
-👨‍💼 Менеджер: {manager}<br/>
-⏰ {current_time}<br/>
 ⚠️ Не удалось создать клиента автоматически"""
             else:
                 # Автосоздание выключено, показываем ссылку для ручного создания
@@ -402,8 +392,6 @@ def generate_enriched_notification(client_data: dict, call_info: dict, config: d
 ❓ Неизвестный клиент<br/>
 📱 {phone}<br/>
 🏢 Линия: {line}<br/>
-👨‍💼 Менеджер: {manager}<br/>
-⏰ {current_time}<br/>
 <a href="{create_url}" target="_blank">Создать клиента</a>"""
         
         return html_text
