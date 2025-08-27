@@ -26,7 +26,7 @@ _CONFIG: Dict[str, Any] = {
 
 # Антидубль всплывашек: (enterprise, manager_id, phone_digits) → last_ts
 _RECENT_NOTIFIES: Dict[Tuple[str, str, str], float] = {}
-_RECENT_WINDOW_SEC = 5.0
+_RECENT_WINDOW_SEC = 10.0  # Увеличиваем окно антидублирования
 
 # Наш публичный URL для приёма вебхуков из U‑ON
 _DEFAULT_WEBHOOK_URL = "https://bot.vochi.by/uon/webhook"
@@ -2663,7 +2663,7 @@ async def _should_send_notification(enterprise_number: str, direction: str, phas
         return False
 
 @app.post("/internal/uon/notify-incoming")
-async def internal_notify_incoming(payload: dict):
+async def internal_notify_incoming(payload: dict, request: Request):
     """Внутренний вызов: отправить всплывашку при реальном звонке.
     Ожидает: { enterprise_number, phone, extension, direction?, phase? }
     Текст: "Фамилия Имя клиента — Фамилия Имя менеджера (ext)".
@@ -2672,6 +2672,24 @@ async def internal_notify_incoming(payload: dict):
         enterprise_number = str(payload.get("enterprise_number") or "").strip()
         phone = str(payload.get("phone") or "").strip()
         extension = str(payload.get("extension") or "").strip()
+        
+        # Логируем источник вызова для отладки дублирования
+        import uuid
+        call_uuid = str(uuid.uuid4())[:8]
+        client_host = request.client.host if request.client else "unknown"
+        logger.info(f"🔔 notify-incoming [{call_uuid}] called from {client_host} for {phone} ext:{extension}")
+        
+        # УСИЛЕННОЕ антидублирование на входе в функцию
+        import time
+        digits = _normalize_phone_digits(phone)
+        global_key = (enterprise_number, digits, extension)
+        now = time.time()
+        last_call = _RECENT_NOTIFIES.get(f"ENTRY_{global_key}")
+        if last_call and (now - last_call) < 3.0:  # 3 секунды между вызовами
+            logger.info(f"🚫 [{call_uuid}] Duplicate call blocked for {phone} ext:{extension} (last call {now - last_call:.1f}s ago)")
+            return {"success": True, "status": 200, "blocked": "duplicate_entry"}
+        _RECENT_NOTIFIES[f"ENTRY_{global_key}"] = now
+        
         extensions_all = payload.get("extensions_all") or []
         direction = str(payload.get("direction") or "incoming").strip()  # "incoming" или "outgoing"  
         phase = str(payload.get("phase") or "dial").strip()  # "dial" или "hangup"
@@ -2823,8 +2841,8 @@ async def internal_notify_incoming(payload: dict):
         await conn.close()
 
         # Формируем текст уведомления
-        if enriched_notifications_enabled and client_data and (client_data.get("found") or client_data.get("created")):
-            # Используем обогащенное уведомление
+        if enriched_notifications_enabled:
+            # Используем обогащенное уведомление (даже для неизвестных клиентов)
             call_info = {
                 "phone": phone,
                 "line": f"{enterprise_number}-june",
@@ -2835,8 +2853,11 @@ async def internal_notify_incoming(payload: dict):
             config_for_enrichment = {
                 "api_url": api_url
             }
+            # Если client_data None, создаем базовую структуру для неизвестного клиента
+            if client_data is None:
+                client_data = {"found": False, "phone": phone}
             text = generate_enriched_notification(client_data, call_info, config_for_enrichment, auto_create_enabled)
-            logger.info(f"📱 Generated enriched notification for {phone}")
+            logger.info(f"📱 [{call_uuid}] Generated enriched notification for {phone}")
         else:
             # Fallback на старый формат
             text = f"{customer_name} — {manager_name or 'менеджер'}"
