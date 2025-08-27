@@ -338,8 +338,8 @@ def generate_enriched_notification(client_data: dict, call_info: dict, config: d
         direction = call_info.get("direction", "incoming")
         
         # Базовая информация
-        direction_emoji = "📞" if direction == "incoming" else "📱"
-        direction_text = "Входящий звонок" if direction == "incoming" else "Исходящий звонок"
+        direction_emoji = "📞" if direction in ["incoming", "in"] else "📱"
+        direction_text = "Входящий звонок" if direction in ["incoming", "in"] else "Исходящий звонок"
         
         if client_data.get("found") or client_data.get("created"):
             # Клиент найден или только что создан
@@ -2639,9 +2639,9 @@ async def _should_send_notification(enterprise_number: str, direction: str, phas
             return False
             
         # Проверяем настройки по направлению
-        if direction == "incoming":
+        if direction in ["incoming", "in"]:
             return notifications.get("notify_incoming", True)
-        elif direction == "outgoing":
+        elif direction in ["outgoing", "out"]:
             return notifications.get("notify_outgoing", False)
             
         return False
@@ -2661,11 +2661,18 @@ async def internal_notify_incoming(payload: dict, request: Request):
         phone = str(payload.get("phone") or "").strip()
         extension = str(payload.get("extension") or "").strip()
         
+        extensions_all = payload.get("extensions_all") or []
+        direction = str(payload.get("direction") or "incoming").strip()  # "incoming" или "outgoing"  
+        phase = str(payload.get("phase") or "dial").strip()  # "dial" или "hangup"
+        
+        # integration_cache теперь корректно передает direction (in/out)
+        
         # Логируем источник вызова для отладки дублирования
         import uuid
         call_uuid = str(uuid.uuid4())[:8]
         client_host = request.client.host if request.client else "unknown"
         logger.info(f"🔔 notify-incoming [{call_uuid}] called from {client_host} for {phone} ext:{extension}")
+        logger.info(f"📋 [{call_uuid}] Payload: enterprise={enterprise_number}, direction={direction}, phase={phase}")
         
         # УСИЛЕННОЕ антидублирование на входе в функцию
         import time
@@ -2677,10 +2684,6 @@ async def internal_notify_incoming(payload: dict, request: Request):
             logger.info(f"🚫 [{call_uuid}] Duplicate call blocked for {phone} ext:{extension} (last call {now - last_call:.1f}s ago)")
             return {"success": True, "status": 200, "blocked": "duplicate_entry"}
         _RECENT_NOTIFIES[f"ENTRY_{global_key}"] = now
-        
-        extensions_all = payload.get("extensions_all") or []
-        direction = str(payload.get("direction") or "incoming").strip()  # "incoming" или "outgoing"  
-        phase = str(payload.get("phase") or "dial").strip()  # "dial" или "hangup"
         
         # Проверяем настройки уведомлений
         should_notify = await _should_send_notification(enterprise_number, direction, phase)
@@ -2853,12 +2856,20 @@ async def internal_notify_incoming(payload: dict, request: Request):
                 text += f" ({extension})"
             logger.info(f"📞 Using basic notification format for {phone}")
 
-        # Если найдено несколько менеджеров — отправляем всем найденным
-        # Если manager_id не найден — пробуем отправить всем, кто есть в карте user_extensions (fallback)
-        if len(matched_managers) > 1:
+        # ЛОГИКА ДЛЯ ИСХОДЯЩИХ ЗВОНКОВ: только инициатору
+        if direction in ["outgoing", "out"]:
+            # Для исходящих звонков отправляем только тому менеджеру, который инициировал звонок
+            if manager_id:
+                broadcast_ids = []  # Не используем broadcast для исходящих
+                logger.info(f"Outgoing call: sending notification only to initiator manager_id={manager_id}")
+            else:
+                logger.info(f"Outgoing call: no manager_id found, skipping notification")
+                return {"success": False, "error": "outgoing_call_no_manager"}
+        # ЛОГИКА ДЛЯ ВХОДЯЩИХ ЗВОНКОВ: всем найденным менеджерам
+        elif len(matched_managers) > 1:
             # Отправляем всем найденным менеджерам
             broadcast_ids = [m[0] for m in matched_managers]
-            logger.info(f"Sending notifications to multiple managers: {broadcast_ids} for extensions: {[m[1] for m in matched_managers]}")
+            logger.info(f"Incoming call: sending notifications to multiple managers: {broadcast_ids} for extensions: {[m[1] for m in matched_managers]}")
         elif not manager_id:
             broadcast_ids = []
             if isinstance(user_extensions, dict) and user_extensions:

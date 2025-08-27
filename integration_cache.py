@@ -746,6 +746,7 @@ async def dispatch_call_event(request: Request):
                         "phone": external_phone_e164,
                         "extension": final_ext,
                         "extensions_all": ext_candidates,
+                        "direction": event_kind,  # Добавляем direction!
                     }
                     try:
                         async with session.post("http://127.0.0.1:8022/internal/uon/notify-incoming", json=payload) as r:
