@@ -200,6 +200,222 @@ async def _search_customer_in_uon_by_phone(api_key: str, phone: str) -> Optional
     return None
 
 
+async def search_client_by_phone_enhanced(api_url: str, api_key: str, phone: str) -> dict:
+    """Расширенный поиск клиента по номеру телефона в U-ON для обогащенных уведомлений"""
+    try:
+        # Нормализуем номер телефона
+        phone_normalized = phone.strip()
+        if not phone_normalized.startswith("+"):
+            digits = ''.join(c for c in phone_normalized if c.isdigit())
+            if digits.startswith("375") and len(digits) == 12:
+                phone_normalized = f"+{digits}"
+            else:
+                phone_normalized = f"+{digits}"
+        
+        # Формируем URL для запроса
+        if not api_url.startswith("https://api.u-on.ru"):
+            # Если передан поддомен типа https://id67054.u-on.ru/
+            api_base = "https://api.u-on.ru"
+        else:
+            api_base = api_url.rstrip('/')
+        
+        full_url = f"{api_base}/{api_key}/user.json"
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(full_url)
+            
+            if response.status_code != 200:
+                logger.error(f"U-ON API error: {response.status_code} - {response.text}")
+                return {"error": f"HTTP {response.status_code}", "found": False}
+            
+            data = response.json()
+            users = data.get("users", [])
+            
+            # Ищем клиента по телефону
+            for user in users:
+                user_phones = [
+                    user.get("u_phone", "").strip(),
+                    user.get("u_phone_mobile", "").strip(), 
+                    user.get("u_phone_home", "").strip()
+                ]
+                
+                # Проверяем все номера клиента
+                for user_phone in user_phones:
+                    if user_phone and user_phone == phone_normalized:
+                        return {
+                            "found": True,
+                            "user_id": user.get("u_id"),
+                            "global_user_id": user.get("global_u_id"),
+                            "name": f"{user.get('u_surname', '')} {user.get('u_name', '')}".strip(),
+                            "full_name": f"{user.get('u_surname', '')} {user.get('u_name', '')} {user.get('u_sname', '')}".strip(),
+                            "phone": phone_normalized,
+                            "manager_id": user.get("manager_id"),
+                            "user_type": user.get("u_type", 1),  # 1 = физлицо
+                            "company": user.get("u_company", "").strip(),
+                            "email": user.get("u_email", "").strip(),
+                            "last_update": user.get("u_date_update"),
+                            "client_type": "individual" if not user.get("u_company", "").strip() else "company"
+                        }
+            
+            # Клиент не найден
+            return {"found": False, "phone": phone_normalized}
+            
+    except Exception as e:
+        logger.error(f"Error searching client by phone {phone}: {e}")
+        return {"error": str(e), "found": False}
+
+
+async def create_client_in_uon(api_url: str, api_key: str, phone: str, name: str = None) -> dict:
+    """Создает нового клиента в U-ON и возвращает его данные"""
+    try:
+        # Нормализуем номер телефона
+        phone_normalized = phone.strip()
+        if not phone_normalized.startswith("+"):
+            digits = ''.join(c for c in phone_normalized if c.isdigit())
+            if digits.startswith("375") and len(digits) == 12:
+                phone_normalized = f"+{digits}"
+            else:
+                phone_normalized = f"+{digits}"
+        
+        # Формируем URL для создания клиента
+        api_base = "https://api.u-on.ru"
+        create_url = f"{api_base}/{api_key}/user/create.json"
+        
+        # Подготавливаем данные для создания
+        client_data = {
+            "u_phone": phone_normalized,
+            "u_surname": name or "Клиент",
+            "u_name": "Неизвестный" if not name else "",
+            "source_id": 0  # Источник: телефонный звонок
+        }
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(create_url, json=client_data)
+            
+            if response.status_code == 200:
+                result = response.json()
+                user_id = result.get("user_id") or result.get("id")  # API может вернуть как "id", так и "user_id"
+                if result.get("result") == 200 and user_id:
+                    logger.info(f"✅ Created new client in U-ON: ID={user_id}, phone={phone_normalized}")
+                    return {
+                        "success": True,
+                        "user_id": user_id,
+                        "global_user_id": result.get("global_user_id"),
+                        "phone": phone_normalized,
+                        "name": f"{client_data['u_surname']} {client_data['u_name']}".strip(),
+                        "created": True
+                    }
+                else:
+                    logger.error(f"U-ON create client failed: {result}")
+                    return {"success": False, "error": f"API error: {result.get('message', 'Unknown error')}", "created": False}
+            else:
+                logger.error(f"U-ON create client HTTP error: {response.status_code} - {response.text}")
+                return {"success": False, "error": f"HTTP {response.status_code}", "created": False}
+                
+    except Exception as e:
+        logger.error(f"Error creating client in U-ON for {phone}: {e}")
+        return {"success": False, "error": str(e), "created": False}
+
+
+def generate_enriched_notification(client_data: dict, call_info: dict, config: dict, auto_create_enabled: bool = False) -> str:
+    """Генерирует обогащенное HTML-уведомление для U-ON"""
+    try:
+        import html
+        from datetime import datetime
+        
+        # Получаем текущее время
+        current_time = datetime.now().strftime("%H:%M:%S")
+        
+        # Определяем поддомен для ссылок
+        api_url = config.get("api_url", "")
+        if "id" in api_url and ".u-on.ru" in api_url:
+            # Извлекаем поддомен из URL типа https://id67054.u-on.ru/
+            subdomain = api_url.replace("https://", "").replace("http://", "").rstrip("/")
+        else:
+            subdomain = "app.u-on.ru"  # fallback
+        
+        phone = call_info.get("phone", "")
+        line = call_info.get("line", "")
+        manager = call_info.get("manager", "")
+        direction = call_info.get("direction", "incoming")
+        
+        # Базовая информация
+        direction_emoji = "📞" if direction == "incoming" else "📱"
+        direction_text = "Входящий звонок" if direction == "incoming" else "Исходящий звонок"
+        
+        if client_data.get("found") or client_data.get("created"):
+            # Клиент найден или только что создан
+            user_id = client_data.get("user_id")
+            
+            if client_data.get("created"):
+                # Клиент только что создан автоматически
+                display_name = client_data.get("name", phone)
+                status_info = "ℹ️ Клиент создан автоматически"
+                html_text = f"""{direction_emoji} <b>{direction_text}</b><br/>
+👤 <a href="https://{subdomain}/client_edit.php?client_id={user_id}" target="_blank">{html.escape(display_name)}</a><br/>
+📱 {phone}<br/>
+🏢 Линия: {line}<br/>
+👨‍💼 Менеджер: {manager}<br/>
+⏰ {current_time}<br/>
+{status_info}"""
+            else:
+                # Существующий клиент
+                full_name = html.escape(client_data.get("full_name", ""))
+                company = client_data.get("company", "").strip()
+                client_type = client_data.get("client_type", "individual")
+                
+                if client_type == "company" and company:
+                    # Корпоративный клиент
+                    html_text = f"""{direction_emoji} <b>{direction_text}</b><br/>
+🏢 <a href="https://{subdomain}/client_edit.php?client_id={user_id}" target="_blank">{html.escape(company)}</a><br/>
+👤 {full_name} (контакт)<br/>
+📱 {phone}<br/>
+🏢 Линия: {line}<br/>
+👨‍💼 Менеджер: {manager}<br/>
+⏰ {current_time}"""
+                else:
+                    # Физическое лицо
+                    html_text = f"""{direction_emoji} <b>{direction_text}</b><br/>
+👤 <a href="https://{subdomain}/client_edit.php?client_id={user_id}" target="_blank">{full_name}</a><br/>
+📱 {phone}<br/>
+🏢 Линия: {line}<br/>
+👨‍💼 Менеджер: {manager}<br/>
+⏰ {current_time}"""
+        else:
+            # Клиент не найден
+            if auto_create_enabled:
+                # Автосоздание включено, но что-то пошло не так
+                html_text = f"""{direction_emoji} <b>{direction_text}</b><br/>
+❓ Неизвестный клиент<br/>
+📱 {phone}<br/>
+🏢 Линия: {line}<br/>
+👨‍💼 Менеджер: {manager}<br/>
+⏰ {current_time}<br/>
+⚠️ Не удалось создать клиента автоматически"""
+            else:
+                # Автосоздание выключено, показываем ссылку для ручного создания
+                enterprise_number = call_info.get("enterprise_number", "")
+                # Используем простую ссылку на создание с автоматическим редиректом
+                create_url = f"https://bot.vochi.by/uon/admin/{enterprise_number}/create-client-and-redirect?phone={phone.replace('+', '')}"
+                
+                html_text = f"""{direction_emoji} <b>{direction_text}</b><br/>
+❓ Неизвестный клиент<br/>
+📱 {phone}<br/>
+🏢 Линия: {line}<br/>
+👨‍💼 Менеджер: {manager}<br/>
+⏰ {current_time}<br/>
+<a href="{create_url}" target="_blank">Создать клиента</a>"""
+        
+        return html_text
+        
+    except Exception as e:
+        logger.error(f"Error generating enriched notification: {e}")
+        # Fallback на базовое уведомление
+        direction = call_info.get("direction", "incoming")
+        direction_text = "Входящий звонок" if direction == "incoming" else "Исходящий звонок"
+        return f"{direction_text}: {call_info.get('phone', '')}\nЛиния: {call_info.get('line', '')}\nМенеджер: {call_info.get('manager', '')}"
+
+
 async def _register_default_webhook(api_key: str) -> Dict[str, Any]:
     """Регистрирует вебхук "Клик по номеру телефона клиента" в U‑ON.
     Эквивалент экрана на скришоте: Тип=Клик по номеру телефона клиента, URL=_DEFAULT_WEBHOOK_URL, Метод=POST.
@@ -2493,25 +2709,62 @@ async def internal_notify_incoming(payload: dict):
         if not api_key:
             return {"success": False, "error": "U-ON api_key missing"}
 
-        # Формируем имя клиента
-        customer_name = None
+        # Получаем конфигурацию для обогащенных уведомлений
+        api_url = None
+        enriched_notifications_enabled = True  # По умолчанию включено
         try:
-            async with await _uon_client() as client:
-                digits = _normalize_phone_digits(phone)
-                url = f"https://api.u-on.ru/{api_key}/user/phone/{digits}.json"
-                r = await client.get(url)
-                if r.status_code == 200:
-                    data = r.json() or {}
-                    arr = data.get("users") or []
-                    if arr and isinstance(arr, list):
-                        item = arr[0]
-                        ln = item.get("u_surname") or ""
-                        fn = item.get("u_name") or ""
-                        customer_name = f"{ln} {fn}".strip()
+            uon_config = cfg.get("uon", {}) if isinstance(cfg, dict) else {}
+            api_url = uon_config.get("api_url", "https://api.u-on.ru")
+            # В будущем добавим настройку enriched_notifications_enabled
         except Exception:
-            pass
-        if not customer_name:
-            customer_name = phone
+            api_url = "https://api.u-on.ru"
+
+        # Поиск клиента для обогащенного уведомления
+        client_data = None
+        auto_create_enabled = False  # TODO: Получать из настроек интеграции
+        
+        if enriched_notifications_enabled:
+            try:
+                # Сначала ищем существующего клиента
+                client_data = await search_client_by_phone_enhanced(api_url, api_key, phone)
+                logger.info(f"🔍 Client search for {phone}: found={client_data.get('found', False)}")
+                
+                # Если клиент не найден и включено автосоздание - создаем
+                if not client_data.get("found") and auto_create_enabled:
+                    logger.info(f"🆕 Auto-creating client for unknown phone: {phone}")
+                    create_result = await create_client_in_uon(api_url, api_key, phone)
+                    
+                    if create_result.get("success"):
+                        # Клиент успешно создан
+                        client_data = create_result
+                        logger.info(f"✅ Auto-created client: ID={create_result.get('user_id')}")
+                    else:
+                        logger.error(f"❌ Failed to auto-create client: {create_result.get('error')}")
+                        
+            except Exception as e:
+                logger.error(f"Error in enhanced client search: {e}")
+                client_data = None
+        
+        # Fallback: формируем имя клиента старым способом если обогащенный поиск не сработал
+        customer_name = None
+        if not client_data or not client_data.get("found"):
+            try:
+                async with await _uon_client() as client:
+                    digits = _normalize_phone_digits(phone)
+                    url = f"https://api.u-on.ru/{api_key}/user/phone/{digits}.json"
+                    r = await client.get(url)
+                    if r.status_code == 200:
+                        data = r.json() or {}
+                        arr = data.get("users") or []
+                        if arr and isinstance(arr, list):
+                            item = arr[0]
+                            ln = item.get("u_surname") or ""
+                            fn = item.get("u_name") or ""
+                            customer_name = f"{ln} {fn}".strip()
+            except Exception:
+                pass
+            if not customer_name:
+                customer_name = phone
 
         # Находим ALL uon user_id для ВСЕХ extensions из события
         matched_managers = []  # [(manager_id, extension, ext_norm), ...]
@@ -2569,9 +2822,27 @@ async def internal_notify_incoming(payload: dict):
             pass
         await conn.close()
 
-        text = f"{customer_name} — {manager_name or 'менеджер'}"
-        if extension:
-            text += f" ({extension})"
+        # Формируем текст уведомления
+        if enriched_notifications_enabled and client_data and (client_data.get("found") or client_data.get("created")):
+            # Используем обогащенное уведомление
+            call_info = {
+                "phone": phone,
+                "line": f"{enterprise_number}-june",
+                "manager": manager_name or extension or "менеджер",
+                "direction": direction,
+                "enterprise_number": enterprise_number
+            }
+            config_for_enrichment = {
+                "api_url": api_url
+            }
+            text = generate_enriched_notification(client_data, call_info, config_for_enrichment, auto_create_enabled)
+            logger.info(f"📱 Generated enriched notification for {phone}")
+        else:
+            # Fallback на старый формат
+            text = f"{customer_name} — {manager_name or 'менеджер'}"
+            if extension:
+                text += f" ({extension})"
+            logger.info(f"📞 Using basic notification format for {phone}")
 
         # Если найдено несколько менеджеров — отправляем всем найденным
         # Если manager_id не найден — пробуем отправить всем, кто есть в карте user_extensions (fallback)
@@ -3098,6 +3369,153 @@ async def admin_api_search_customer(enterprise_number: str, payload: dict):
             
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+@app.post("/admin/{enterprise_number}/api/test-enriched-notification")
+async def admin_api_test_enriched_notification(enterprise_number: str, payload: dict):
+    """Тест обогащенных уведомлений"""
+    try:
+        # Получаем конфигурацию U-ON
+        cfg = await admin_api_get_config(enterprise_number)
+        if not cfg.get("enabled") or not cfg.get("api_key"):
+            return {"success": False, "error": "U-ON integration not configured"}
+        
+        phone = payload.get("phone", "+375296254070")
+        manager_id = payload.get("manager_id", "4")
+        
+        # Ищем клиента
+        logger.info(f"🔍 Searching client by phone: {phone}")
+        client_data = await search_client_by_phone_enhanced(cfg["api_url"], cfg["api_key"], phone)
+        
+        # Формируем информацию о звонке
+        call_info = {
+            "phone": phone,
+            "line": f"{enterprise_number}-june",
+            "manager": "152",
+            "direction": "incoming"
+        }
+        
+        # Генерируем обогащенное уведомление
+        call_info["enterprise_number"] = enterprise_number  # Добавляем enterprise_number
+        enriched_text = generate_enriched_notification(client_data, call_info, cfg)
+        
+        # Отправляем уведомление
+        logger.info(f"📤 Sending enriched notification to manager {manager_id}")
+        
+        api_base = "https://api.u-on.ru"
+        notification_url = f"{api_base}/{cfg['api_key']}/notification/create.json"
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(notification_url, json={
+                "text": enriched_text,
+                "manager_id": manager_id
+            })
+            
+            notification_result = response.json() if response.status_code == 200 else {"error": f"HTTP {response.status_code}"}
+        
+        return {
+            "success": True,
+            "client_search": client_data,
+            "enriched_text": enriched_text,
+            "notification_result": notification_result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error testing enriched notification: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/uon/admin/{enterprise_number}/api/create-client")
+async def admin_api_create_client_on_demand(enterprise_number: str, payload: dict):
+    """Создает клиента в U-ON по требованию и возвращает URL для перехода"""
+    try:
+        # Получаем конфигурацию U-ON
+        cfg = await admin_api_get_config(enterprise_number)
+        if not cfg.get("enabled") or not cfg.get("api_key"):
+            return {"success": False, "error": "U-ON integration not configured"}
+        
+        phone = payload.get("phone", "")
+        name = payload.get("name", "")
+        
+        if not phone:
+            return {"success": False, "error": "Phone number required"}
+        
+        # Создаем клиента
+        logger.info(f"🆕 Creating client on demand: {phone}")
+        result = await create_client_in_uon(cfg["api_url"], cfg["api_key"], phone, name)
+        
+        if result.get("success"):
+            # Формируем URL для перехода
+            api_url = cfg.get("api_url", "")
+            if "id" in api_url and ".u-on.ru" in api_url:
+                subdomain = api_url.replace("https://", "").replace("http://", "").rstrip("/")
+            else:
+                subdomain = "app.u-on.ru"
+            
+            client_url = f"https://{subdomain}/client_edit.php?client_id={result['user_id']}"
+            
+            return {
+                "success": True,
+                "client_id": result["user_id"],
+                "redirect_url": client_url,
+                "message": f"Клиент создан успешно: ID={result['user_id']}"
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.get("error", "Failed to create client")
+            }
+            
+    except Exception as e:
+        logger.error(f"Error creating client on demand: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/uon/admin/{enterprise_number}/create-client-and-redirect")
+async def admin_create_client_and_redirect(enterprise_number: str, phone: str = None):
+    """Создает клиента в U-ON и перенаправляет на его карточку"""
+    try:
+        from fastapi.responses import RedirectResponse, HTMLResponse
+        
+        if not phone:
+            return HTMLResponse("<h1>Ошибка: Не указан номер телефона</h1>", status_code=400)
+        
+        # Нормализуем номер телефона
+        phone_normalized = phone.strip()
+        if not phone_normalized.startswith("+"):
+            digits = ''.join(c for c in phone_normalized if c.isdigit())
+            if digits.startswith("375") and len(digits) == 12:
+                phone_normalized = f"+{digits}"
+            else:
+                phone_normalized = f"+{digits}"
+        
+        # Получаем конфигурацию U-ON
+        cfg = await admin_api_get_config(enterprise_number)
+        if not cfg.get("enabled") or not cfg.get("api_key"):
+            return HTMLResponse("<h1>Ошибка: U-ON интеграция не настроена</h1>", status_code=400)
+        
+        # Создаем клиента
+        result = await create_client_in_uon(cfg["api_url"], cfg["api_key"], phone_normalized, "Новый клиент")
+        
+        if result.get("success"):
+            # Формируем URL для перехода
+            api_url = cfg.get("api_url", "")
+            if "id" in api_url and ".u-on.ru" in api_url:
+                subdomain = api_url.replace("https://", "").replace("http://", "").rstrip("/")
+            else:
+                subdomain = "app.u-on.ru"
+            
+            client_url = f"https://{subdomain}/client_edit.php?client_id={result['user_id']}"
+            
+            # Перенаправляем на карточку клиента
+            return RedirectResponse(url=client_url, status_code=302)
+        else:
+            error_message = result.get("error", "Неизвестная ошибка")
+            return HTMLResponse(f"<h1>Ошибка создания клиента</h1><p>{error_message}</p>", status_code=500)
+            
+    except Exception as e:
+        logger.error(f"Error in create-client-and-redirect: {e}")
+        return HTMLResponse(f"<h1>Внутренняя ошибка</h1><p>{str(e)}</p>", status_code=500)
 
 
 @app.get("/uon.png")
