@@ -810,7 +810,7 @@ async def uon_responsible_extension(phone: str, enterprise_number: Optional[str]
 @app.post("/internal/uon/log-call")
 async def log_call(payload: dict):
     """Создать запись истории звонка в U-ON по факту hangup.
-    Ожидает: { enterprise_number, phone, extension, start, duration, direction }
+    Ожидает: { enterprise_number, phone, extension, start, duration, direction, record_url? }
     U-ON: POST /{key}/call_history/create.json с telephony-полями.
     """
     try:
@@ -821,6 +821,7 @@ async def log_call(payload: dict):
         duration = int(payload.get("duration") or 0)
         direction = str(payload.get("direction") or "in").strip()
         manager_ext = str(payload.get("extension") or "").strip()
+        record_url = str(payload.get("record_url") or "").strip()
 
         # 1) Берём api_key из БД
         try:
@@ -872,17 +873,20 @@ async def log_call(payload: dict):
         except Exception:
             pass
 
-        # 4) Формируем запрос к U-ON
+        # 4) Формируем запрос к U-ON (в формате как у рабочего примера)
         digits = _normalize_phone_digits(phone)
         payload_uon = {
-            "phone": digits,
+            "phone": digits,                    # БЕЗ +
             "start": start,
             "duration": duration,
-            "direction": dir_code,
+            "direction": dir_code,              # ЦИФРА: 1=исходящий, 2=входящий
         }
         if manager_id:
-            payload_uon["manager_id"] = manager_id
+            payload_uon["manager_id"] = str(manager_id)
+        if record_url:
+            payload_uon["record_link"] = record_url  # record_LINK как в рабочем примере!
 
+        logger.info(f"📞 Sending call history to U-ON: {payload_uon}")
         async with await _uon_client() as client:
             url = f"https://api.u-on.ru/{api_key}/call_history/create.json"
             r = await client.post(url, json=payload_uon)

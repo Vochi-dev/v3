@@ -71,11 +71,17 @@ incoming_transform_cache: Dict[str, Dict[str, Any]] = {}
 recent_dials: Dict[str, float] = {}
 RECENT_DIAL_TTL = 300  # 5 минут
 
+# Дедупликация hangup событий по unique_id
+processed_hangups: Dict[str, float] = {}
+HANGUP_DEDUP_TTL = 300  # 5 минут
+
 # ===== Вспомогательные функции =====
 
 async def fetch_enterprise_by_token(token: str) -> Optional[str]:
     """Возвращает enterprise_number по токену (name2 или secret)."""
+    logger.info(f"🔍 fetch_enterprise_by_token called with token='{token}'")
     if not pg_pool:
+        logger.error("❌ pg_pool is None")
         return None
     try:
         async with pg_pool.acquire() as conn:
@@ -88,7 +94,13 @@ async def fetch_enterprise_by_token(token: str) -> Optional[str]:
                 """,
                 str(token),
             )
-            return row["number"] if row else None
+            if row:
+                result = row["number"]
+                logger.info(f"✅ Found enterprise {result} for token '{token}'")
+                return result
+            else:
+                logger.error(f"❌ NO enterprise found for token '{token}'")
+                return None
     except Exception as e:
         logger.error(f"❌ fetch_enterprise_by_token error: {e}")
         return None
@@ -571,6 +583,8 @@ async def get_integrations(enterprise_number: str):
         cache_stats["cache_size"] = len(integration_cache)
         return entry.to_dict()
     
+    # ИГНОРИРУЕМ предприятия без интеграций
+    logger.info(f"⚠️ Enterprise {enterprise_number} has no integrations configured - IGNORING")
     raise HTTPException(status_code=404, detail="Enterprise not found")
 
 @app.get("/incoming-transform/{enterprise_number}")
@@ -613,13 +627,35 @@ async def dispatch_call_event(request: Request):
     record_url = body.get("record_url")
     origin = body.get("origin")  # 'download' для восстановленных событий
 
+    logger.info(f"📥 dispatch_call_event: token='{token}', event_type={event_type}, unique_id={unique_id}")
+    
     if not token or not unique_id or event_type not in {"dial", "hangup"}:
         raise HTTPException(status_code=400, detail="invalid payload")
+    
+    # Дедупликация hangup событий
+    import time
+    if event_type == "hangup":
+        now = time.time()
+        # Очищаем старые записи
+        expired_keys = [k for k, v in processed_hangups.items() if now - v > HANGUP_DEDUP_TTL]
+        for k in expired_keys:
+            del processed_hangups[k]
+        
+        # Проверяем дубликат
+        if unique_id in processed_hangups:
+            logger.info(f"🚫 Duplicate hangup event for unique_id={unique_id} - IGNORING")
+            return {"status": "ignored", "reason": "duplicate"}
+        
+        # Запоминаем
+        processed_hangups[unique_id] = now
 
     enterprise_number = await fetch_enterprise_by_token(token)
     if not enterprise_number:
+        logger.error(f"❌ Enterprise not found for token='{token}', event_type={event_type}, unique_id={unique_id}")
         raise HTTPException(status_code=404, detail="enterprise not found by token")
 
+    logger.info(f"🏢 Using enterprise_number='{enterprise_number}' for token='{token}'")
+    
     # Проверяем кэш активных интеграций
     integrations_entry = integration_cache.get(enterprise_number)
     if not integrations_entry or integrations_entry.is_expired():
@@ -775,9 +811,15 @@ async def dispatch_call_event(request: Request):
                             integration_type="uon",
                         )
                 elif event_type == "hangup":
-                    duration_val = raw.get("Duration") or raw.get("Billsec") or 0
+                    # Используем ту же логику что и RetailCRM для вычисления длительности
+                    from datetime import datetime
+                    start_time = raw.get("StartTime") or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                    end_time = raw.get("EndTime") or start_time
+                    duration = 0
                     try:
-                        duration = int(duration_val)
+                        dt_s = datetime.fromisoformat(start_time.replace("Z", ""))
+                        dt_e = datetime.fromisoformat(end_time.replace("Z", ""))
+                        duration = max(0, int((dt_e - dt_s).total_seconds()))
                     except Exception:
                         duration = 0
                     start_ts = str(
@@ -794,6 +836,9 @@ async def dispatch_call_event(request: Request):
                         "duration": duration,
                         "direction": direction,
                     }
+                    if record_url:
+                        payload["record_url"] = record_url
+                    logger.info(f"🔗 Sending to UON log-call: {payload}")
                     try:
                         async with session.post("http://127.0.0.1:8022/internal/uon/log-call", json=payload) as r:
                             ok = (r.status == 200)
