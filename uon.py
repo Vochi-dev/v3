@@ -2918,7 +2918,42 @@ async def internal_notify_incoming(payload: dict, request: Request):
             pass
         await conn.close()
 
-        # Формируем текст уведомления
+        # ВЫПОЛНЕНИЕ ДЕЙСТВИЙ ПО НАСТРОЙКАМ ЗВОНКОВ (СНАЧАЛА!)
+        action_execution_result = None
+        try:
+            logger.info(f"🎯 [{call_uuid}] Выполнение действий по настройкам для {direction} звонка")
+            
+            # Получаем конфигурацию действий из cfg
+            action_result = await determine_call_action(api_key, phone, direction, cfg)
+            logger.info(f"📊 [{call_uuid}] Результат анализа действий: {action_result.get('action_type', 'none')}")
+            
+            if action_result.get("action_needed", False):
+                logger.info(f"📋 [DEBUG] Вызов execute_call_action с cfg: {cfg}")
+                execution_result = await execute_call_action(action_result, api_key, phone, direction, cfg, manager_id)
+                action_execution_result = execution_result
+                
+                if execution_result.get("success"):
+                    action_performed = execution_result.get("action_performed")
+                    details = execution_result.get("details", {})
+                    logger.info(f"✅ [{call_uuid}] Действие выполнено: {action_performed} - {details}")
+                    
+                    # Если создали клиента - обновляем client_data для уведомления
+                    if action_performed == "client_created":
+                        new_client_id = details.get("client_id")
+                        logger.info(f"🔄 [{call_uuid}] Обновляем client_data после создания клиента ID={new_client_id}")
+                        # Обновим auto_create_enabled чтобы не создавать снова в уведомлении
+                        auto_create_enabled = False
+                        
+                else:
+                    error = execution_result.get("error", "unknown")
+                    logger.error(f"❌ [{call_uuid}] Ошибка выполнения действия: {error}")
+            else:
+                logger.info(f"🔄 [{call_uuid}] Действия не требуются")
+                
+        except Exception as e:
+            logger.error(f"💥 [{call_uuid}] Ошибка при выполнении действий: {e}")
+
+        # Формируем текст уведомления (ПОСЛЕ выполнения действий)
         if enriched_notifications_enabled:
             # Используем обогащенное уведомление (даже для неизвестных клиентов)
             call_info = {
@@ -3723,6 +3758,562 @@ async def uon_admin_journal(enterprise_number: str, phone: str = None):
 _PROBE_PHONE = os.environ.get("UON_TEST_PHONE", "+375296254070")
 _PROBE_PATH = Path("logs/uon_probe.json")
 
+
+async def get_client_leads_with_status(api_key: str, phone: str) -> dict:
+    """
+    Получить обращения клиента по номеру телефона с определением архивности статусов
+    
+    Возвращает:
+    {
+        "found": bool,
+        "client_id": str,
+        "leads": [
+            {
+                "id": int,
+                "status_id": int,
+                "status": str,
+                "is_archive": bool,
+                "archive_type": str,
+                "dat": str,
+                "manager_id": int
+            }
+        ],
+        "leads_summary": {
+            "active_count": int,
+            "archived_count": int,
+            "total_count": int,
+            "has_active": bool,
+            "has_archived": bool,
+            "has_any": bool
+        }
+    }
+    """
+    try:
+        logger.info(f"🔍 Получение обращений клиента для номера: {phone}")
+        
+        # Нормализуем номер телефона
+        phone_digits = ''.join(c for c in phone if c.isdigit())
+        
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            
+            # ШАГ 1: Получаем все статусы обращений
+            statuses_url = f"https://api.u-on.ru/{api_key}/status_lead.json"
+            statuses_response = await client.get(statuses_url)
+            
+            if statuses_response.status_code != 200:
+                logger.error(f"❌ Ошибка получения статусов: {statuses_response.status_code}")
+                return {"found": False, "error": "status_fetch_failed"}
+            
+            statuses_data = statuses_response.json()
+            statuses_dict = {}
+            
+            # Создаем словарь статусов с информацией об архивности
+            for status in statuses_data.get('records', []):
+                status_id = status.get('id')
+                is_archive = bool(status.get('is_archive', 0))
+                statuses_dict[status_id] = {
+                    'name': status.get('name'),
+                    'is_archive': is_archive,
+                    'archive_type': '🗄️ АРХИВНЫЙ' if is_archive else '📋 АКТИВНЫЙ'
+                }
+            
+            logger.info(f"📊 Загружено статусов: {len(statuses_dict)}")
+            
+            # ШАГ 2: Найти клиента по телефону
+            client_url = f"https://api.u-on.ru/{api_key}/user/phone/{phone_digits}.json"
+            client_response = await client.get(client_url)
+            
+            if client_response.status_code != 200:
+                logger.info(f"👤 Клиент не найден для номера: {phone}")
+                return {"found": False, "reason": "client_not_found"}
+            
+            client_data = client_response.json()
+            users = client_data.get("users", [])
+            
+            if not users:
+                logger.info(f"👤 Список пользователей пуст для номера: {phone}")
+                return {"found": False, "reason": "client_not_found"}
+            
+            user = users[0]
+            user_id = user.get("u_id")
+            logger.info(f"👤 Клиент найден: ID={user_id}")
+            
+            # ШАГ 3: Получить обращения клиента
+            leads_url = f"https://api.u-on.ru/{api_key}/lead-by-client/{user_id}.json"
+            leads_response = await client.get(leads_url)
+            
+            if leads_response.status_code != 200:
+                logger.info(f"📋 У клиента {user_id} нет обращений (статус: {leads_response.status_code})")
+                return {
+                    "found": True,
+                    "client_id": user_id,
+                    "leads": [],
+                    "leads_summary": {
+                        "active_count": 0,
+                        "archived_count": 0,
+                        "total_count": 0,
+                        "has_active": False,
+                        "has_archived": False,
+                        "has_any": False
+                    }
+                }
+            
+            leads_data = leads_response.json()
+            leads = leads_data.get("leads", [])
+            
+            # ШАГ 4: Обогатить обращения информацией об архивности
+            active_count = 0
+            archived_count = 0
+            
+            for lead in leads:
+                status_id = lead.get('status_id')
+                status_info = statuses_dict.get(status_id, {})
+                
+                lead['is_archive'] = status_info.get('is_archive', False)
+                lead['archive_type'] = status_info.get('archive_type', '❓ НЕИЗВЕСТНО')
+                
+                if lead['is_archive']:
+                    archived_count += 1
+                else:
+                    active_count += 1
+            
+            # Формируем сводку
+            total_count = len(leads)
+            leads_summary = {
+                "active_count": active_count,
+                "archived_count": archived_count,
+                "total_count": total_count,
+                "has_active": active_count > 0,
+                "has_archived": archived_count > 0,
+                "has_any": total_count > 0
+            }
+            
+            logger.info(f"📋 Обработано обращений: всего={total_count}, активных={active_count}, архивных={archived_count}")
+            
+            return {
+                "found": True,
+                "client_id": user_id,
+                "leads": leads,
+                "leads_summary": leads_summary
+            }
+            
+    except Exception as e:
+        logger.error(f"💥 Ошибка получения обращений клиента: {e}")
+        return {"found": False, "error": str(e)}
+
+def classify_leads_situation(leads_summary: dict) -> str:
+    """
+    Классифицировать ситуацию с обращениями клиента по таблице решений
+    
+    Возвращает один из статусов:
+    - "has_active" - есть активные обращения
+    - "no_open" - нет активных, есть архивные  
+    - "no_leads" - нет обращений вообще
+    """
+    if leads_summary.get("has_active", False):
+        return "has_active"
+    elif leads_summary.get("has_archived", False):
+        return "no_open"
+    else:
+        return "no_leads"
+
+async def determine_call_action(api_key: str, phone: str, direction: str, call_config: dict) -> dict:
+    """
+    Определить действие при звонке на основе состояния обращений клиента
+    
+    Args:
+        api_key: Ключ API U-ON
+        phone: Номер телефона клиента
+        direction: Направление звонка ("incoming"/"outgoing")
+        call_config: Конфигурация действий из БД
+        
+    Returns:
+        {
+            "action_needed": bool,
+            "action_type": str,  # "change_status" | "create_client" | "none"
+            "target_status_id": int,  # ID статуса для изменения
+            "lead_id": int,  # ID обращения для изменения
+            "client_situation": str,  # "has_active" | "no_open" | "no_leads" | "client_not_found"
+            "client_id": str,
+            "leads_summary": dict
+        }
+    """
+    try:
+        logger.info(f"🎯 Определение действия для {direction} звонка: {phone}")
+        
+        # Получаем обращения клиента
+        leads_result = await get_client_leads_with_status(api_key, phone)
+        
+        if not leads_result.get("found", False):
+            # Клиент не найден
+            logger.info(f"👤 Клиент не найден для номера: {phone}")
+            
+            # Проверяем настройки автосоздания
+            actions_key = f"{direction}_call_actions"
+            actions_config = call_config.get(actions_key, {})
+            create_client_enabled = bool(actions_config.get("create_client_on_call", False))
+            
+            if create_client_enabled:
+                return {
+                    "action_needed": True,
+                    "action_type": "create_client",
+                    "target_status_id": None,
+                    "lead_id": None,
+                    "client_situation": "client_not_found",
+                    "client_id": None,
+                    "leads_summary": {}
+                }
+            else:
+                return {
+                    "action_needed": False,
+                    "action_type": "none",
+                    "target_status_id": None,
+                    "lead_id": None,
+                    "client_situation": "client_not_found",
+                    "client_id": None,
+                    "leads_summary": {}
+                }
+        
+        # Клиент найден - проверяем есть ли у него обращения
+        client_id = leads_result.get("client_id")
+        leads_summary = leads_result.get("leads_summary", {})
+        leads = leads_result.get("leads", [])
+        
+        # Если у клиента НЕТ обращений - создаем обращение
+        if leads_summary.get("total_count", 0) == 0:
+            logger.info(f"📋 У существующего клиента {client_id} нет обращений - создаем новое")
+            
+            # Получаем настройки для создания обращения
+            # Маппинг направлений: "in" -> "incoming", "out" -> "outgoing"
+            direction_mapped = "incoming" if direction in ["in", "incoming"] else "outgoing" 
+            actions_key = f"{direction_mapped}_call_actions"
+            # Правильный путь: call_config["uon"]["incoming_call_actions"]
+            actions_config = call_config.get("uon", {}).get(actions_key, {})
+            target_status_id = actions_config.get("request_status", 1)  # По умолчанию "Новый"
+            
+            return {
+                "action_needed": True,
+                "action_type": "create_lead",
+                "target_status_id": target_status_id,
+                "lead_id": None,
+                "client_situation": "no_leads",
+                "client_id": client_id,
+                "leads_summary": leads_summary
+            }
+        else:
+            # У клиента есть обращения - никаких действий
+            logger.info(f"✅ У клиента {client_id} есть обращения - действия не требуются")
+            
+            return {
+                "action_needed": False,
+                "action_type": "none",
+                "target_status_id": None,
+                "lead_id": None,
+                "client_situation": "client_exists_with_leads",
+                "client_id": client_id,
+                "leads_summary": leads_summary
+            }
+        
+    except Exception as e:
+        logger.error(f"💥 Ошибка определения действия при звонке: {e}")
+        return {
+            "action_needed": False,
+            "action_type": "error",
+            "target_status_id": None,
+            "lead_id": None,
+            "client_situation": "error",
+            "client_id": None,
+            "leads_summary": {},
+            "error": str(e)
+        }
+
+async def update_lead_status(api_key: str, lead_id: int, status_id: int) -> dict:
+    """
+    Изменить статус существующего обращения в U-ON
+    
+    Args:
+        api_key: Ключ API U-ON
+        lead_id: ID обращения
+        status_id: ID нового статуса
+        
+    Returns:
+        {"success": bool, "error": str}
+    """
+    try:
+        logger.info(f"🔄 Изменение статуса обращения {lead_id} на {status_id}")
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            update_url = f"https://api.u-on.ru/{api_key}/lead/update/{lead_id}.json"
+            payload = {
+                "status_id": status_id
+            }
+            
+            response = await client.post(update_url, json=payload)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("result") == 200:
+                    logger.info(f"✅ Статус обращения {lead_id} успешно изменен на {status_id}")
+                    return {"success": True}
+                else:
+                    logger.error(f"❌ Ошибка API при изменении статуса: {result}")
+                    return {"success": False, "error": f"API error: {result}"}
+            else:
+                logger.error(f"❌ HTTP ошибка при изменении статуса: {response.status_code}")
+                return {"success": False, "error": f"HTTP {response.status_code}"}
+                
+    except Exception as e:
+        logger.error(f"💥 Ошибка изменения статуса обращения: {e}")
+        return {"success": False, "error": str(e)}
+
+async def create_new_lead(api_key: str, client_id: str, status_id: int, phone: str, source: str = "Входящий звонок", manager_id: str = None) -> dict:
+    """
+    Создать новое обращение в U-ON
+    
+    Args:
+        api_key: Ключ API U-ON
+        client_id: ID клиента
+        status_id: ID статуса обращения
+        phone: Номер телефона
+        source: Источник обращения
+        
+    Returns:
+        {"success": bool, "lead_id": int, "error": str}
+    """
+    try:
+        logger.info(f"🆕 Создание нового обращения для клиента {client_id} со статусом {status_id}")
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            create_url = f"https://api.u-on.ru/{api_key}/lead/create.json"
+            payload = {
+                "status_id": status_id,
+                "r_cl_id": client_id,
+                "source": source,
+                "u_phone": phone.replace("+", "")  # Убираем + для U-ON
+            }
+            
+            # Добавляем менеджера если указан
+            if manager_id:
+                payload["r_manager_id"] = manager_id
+                logger.info(f"📋 Назначаем менеджера {manager_id} к новому обращению")
+            
+            logger.info(f"📋 Отправка payload в UON: {payload}")
+            response = await client.post(create_url, json=payload)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("result") == 200:
+                    lead_id = result.get("id")
+                    logger.info(f"✅ Новое обращение создано: ID={lead_id}")
+                    return {"success": True, "lead_id": lead_id}
+                else:
+                    logger.error(f"❌ Ошибка API при создании обращения: {result}")
+                    return {"success": False, "error": f"API error: {result}"}
+            else:
+                logger.error(f"❌ HTTP ошибка при создании обращения: {response.status_code}")
+                return {"success": False, "error": f"HTTP {response.status_code}"}
+                
+    except Exception as e:
+        logger.error(f"💥 Ошибка создания обращения: {e}")
+        return {"success": False, "error": str(e)}
+
+async def execute_call_action(action_result: dict, api_key: str, phone: str, direction: str = "incoming", call_config: dict = None, manager_id: str = None) -> dict:
+    """
+    Выполнить действие, определенное алгоритмом обработки звонка
+    
+    Args:
+        action_result: Результат determine_call_action()
+        api_key: Ключ API U-ON
+        phone: Номер телефона
+        
+    Returns:
+        {"success": bool, "action_performed": str, "details": dict, "error": str}
+    """
+    try:
+        if not action_result.get("action_needed", False):
+            logger.info(f"🔄 Действие не требуется для {phone}")
+            return {
+                "success": True,
+                "action_performed": "none",
+                "details": {"reason": "no_action_needed"}
+            }
+            
+        action_type = action_result.get("action_type")
+        
+        if action_type == "create_lead":
+            # Создание обращения для существующего клиента
+            client_id = action_result.get("client_id")
+            target_status_id = action_result.get("target_status_id", 1)
+            
+            if not client_id:
+                return {
+                    "success": False,
+                    "action_performed": "create_lead_failed",
+                    "error": "client_id not provided"
+                }
+            
+            # Получаем настройки действий из call_config 
+            # Маппинг направлений: "in" -> "incoming", "out" -> "outgoing"
+            direction_mapped = "incoming" if direction in ["in", "incoming"] else "outgoing" 
+            actions_key = f"{direction_mapped}_call_actions"
+            # Правильный путь: call_config["uon"]["incoming_call_actions"]
+            actions_config = call_config.get("uon", {}).get(actions_key, {}) if call_config else {}
+            
+            logger.info(f"🔧 [DEBUG] direction={direction} -> direction_mapped={direction_mapped} -> actions_key={actions_key}")
+            logger.info(f"🔧 [DEBUG] call_config keys: {list(call_config.keys()) if call_config else 'None'}")
+            logger.info(f"🔧 [DEBUG] call_config['{actions_key}'] exists: {actions_key in call_config if call_config else False}")
+            
+            # Получаем источник из настроек  
+            # Исправляем логику: direction="in" -> входящий, direction="out" -> исходящий
+            default_source = "Входящий звонок" if direction in ["incoming", "in"] else "Исходящий звонок"
+            source_from_config = actions_config.get("request_source", default_source)
+            
+            logger.info(f"🔧 Настройки действий: {actions_config}")
+            logger.info(f"📋 Создаем обращение: status={target_status_id}, source='{source_from_config}', manager={manager_id}")
+            
+            create_result = await create_new_lead(api_key, str(client_id), target_status_id, phone, source_from_config, manager_id)
+            
+            if create_result.get("success"):
+                logger.info(f"✅ Создано обращение для существующего клиента {client_id}")
+                return {
+                    "success": True,
+                    "action_performed": "lead_created",
+                    "details": {
+                        "lead_id": create_result.get("lead_id"),
+                        "client_id": client_id,
+                        "status_id": target_status_id
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "action_performed": "create_lead_failed",
+                    "error": create_result.get("error"),
+                    "details": {"client_id": client_id}
+                }
+                
+        elif action_type == "change_status":
+            lead_id = action_result.get("lead_id")
+            target_status_id = action_result.get("target_status_id")
+            client_id = action_result.get("client_id")
+            
+            if lead_id:
+                # Изменяем статус существующего обращения
+                update_result = await update_lead_status(api_key, lead_id, target_status_id)
+                
+                if update_result.get("success"):
+                    return {
+                        "success": True,
+                        "action_performed": "status_updated",
+                        "details": {
+                            "lead_id": lead_id,
+                            "new_status_id": target_status_id
+                        }
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "action_performed": "status_update_failed",
+                        "error": update_result.get("error"),
+                        "details": {"lead_id": lead_id}
+                    }
+            else:
+                # Создаем новое обращение (случай "no_leads")
+                create_result = await create_new_lead(api_key, client_id, target_status_id, phone)
+                
+                if create_result.get("success"):
+                    return {
+                        "success": True,
+                        "action_performed": "lead_created",
+                        "details": {
+                            "lead_id": create_result.get("lead_id"),
+                            "status_id": target_status_id,
+                            "client_id": client_id
+                        }
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "action_performed": "lead_creation_failed",
+                        "error": create_result.get("error"),
+                        "details": {"client_id": client_id}
+                    }
+                    
+        elif action_type == "create_client":
+            # Автосоздание клиента - используем существующую функцию
+            create_result = await create_client_in_uon(api_key, phone)
+            
+            if create_result.get("success"):
+                new_client_id = create_result.get("user_id")
+                logger.info(f"✅ Клиент автоматически создан для {phone}, ID={new_client_id}")
+                
+                # После создания клиента нужно создать обращение
+                logger.info(f"🎯 Создаем обращение для нового клиента {new_client_id}")
+                
+                # Получаем статус для новых обращений из конфигурации
+                if call_config:
+                    # Маппинг направлений: "in" -> "incoming", "out" -> "outgoing"
+                    direction_mapped = "incoming" if direction in ["in", "incoming"] else "outgoing" 
+                    actions_key = f"{direction_mapped}_call_actions"
+                    # Правильный путь: call_config["uon"]["incoming_call_actions"]
+                    actions_config = call_config.get("uon", {}).get(actions_key, {})
+                    lead_status = actions_config.get("request_status", 1)  # По умолчанию "Новый"
+                    default_source = "Входящий звонок" if direction in ["incoming", "in"] else "Исходящий звонок"
+                    source_from_config = actions_config.get("request_source", default_source)
+                else:
+                    lead_status = 1  # По умолчанию "Новый"
+                    actions_config = {}
+                    default_source = "Входящий звонок" if direction in ["incoming", "in"] else "Исходящий звонок"
+                    source_from_config = default_source
+                
+                logger.info(f"📋 Создаем обращение со статусом {lead_status} для направления {direction}, источник: {source_from_config}")
+                
+                lead_result = await create_new_lead(api_key, str(new_client_id), lead_status, phone, source_from_config, manager_id)
+                
+                if lead_result.get("success"):
+                    logger.info(f"✅ Создано обращение ID={lead_result.get('lead_id')} для нового клиента")
+                    return {
+                        "success": True,
+                        "action_performed": "client_and_lead_created",
+                        "details": {
+                            "client_id": new_client_id,
+                            "lead_id": lead_result.get("lead_id"),
+                            "phone": phone
+                        }
+                    }
+                else:
+                    logger.warning(f"⚠️ Клиент создан, но обращение не создалось: {lead_result.get('error')}")
+                    return {
+                        "success": True,  # Клиент создан успешно
+                        "action_performed": "client_created_lead_failed",
+                        "details": {
+                            "client_id": new_client_id,
+                            "phone": phone,
+                            "lead_error": lead_result.get("error")
+                        }
+                    }
+            else:
+                return {
+                    "success": False,
+                    "action_performed": "client_creation_failed",
+                    "error": create_result.get("error"),
+                    "details": {"phone": phone}
+                }
+        else:
+            logger.warning(f"⚠️ Неизвестный тип действия: {action_type}")
+            return {
+                "success": False,
+                "action_performed": "unknown_action",
+                "error": f"Unknown action type: {action_type}"
+            }
+            
+    except Exception as e:
+        logger.error(f"💥 Ошибка выполнения действия: {e}")
+        return {
+            "success": False,
+            "action_performed": "execution_error",
+            "error": str(e)
+        }
 
 async def _write_probe_result(payload: Dict[str, Any]) -> None:
     try:
