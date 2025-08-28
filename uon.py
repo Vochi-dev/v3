@@ -26,6 +26,8 @@ _CONFIG: Dict[str, Any] = {
 
 # Антидубль всплывашек: (enterprise, manager_id, phone_digits) → last_ts
 _RECENT_NOTIFIES: Dict[Tuple[str, str, str], float] = {}
+
+# Убрано ненужное промежуточное хранилище _CALL_LEADS
 _RECENT_WINDOW_SEC = 10.0  # Увеличиваем окно антидублирования
 
 # Наш публичный URL для приёма вебхуков из U‑ON
@@ -858,6 +860,8 @@ async def uon_responsible_extension(phone: str, enterprise_number: Optional[str]
         logger.error(f"uon_responsible_extension error: {e}")
         return {"extension": None}
 
+# Убран ненужный endpoint update-lead-manager
+
 @app.post("/internal/uon/log-call")
 async def log_call(payload: dict):
     """Создать запись истории звонка в U-ON по факту hangup.
@@ -946,6 +950,10 @@ async def log_call(payload: dict):
         # Назначаем ответственного менеджера клиенту (если звонок отвечен и у клиента нет менеджера)
         if call_status == "отвеченный" and manager_id:
             await _assign_manager_to_client(api_key, phone, manager_id)
+            
+        # 🎯 НОВАЯ ЛОГИКА: Ищем и обновляем обращения
+        if manager_id:
+            await _update_lead_manager_on_hangup(api_key, phone, manager_id)
         
         async with await _uon_client() as client:
             url = f"https://api.u-on.ru/{api_key}/call_history/create.json"
@@ -2937,6 +2945,8 @@ async def internal_notify_incoming(payload: dict, request: Request):
                     details = execution_result.get("details", {})
                     logger.info(f"✅ [{call_uuid}] Действие выполнено: {action_performed} - {details}")
                     
+                    # Убрана логика сохранения lead_id - теперь ищем при hangup
+                    
                     # Если создали клиента - обновляем client_data для уведомления
                     if action_performed == "client_created":
                         new_client_id = details.get("client_id")
@@ -4066,6 +4076,91 @@ async def update_lead_status(api_key: str, lead_id: int, status_id: int) -> dict
         logger.error(f"💥 Ошибка изменения статуса обращения: {e}")
         return {"success": False, "error": str(e)}
 
+async def _update_lead_manager_on_hangup(api_key: str, phone: str, manager_id: str):
+    """
+    При hangup: найти обращения клиента и назначить менеджера
+    """
+    try:
+        logger.info(f"🔍 Ищем обращения для номера {phone} чтобы назначить менеджера {manager_id}")
+        
+        # 1. Ищем клиента и его обращения по номеру
+        client_info = await get_client_leads_with_status(api_key, phone)
+        if not client_info.get("found"):
+            logger.info(f"ℹ️ Клиент с номером {phone} не найден - обращения искать не будем")
+            return
+            
+        client_id = client_info.get("client_id")
+        leads = client_info.get("leads", [])
+        logger.info(f"✅ Найден клиент ID={client_id} для номера {phone}")
+        if not leads:
+            logger.info(f"ℹ️ У клиента {client_id} нет обращений")
+            return
+            
+        logger.info(f"🎯 Найдено {len(leads)} обращений у клиента {client_id}")
+        
+        # 3. Обновляем менеджера в обращениях без менеджера
+        updated_count = 0
+        for lead in leads:
+            lead_id = lead.get("id")
+            current_manager = lead.get("manager_id")
+            
+            # Обновляем только если нет менеджера или нужно заменить
+            if not current_manager or current_manager == "0":
+                logger.info(f"🔄 Обновляем менеджера в обращении {lead_id}")
+                update_result = await update_lead_manager(api_key, str(lead_id), manager_id)
+                if update_result.get("success"):
+                    updated_count += 1
+                    logger.info(f"✅ Менеджер {manager_id} назначен на обращение {lead_id}")
+                else:
+                    logger.error(f"❌ Ошибка обновления обращения {lead_id}: {update_result.get('error')}")
+            else:
+                logger.info(f"ℹ️ Обращение {lead_id} уже имеет менеджера {current_manager}")
+                
+        logger.info(f"📊 Обновлено менеджеров в {updated_count} обращениях")
+        
+    except Exception as e:
+        logger.error(f"💥 Ошибка _update_lead_manager_on_hangup: {e}")
+
+async def update_lead_manager(api_key: str, lead_id: str, manager_id: str) -> dict:
+    """
+    Обновить менеджера в обращении после завершения звонка
+    
+    Args:
+        api_key: Ключ API U-ON
+        lead_id: ID обращения
+        manager_id: ID менеджера
+        
+    Returns:
+        {"success": bool, "error": str}
+    """
+    try:
+        logger.info(f"🔄 Обновление менеджера {manager_id} в обращении {lead_id}")
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            update_url = f"https://api.u-on.ru/{api_key}/request/update/{lead_id}.json"
+            payload = {
+                "manager_id": manager_id
+            }
+            
+            logger.info(f"📋 Отправка обновления обращения: {payload}")
+            response = await client.post(update_url, json=payload)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("result") == 200:
+                    logger.info(f"✅ Менеджер {manager_id} назначен на обращение {lead_id}")
+                    return {"success": True}
+                else:
+                    logger.error(f"❌ Ошибка API при обновлении обращения: {result}")
+                    return {"success": False, "error": f"API error: {result}"}
+            else:
+                logger.error(f"❌ HTTP ошибка при обновлении обращения: {response.status_code}")
+                return {"success": False, "error": f"HTTP {response.status_code}"}
+                
+    except Exception as e:
+        logger.error(f"💥 Ошибка обновления обращения: {e}")
+        return {"success": False, "error": str(e)}
+
 async def create_new_lead(api_key: str, client_id: str, status_id: int, phone: str, source: str = "Входящий звонок", manager_id: str = None) -> dict:
     """
     Создать новое обращение в U-ON
@@ -4092,10 +4187,10 @@ async def create_new_lead(api_key: str, client_id: str, status_id: int, phone: s
                 "u_phone": phone.replace("+", "")  # Убираем + для U-ON
             }
             
-            # Добавляем менеджера если указан
-            if manager_id:
-                payload["r_manager_id"] = manager_id
-                logger.info(f"📋 Назначаем менеджера {manager_id} к новому обращению")
+            # НЕ назначаем менеджера при создании - он будет назначен при hangup
+            # if manager_id:
+            #     payload["r_manager_id"] = manager_id
+            #     logger.info(f"📋 Назначаем менеджера {manager_id} к новому обращению")
             
             logger.info(f"📋 Отправка payload в UON: {payload}")
             response = await client.post(create_url, json=payload)
@@ -4246,6 +4341,11 @@ async def execute_call_action(action_result: dict, api_key: str, phone: str, dir
             if create_result.get("success"):
                 new_client_id = create_result.get("user_id")
                 logger.info(f"✅ Клиент автоматически создан для {phone}, ID={new_client_id}")
+                
+                # ЗАДЕРЖКА для индексации UON API
+                import asyncio
+                await asyncio.sleep(1)
+                logger.info(f"⏰ Ждем индексации клиента {new_client_id} в UON...")
                 
                 # После создания клиента нужно создать обращение
                 logger.info(f"🎯 Создаем обращение для нового клиента {new_client_id}")
