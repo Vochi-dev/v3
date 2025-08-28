@@ -822,6 +822,10 @@ async def dispatch_call_event(request: Request):
                         duration = max(0, int((dt_e - dt_s).total_seconds()))
                     except Exception:
                         duration = 0
+                    
+                    # Определяем статус звонка на основе CallStatus
+                    call_status = int(raw.get("CallStatus", 0))
+                    status_text = "отвеченный" if call_status == 2 else "неотвеченный"
                     start_ts = str(
                         raw.get("StartTime")
                         or raw.get("start")
@@ -835,6 +839,7 @@ async def dispatch_call_event(request: Request):
                         "start": start_ts,
                         "duration": duration,
                         "direction": direction,
+                        "call_status": status_text
                     }
                     if record_url:
                         payload["record_url"] = record_url

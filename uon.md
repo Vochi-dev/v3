@@ -49,7 +49,7 @@
 ## To‑Do
 1) 8018 `uon.py` (FastAPI):
    - Клиент к U‑ON (httpx, таймауты, ретраи, rate‑limit).
-   - Методы: `GET /internal/uon/customer-by-phone?phone=...` (возврат профиля с ФИО/ID/активные заявки), `POST /internal/uon/log-call` (создать событие).
+   - Методы: `GET /internal/uon/customer-by-phone?phone=...` (возврат профиля с ФИО/ID/активные заявки), `POST /internal/uon/log-call` (создать событие с поддержкой ссылки на запись).
    - Вебхуки `POST /uon/webhook` (обработка type_id, обновление кэшей через 8020).
 2) 8020 (integration_cache):
    - Кэш профиля по (enterprise, phone), TTL 2–5 мин; negative‑TTL 1–2 мин.
@@ -74,7 +74,7 @@
      - зарегистрировать заново: type_id=47 (клик по номеру), type_id=3 (создание клиента), type_id=4 (изменение клиента),
      - сохранить новые ID в `integrations_config.uon.webhooks`.
 7) Хэнгапы через сервис download.py:
-   - При обработке завершённых вызовов сервисом `download.py` (порт 8012) отправлять событие в U‑ON (лог звонка) без поднятия карточки.
+   - При обработке завершённых вызовов сервисом `download.py` (порт 8012) отправлять событие в U‑ON (лог звонка) с поддержкой ссылки на запись без поднятия карточки.
    - В этот же момент обновлять/записывать ФИО в БД (если U‑ON — приоритетный источник, см. п.6).
 8) Взаимодействие со `smart.py` при маршрутизации:
    - При originate/роутинге вызывать `smart.py` для определения отображаемых данных (smart redirect) и передавать их в телефон/диалплан.
@@ -314,5 +314,36 @@ method=call&user_id=2&phone=375296254070&uon_id=67054
 
 Рекомендованный следующий тест:
 - Проверка роутинга: настроить `uon.user_extensions` для нескольких `manager_id`, затем вызвать `GET /internal/uon/responsible-extension` и убедиться, что для реального номера клиента возвращается корректный внутренний extension; дополнительно протестировать originate через `/uon/webhook` с `method=call`.
+
+## Обновления интеграции (2025-08-27)
+
+### Ссылки на записи разговоров
+
+**Реализовано:**
+- Поддержка `record_url` в endpoint `POST /internal/uon/log-call`
+- Передача ссылок на записи в U-ON API через параметр `record_link`
+- Интеграция с `integration_cache.py` для автоматической передачи ссылок от hangup событий
+
+**Формат данных для U-ON API:**
+```json
+{
+  "phone": "375296254070",
+  "manager_id": "2", 
+  "direction": 1,
+  "duration": 120,
+  "record_link": "https://bot.vochi.by/retailcrm/call-recording/uuid"
+}
+```
+
+**Техническая реализация:**
+- `integration_cache.py` извлекает `record_url` из hangup событий и передает в uon.py
+- `uon.py` принимает `record_url` и отправляет как `record_link` в U-ON через `/call_history/create.json`
+- Длительность вычисляется по той же логике что и в RetailCRM: `StartTime` → `EndTime` разность в секундах
+
+**Решенные проблемы:**
+- Исправлена ошибка `UnboundLocalError: time` в `integration_cache.py` 
+- Duration=0 → теперь корректно вычисляется длительность из StartTime/EndTime
+- Дедупликация hangup событий для предотвращения дублей в U-ON
+- Корректная обработка направления звонков (incoming/outgoing)
 
 

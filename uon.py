@@ -810,7 +810,7 @@ async def uon_responsible_extension(phone: str, enterprise_number: Optional[str]
 @app.post("/internal/uon/log-call")
 async def log_call(payload: dict):
     """Создать запись истории звонка в U-ON по факту hangup.
-    Ожидает: { enterprise_number, phone, extension, start, duration, direction, record_url? }
+    Ожидает: { enterprise_number, phone, extension, start, duration, direction, record_url?, call_status? }
     U-ON: POST /{key}/call_history/create.json с telephony-полями.
     """
     try:
@@ -822,6 +822,7 @@ async def log_call(payload: dict):
         direction = str(payload.get("direction") or "in").strip()
         manager_ext = str(payload.get("extension") or "").strip()
         record_url = str(payload.get("record_url") or "").strip()
+        call_status = str(payload.get("call_status") or "").strip()
 
         # 1) Берём api_key из БД
         try:
@@ -885,6 +886,9 @@ async def log_call(payload: dict):
             payload_uon["manager_id"] = str(manager_id)
         if record_url:
             payload_uon["record_link"] = record_url  # record_LINK как в рабочем примере!
+        if call_status:
+            # Передаем статус в поле note (примечание) - оно точно поддерживается
+            payload_uon["note"] = f"Статус: {call_status}"
 
         logger.info(f"📞 Sending call history to U-ON: {payload_uon}")
         async with await _uon_client() as client:
