@@ -47,6 +47,57 @@ async def _uon_client() -> httpx.AsyncClient:
 def _normalize_phone_digits(phone: str) -> str:
     return "".join(ch for ch in (phone or "") if ch.isdigit())
 
+async def _assign_manager_to_client(api_key: str, phone: str, manager_id: str):
+    """Назначить ответственного менеджера клиенту, если у клиента еще нет менеджера."""
+    try:
+        async with await _uon_client() as client:
+            # 1. Получаем данные клиента по телефону
+            digits = _normalize_phone_digits(phone)
+            url_get = f"https://api.u-on.ru/{api_key}/user/phone/{digits}.json"
+            r_get = await client.get(url_get)
+            
+            if r_get.status_code == 200:
+                data = r_get.json()
+                users = data.get("users", [])
+                
+                if users:
+                    user = users[0]  # Берем первого найденного клиента
+                    user_id = user.get("u_id")
+                    current_manager_id = user.get("manager_id")
+                    
+                    # 2. Назначаем менеджера только если у клиента нет ответственного менеджера
+                    if user_id and (not current_manager_id or current_manager_id == "0"):
+                        # ПРАВИЛЬНЫЙ ФОРМАТ СОГЛАСНО ДОКУМЕНТАЦИИ: POST /user/update/{id}.json
+                        url_update = f"https://api.u-on.ru/{api_key}/user/update/{user_id}.json"
+                        payload_update = {
+                            "u_manager_id": manager_id  # ПРАВИЛЬНОЕ НАЗВАНИЕ ИЗ ДОКУМЕНТАЦИИ!
+                        }
+                        
+                        logger.info(f"🔄 Назначение менеджера: URL={url_update}, payload={payload_update}")
+                        r_update = await client.post(url_update, json=payload_update)
+                        
+                        logger.info(f"📡 Response: HTTP {r_update.status_code}")
+                        try:
+                            response_data = r_update.json()
+                            logger.info(f"📄 Response data: {response_data}")
+                        except:
+                            response_text = r_update.text
+                            logger.info(f"📄 Response text: {response_text}")
+                        
+                        if r_update.status_code == 200:
+                            logger.info(f"✅ Назначен ответственный менеджер {manager_id} для клиента {user_id} (телефон: {phone})")
+                        else:
+                            logger.warning(f"⚠️ Не удалось назначить менеджера: HTTP {r_update.status_code}")
+                    else:
+                        logger.info(f"ℹ️ У клиента {user_id} уже есть ответственный менеджер {current_manager_id}")
+                else:
+                    logger.info(f"ℹ️ Клиент с телефоном {phone} не найден в U-ON")
+            else:
+                logger.warning(f"⚠️ Не удалось получить данные клиента: HTTP {r_get.status_code}")
+                
+    except Exception as e:
+        logger.error(f"❌ Ошибка при назначении ответственного менеджера: {e}")
+
 
 def _extract_candidate_name(item: Dict[str, Any]) -> Optional[str]:
     # Популярные варианты имен в U‑ON структурах
@@ -891,6 +942,11 @@ async def log_call(payload: dict):
             payload_uon["note"] = f"Статус: {call_status}"
 
         logger.info(f"📞 Sending call history to U-ON: {payload_uon}")
+        
+        # Назначаем ответственного менеджера клиенту (если звонок отвечен и у клиента нет менеджера)
+        if call_status == "отвеченный" and manager_id:
+            await _assign_manager_to_client(api_key, phone, manager_id)
+        
         async with await _uon_client() as client:
             url = f"https://api.u-on.ru/{api_key}/call_history/create.json"
             r = await client.post(url, json=payload_uon)
