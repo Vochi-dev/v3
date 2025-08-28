@@ -2794,7 +2794,17 @@ async def internal_notify_incoming(payload: dict, request: Request):
 
         # Поиск клиента для обогащенного уведомления
         client_data = None
-        auto_create_enabled = False  # TODO: Получать из настроек интеграции
+        
+        # Читаем настройку автосоздания клиентов из конфигурации
+        auto_create_enabled = False
+        try:
+            uon_config = cfg.get("uon", {}) if isinstance(cfg, dict) else {}
+            incoming_actions = uon_config.get("incoming_call_actions", {})
+            auto_create_enabled = bool(incoming_actions.get("create_client_on_call", False))
+            logger.info(f"🔧 Auto-create setting: {auto_create_enabled} (create_client_on_call)")
+        except Exception as e:
+            logger.warning(f"Failed to read auto-create setting: {e}")
+            auto_create_enabled = False
         
         if enriched_notifications_enabled:
             try:
