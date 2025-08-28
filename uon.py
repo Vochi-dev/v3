@@ -335,8 +335,8 @@ async def create_client_in_uon(api_url: str, api_key: str, phone: str, name: str
         # Подготавливаем данные для создания
         client_data = {
             "u_phone": phone_normalized,
-            "u_surname": name or "Клиент",
-            "u_name": "Неизвестный" if not name else "",
+            "u_surname": name or phone_normalized,  # Номер телефона как фамилия
+            "u_name": "",  # Имя пустое
             "source_id": 0  # Источник: телефонный звонок
         }
         
@@ -3589,7 +3589,7 @@ async def admin_create_client_and_redirect(enterprise_number: str, phone: str = 
             return HTMLResponse("<h1>Ошибка: U-ON интеграция не настроена</h1>", status_code=400)
         
         # Создаем клиента
-        result = await create_client_in_uon(cfg["api_url"], cfg["api_key"], phone_normalized, "Новый клиент")
+        result = await create_client_in_uon(cfg["api_url"], cfg["api_key"], phone_normalized)
         
         if result.get("success"):
             # Формируем URL для перехода
