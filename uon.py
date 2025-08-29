@@ -4221,13 +4221,13 @@ async def _handle_missed_call_reminder(api_key: str, phone: str, direction: str,
         # Получаем настройки задачи
         task_minutes = int(actions_config.get("task_minutes", 15))
         
-        # Получаем ответственного менеджера клиента
-        responsible_manager_id = await _get_client_responsible_manager(api_key, phone)
+        # Получаем ответственного менеджера и ID клиента
+        responsible_manager_id, client_id = await _get_client_responsible_manager(api_key, phone)
         
         if responsible_manager_id:
-            logger.info(f"📝 Создаем напоминание для ответственного менеджера {responsible_manager_id}")
+            logger.info(f"📝 Создаем напоминание для ответственного менеджера {responsible_manager_id}, клиент ID={client_id}")
         else:
-            logger.info(f"📝 Создаем напоминание без назначения (нет ответственного менеджера)")
+            logger.info(f"📝 Создаем напоминание без назначения (нет ответственного менеджера), клиент ID={client_id}")
         
         # Создаем напоминание
         logger.info(f"📝 Создаем напоминание для пропущенного {direction_mapped} звонка от {phone}")
@@ -4237,7 +4237,8 @@ async def _handle_missed_call_reminder(api_key: str, phone: str, direction: str,
             phone=phone,
             direction=direction,
             task_minutes=task_minutes,
-            manager_id=responsible_manager_id  # Используем ответственного менеджера клиента
+            manager_id=responsible_manager_id,  # Используем ответственного менеджера клиента
+            client_id=client_id  # Привязываем к клиенту
         )
         
         if result.get("success"):
@@ -4309,7 +4310,7 @@ async def _update_lead_status_on_missed_call(api_key: str, phone: str, target_st
         logger.error(f"💥 Ошибка обновления статуса при пропущенном звонке: {e}")
 
 
-async def _get_client_responsible_manager(api_key: str, phone: str) -> Optional[str]:
+async def _get_client_responsible_manager(api_key: str, phone: str) -> tuple[Optional[str], Optional[str]]:
     """
     Получить ID ответственного менеджера клиента по номеру телефона
     
@@ -4318,7 +4319,7 @@ async def _get_client_responsible_manager(api_key: str, phone: str) -> Optional[
         phone: Номер телефона клиента
         
     Returns:
-        ID ответственного менеджера или None если не найден
+        tuple[Optional[str], Optional[str]]: (manager_id, client_id) или (None, None) если не найден
     """
     try:
         # Ищем клиента по номеру телефона
@@ -4335,26 +4336,27 @@ async def _get_client_responsible_manager(api_key: str, phone: str) -> Optional[
                 if users and len(users) > 0:
                     client_data = users[0]  # Берем первого клиента
                     manager_id = client_data.get("manager_id")
+                    client_id = client_data.get("u_id")
                     
                     if manager_id and str(manager_id) != "0":
-                        logger.info(f"👤 Найден ответственный менеджер {manager_id} для клиента {phone}")
-                        return str(manager_id)
+                        logger.info(f"👤 Найден ответственный менеджер {manager_id} для клиента {phone} (ID={client_id})")
+                        return str(manager_id), str(client_id)
                     else:
                         logger.info(f"👤 У клиента {phone} нет ответственного менеджера (manager_id={manager_id})")
-                        return None
+                        return None, str(client_id) if client_id else None
                 else:
                     logger.info(f"👤 Клиент не найден по номеру {phone} (пустой массив users)")
-                    return None
+                    return None, None
             elif response.status_code == 404:
                 logger.info(f"👤 Клиент не найден по номеру {phone}")
-                return None
+                return None, None
             else:
                 logger.error(f"❌ Ошибка поиска клиента: HTTP {response.status_code}")
-                return None
+                return None, None
                 
     except Exception as e:
         logger.error(f"💥 Ошибка получения ответственного менеджера: {e}")
-        return None
+        return None, None
 
 
 async def _get_status_id_by_name(api_key: str, status_name: str) -> Optional[int]:
@@ -4476,7 +4478,7 @@ async def update_lead_manager(api_key: str, lead_id: str, manager_id: str) -> di
         logger.error(f"💥 Ошибка обновления обращения: {e}")
         return {"success": False, "error": str(e)}
 
-async def create_reminder_task(api_key: str, phone: str, direction: str, task_minutes: int = 15, manager_id: str = None) -> dict:
+async def create_reminder_task(api_key: str, phone: str, direction: str, task_minutes: int = 15, manager_id: str = None, client_id: str = None) -> dict:
     """
     Создать напоминание (задачу) в UON при пропущенном звонке
     
@@ -4486,6 +4488,7 @@ async def create_reminder_task(api_key: str, phone: str, direction: str, task_mi
         direction: Направление звонка ("incoming"/"outgoing")
         task_minutes: Количество минут на выполнение задачи
         manager_id: ID менеджера, которому назначается задача
+        client_id: ID клиента для привязки задачи
         
     Returns:
         dict: Результат создания задачи
@@ -4525,6 +4528,10 @@ async def create_reminder_task(api_key: str, phone: str, direction: str, task_mi
         # Если передан manager_id, назначаем задачу на него
         if manager_id:
             payload["manager_id"] = int(manager_id)
+            
+        # Если передан client_id, привязываем задачу к клиенту
+        if client_id:
+            payload["tr_id"] = int(client_id)
             
         logger.info(f"📝 Создание напоминания: {payload}")
         
