@@ -954,6 +954,16 @@ async def log_call(payload: dict):
         # 🎯 НОВАЯ ЛОГИКА: Ищем и обновляем обращения
         if manager_id:
             await _update_lead_manager_on_hangup(api_key, phone, manager_id)
+            
+        # 📝 СОЗДАНИЕ НАПОМИНАНИЙ ПРИ ПРОПУЩЕННЫХ ЗВОНКАХ
+        await _handle_missed_call_reminder(
+            api_key=api_key, 
+            phone=phone, 
+            direction=direction, 
+            call_status=call_status, 
+            manager_id=manager_id, 
+            enterprise_number=enterprise_number
+        )
         
         async with await _uon_client() as client:
             url = f"https://api.u-on.ru/{api_key}/call_history/create.json"
@@ -4150,6 +4160,237 @@ async def update_lead_status(api_key: str, lead_id: int, status_id: int) -> dict
         logger.error(f"💥 Ошибка изменения статуса обращения: {e}")
         return {"success": False, "error": str(e)}
 
+async def _handle_missed_call_reminder(api_key: str, phone: str, direction: str, call_status: str, manager_id: str, enterprise_number: str):
+    """
+    Обработка создания напоминаний при пропущенных звонках
+    
+    Args:
+        api_key: API ключ UON
+        phone: Номер телефона
+        direction: Направление звонка ("in"/"out")
+        call_status: Статус звонка ("отвеченный"/"неотвеченный")
+        manager_id: ID менеджера
+        enterprise_number: Номер предприятия
+    """
+    try:
+        # Проверяем что звонок пропущенный
+        if call_status != "неотвеченный":
+            logger.info(f"📝 Звонок отвечен ({call_status}) - напоминание не создаем")
+            return
+            
+        logger.info(f"📝 Обработка пропущенного звонка: {phone}, direction={direction}")
+        
+        # Получаем конфигурацию из БД
+        import asyncpg, json as _json
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, database="postgres", 
+            user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        row = await conn.fetchrow(
+            "SELECT integrations_config FROM enterprises WHERE number = $1", 
+            enterprise_number
+        )
+        await conn.close()
+        
+        if not row or not row.get("integrations_config"):
+            logger.info(f"📝 Нет конфигурации для предприятия {enterprise_number}")
+            return
+            
+        cfg = row["integrations_config"]
+        if isinstance(cfg, str):
+            try:
+                cfg = _json.loads(cfg)
+            except Exception:
+                logger.error(f"📝 Ошибка парсинга конфигурации: {cfg}")
+                return
+                
+        uon_config = cfg.get("uon", {}) if isinstance(cfg, dict) else {}
+        
+        # Определяем настройки для направления звонка
+        direction_mapped = "incoming" if direction in ["in", "incoming"] else "outgoing"
+        actions_key = f"{direction_mapped}_call_actions"
+        actions_config = uon_config.get(actions_key, {})
+        
+        # Проверяем настройку создания задач
+        create_task_mode = actions_config.get("create_task", "none")
+        
+        if create_task_mode != "on_missed":
+            logger.info(f"📝 Создание задач отключено (create_task={create_task_mode})")
+            return
+            
+        # Получаем настройки задачи
+        task_minutes = int(actions_config.get("task_minutes", 15))
+        
+        # Получаем ответственного менеджера клиента
+        responsible_manager_id = await _get_client_responsible_manager(api_key, phone)
+        
+        if responsible_manager_id:
+            logger.info(f"📝 Создаем напоминание для ответственного менеджера {responsible_manager_id}")
+        else:
+            logger.info(f"📝 Создаем напоминание без назначения (нет ответственного менеджера)")
+        
+        # Создаем напоминание
+        logger.info(f"📝 Создаем напоминание для пропущенного {direction_mapped} звонка от {phone}")
+        
+        result = await create_reminder_task(
+            api_key=api_key,
+            phone=phone,
+            direction=direction,
+            task_minutes=task_minutes,
+            manager_id=responsible_manager_id  # Используем ответственного менеджера клиента
+        )
+        
+        if result.get("success"):
+            logger.info(f"✅ Напоминание создано: ID={result.get('reminder_id')}")
+        else:
+            logger.error(f"❌ Ошибка создания напоминания: {result.get('error')}")
+            
+        # ДОПОЛНИТЕЛЬНО: Изменяем статус обращения при пропущенном звонке
+        missed_call_status = actions_config.get("missed_call_status", "no_change")
+        if missed_call_status != "no_change":
+            await _update_lead_status_on_missed_call(api_key, phone, missed_call_status)
+            
+    except Exception as e:
+        logger.error(f"💥 Ошибка обработки пропущенного звонка: {e}")
+
+
+async def _update_lead_status_on_missed_call(api_key: str, phone: str, target_status: str):
+    """
+    Обновить статус обращения при пропущенном звонке
+    
+    Args:
+        api_key: API ключ UON
+        phone: Номер телефона
+        target_status: Целевой статус обращения
+    """
+    try:
+        logger.info(f"📋 Обновление статуса обращения при пропущенном звонке: {phone} -> {target_status}")
+        
+        # Получаем обращения клиента
+        leads_result = await get_client_leads_with_status(api_key, phone)
+        
+        if not leads_result.get("found", False):
+            logger.info(f"👤 Клиент не найден для обновления статуса: {phone}")
+            return
+            
+        leads = leads_result.get("leads", [])
+        if not leads:
+            logger.info(f"📋 У клиента нет обращений для обновления статуса: {phone}")
+            return
+            
+        # Находим активное обращение для обновления статуса
+        active_lead = None
+        for lead in leads:
+            if not lead.get("is_archive", False):
+                active_lead = lead
+                break
+                
+        if not active_lead:
+            logger.info(f"📋 У клиента нет активных обращений для обновления статуса: {phone}")
+            return
+            
+        lead_id = active_lead.get("id")
+        
+        # Получаем ID статуса по имени
+        status_id = await _get_status_id_by_name(api_key, target_status)
+        if not status_id:
+            logger.error(f"❌ Не удалось найти статус '{target_status}'")
+            return
+            
+        # Обновляем статус обращения
+        result = await update_lead_status(api_key, lead_id, status_id)
+        
+        if result.get("success"):
+            logger.info(f"✅ Статус обращения {lead_id} обновлен на '{target_status}'")
+        else:
+            logger.error(f"❌ Ошибка обновления статуса обращения: {result.get('error')}")
+            
+    except Exception as e:
+        logger.error(f"💥 Ошибка обновления статуса при пропущенном звонке: {e}")
+
+
+async def _get_client_responsible_manager(api_key: str, phone: str) -> Optional[str]:
+    """
+    Получить ID ответственного менеджера клиента по номеру телефона
+    
+    Args:
+        api_key: API ключ UON
+        phone: Номер телефона клиента
+        
+    Returns:
+        ID ответственного менеджера или None если не найден
+    """
+    try:
+        # Ищем клиента по номеру телефона
+        clean_phone = phone.replace("+", "")
+        
+        async with httpx.AsyncClient() as client:
+            url = f"https://api.u-on.ru/{api_key}/user/phone/{clean_phone}.json"
+            response = await client.get(url)
+            
+            if response.status_code == 200:
+                response_data = response.json()
+                users = response_data.get("users", [])
+                
+                if users and len(users) > 0:
+                    client_data = users[0]  # Берем первого клиента
+                    manager_id = client_data.get("manager_id")
+                    
+                    if manager_id and str(manager_id) != "0":
+                        logger.info(f"👤 Найден ответственный менеджер {manager_id} для клиента {phone}")
+                        return str(manager_id)
+                    else:
+                        logger.info(f"👤 У клиента {phone} нет ответственного менеджера (manager_id={manager_id})")
+                        return None
+                else:
+                    logger.info(f"👤 Клиент не найден по номеру {phone} (пустой массив users)")
+                    return None
+            elif response.status_code == 404:
+                logger.info(f"👤 Клиент не найден по номеру {phone}")
+                return None
+            else:
+                logger.error(f"❌ Ошибка поиска клиента: HTTP {response.status_code}")
+                return None
+                
+    except Exception as e:
+        logger.error(f"💥 Ошибка получения ответственного менеджера: {e}")
+        return None
+
+
+async def _get_status_id_by_name(api_key: str, status_name: str) -> Optional[int]:
+    """
+    Получить ID статуса обращения по имени
+    
+    Args:
+        api_key: API ключ UON
+        status_name: Имя статуса
+        
+    Returns:
+        ID статуса или None если не найден
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            url = f"https://api.u-on.ru/{api_key}/status_lead.json"
+            response = await client.get(url)
+            
+            if response.status_code == 200:
+                statuses = response.json()
+                for status in statuses:
+                    if status.get("name") == status_name:
+                        return int(status.get("id"))
+                        
+                # Попробуем найти по частичному совпадению
+                for status in statuses:
+                    if status_name.lower() in status.get("name", "").lower():
+                        return int(status.get("id"))
+                        
+        return None
+        
+    except Exception as e:
+        logger.error(f"💥 Ошибка получения ID статуса: {e}")
+        return None
+
+
 async def _update_lead_manager_on_hangup(api_key: str, phone: str, manager_id: str):
     """
     При hangup: найти обращения клиента и назначить менеджера
@@ -4234,6 +4475,87 @@ async def update_lead_manager(api_key: str, lead_id: str, manager_id: str) -> di
     except Exception as e:
         logger.error(f"💥 Ошибка обновления обращения: {e}")
         return {"success": False, "error": str(e)}
+
+async def create_reminder_task(api_key: str, phone: str, direction: str, task_minutes: int = 15, manager_id: str = None) -> dict:
+    """
+    Создать напоминание (задачу) в UON при пропущенном звонке
+    
+    Args:
+        api_key: API ключ UON
+        phone: Номер телефона 
+        direction: Направление звонка ("incoming"/"outgoing")
+        task_minutes: Количество минут на выполнение задачи
+        manager_id: ID менеджера, которому назначается задача
+        
+    Returns:
+        dict: Результат создания задачи
+    """
+    try:
+        # Определяем текст задачи в зависимости от направления
+        call_type_text = "входящий" if direction in ["in", "incoming"] else "исходящий"
+        task_text = f"Пропущенный {call_type_text} звонок от {phone}"
+        
+        # Вычисляем дату выполнения (текущее время + task_minutes)
+        from datetime import datetime, timedelta
+        import pytz
+        
+        # Используем московское время
+        moscow_tz = pytz.timezone('Europe/Moscow')
+        now = datetime.now(moscow_tz)
+        task_deadline = now + timedelta(minutes=task_minutes)
+        
+        # Формируем payload согласно UON API
+        # ОБЯЗАТЕЛЬНЫЕ ПОЛЯ:
+        # - type_id: 1 = звонок, 2 = письмо, 3 = встреча, 0 = не определено
+        # - datetime: дата напоминания (от)
+        # - datetime_to: дата напоминания (до) 
+        # - text: текст напоминания
+        
+        # Для пропущенного звонка делаем напоминание на 1 час
+        datetime_from = task_deadline.strftime("%Y-%m-%d %H:%M:%S")
+        datetime_to = (task_deadline + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+        
+        payload = {
+            "type_id": 1,  # 1 = звонок
+            "datetime": datetime_from,
+            "datetime_to": datetime_to,
+            "text": task_text
+        }
+        
+        # Если передан manager_id, назначаем задачу на него
+        if manager_id:
+            payload["manager_id"] = int(manager_id)
+            
+        logger.info(f"📝 Создание напоминания: {payload}")
+        
+        async with httpx.AsyncClient() as client:
+            # Используем API reminder/create.json
+            api_url = f"https://api.u-on.ru/{api_key}/reminder/create.json"
+            response = await client.post(api_url, json=payload)
+            
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"✅ Напоминание создано: ID={result.get('id')}")
+                return {
+                    "success": True,
+                    "reminder_id": result.get("id"),
+                    "message": "Напоминание создано"
+                }
+            else:
+                error_msg = f"HTTP {response.status_code}: {response.text}"
+                logger.error(f"❌ Ошибка создания напоминания: {error_msg}")
+                return {
+                    "success": False, 
+                    "error": error_msg
+                }
+                
+    except Exception as e:
+        logger.error(f"💥 Исключение при создании напоминания: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 
 async def create_new_lead(api_key: str, client_id: str, status_id: int, phone: str, source: str = "Входящий звонок", manager_id: str = None) -> dict:
     """
