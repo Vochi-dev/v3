@@ -3820,12 +3820,16 @@ async def get_client_leads_with_status(api_key: str, phone: str) -> dict:
             # Создаем словарь статусов с информацией об архивности
             for status in statuses_data.get('records', []):
                 status_id = status.get('id')
-                is_archive = bool(status.get('is_archive', 0))
+                is_archive_raw = status.get('is_archive', 0)
+                is_archive = bool(is_archive_raw)
                 statuses_dict[status_id] = {
                     'name': status.get('name'),
                     'is_archive': is_archive,
                     'archive_type': '🗄️ АРХИВНЫЙ' if is_archive else '📋 АКТИВНЫЙ'
                 }
+                
+                # 🔍 ОТЛАДОЧНОЕ ЛОГИРОВАНИЕ СТАТУСОВ
+                logger.info(f"🔍 Статус ID={status_id}: name='{status.get('name')}', is_archive_raw={is_archive_raw}, is_archive={is_archive}")
             
             logger.info(f"📊 Загружено статусов: {len(statuses_dict)}")
             
@@ -3879,8 +3883,20 @@ async def get_client_leads_with_status(api_key: str, phone: str) -> dict:
                 status_id = lead.get('status_id')
                 status_info = statuses_dict.get(status_id, {})
                 
+                # ПОПРОБУЕМ И СТРОКУ И ЧИСЛО ДЛЯ СОВМЕСТИМОСТИ
+                if not status_info and isinstance(status_id, (int, str)):
+                    # Пробуем другой тип
+                    alt_status_id = str(status_id) if isinstance(status_id, int) else int(status_id) if status_id.isdigit() else status_id
+                    status_info = statuses_dict.get(alt_status_id, {})
+                    if status_info:
+                        logger.info(f"🔍 Найден статус по альтернативному типу: {status_id} -> {alt_status_id}")
+                
                 lead['is_archive'] = status_info.get('is_archive', False)
                 lead['archive_type'] = status_info.get('archive_type', '❓ НЕИЗВЕСТНО')
+                
+                # 🔍 ОТЛАДОЧНОЕ ЛОГИРОВАНИЕ
+                logger.info(f"🔍 Обращение ID={lead.get('id')}: status_id={status_id} (type: {type(status_id)}), found_in_dict={bool(status_info)}, is_archive={lead['is_archive']}, archive_type={lead['archive_type']}")
+                logger.info(f"🔍 Словарь статусов содержит ключи: {list(statuses_dict.keys())[:5]}... (показаны первые 5)")
                 
                 if lead['is_archive']:
                     archived_count += 1
@@ -3959,8 +3975,10 @@ async def determine_call_action(api_key: str, phone: str, direction: str, call_c
             logger.info(f"👤 Клиент не найден для номера: {phone}")
             
             # Проверяем настройки автосоздания
-            actions_key = f"{direction}_call_actions"
-            actions_config = call_config.get(actions_key, {})
+            # Маппинг направлений: "in" -> "incoming", "out" -> "outgoing"
+            direction_mapped = "incoming" if direction in ["in", "incoming"] else "outgoing" 
+            actions_key = f"{direction_mapped}_call_actions"
+            actions_config = call_config.get("uon", {}).get(actions_key, {})
             create_client_enabled = bool(actions_config.get("create_client_on_call", False))
             
             if create_client_enabled:
@@ -3989,37 +4007,93 @@ async def determine_call_action(api_key: str, phone: str, direction: str, call_c
         leads_summary = leads_result.get("leads_summary", {})
         leads = leads_result.get("leads", [])
         
-        # Если у клиента НЕТ обращений - создаем обращение
-        if leads_summary.get("total_count", 0) == 0:
-            logger.info(f"📋 У существующего клиента {client_id} нет обращений - создаем новое")
-            
-            # Получаем настройки для создания обращения
-            # Маппинг направлений: "in" -> "incoming", "out" -> "outgoing"
-            direction_mapped = "incoming" if direction in ["in", "incoming"] else "outgoing" 
-            actions_key = f"{direction_mapped}_call_actions"
-            # Правильный путь: call_config["uon"]["incoming_call_actions"]
-            actions_config = call_config.get("uon", {}).get(actions_key, {})
-            target_status_id = actions_config.get("request_status", 1)  # По умолчанию "Новый"
-            
+        # ПРОВЕРЯЕМ НАСТРОЙКИ СОЗДАНИЯ ОБРАЩЕНИЙ
+        
+        # Получаем настройки для создания обращения
+        # Маппинг направлений: "in" -> "incoming", "out" -> "outgoing"
+        direction_mapped = "incoming" if direction in ["in", "incoming"] else "outgoing" 
+        actions_key = f"{direction_mapped}_call_actions"
+        # Правильный путь: call_config["uon"]["incoming_call_actions"]
+        actions_config = call_config.get("uon", {}).get(actions_key, {})
+        
+        # ПРОВЕРЯЕМ НАСТРОЙКУ create_request
+        create_request_mode = actions_config.get("create_request", "if_no_open")
+        logger.info(f"📋 Настройка create_request: {create_request_mode}")
+        logger.info(f"📋 Статистика обращений: всего={leads_summary.get('total_count', 0)}, активных={leads_summary.get('active_count', 0)}, архивных={leads_summary.get('archived_count', 0)}")
+        
+        if create_request_mode == "none":
+            # Настроено НЕ создавать обращения
+            logger.info(f"🚫 Создание обращений отключено (create_request=none)")
             return {
-                "action_needed": True,
-                "action_type": "create_lead",
-                "target_status_id": target_status_id,
+                "action_needed": False,
+                "action_type": "none", 
+                "target_status_id": None,
                 "lead_id": None,
-                "client_situation": "no_leads",
+                "client_situation": "creation_disabled",
                 "client_id": client_id,
                 "leads_summary": leads_summary
             }
+        elif create_request_mode == "if_no_open":
+            # Проверяем только активные обращения (архивные игнорируем)
+            if leads_summary.get("active_count", 0) == 0:
+                logger.info(f"📋 ✅ СОЗДАЕМ НОВОЕ ОБРАЩЕНИЕ - нет активных обращений (create_request=if_no_open)")
+                target_status_id = actions_config.get("request_status", 1)
+                
+                return {
+                    "action_needed": True,
+                    "action_type": "create_lead",
+                    "target_status_id": target_status_id,
+                    "lead_id": None,
+                    "client_situation": "no_active_leads",
+                    "client_id": client_id,
+                    "leads_summary": leads_summary
+                }
+            else:
+                logger.info(f"✅ У клиента {client_id} есть активные обращения - не создаем новое")
+                return {
+                    "action_needed": False,
+                    "action_type": "none",
+                    "target_status_id": None,
+                    "lead_id": None,
+                    "client_situation": "has_active_leads",
+                    "client_id": client_id,
+                    "leads_summary": leads_summary
+                }
+        elif create_request_mode == "if_no_request":
+            # Создаем обращение только если нет вообще никаких обращений
+            if leads_summary.get("total_count", 0) == 0:
+                logger.info(f"📋 ✅ СОЗДАЕМ НОВОЕ ОБРАЩЕНИЕ - нет обращений вообще (create_request=if_no_request)")
+                target_status_id = actions_config.get("request_status", 1)
+                
+                return {
+                    "action_needed": True,
+                    "action_type": "create_lead",
+                    "target_status_id": target_status_id,
+                    "lead_id": None,
+                    "client_situation": "no_leads_at_all",
+                    "client_id": client_id,
+                    "leads_summary": leads_summary
+                }
+            else:
+                logger.info(f"✅ У клиента {client_id} есть обращения - не создаем новое (create_request=if_no_request)")
+                return {
+                    "action_needed": False,
+                    "action_type": "none",
+                    "target_status_id": None,
+                    "lead_id": None,
+                    "client_situation": "has_any_leads",
+                    "client_id": client_id,
+                    "leads_summary": leads_summary
+                }
         else:
-            # У клиента есть обращения - никаких действий
-            logger.info(f"✅ У клиента {client_id} есть обращения - действия не требуются")
-            
+            # Неизвестный режим - по умолчанию не создаем
+            logger.warning(f"⚠️ Неизвестный режим create_request: {create_request_mode}")
             return {
                 "action_needed": False,
                 "action_type": "none",
                 "target_status_id": None,
                 "lead_id": None,
-                "client_situation": "client_exists_with_leads",
+                "client_situation": "unknown_mode",
                 "client_id": client_id,
                 "leads_summary": leads_summary
             }
@@ -4347,22 +4421,37 @@ async def execute_call_action(action_result: dict, api_key: str, phone: str, dir
                 await asyncio.sleep(1)
                 logger.info(f"⏰ Ждем индексации клиента {new_client_id} в UON...")
                 
-                # После создания клиента нужно создать обращение
-                logger.info(f"🎯 Создаем обращение для нового клиента {new_client_id}")
+                # 🆕 НОВАЯ ЛОГИКА: Для нового клиента обращений точно НЕТ
+                logger.info(f"🎯 Клиент создан - определяем нужно ли создавать обращение")
                 
-                # Получаем статус для новых обращений из конфигурации
+                # Получаем настройки создания обращений
                 if call_config:
                     # Маппинг направлений: "in" -> "incoming", "out" -> "outgoing"
                     direction_mapped = "incoming" if direction in ["in", "incoming"] else "outgoing" 
                     actions_key = f"{direction_mapped}_call_actions"
-                    # Правильный путь: call_config["uon"]["incoming_call_actions"]
                     actions_config = call_config.get("uon", {}).get(actions_key, {})
-                    lead_status = actions_config.get("request_status", 1)  # По умолчанию "Новый"
+                    
+                    create_request_mode = actions_config.get("create_request", "if_no_open")
+                    logger.info(f"📋 Настройка create_request для нового клиента: {create_request_mode}")
+                    
+                    if create_request_mode == "none":
+                        # НЕ создаем обращение
+                        logger.info(f"🚫 Создание обращений отключено - только клиент")
+                        return {
+                            "success": True,
+                            "action_performed": "client_created",
+                            "details": {"client_id": new_client_id}
+                        }
+                    
+                    # Создаем обращение (любой режим кроме "none")
+                    logger.info(f"📋 Создаем обращение для нового клиента (режим: {create_request_mode})")
+                    
+                    lead_status = actions_config.get("request_status", 1)
                     default_source = "Входящий звонок" if direction in ["incoming", "in"] else "Исходящий звонок"
                     source_from_config = actions_config.get("request_source", default_source)
                 else:
-                    lead_status = 1  # По умолчанию "Новый"
-                    actions_config = {}
+                    logger.warning("⚠️ Нет конфигурации call_config - создаем обращение по умолчанию")
+                    lead_status = 1
                     default_source = "Входящий звонок" if direction in ["incoming", "in"] else "Исходящий звонок"
                     source_from_config = default_source
                 
