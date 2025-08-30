@@ -1590,18 +1590,22 @@ UON_ADMIN_HTML = """
           notifyOutgoing.checked = !!notifications.notify_outgoing;
         }
         
-        // Загружаем настройки действий при входящем звонке
+        // Сохраняем настройки для последующего применения после загрузки статусов
+        window.configToApply = {
+          incoming_call_actions: cfg.incoming_call_actions || {},
+          outgoing_call_actions: cfg.outgoing_call_actions || {}
+        };
+        
+        // Загружаем настройки действий при входящем звонке (только НЕ-селекты)
         const actions = cfg.incoming_call_actions || {};
         const createClientOnCall = document.getElementById('createClientOnCall');
         const createRequestNone = document.querySelector('input[name="createRequest"][value="none"]');
         const createRequestIfNoOpen = document.querySelector('input[name="createRequest"][value="if_no_open"]');
         const createRequestIfNoRequest = document.querySelector('input[name="createRequest"][value="if_no_request"]');
-        const requestStatus = document.getElementById('requestStatus');
         const requestSource = document.getElementById('requestSource');
         const createTaskNone = document.querySelector('input[name="createTask"][value="none"]');
         const createTaskOnMissed = document.querySelector('input[name="createTask"][value="on_missed"]');
         const taskMinutes = document.getElementById('taskMinutes');
-        const missedCallStatus = document.getElementById('missedCallStatus');
         
         if (createClientOnCall) {
           createClientOnCall.checked = actions.create_client_on_call !== false;
@@ -1614,9 +1618,7 @@ UON_ADMIN_HTML = """
           createRequestIfNoRequest.checked = (createRequestMode === 'if_no_request');
         }
         
-        if (requestStatus) {
-          requestStatus.value = actions.request_status || 'work';
-        }
+        // НЕ устанавливаем значения селектов статусов здесь - это будет сделано после загрузки статусов
         if (requestSource) {
           requestSource.value = actions.request_source || 'Входящий звонок';
         }
@@ -1629,9 +1631,6 @@ UON_ADMIN_HTML = """
         
         if (taskMinutes) {
           taskMinutes.value = actions.task_minutes || 15;
-        }
-        if (missedCallStatus) {
-          missedCallStatus.value = actions.missed_call_status || 'missed';
         }
         
         // Загружаем настройки исходящих звонков
@@ -1678,8 +1677,15 @@ UON_ADMIN_HTML = """
         console.log('✅ Конфигурация загружена:', cfg);
         
         // Загружаем статусы обращений после загрузки основной конфигурации
+        console.log('🔍 Проверка условия:', 'enabled =', cfg.enabled, 'api_key =', !!cfg.api_key);
         if (cfg.enabled && cfg.api_key) {
+          console.log('✅ Условие выполнено - загружаем статусы');
+          
+          console.log('💾 Конфигурация для применения после загрузки статусов:', window.configToApply);
+          
           await loadStatusLead();
+        } else {
+          console.log('❌ Условие не выполнено - статусы не загружаются');
         }
       } catch(e) { 
         console.warn('load() error', e); 
@@ -1838,11 +1844,15 @@ UON_ADMIN_HTML = """
     }
 
     async function loadStatusLead() {
+      console.log('🚀 loadStatusLead() вызвана');
       try {
+        console.log('📡 Запрос статусов:', `./api/status-lead/${enterprise}`);
         const r = await fetch(`./api/status-lead/${enterprise}`);
         const j = await r.json();
+        console.log('📥 Ответ API:', j);
         
         if (j.success && j.statuses) {
+          console.log('✅ Вызываю populateStatusSelects с', j.statuses.length, 'статусами');
           populateStatusSelects(j.statuses);
           console.log('✅ Статусы обращений загружены:', j.statuses);
         } else {
@@ -1870,10 +1880,18 @@ UON_ADMIN_HTML = """
     }
 
     function populateStatusSelects(statuses) {
+      console.log('🔧 populateStatusSelects() вызвана с', statuses.length, 'статусами:', statuses);
       const requestStatus = document.getElementById('requestStatus');
       const missedCallStatus = document.getElementById('missedCallStatus');
       const outgoingRequestStatus = document.getElementById('outgoingRequestStatus');
       const outgoingMissedCallStatus = document.getElementById('outgoingMissedCallStatus');
+      
+      console.log('🎯 Найденные элементы:', {
+        requestStatus: !!requestStatus,
+        missedCallStatus: !!missedCallStatus, 
+        outgoingRequestStatus: !!outgoingRequestStatus,
+        outgoingMissedCallStatus: !!outgoingMissedCallStatus
+      });
       
       if (requestStatus) {
         // Сохраняем текущее значение
@@ -1887,8 +1905,13 @@ UON_ADMIN_HTML = """
           requestStatus.appendChild(option);
         });
         
-        // Восстанавливаем значение или ставим "В работе" по умолчанию
-        requestStatus.value = currentValue || 'work';
+        // Устанавливаем значение из конфигурации
+        const configValue = window.configToApply?.incoming_call_actions?.request_status;
+        const finalValue = configValue || currentValue || '1';
+        console.log('🔄 Устанавливаем значение из конфигурации:', finalValue, '(config:', configValue, 'current:', currentValue, ')');
+        requestStatus.value = finalValue;
+        console.log('✅ requestStatus заполнен:', requestStatus.children.length, 'опций, финальное значение:', requestStatus.value);
+        console.log('📋 Содержимое requestStatus:', Array.from(requestStatus.options).map(o => o.value + ': ' + o.text));
       }
       
       if (missedCallStatus) {
@@ -1911,8 +1934,11 @@ UON_ADMIN_HTML = """
           }
         });
         
-        // Восстанавливаем значение или ставим "Пропущенный" по умолчанию
-        missedCallStatus.value = currentValue || 'missed';
+        // Устанавливаем значение из конфигурации
+        const configValue = window.configToApply?.incoming_call_actions?.missed_call_status;
+        const finalValue = configValue || currentValue || '1';
+        missedCallStatus.value = finalValue;
+        console.log('✅ missedCallStatus установлен:', finalValue, '(config:', configValue, ')');
       }
       
       // Заполняем исходящие списки
@@ -1927,7 +1953,10 @@ UON_ADMIN_HTML = """
           outgoingRequestStatus.appendChild(option);
         });
         
-        outgoingRequestStatus.value = currentValue || 'work';
+        const configValue = window.configToApply?.outgoing_call_actions?.request_status;
+        const finalValue = configValue || currentValue || '1';
+        outgoingRequestStatus.value = finalValue;
+        console.log('✅ outgoingRequestStatus установлен:', finalValue, '(config:', configValue, ')');
       }
       
       if (outgoingMissedCallStatus) {
@@ -1949,7 +1978,10 @@ UON_ADMIN_HTML = """
           }
         });
         
-        outgoingMissedCallStatus.value = currentValue || 'no_change';
+        const configValue = window.configToApply?.outgoing_call_actions?.missed_call_status;
+        const finalValue = configValue || currentValue || '1';
+        outgoingMissedCallStatus.value = finalValue;
+        console.log('✅ outgoingMissedCallStatus установлен:', finalValue, '(config:', configValue, ')');
       }
     }
 
@@ -2300,6 +2332,7 @@ UON_ADMIN_HTML = """
       try {
         await loadStatusLead();
         refreshStatusBtn.textContent = '✅ Обновлено';
+        console.log('🔄 Принудительное обновление статусов завершено');
         setTimeout(() => {
           refreshStatusBtn.textContent = '🔄 Обновить';
           refreshStatusBtn.disabled = false;
