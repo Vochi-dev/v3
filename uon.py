@@ -680,8 +680,27 @@ async def set_config(cfg: Dict[str, Any]):
 
 # Заглушки для будущего API
 @app.get("/internal/uon/customer-by-phone")
-async def customer_by_phone(phone: str):
-    api_key = _get_api_key_or_raise()
+async def customer_by_phone(phone: str, enterprise_number: str = None):
+    # Если enterprise_number передан, загружаем конфиг из БД
+    if enterprise_number:
+        try:
+            import asyncpg
+            conn = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+            row = await conn.fetchrow("SELECT integrations_config FROM enterprises WHERE number = $1", enterprise_number)
+            await conn.close()
+            if row and row.get("integrations_config"):
+                import json
+                cfg = json.loads(row["integrations_config"])
+                uon_cfg = cfg.get("uon", {})
+                api_key = uon_cfg.get("api_key", "")
+                if not api_key:
+                    return {"phone": phone, "profile": None, "error": "UON not configured"}
+            else:
+                return {"phone": phone, "profile": None, "error": "Enterprise not found"}
+        except Exception as e:
+            return {"phone": phone, "profile": None, "error": f"Config error: {e}"}
+    else:
+        api_key = _get_api_key_or_raise()
     # Сначала быстрая попытка реального поиска клиента по номеру
     found = await _search_customer_in_uon_by_phone(api_key, phone)
     if found:
@@ -696,7 +715,7 @@ async def customer_by_phone(phone: str):
             "profile": {
                 "display_name": found.get("name") or "",
             },
-            "source": src,
+            "source": {**src, "raw": raw},  # Обязательно передаем raw данные
         }
     # Фоллбэк — проверка ключа (countries) и пустой профайл
     async with await _uon_client() as client:

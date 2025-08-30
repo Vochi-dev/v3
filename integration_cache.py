@@ -1143,7 +1143,7 @@ async def get_customer_profile(enterprise_number: str, phone: str):
                 url = "http://127.0.0.1:8022/internal/uon/customer-by-phone"
                 try:
                     async with httpx.AsyncClient(timeout=2.5) as client:
-                        resp = await client.get(url, params={"phone": phone_e164})
+                        resp = await client.get(url, params={"phone": phone_e164, "enterprise_number": enterprise_number})
                         if resp.status_code == 200:
                             data = resp.json() or {}
                             profile = data.get("profile") or {}
@@ -1155,16 +1155,16 @@ async def get_customer_profile(enterprise_number: str, phone: str):
                                 # Пробуем разделить display_name на части (если это "Фамилия Имя")
                                 parts = display_name.split()
                                 if len(parts) >= 1:
-                                    prof["first_name"] = parts[0]
+                                    prof["last_name"] = parts[0]   # ИСПРАВЛЕНО: первая часть - фамилия
                                 if len(parts) >= 2:
-                                    prof["last_name"] = parts[1]
+                                    prof["first_name"] = parts[1]  # ИСПРАВЛЕНО: вторая часть - имя
                             
                             # Если есть сырые данные от U-ON, попробуем извлечь больше информации
                             if isinstance(raw_data, dict):
                                 for uon_key, our_key in [
-                                    ("last_name", "last_name"), ("lastName", "last_name"), ("lname", "last_name"),
-                                    ("first_name", "first_name"), ("firstName", "first_name"), ("fname", "first_name"),
-                                    ("middle_name", "middle_name"), ("patronymic", "middle_name"), ("mname", "middle_name"),
+                                    ("last_name", "last_name"), ("lastName", "last_name"), ("lname", "last_name"), ("u_surname", "last_name"),
+                                    ("first_name", "first_name"), ("firstName", "first_name"), ("fname", "first_name"), ("u_name", "first_name"),
+                                    ("middle_name", "middle_name"), ("patronymic", "middle_name"), ("mname", "middle_name"), ("u_sname", "middle_name"),
                                     ("company", "enterprise_name"), ("enterprise_name", "enterprise_name"), ("organization", "enterprise_name")
                                 ]:
                                     v = raw_data.get(uon_key)
