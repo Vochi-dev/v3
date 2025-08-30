@@ -865,8 +865,10 @@ async def uon_responsible_extension(phone: str, enterprise_number: Optional[str]
 @app.post("/internal/uon/log-call")
 async def log_call(payload: dict):
     """Создать запись истории звонка в U-ON по факту hangup.
-    Ожидает: { enterprise_number, phone, extension, start, duration, direction, record_url?, call_status? }
+    Ожидает: { enterprise_number, phone, extension, start, duration, direction, record_url?, call_status?, origin? }
     U-ON: POST /{key}/call_history/create.json с telephony-полями.
+    
+    origin='download' для recovery mode (пропускаем уведомления и задачи)
     """
     try:
         api_key = None
@@ -878,6 +880,7 @@ async def log_call(payload: dict):
         manager_ext = str(payload.get("extension") or "").strip()
         record_url = str(payload.get("record_url") or "").strip()
         call_status = str(payload.get("call_status") or "").strip()
+        origin = str(payload.get("origin") or "").strip()  # 'download' для recovery mode
 
         # 1) Берём api_key из БД
         try:
@@ -955,7 +958,7 @@ async def log_call(payload: dict):
         if manager_id:
             await _update_lead_manager_on_hangup(api_key, phone, manager_id)
             
-        # 📝 СОЗДАНИЕ НАПОМИНАНИЙ ПРИ ПРОПУЩЕННЫХ ЗВОНКАХ
+        # 📝 СОЗДАНИЕ НАПОМИНАНИЙ ПРИ ПРОПУЩЕННЫХ ЗВОНКАХ (включая recovery mode)
         await _handle_missed_call_reminder(
             api_key=api_key, 
             phone=phone, 
@@ -2768,8 +2771,10 @@ async def _should_send_notification(enterprise_number: str, direction: str, phas
 @app.post("/internal/uon/notify-incoming")
 async def internal_notify_incoming(payload: dict, request: Request):
     """Внутренний вызов: отправить всплывашку при реальном звонке.
-    Ожидает: { enterprise_number, phone, extension, direction?, phase? }
+    Ожидает: { enterprise_number, phone, extension, direction?, phase?, origin? }
     Текст: "Фамилия Имя клиента — Фамилия Имя менеджера (ext)".
+    
+    origin='download' для recovery mode (пропускаем уведомления)
     """
     try:
         enterprise_number = str(payload.get("enterprise_number") or "").strip()
@@ -2779,6 +2784,7 @@ async def internal_notify_incoming(payload: dict, request: Request):
         extensions_all = payload.get("extensions_all") or []
         direction = str(payload.get("direction") or "incoming").strip()  # "incoming" или "outgoing"  
         phase = str(payload.get("phase") or "dial").strip()  # "dial" или "hangup"
+        origin = str(payload.get("origin") or "").strip()  # 'download' для recovery mode
         
         # integration_cache теперь корректно передает direction (in/out)
         
@@ -2800,11 +2806,18 @@ async def internal_notify_incoming(payload: dict, request: Request):
             return {"success": True, "status": 200, "blocked": "duplicate_entry"}
         _RECENT_NOTIFIES[f"ENTRY_{global_key}"] = now
         
-        # Проверяем настройки уведомлений
-        should_notify = await _should_send_notification(enterprise_number, direction, phase)
-        if not should_notify:
-            logger.info(f"Notification skipped for {enterprise_number} {direction} {phase} due to settings")
-            return {"success": True, "skipped": True, "reason": "disabled_by_settings"}
+        # В recovery mode пропускаем только уведомления, но выполняем всю остальную логику
+        is_recovery_mode = (origin == "download")
+        if is_recovery_mode:
+            logger.info(f"🔄 [{call_uuid}] Recovery mode - пропускаем уведомления, но выполняем создание клиентов/обращений")
+            
+        # В recovery mode пропускаем уведомления, но продолжаем логику
+        if not is_recovery_mode:
+            # Проверяем настройки уведомлений только для live событий
+            should_notify = await _should_send_notification(enterprise_number, direction, phase)
+            if not should_notify:
+                logger.info(f"Notification skipped for {enterprise_number} {direction} {phase} due to settings")
+                return {"success": True, "skipped": True, "reason": "disabled_by_settings"}
         try:
             extensions_all = [str(e).strip() for e in extensions_all if str(e).strip()]
         except Exception:
@@ -3077,7 +3090,7 @@ async def internal_notify_incoming(payload: dict, request: Request):
             broadcast_ids = []
             
         # Если есть broadcast_ids (множественная отправка), отправляем всем
-        if broadcast_ids:
+        if broadcast_ids and not is_recovery_mode:  # Пропускаем уведомления в recovery mode
             # Шлём каждому менеджеру из карты (c антидублем)
             statuses: list[tuple[str,int]] = []
             async with await _uon_client() as client:
@@ -3125,7 +3138,7 @@ async def internal_notify_incoming(payload: dict, request: Request):
                 status_code = 200
             r = Dummy()
             ep = f"https://api.u-on.ru/{api_key}/notification/create.json"
-        else:
+        elif not is_recovery_mode:  # Отправляем уведомления только в live режиме
             async with await _uon_client() as client:
                 ep = f"https://api.u-on.ru/{api_key}/notification/create.json"
                 notify_payload = {"text": text, "manager_id": str(manager_id)}
@@ -3133,6 +3146,12 @@ async def internal_notify_incoming(payload: dict, request: Request):
                 ok = (r.status_code == 200)
             if ok:
                 _RECENT_NOTIFIES[key] = now
+        else:
+            # Recovery mode - пропускаем уведомления
+            ok = True
+            class Dummy:
+                status_code = 200
+            r = Dummy()
 
         # Диагностика
         try:
