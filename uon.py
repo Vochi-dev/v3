@@ -102,11 +102,19 @@ async def _assign_manager_to_client(api_key: str, phone: str, manager_id: str):
 
 
 def _extract_candidate_name(item: Dict[str, Any]) -> Optional[str]:
-    # Популярные варианты имен в U‑ON структурах
-    for key in ("name", "u_name", "fio"):
+    # Сначала проверяем UON специфичные поля (u_surname, u_name, u_sname)
+    uon_surname = item.get("u_surname", "").strip()
+    uon_name = item.get("u_name", "").strip()
+    uon_sname = item.get("u_sname", "").strip()
+    if uon_surname or uon_name:
+        parts = [p for p in [uon_surname, uon_name, uon_sname] if p]
+        return " ".join(parts)
+    
+    # Популярные варианты имен в других структурах
+    for key in ("name", "fio"):
         if isinstance(item.get(key), str) and item[key].strip():
             return item[key].strip()
-    # Комбинация ФИО
+    # Комбинация ФИО (общие поля)
     last = item.get("last_name") or item.get("lastName") or item.get("lname")
     first = item.get("first_name") or item.get("firstName") or item.get("fname")
     middle = item.get("middle_name") or item.get("patronymic") or item.get("mname")
@@ -703,6 +711,7 @@ async def customer_by_phone(phone: str, enterprise_number: str = None):
         api_key = _get_api_key_or_raise()
     # Сначала быстрая попытка реального поиска клиента по номеру
     found = await _search_customer_in_uon_by_phone(api_key, phone)
+    logger.info(f"🔍 customer-by-phone search result for {phone}: {found}")
     if found:
         src = found.get("source") or {}
         raw = found.get("raw")

@@ -1010,7 +1010,7 @@ async def get_customer_name(enterprise_number: str, phone: str):
                 url = "http://127.0.0.1:8022/internal/uon/customer-by-phone"
                 try:
                     async with httpx.AsyncClient(timeout=2.5) as client:
-                        resp = await client.get(url, params={"phone": phone_e164})
+                        resp = await client.get(url, params={"phone": phone_e164, "enterprise_number": enterprise_number})
                         if resp.status_code == 200:
                             data = resp.json() or {}
                             profile = data.get("profile") or {}

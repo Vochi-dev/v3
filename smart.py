@@ -446,6 +446,8 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
                 # Пытаемся вычислить контекст
                 retailcrm_ext = None
                 retailcrm_internal_id = None
+                uon_ext = None
+                uon_internal_id = None
                 if algorithm == "retailcrm":
                     e164 = "+" + phone_norm if not phone_norm.startswith("+") else phone_norm
                     retailcrm_ext = await _get_responsible_extension_via_8020(enterprise_number, e164)
@@ -453,6 +455,18 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
                         retailcrm_internal_id = await _get_internal_id_for_extension(conn, enterprise_number, retailcrm_ext)
                         if retailcrm_internal_id is not None:
                             dialplan = f"mngr{retailcrm_internal_id}_{trunk}_1"
+                    # Fallback: если не получили ответственного — используем last_call
+                    if dialplan is None:
+                        alt = await _compute_dialplan(conn, enterprise_number, trunk, phone_norm, "last_call")
+                        if alt:
+                            dialplan = alt
+                elif algorithm == "uon":
+                    e164 = "+" + phone_norm if not phone_norm.startswith("+") else phone_norm
+                    uon_ext = await _get_responsible_extension_via_8020(enterprise_number, e164)
+                    if isinstance(uon_ext, str) and uon_ext.isdigit():
+                        uon_internal_id = await _get_internal_id_for_extension(conn, enterprise_number, uon_ext)
+                        if uon_internal_id is not None:
+                            dialplan = f"mngr{uon_internal_id}_{trunk}_1"
                     # Fallback: если не получили ответственного — используем last_call
                     if dialplan is None:
                         alt = await _compute_dialplan(conn, enterprise_number, trunk, phone_norm, "last_call")
@@ -519,7 +533,9 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
                 "result": {"Name": safe_name, "DialPlan": dialplan},
                 "debug": {
                     "retailcrm_ext": retailcrm_ext if 'retailcrm_ext' in locals() else None,
-                    "retailcrm_internal_id": retailcrm_internal_id if 'retailcrm_internal_id' in locals() else None
+                    "retailcrm_internal_id": retailcrm_internal_id if 'retailcrm_internal_id' in locals() else None,
+                    "uon_ext": uon_ext if 'uon_ext' in locals() else None,
+                    "uon_internal_id": uon_internal_id if 'uon_internal_id' in locals() else None
                 },
                 "latency_ms": elapsed
             }, ensure_ascii=False)
