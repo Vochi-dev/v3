@@ -4726,7 +4726,7 @@ async def create_reminder_task(api_key: str, phone: str, direction: str, task_mi
             
         # Если передан request_id, привязываем задачу к обращению
         if request_id:
-            payload["request_id"] = int(request_id)
+            payload["r_id"] = int(request_id)  # UON использует r_id, не request_id
             
         logger.info(f"📝 Создание напоминания: {payload}")
         
