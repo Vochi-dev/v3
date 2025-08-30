@@ -4170,15 +4170,20 @@ async def update_lead_status(api_key: str, lead_id: int, status_id: int) -> dict
         logger.info(f"🔄 Изменение статуса обращения {lead_id} на {status_id}")
         
         async with httpx.AsyncClient(timeout=10.0) as client:
-            update_url = f"https://api.u-on.ru/{api_key}/lead/update/{lead_id}.json"
+            update_url = f"https://api.u-on.ru/{api_key}/request/update/{lead_id}.json"
+            
+            # Согласно документации UON поле называется lead_status_id
             payload = {
-                "status_id": status_id
+                "lead_status_id": status_id
             }
             
+            logger.info(f"🔗 Обновление статуса: URL={update_url}, payload={payload}")
             response = await client.post(update_url, json=payload)
             
             if response.status_code == 200:
                 result = response.json()
+                logger.info(f"📋 Ответ API обновления статуса: {result}")
+                
                 if result.get("result") == 200:
                     logger.info(f"✅ Статус обращения {lead_id} успешно изменен на {status_id}")
                     return {"success": True}
@@ -4187,6 +4192,7 @@ async def update_lead_status(api_key: str, lead_id: int, status_id: int) -> dict
                     return {"success": False, "error": f"API error: {result}"}
             else:
                 logger.error(f"❌ HTTP ошибка при изменении статуса: {response.status_code}")
+                logger.error(f"❌ Тело ответа: {response.text}")
                 return {"success": False, "error": f"HTTP {response.status_code}"}
                 
     except Exception as e:
@@ -4257,10 +4263,34 @@ async def _handle_missed_call_reminder(api_key: str, phone: str, direction: str,
         # Получаем ответственного менеджера и ID клиента
         responsible_manager_id, client_id = await _get_client_responsible_manager(api_key, phone)
         
+        # Получаем активное обращение клиента (используем тот же результат что и в determine_call_action)
+        try:
+            leads_data = await get_client_leads_with_status(api_key, phone)
+            active_lead_id = None
+            
+            if leads_data.get("leads"):
+                # Ищем первое активное обращение
+                for lead in leads_data["leads"]:
+                    if not lead.get("is_archive", False):
+                        active_lead_id = str(lead.get("id"))
+                        logger.info(f"🔍 Найдено активное обращение {active_lead_id} для клиента {phone}")
+                        break
+                        
+            if not active_lead_id:
+                logger.info(f"🔍 У клиента {phone} нет активных обращений")
+        except Exception as e:
+            logger.error(f"💥 Ошибка поиска активного обращения: {e}")
+            active_lead_id = None
+        
         if responsible_manager_id:
             logger.info(f"📝 Создаем напоминание для ответственного менеджера {responsible_manager_id}, клиент ID={client_id}")
         else:
             logger.info(f"📝 Создаем напоминание без назначения (нет ответственного менеджера), клиент ID={client_id}")
+            
+        if active_lead_id:
+            logger.info(f"📝 Привязываем напоминание к активному обращению {active_lead_id}")
+        else:
+            logger.info(f"📝 Активное обращение не найдено - напоминание будет привязано только к клиенту")
         
         # Создаем напоминание
         logger.info(f"📝 Создаем напоминание для пропущенного {direction_mapped} звонка от {phone}")
@@ -4271,7 +4301,8 @@ async def _handle_missed_call_reminder(api_key: str, phone: str, direction: str,
             direction=direction,
             task_minutes=task_minutes,
             manager_id=responsible_manager_id,  # Используем ответственного менеджера клиента
-            client_id=client_id  # Привязываем к клиенту
+            client_id=client_id,  # Привязываем к клиенту
+            request_id=active_lead_id  # Привязываем к активному обращению
         )
         
         if result.get("success"):
@@ -4281,11 +4312,37 @@ async def _handle_missed_call_reminder(api_key: str, phone: str, direction: str,
             
         # ДОПОЛНИТЕЛЬНО: Изменяем статус обращения при пропущенном звонке
         missed_call_status = actions_config.get("missed_call_status", "no_change")
-        if missed_call_status != "no_change":
-            await _update_lead_status_on_missed_call(api_key, phone, missed_call_status)
+        if missed_call_status != "no_change" and active_lead_id:
+            # missed_call_status содержит ID статуса, не название
+            await _update_lead_status_on_missed_call_by_id(api_key, phone, active_lead_id, missed_call_status)
             
     except Exception as e:
         logger.error(f"💥 Ошибка обработки пропущенного звонка: {e}")
+
+
+async def _update_lead_status_on_missed_call_by_id(api_key: str, phone: str, lead_id: str, status_id: str):
+    """
+    Обновить статус обращения при пропущенном звонке (прямо по ID)
+    
+    Args:
+        api_key: API ключ UON
+        phone: Номер телефона
+        lead_id: ID обращения
+        status_id: ID статуса для установки
+    """
+    try:
+        logger.info(f"📋 Обновление статуса обращения {lead_id} при пропущенном звонке: {phone} -> статус ID {status_id}")
+        
+        # Обновляем статус обращения напрямую по ID
+        result = await update_lead_status(api_key, int(lead_id), int(status_id))
+        
+        if result.get("success"):
+            logger.info(f"✅ Статус обращения {lead_id} обновлен на статус ID {status_id}")
+        else:
+            logger.error(f"❌ Ошибка обновления статуса обращения: {result.get('error')}")
+            
+    except Exception as e:
+        logger.error(f"💥 Ошибка обновления статуса при пропущенном звонке: {e}")
 
 
 async def _update_lead_status_on_missed_call(api_key: str, phone: str, target_status: str):
@@ -4341,6 +4398,104 @@ async def _update_lead_status_on_missed_call(api_key: str, phone: str, target_st
             
     except Exception as e:
         logger.error(f"💥 Ошибка обновления статуса при пропущенном звонке: {e}")
+
+
+async def _get_active_client_lead(api_key: str, phone: str) -> Optional[str]:
+    """
+    Найти активное (неархивное) обращение клиента по номеру телефона
+    
+    Args:
+        api_key: API ключ UON
+        phone: Номер телефона
+        
+    Returns:
+        Optional[str]: ID активного обращения или None если не найден
+    """
+    try:
+        # Сначала ищем клиента по номеру телефона
+        clean_phone = phone.replace("+", "")
+        
+        async with httpx.AsyncClient() as client:
+            # Получаем ID клиента
+            url = f"https://api.u-on.ru/{api_key}/user/phone/{clean_phone}.json"
+            response = await client.get(url)
+            
+            if response.status_code != 200:
+                logger.info(f"🔍 Клиент не найден по номеру {phone}")
+                return None
+                
+            response_data = response.json()
+            users = response_data.get("users", [])
+            
+            if not users:
+                logger.info(f"🔍 Клиент не найден по номеру {phone}")
+                return None
+                
+            client_id = users[0].get("u_id")
+            if not client_id:
+                logger.info(f"🔍 Не удалось получить ID клиента для {phone}")
+                return None
+                
+            # Получаем обращения клиента
+            leads_url = f"https://api.u-on.ru/{api_key}/lead-by-client/{client_id}.json"
+            leads_response = await client.get(leads_url)
+            
+            if leads_response.status_code == 404:
+                logger.info(f"🔍 У клиента {phone} нет обращений")
+                return None
+                
+            if leads_response.status_code != 200:
+                logger.error(f"🔍 Ошибка получения обращений: HTTP {leads_response.status_code}")
+                return None
+                
+            leads_data = leads_response.json()
+            leads = leads_data.get("data", [])
+            
+            if not leads:
+                logger.info(f"🔍 У клиента {phone} нет обращений")
+                return None
+                
+            # Получаем статусы обращений
+            statuses_url = f"https://api.u-on.ru/{api_key}/status_lead.json"
+            statuses_response = await client.get(statuses_url)
+            
+            if statuses_response.status_code != 200:
+                logger.error(f"🔍 Ошибка получения статусов: HTTP {statuses_response.status_code}")
+                return None
+                
+            statuses_data = statuses_response.json()
+            status_records = statuses_data.get("records", [])
+            
+            # Создаем словарь статусов
+            statuses_dict = {}
+            for status in status_records:
+                status_id = status.get("id")
+                is_archive = bool(status.get("is_archive", 0))
+                if status_id:
+                    statuses_dict[str(status_id)] = {"is_archive": is_archive}
+                    statuses_dict[int(status_id)] = {"is_archive": is_archive}
+                    
+            # Ищем первое активное (неархивное) обращение
+            for lead in leads:
+                lead_id = lead.get("id")
+                status_id = lead.get("status_id")
+                
+                if not lead_id or not status_id:
+                    continue
+                    
+                status_info = statuses_dict.get(status_id, {})
+                is_archive = status_info.get("is_archive", False)
+                
+                if not is_archive:
+                    logger.info(f"🔍 Найдено активное обращение {lead_id} для клиента {phone}")
+                    return str(lead_id)
+                    
+            logger.info(f"🔍 У клиента {phone} нет активных обращений")
+            return None
+            
+    except Exception as e:
+        logger.error(f"💥 Ошибка поиска активного обращения: {e}")
+        return None
 
 
 async def _get_client_responsible_manager(api_key: str, phone: str) -> tuple[Optional[str], Optional[str]]:
@@ -4409,7 +4564,9 @@ async def _get_status_id_by_name(api_key: str, status_name: str) -> Optional[int
             response = await client.get(url)
             
             if response.status_code == 200:
-                statuses = response.json()
+                data = response.json()
+                statuses = data.get("records", [])  # Извлекаем массив статусов
+                
                 for status in statuses:
                     if status.get("name") == status_name:
                         return int(status.get("id"))
@@ -4511,7 +4668,7 @@ async def update_lead_manager(api_key: str, lead_id: str, manager_id: str) -> di
         logger.error(f"💥 Ошибка обновления обращения: {e}")
         return {"success": False, "error": str(e)}
 
-async def create_reminder_task(api_key: str, phone: str, direction: str, task_minutes: int = 15, manager_id: str = None, client_id: str = None) -> dict:
+async def create_reminder_task(api_key: str, phone: str, direction: str, task_minutes: int = 15, manager_id: str = None, client_id: str = None, request_id: str = None) -> dict:
     """
     Создать напоминание (задачу) в UON при пропущенном звонке
     
@@ -4522,6 +4679,7 @@ async def create_reminder_task(api_key: str, phone: str, direction: str, task_mi
         task_minutes: Количество минут на выполнение задачи
         manager_id: ID менеджера, которому назначается задача
         client_id: ID клиента для привязки задачи
+        request_id: ID обращения для привязки задачи
         
     Returns:
         dict: Результат создания задачи
@@ -4565,6 +4723,10 @@ async def create_reminder_task(api_key: str, phone: str, direction: str, task_mi
         # Если передан client_id, привязываем задачу к клиенту
         if client_id:
             payload["tr_id"] = int(client_id)
+            
+        # Если передан request_id, привязываем задачу к обращению
+        if request_id:
+            payload["request_id"] = int(request_id)
             
         logger.info(f"📝 Создание напоминания: {payload}")
         
