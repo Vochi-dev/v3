@@ -1338,7 +1338,7 @@ UON_ADMIN_HTML = """
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{enterprise_name} U-ON</title>
-  <link rel="icon" href="./favicon.ico"> 
+  <link rel="icon" href="/uon-admin/favicon.ico"> 
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background:#0b1728; color:#e7eef8; }
     .wrap { max-width: 820px; margin: 0 auto; padding: 28px; }
@@ -3807,12 +3807,105 @@ async def uon_favicon():
 @app.get("/uon-admin/journal")
 async def uon_admin_journal(enterprise_number: str, phone: str = None):
     """Журнал событий U-ON интеграции"""
-    # Заглушка журнала - в будущем здесь будет реальный поиск событий
+    
+    # Получаем записи из БД
+    import asyncpg
+    try:
+        conn = await asyncpg.connect(host="localhost", port=5432, database="postgres", user="postgres", password="r/Yskqh/ZbZuvjb2b3ahfg==")
+        
+        # Формируем запрос
+        if phone and phone.strip():
+            # Поиск по номеру телефона в request_data
+            phone_normalized = phone.strip()
+            query = """
+                SELECT event_type, status, created_at, request_data, response_data, error_message
+                FROM integration_logs 
+                WHERE enterprise_number = $1 
+                AND integration_type = 'uon'
+                AND (request_data->>'phone' = $2 OR request_data->'payload'->>'phone' = $2)
+                ORDER BY created_at DESC 
+                LIMIT 50
+            """
+            rows = await conn.fetch(query, enterprise_number, phone_normalized)
+        else:
+            # Показываем последние 20 событий
+            query = """
+                SELECT event_type, status, created_at, request_data, response_data, error_message
+                FROM integration_logs 
+                WHERE enterprise_number = $1 
+                AND integration_type = 'uon'
+                ORDER BY created_at DESC 
+                LIMIT 20
+            """
+            rows = await conn.fetch(query, enterprise_number)
+        
+        await conn.close()
+        
+        # Формируем HTML таблицу
+        def safe(s):
+            return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        
+        rows_html = ""
+        for row in rows:
+            # Извлекаем номер телефона из request_data
+            phone_display = ""
+            try:
+                req_data = row["request_data"] or {}
+                phone_display = req_data.get("phone") or req_data.get("payload", {}).get("phone") or ""
+            except:
+                phone_display = ""
+            
+            # Определяем цвет статуса
+            status_color = "#10b981" if row["status"] == "success" else "#ef4444"
+            
+            # Форматируем время
+            created_str = row["created_at"].strftime("%Y-%m-%d %H:%M:%S") if row["created_at"] else ""
+            
+            # Форматируем request_data и response_data как JSON
+            import json
+            request_json = ""
+            response_json = ""
+            try:
+                if row["request_data"]:
+                    request_json = json.dumps(row["request_data"], ensure_ascii=False, indent=2)
+                if row["response_data"]:
+                    response_json = json.dumps(row["response_data"], ensure_ascii=False, indent=2)
+            except:
+                request_json = str(row["request_data"]) if row["request_data"] else ""
+                response_json = str(row["response_data"]) if row["response_data"] else ""
+            
+            # Объединяем request и response
+            event_body = ""
+            if request_json:
+                event_body += request_json
+            if response_json:
+                if event_body:
+                    event_body += "\n" + response_json
+                else:
+                    event_body = response_json
+            
+            rows_html += f'''
+            <tr>
+                <td style="white-space:nowrap;">{safe(created_str)}</td>
+                <td style="max-width:400px; word-wrap:break-word;">
+                    <pre style="background:#0f1419; padding:8px; border-radius:4px; margin:0; font-size:11px; overflow-x:auto; white-space:pre-wrap;">{safe(event_body)}</pre>
+                </td>
+                <td style="white-space:nowrap;">{safe(row["event_type"])}</td>
+            </tr>
+            '''
+        
+        if not rows_html:
+            rows_html = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Записи не найдены</td></tr>'
+    
+    except Exception as e:
+        rows_html = f'<tr><td colspan="3" style="text-align:center; color:#ef4444;">Ошибка: {safe(str(e))}</td></tr>'
+    
     journal_html = f'''<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
   <title>U-ON журнал</title>
+  <link rel="icon" href="/uon-admin/favicon.ico">
   <style>
     body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0b1728; color:#e7eef8; margin:0; }}
     .wrap {{ max-width: 100%; width: 100%; margin: 0; padding: 20px 24px; box-sizing: border-box; }}
@@ -3835,17 +3928,18 @@ async def uon_admin_journal(enterprise_number: str, phone: str = None):
     </div>
     
     <div class="card">
-      <h3>События интеграции</h3>
-      <div class="event">
-        <strong>Тестовое событие</strong><br>
-        Время: {time.strftime('%Y-%m-%d %H:%M:%S')}<br>
-        Телефон: {phone or 'не указан'}<br>
-        Статус: В разработке
-      </div>
-      <p style="color:#888; margin-top:20px;">
-        Журнал событий U-ON будет реализован в следующих версиях.
-        Здесь будут отображаться: входящие/исходящие звонки, поиск клиентов, ошибки интеграции.
-      </p>
+      <table style="width:100%; border-collapse:collapse; margin-top:8px;">
+        <thead>
+          <tr style="background:#1b3350;">
+            <th style="padding:8px 12px; text-align:left; border-bottom:1px solid #334155;">Дата</th>
+            <th style="padding:8px 12px; text-align:left; border-bottom:1px solid #334155; width:60%;">Тело события</th>
+            <th style="padding:8px 12px; text-align:left; border-bottom:1px solid #334155;">Интеграция</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows_html}
+        </tbody>
+      </table>
     </div>
   </div>
 </body>
