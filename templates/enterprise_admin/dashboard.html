@@ -4304,8 +4304,8 @@
               const r = await fetch(`/enterprise/${enterpriseNumber}/integrations/summary`);
               if (!r.ok) { primaryBlock.style.display = 'none'; return; }
               const data = await r.json();
-              const enabled = data.enabled || {retailcrm:false, uon:false};
-              const enabledCount = (enabled.retailcrm?1:0) + (enabled.uon?1:0);
+              const enabled = data.enabled || {retailcrm:false, uon:false, ms:false};
+              const enabledCount = (enabled.retailcrm?1:0) + (enabled.uon?1:0) + (enabled.ms?1:0);
               if (enabledCount > 1){
                 primaryBlock.style.display = 'block';
                 const val = data.primary || 'retailcrm';

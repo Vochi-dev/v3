@@ -1674,7 +1674,180 @@ async def responsible_extension(request: Request):
 
 
 # =============================================================================
-# ЗАПУСК СЕРВИСА
+# MOYSKLAD PHONE API FUNCTIONS
+# =============================================================================
+
+async def find_contact_by_phone(phone: str, api_token: str) -> dict:
+    """Поиск контакта по номеру телефона в МойСклад основном API"""
+    try:
+        async with httpx.AsyncClient() as client:
+            # Ищем контрагентов по номеру телефона
+            response = await client.get(
+                "https://api.moysklad.ru/api/remap/1.2/entity/counterparty",
+                headers={"Authorization": f"Bearer {api_token}"},
+                params={"filter": f"phone~{phone}"}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("rows"):
+                    contact = data["rows"][0]
+                    return {
+                        "found": True,
+                        "name": contact.get("name", ""),
+                        "phone": contact.get("phone", ""),
+                        "email": contact.get("email", ""),
+                        "id": contact.get("id", ""),
+                        "description": contact.get("description", "")
+                    }
+                    
+    except Exception as e:
+        logger.error(f"Error finding contact by phone {phone}: {e}")
+    
+    return {"found": False}
+
+async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone: str, called_extension: str, contact_info: dict) -> str:
+    """Создание звонка в МойСклад Phone API"""
+    try:
+        async with httpx.AsyncClient() as client:
+            # Генерируем уникальный externalId для звонка
+            import time
+            external_id = f"webhook-{int(time.time())}-{caller_phone.replace('+', '')}"
+            
+            call_data = {
+                "from": caller_phone,
+                "number": called_extension,
+                "externalId": external_id,
+                "isIncoming": True,
+                "startTime": "2025-09-02 12:45:00"
+            }
+            
+            response = await client.post(
+                f"{phone_api_url}/call",
+                headers={"Lognex-Phone-Auth-Token": integration_code},
+                json=call_data
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("id", "")
+                
+    except Exception as e:
+        logger.error(f"Error creating MS call: {e}")
+    
+    return ""
+
+async def send_ms_popup(phone_api_url: str, integration_code: str, call_id: str, event_type: str, extension: str, employee_id: str) -> bool:
+    """Отправка попапа сотруднику в МойСклад"""
+    try:
+        async with httpx.AsyncClient() as client:
+            event_data = {
+                "eventType": event_type,
+                "extension": extension,
+                "sequence": 1
+            }
+            
+            if employee_id:
+                event_data["employee"] = {
+                    "href": f"https://api.moysklad.ru/api/remap/1.2/entity/employee/{employee_id}",
+                    "type": "employee"
+                }
+            
+            response = await client.post(
+                f"{phone_api_url}/call/{call_id}/event",
+                headers={"Lognex-Phone-Auth-Token": integration_code},
+                json=event_data
+            )
+            
+            if response.status_code in [200, 204]:
+                logger.info(f"MS popup sent successfully: {event_type} to extension {extension}")
+                return True
+            else:
+                logger.error(f"Failed to send MS popup: {response.status_code} - {response.text}")
+                
+    except Exception as e:
+        logger.error(f"Error sending MS popup: {e}")
+    
+    return False
+
+async def find_employee_by_extension(phone_api_url: str, integration_code: str, extension: str) -> dict:
+    """Поиск сотрудника по добавочному номеру в Phone API"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{phone_api_url}/employee",
+                headers={"Lognex-Phone-Auth-Token": integration_code}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                for emp in data.get("employees", []):
+                    if emp.get("extention") == extension:  # Да, с ошибкой "extention"
+                        employee_id = emp.get("meta", {}).get("href", "").split("/")[-1]
+                        return {
+                            "found": True,
+                            "id": employee_id,
+                            "extension": extension
+                        }
+                        
+    except Exception as e:
+        logger.error(f"Error finding employee by extension {extension}: {e}")
+    
+    return {"found": False}
+
+async def process_ms_webhook_event(webhook_data: dict, ms_config: dict, enterprise_number: str):
+    """Обработка событий webhook от внешних систем (Asterisk) для МойСклад"""
+    try:
+        # Извлекаем данные о звонке
+        event_type = webhook_data.get("event_type", "")
+        caller_phone = webhook_data.get("caller_phone", "")
+        called_extension = webhook_data.get("called_extension", "")
+        
+        logger.info(f"Processing MS webhook event: {event_type}, from {caller_phone} to {called_extension}")
+        
+        if event_type == "call_start" and caller_phone and called_extension:
+            # Получаем конфигурацию
+            phone_api_url = ms_config.get("phone_api_url", "https://api.moysklad.ru/api/phone/1.0")
+            integration_code = ms_config.get("integration_code", "")
+            api_token = ms_config.get("api_token", "")
+            
+            if not integration_code or not api_token:
+                logger.warning(f"MS integration not fully configured for enterprise {enterprise_number}")
+                return
+            
+            # 1. Находим сотрудника по добавочному номеру
+            employee_info = await find_employee_by_extension(phone_api_url, integration_code, called_extension)
+            if not employee_info.get("found"):
+                logger.warning(f"Employee not found for extension {called_extension}")
+                return
+            
+            # 2. Ищем контакт по номеру телефона
+            contact_info = await find_contact_by_phone(caller_phone, api_token)
+            
+            # 3. Создаем звонок в МойСклад
+            call_id = await create_ms_call(phone_api_url, integration_code, caller_phone, called_extension, contact_info)
+            if not call_id:
+                logger.error("Failed to create call in MoySklad")
+                return
+            
+            # 4. Отправляем SHOW попап сотруднику
+            success = await send_ms_popup(
+                phone_api_url, 
+                integration_code, 
+                call_id, 
+                "SHOW", 
+                called_extension, 
+                employee_info.get("id", "")
+            )
+            
+            if success:
+                logger.info(f"Successfully sent popup to extension {called_extension} for call from {caller_phone}")
+            else:
+                logger.error(f"Failed to send popup to extension {called_extension}")
+                
+    except Exception as e:
+        logger.error(f"Error processing MS webhook event: {e}")
+
 # =============================================================================
 # WEBHOOK ЭНДПОИНТЫ ДЛЯ МОЙСКЛАД
 # =============================================================================
@@ -1730,7 +1903,7 @@ async def ms_webhook(webhook_uuid: str, request: Request):
                 return {"success": False, "error": "Integration disabled"}
             
             # Обрабатываем webhook данные
-            # TODO: Здесь будет логика обработки событий от МойСклад
+            await process_ms_webhook_event(data, ms_config, enterprise_number)
             
             logger.info(f"MS webhook processed successfully for enterprise {enterprise_number}")
             return {"success": True, "message": "Webhook processed"}
