@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 
 import aiohttp
+import httpx
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
@@ -517,6 +518,37 @@ MS_ADMIN_HTML = """
         <button id="journalBtn" type="button" class="btn" style="background:#374151;">Журнал</button>
         <span id="msg" class="hint"></span>
       </div>
+
+      <!-- Секция сотрудников -->
+      <div style="margin-top: 32px; border-top: 1px solid #2d3a52; padding-top: 24px;">
+        <h3 style="color: #ffffff; margin-bottom: 16px; font-size: 18px;">
+          👥 Сотрудники МойСклад
+        </h3>
+        
+        <div style="margin-bottom: 16px;">
+          <button id="loadEmployeesBtn" type="button" class="btn" style="background:#059669; margin-right: 12px;">
+            🔄 Загрузить сотрудников
+          </button>
+          <span id="employeesStatus" style="color: #a8c0e0; font-size: 14px;"></span>
+        </div>
+
+        <div id="employeesContainer" style="display: none;">
+          <div style="background: #1e2537; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: grid; grid-template-columns: 2fr 2fr 1fr 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid #2d3a52; margin-bottom: 12px; font-weight: bold; color: #a8c0e0;">
+              <div>ФИО</div>
+              <div>Email</div>
+              <div>Телефон</div>
+              <div>Внутренний номер</div>
+            </div>
+            <div id="employeesList"></div>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #a8c0e0;">
+            <div id="employeesTotal"></div>
+            <div id="employeesApiStatus"></div>
+          </div>
+        </div>
+      </div>
     </div>
     
     <!-- Блок дополнительных настроек -->
@@ -783,6 +815,85 @@ MS_ADMIN_HTML = """
     if (testBtn) testBtn.addEventListener('click', test);
     if (journalBtn) journalBtn.addEventListener('click', openJournal);
 
+    // Функции для работы с сотрудниками
+    async function loadEmployees() {
+      const loadBtn = document.getElementById('loadEmployeesBtn');
+      const status = document.getElementById('employeesStatus');
+      const container = document.getElementById('employeesContainer');
+      const list = document.getElementById('employeesList');
+      const total = document.getElementById('employeesTotal');
+      const apiStatus = document.getElementById('employeesApiStatus');
+      
+      try {
+        loadBtn.disabled = true;
+        loadBtn.innerHTML = '⏳ Загрузка...';
+        status.textContent = 'Загружаем данные сотрудников...';
+        
+        const response = await fetch(`/ms-admin/api/employees/${enterprise}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          const employees = data.employees || [];
+          
+          // Очищаем список
+          list.innerHTML = '';
+          
+          if (employees.length === 0) {
+            list.innerHTML = '<div style="color: #a8c0e0; text-align: center; padding: 16px;">Сотрудники не найдены</div>';
+          } else {
+            employees.forEach(emp => {
+              const row = document.createElement('div');
+              row.style.cssText = 'display: grid; grid-template-columns: 2fr 2fr 1fr 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid #374151;';
+              
+              const extensionStyle = emp.has_extension ? 
+                'background: #065f46; color: #10b981; padding: 2px 8px; border-radius: 4px; text-align: center; font-weight: bold;' :
+                'color: #6b7280; text-align: center;';
+              
+              row.innerHTML = `
+                <div style="color: #ffffff;">${emp.name}</div>
+                <div style="color: #a8c0e0;">${emp.email || '—'}</div>
+                <div style="color: #a8c0e0;">${emp.phone || '—'}</div>
+                <div style="${extensionStyle}">${emp.extension || '—'}</div>
+              `;
+              list.appendChild(row);
+            });
+          }
+          
+          // Показываем контейнер
+          container.style.display = 'block';
+          
+          // Обновляем статистику
+          const withExtension = employees.filter(e => e.has_extension).length;
+          total.textContent = `Всего сотрудников: ${employees.length}, с внутренними номерами: ${withExtension}`;
+          
+          const apiInfo = [];
+          if (data.phone_api_available) apiInfo.push('Phone API: ✅');
+          if (data.main_api_available) apiInfo.push('Основной API: ✅');
+          apiStatus.textContent = apiInfo.join(' | ');
+          
+          status.textContent = `Загружено ${employees.length} сотрудников`;
+          status.style.color = '#10b981';
+          
+        } else {
+          status.textContent = `Ошибка: ${data.error}`;
+          status.style.color = '#ef4444';
+          container.style.display = 'none';
+        }
+        
+      } catch (error) {
+        console.error('Ошибка загрузки сотрудников:', error);
+        status.textContent = 'Ошибка соединения с сервером';
+        status.style.color = '#ef4444';
+        container.style.display = 'none';
+      } finally {
+        loadBtn.disabled = false;
+        loadBtn.innerHTML = '🔄 Загрузить сотрудников';
+      }
+    }
+    
+    // Привязываем обработчик кнопки загрузки сотрудников
+    document.getElementById('loadEmployeesBtn').addEventListener('click', loadEmployees);
+
     // Загружаем конфигурацию при открытии страницы
     load();
   } catch(e) { console.error('Main script error:', e); }
@@ -937,6 +1048,7 @@ async def ms_admin_api_get_config(enterprise_number: str):
         return {
             "phone_api_url": ms_config.get("phone_api_url", "https://api.moysklad.ru/api/phone/1.0"),
             "integration_code": ms_config.get("integration_code", ""),
+            "api_token": ms_config.get("api_token", ""),
             "enabled": ms_config.get("enabled", False),
             "webhook_url": webhook_url,
             "notifications": {
@@ -961,6 +1073,7 @@ async def ms_admin_api_get_config(enterprise_number: str):
         return {
             "phone_api_url": "https://api.moysklad.ru/api/phone/1.0",
             "integration_code": "",
+            "api_token": "",
             "enabled": False,
             "webhook_url": webhook_url,
             "notifications": {
@@ -1022,6 +1135,7 @@ async def ms_admin_api_put_config(enterprise_number: str, request: Request):
         ms_config = {
             "phone_api_url": body.get("phone_api_url", "https://api.moysklad.ru/api/phone/1.0"),
             "integration_code": body.get("integration_code", ""),
+            "api_token": body.get("api_token", ""),
             "enabled": bool(body.get("enabled", False)),
             "webhook_uuid": webhook_uuid,
             "notifications": body.get("notifications", {}),
@@ -1209,6 +1323,99 @@ async def ms_admin_api_test(enterprise_number: str):
     except Exception as e:
         logger.error(f"Error testing MS connection: {e}")
         return {"success": False, "error": f"Ошибка: {str(e)}"}
+
+
+@app.get("/ms-admin/api/employees/{enterprise_number}")
+async def ms_admin_api_employees(enterprise_number: str):
+    """Получение объединенных данных сотрудников из Phone API и основного API"""
+    try:
+        # Получаем конфигурацию предприятия
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres", 
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        
+        row = await conn.fetchrow(
+            "SELECT integrations_config FROM enterprises WHERE number = $1",
+            enterprise_number
+        )
+        
+        await conn.close()
+            
+        if not row or not row['integrations_config']:
+            return {"success": False, "error": "Конфигурация предприятия не найдена", "employees": []}
+        
+        # Парсим JSON если это строка
+        integrations_config = row['integrations_config']
+        if isinstance(integrations_config, str):
+            import json
+            try:
+                integrations_config = json.loads(integrations_config)
+            except json.JSONDecodeError:
+                return {"success": False, "error": "Некорректная конфигурация в базе данных", "employees": []}
+        
+        ms_config = integrations_config.get('ms', {})
+        integration_code = ms_config.get("integration_code", "")
+        api_token = ms_config.get("api_token", "")
+        
+        if not integration_code and not api_token:
+            return {"success": False, "error": "Не заполнены токены для подключения", "employees": []}
+        
+        # Получаем объединенные данные сотрудников из Phone API и основного API
+        employees_result = []
+        phone_employees = {}
+        
+        try:
+            # 1. Сначала получаем добавочные номера из Phone API
+            if integration_code:
+                async with httpx.AsyncClient() as client:
+                    phone_response = await client.get(
+                        f"{ms_config.get('phone_api_url', 'https://api.moysklad.ru/api/phone/1.0')}/employee",
+                        headers={"Lognex-Phone-Auth-Token": integration_code}
+                    )
+                    if phone_response.status_code == 200:
+                        phone_data = phone_response.json()
+                        for emp in phone_data.get("employees", []):
+                            employee_id = emp.get("meta", {}).get("href", "").split("/")[-1]
+                            phone_employees[employee_id] = emp.get("extention", "")
+            
+            # 2. Получаем полную информацию о сотрудниках из основного API
+            if api_token:
+                async with httpx.AsyncClient() as client:
+                    main_response = await client.get(
+                        "https://api.moysklad.ru/api/remap/1.2/entity/employee",
+                        headers={"Authorization": f"Bearer {api_token}"}
+                    )
+                    if main_response.status_code == 200:
+                        main_data = main_response.json()
+                        for emp in main_data.get("rows", []):
+                            employee_id = emp.get("id")
+                            extension = phone_employees.get(employee_id, "")
+                            
+                            employees_result.append({
+                                "id": employee_id,
+                                "name": emp.get("name", ""),
+                                "email": emp.get("email", ""),
+                                "phone": emp.get("phone", ""),
+                                "extension": extension,
+                                "has_extension": bool(extension)
+                            })
+        
+        except Exception as e:
+            logger.error(f"Error fetching employees: {e}")
+            return {"success": False, "error": f"Ошибка получения сотрудников: {str(e)}", "employees": []}
+        
+        return {
+            "success": True, 
+            "employees": employees_result,
+            "total": len(employees_result),
+            "phone_api_available": bool(integration_code),
+            "main_api_available": bool(api_token)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in ms_admin_api_employees: {e}")
+        return {"success": False, "error": f"Ошибка: {str(e)}", "employees": []}
 
 # =============================================================================
 # ТЕСТОВЫЕ ЭНДПОИНТЫ
