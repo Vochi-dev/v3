@@ -494,6 +494,11 @@ MS_ADMIN_HTML = """
           <input id="integrationCode" type="text" value="" placeholder="165e3202-66ea-46e5-ab4f-3c65ad41d9ab" />
           <div class="hint">Ключ от МойСклад для интеграции телефонии</div>
         </div>
+        <div>
+          <label>Токен основного API</label>
+          <input id="apiToken" type="text" value="" placeholder="cd5134fa1beec235ed6cc3c4973d4daf540bab8b" />
+          <div class="hint">Токен для основного API МойСклад 1.2 (получение клиентов)</div>
+        </div>
       </div>
 
       <div style="margin:16px 0;">
@@ -608,6 +613,7 @@ MS_ADMIN_HTML = """
         
         // Загружаем значения из БД и устанавливаем в поля
         document.getElementById('integrationCode').value = cfg.integration_code || '';
+        document.getElementById('apiToken').value = cfg.api_token || '';
         document.getElementById('enabled').checked = !!cfg.enabled;
         
         // Обновляем webhook URL - теперь он генерируется на сервере с UUID
@@ -662,6 +668,7 @@ MS_ADMIN_HTML = """
 
     async function save() {
       const integrationCode = document.getElementById('integrationCode').value?.trim() || '';
+      const apiToken = document.getElementById('apiToken').value?.trim() || '';
       const enabled = !!document.getElementById('enabled').checked;
       
       // Собираем настройки уведомлений
@@ -702,6 +709,7 @@ MS_ADMIN_HTML = """
           body: JSON.stringify({
             phone_api_url: 'https://api.moysklad.ru/api/phone/1.0',
             integration_code: integrationCode,
+            api_token: apiToken,
             enabled: enabled,
             notifications: notifications,
             incoming_call_actions: incoming_call_actions
@@ -730,6 +738,7 @@ MS_ADMIN_HTML = """
         if (msg) { msg.textContent='Интеграция удалена'; msg.className='hint success'; }
         // Очищаем форму
         document.getElementById('integrationCode').value = '';
+        document.getElementById('apiToken').value = '';
         document.getElementById('enabled').checked = false;
       } catch(e) {
         if (msg) { msg.textContent= 'Ошибка: '+ e.message; msg.className='hint error'; }
@@ -1125,30 +1134,78 @@ async def ms_admin_api_test(enterprise_number: str):
             return {"success": False, "error": "МойСклад интеграция отключена"}
             
         integration_code = ms_config.get("integration_code", "")
+        api_token = ms_config.get("api_token", "")
         phone_api_url = ms_config.get("phone_api_url", "https://api.moysklad.ru/api/phone/1.0")
         
-        if not integration_code:
-            return {"success": False, "error": "Не заполнен код интеграции"}
+        # Проверяем наличие хотя бы одного из ключей
+        if not integration_code and not api_token:
+            return {"success": False, "error": "Не заполнены ключ интеграции и токен"}
         
-        # Для тестирования пока просто проверяем доступность Phone API
         import httpx
-        
         timeout = httpx.Timeout(10.0)
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            try:
-                # Тестовый запрос к Phone API (без авторизации)
-                response = await client.get(f"{phone_api_url}/")
-                
-                if response.status_code in [200, 401, 403]:
-                    # API доступен (даже если требует авторизации)
-                    return {"success": True, "message": f"МойСклад Phone API доступен. Код интеграции: {integration_code[:8]}..."}
-                else:
-                    return {"success": False, "error": f"Phone API недоступен: HTTP {response.status_code}"}
-            except httpx.ConnectError:
-                return {"success": False, "error": "Не удается подключиться к МойСклад Phone API"}
+        test_results = []
         
-    except httpx.TimeoutException:
-        return {"success": False, "error": "Таймаут подключения к МойСклад"}
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            # Тест 1: Phone API (если есть ключ интеграции)
+            if integration_code:
+                try:
+                    headers = {
+                        "Lognex-Phone-Auth-Token": integration_code,
+                        "Accept-Encoding": "gzip",
+                        "Content-Type": "application/json"
+                    }
+                    response = await client.get(f"{phone_api_url}/employee", headers=headers)
+                    if response.status_code == 200:
+                        data = response.json()
+                        employee_count = len(data.get("rows", []))
+                        test_results.append(f"✅ Phone API: {employee_count} сотрудников с добавочными")
+                    else:
+                        test_results.append(f"❌ Phone API: ошибка {response.status_code}")
+                except Exception as e:
+                    test_results.append(f"❌ Phone API: {str(e)}")
+            
+            # Тест 2: Основной API (если есть токен)
+            if api_token:
+                try:
+                    headers = {
+                        "Authorization": f"Bearer {api_token}",
+                        "Accept-Encoding": "gzip", 
+                        "Content-Type": "application/json"
+                    }
+                    response = await client.get("https://api.moysklad.ru/api/remap/1.2/entity/employee", headers=headers)
+                    if response.status_code == 200:
+                        data = response.json()
+                        employee_count = data.get("meta", {}).get("size", 0)
+                        test_results.append(f"✅ Основной API: {employee_count} всех сотрудников")
+                    else:
+                        test_results.append(f"❌ Основной API: ошибка {response.status_code}")
+                except Exception as e:
+                    test_results.append(f"❌ Основной API: {str(e)}")
+            
+            # Если есть токен, тестируем поиск контрагентов
+            if api_token:
+                try:
+                    headers = {
+                        "Authorization": f"Bearer {api_token}",
+                        "Accept-Encoding": "gzip",
+                        "Content-Type": "application/json"
+                    }
+                    response = await client.get("https://api.moysklad.ru/api/remap/1.2/entity/counterparty?limit=5", headers=headers)
+                    if response.status_code == 200:
+                        data = response.json()
+                        counterparty_count = data.get("meta", {}).get("size", 0)
+                        test_results.append(f"✅ Поиск контрагентов: {counterparty_count} найдено")
+                    else:
+                        test_results.append(f"❌ Поиск контрагентов: ошибка {response.status_code}")
+                except Exception as e:
+                    test_results.append(f"❌ Поиск контрагентов: {str(e)}")
+                    
+        # Формируем финальный результат
+        if test_results:
+            return {"success": True, "message": "\n".join(test_results)}
+        else:
+            return {"success": False, "error": "Не удалось выполнить ни одного теста"}
+            
     except Exception as e:
         logger.error(f"Error testing MS connection: {e}")
         return {"success": False, "error": f"Ошибка: {str(e)}"}
