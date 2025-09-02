@@ -490,25 +490,16 @@ MS_ADMIN_HTML = """
           <div class="hint">Адрес Phone API МойСклад (зафиксирован)</div>
         </div>
         <div>
-          <label>Код интеграции</label>
+          <label>Ключ интеграции</label>
           <input id="integrationCode" type="text" value="" placeholder="165e3202-66ea-46e5-ab4f-3c65ad41d9ab" />
-          <div class="hint">Код от МойСклад для интеграции телефонии</div>
+          <div class="hint">Ключ от МойСклад для интеграции телефонии</div>
         </div>
       </div>
-      <div class="row">
-        <div>
-          <label>Логин</label>
-          <input id="login" type="text" value="" placeholder="user@example.com" />
-        </div>
-        <div>
-          <label>Пароль</label>
-          <input id="password" type="password" value="" />
-        </div>
-      </div>
+
       <div style="margin:16px 0;">
         <label style="color:#a8c0e0; font-size:14px; margin-bottom:8px; display:block;">Webhook URL для настройки в МойСклад:</label>
         <div class="webhook-url" id="webhookUrl">
-          https://bot.vochi.by/ms/webhook/{enterprise_number}
+          https://bot.vochi.by/ms/webhook/loading...
         </div>
         <button type="button" class="copy-btn" onclick="copyWebhookUrl()">📋 Копировать</button>
         <div class="hint">Скопируйте и вставьте этот URL в настройки интеграции МойСклад</div>
@@ -617,9 +608,11 @@ MS_ADMIN_HTML = """
         
         // Загружаем значения из БД и устанавливаем в поля
         document.getElementById('integrationCode').value = cfg.integration_code || '';
-        document.getElementById('login').value = cfg.login || '';
-        document.getElementById('password').value = cfg.password || '';
         document.getElementById('enabled').checked = !!cfg.enabled;
+        
+        // Обновляем webhook URL - теперь он генерируется на сервере с UUID
+        const webhookUrl = cfg.webhook_url || `https://bot.vochi.by/ms/webhook/${enterprise}`;
+        document.getElementById('webhookUrl').textContent = webhookUrl;
         
         // Загружаем настройки уведомлений
         const notifications = cfg.notifications || {};
@@ -669,8 +662,6 @@ MS_ADMIN_HTML = """
 
     async function save() {
       const integrationCode = document.getElementById('integrationCode').value?.trim() || '';
-      const login = document.getElementById('login').value?.trim() || '';
-      const password = document.getElementById('password').value?.trim() || '';
       const enabled = !!document.getElementById('enabled').checked;
       
       // Собираем настройки уведомлений
@@ -711,8 +702,6 @@ MS_ADMIN_HTML = """
           body: JSON.stringify({
             phone_api_url: 'https://api.moysklad.ru/api/phone/1.0',
             integration_code: integrationCode,
-            login: login,
-            password: password,
             enabled: enabled,
             notifications: notifications,
             incoming_call_actions: incoming_call_actions
@@ -741,8 +730,6 @@ MS_ADMIN_HTML = """
         if (msg) { msg.textContent='Интеграция удалена'; msg.className='hint success'; }
         // Очищаем форму
         document.getElementById('integrationCode').value = '';
-        document.getElementById('login').value = '';
-        document.getElementById('password').value = '';
         document.getElementById('enabled').checked = false;
       } catch(e) {
         if (msg) { msg.textContent= 'Ошибка: '+ e.message; msg.className='hint error'; }
@@ -920,12 +907,29 @@ async def ms_admin_api_get_config(enterprise_number: str):
         notifications = ms_config.get("notifications", {})
         incoming_call_actions = ms_config.get("incoming_call_actions", {})
 
+        # Генерируем webhook URL с UUID для безопасности
+        webhook_uuid = ms_config.get("webhook_uuid")
+        if not webhook_uuid:
+            import uuid
+            webhook_uuid = str(uuid.uuid4())
+            # Сохраняем UUID обратно в конфигурацию
+            ms_config["webhook_uuid"] = webhook_uuid
+            current_config["ms"] = ms_config
+            
+            # Обновляем в БД
+            await conn.execute(
+                "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",
+                json.dumps(current_config),
+                enterprise_number
+            )
+        
+        webhook_url = f"https://bot.vochi.by/ms/webhook/{webhook_uuid}"
+        
         return {
             "phone_api_url": ms_config.get("phone_api_url", "https://api.moysklad.ru/api/phone/1.0"),
             "integration_code": ms_config.get("integration_code", ""),
-            "login": ms_config.get("login", ""),
-            "password": ms_config.get("password", ""),
             "enabled": ms_config.get("enabled", False),
+            "webhook_url": webhook_url,
             "notifications": {
                 "call_notify_mode": notifications.get("call_notify_mode", "during"),
                 "notify_incoming": notifications.get("notify_incoming", True),
@@ -940,12 +944,16 @@ async def ms_admin_api_get_config(enterprise_number: str):
         
     except Exception as e:
         logger.error(f"Error getting MS config: {e}")
+        # Генерируем временный UUID для нового enterprise
+        import uuid
+        webhook_uuid = str(uuid.uuid4())
+        webhook_url = f"https://bot.vochi.by/ms/webhook/{webhook_uuid}"
+        
         return {
             "phone_api_url": "https://api.moysklad.ru/api/phone/1.0",
             "integration_code": "",
-            "login": "", 
-            "password": "",
             "enabled": False,
+            "webhook_url": webhook_url,
             "notifications": {
                 "call_notify_mode": "during",
                 "notify_incoming": True,
@@ -995,12 +1003,18 @@ async def ms_admin_api_put_config(enterprise_number: str, request: Request):
         if "ms" not in current_config:
             current_config["ms"] = {}
             
+        # Генерируем UUID для webhook, если его нет
+        existing_ms_config = current_config.get("ms", {})
+        webhook_uuid = existing_ms_config.get("webhook_uuid")
+        if not webhook_uuid:
+            import uuid
+            webhook_uuid = str(uuid.uuid4())
+        
         ms_config = {
             "phone_api_url": body.get("phone_api_url", "https://api.moysklad.ru/api/phone/1.0"),
             "integration_code": body.get("integration_code", ""),
-            "login": body.get("login", ""),
-            "password": body.get("password", ""),
             "enabled": bool(body.get("enabled", False)),
+            "webhook_uuid": webhook_uuid,
             "notifications": body.get("notifications", {}),
             "incoming_call_actions": body.get("incoming_call_actions", {})
         }
@@ -1072,7 +1086,7 @@ async def ms_admin_api_delete_config(enterprise_number: str):
         logger.error(f"Error deleting MS config: {e}")
         return {"success": False, "error": str(e)}
 
-@app.post("/ms-admin/api/test/{enterprise_number}")
+@app.get("/ms-admin/api/test/{enterprise_number}")
 async def ms_admin_api_test(enterprise_number: str):
     """Тестирование подключения к МойСклад для предприятия"""
     try:
@@ -1110,40 +1124,28 @@ async def ms_admin_api_test(enterprise_number: str):
         if not ms_config.get("enabled"):
             return {"success": False, "error": "МойСклад интеграция отключена"}
             
-        login = ms_config.get("login", "")
-        password = ms_config.get("password", "")
+        integration_code = ms_config.get("integration_code", "")
         phone_api_url = ms_config.get("phone_api_url", "https://api.moysklad.ru/api/phone/1.0")
         
-        if not login or not password:
-            return {"success": False, "error": "Не заполнены логин или пароль"}
+        if not integration_code:
+            return {"success": False, "error": "Не заполнен код интеграции"}
         
-        # Пробуем подключиться к МойСклад Phone API
+        # Для тестирования пока просто проверяем доступность Phone API
         import httpx
-        import base64
-        
-        auth_str = f"{login}:{password}"
-        auth_bytes = auth_str.encode('ascii')
-        auth_b64 = base64.b64encode(auth_bytes).decode('ascii')
-        
-        headers = {
-            "Authorization": f"Basic {auth_b64}",
-            "Content-Type": "application/json"
-        }
         
         timeout = httpx.Timeout(10.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
-            # Тестовый запрос к Phone API
-            response = await client.get(
-                f"{phone_api_url}/",
-                headers=headers
-            )
-            
-            if response.status_code == 200:
-                return {"success": True, "message": "Подключение к МойСклад работает"}
-            elif response.status_code == 401:
-                return {"success": False, "error": "Неверные логин или пароль"}
-            else:
-                return {"success": False, "error": f"Ошибка подключения: HTTP {response.status_code}"}
+            try:
+                # Тестовый запрос к Phone API (без авторизации)
+                response = await client.get(f"{phone_api_url}/")
+                
+                if response.status_code in [200, 401, 403]:
+                    # API доступен (даже если требует авторизации)
+                    return {"success": True, "message": f"МойСклад Phone API доступен. Код интеграции: {integration_code[:8]}..."}
+                else:
+                    return {"success": False, "error": f"Phone API недоступен: HTTP {response.status_code}"}
+            except httpx.ConnectError:
+                return {"success": False, "error": "Не удается подключиться к МойСклад Phone API"}
         
     except httpx.TimeoutException:
         return {"success": False, "error": "Таймаут подключения к МойСклад"}
@@ -1409,6 +1411,73 @@ async def responsible_extension(request: Request):
 
 # =============================================================================
 # ЗАПУСК СЕРВИСА
+# =============================================================================
+# WEBHOOK ЭНДПОИНТЫ ДЛЯ МОЙСКЛАД
+# =============================================================================
+
+@app.post("/ms/webhook/{webhook_uuid}")
+async def ms_webhook(webhook_uuid: str, request: Request):
+    """Webhook эндпоинт для приема запросов от МойСклад"""
+    try:
+        import asyncpg, json
+        
+        # Получаем тело запроса
+        body = await request.body()
+        content_type = request.headers.get("content-type", "")
+        
+        if "application/json" in content_type:
+            data = json.loads(body.decode('utf-8'))
+        else:
+            # Если не JSON, пробуем form-data
+            form_data = await request.form()
+            data = dict(form_data)
+        
+        logger.info(f"MS webhook received: UUID={webhook_uuid}, data={data}")
+        
+        # Находим enterprise по webhook_uuid
+        conn = await asyncpg.connect(
+            host="localhost",
+            port=5432,
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg==",
+            database="postgres"
+        )
+        
+        try:
+            # Ищем enterprise с данным webhook_uuid
+            row = await conn.fetchrow(
+                "SELECT number, integrations_config FROM enterprises WHERE integrations_config::text LIKE $1",
+                f'%"webhook_uuid": "{webhook_uuid}"%'
+            )
+            
+            if not row:
+                logger.warning(f"Enterprise not found for webhook UUID: {webhook_uuid}")
+                return {"success": False, "error": "Invalid webhook UUID"}
+            
+            enterprise_number = row['number']
+            logger.info(f"Found enterprise {enterprise_number} for webhook UUID {webhook_uuid}")
+            
+            # Проверяем, что интеграция включена
+            config = json.loads(row['integrations_config']) if row['integrations_config'] else {}
+            ms_config = config.get("ms", {})
+            
+            if not ms_config.get("enabled", False):
+                logger.warning(f"MoySklad integration disabled for enterprise {enterprise_number}")
+                return {"success": False, "error": "Integration disabled"}
+            
+            # Обрабатываем webhook данные
+            # TODO: Здесь будет логика обработки событий от МойСклад
+            
+            logger.info(f"MS webhook processed successfully for enterprise {enterprise_number}")
+            return {"success": True, "message": "Webhook processed"}
+            
+        finally:
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"Error processing MS webhook: {e}")
+        return {"success": False, "error": str(e)}
+
 # =============================================================================
 
 if __name__ == "__main__":
