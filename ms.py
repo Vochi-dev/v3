@@ -699,6 +699,12 @@ MS_ADMIN_HTML = """
     }
 
     async function save() {
+      // Убедимся, что сотрудники загружены перед сохранением
+      const employeesList = document.getElementById('employeesList');
+      if (employeesList && employeesList.children.length === 0) {
+        console.log('Employees not loaded yet, loading...');
+        await loadEmployees();
+      }
       const integrationCode = document.getElementById('integrationCode').value?.trim() || '';
       const apiToken = document.getElementById('apiToken').value?.trim() || '';
       const enabled = !!document.getElementById('enabled').checked;
@@ -730,6 +736,28 @@ MS_ADMIN_HTML = """
         order_source: (orderSource && orderSource.value) || 'Телефонный звонок'
       };
       
+      // Собираем данные о сотрудниках для сохранения соответствий ID ↔ extension
+      const employeeMapping = {};
+      if (employeesList) {
+        const employees = employeesList.querySelectorAll('.employee-item');
+        console.log('Found employee elements:', employees.length);
+        employees.forEach(emp => {
+          const employeeId = emp.dataset.employeeId;
+          const extension = emp.dataset.extension;
+          const name = emp.dataset.name;
+          const email = emp.dataset.email;
+          console.log('Processing employee:', {employeeId, extension, name, email});
+          if (employeeId && extension) {
+            employeeMapping[extension] = {
+              employee_id: employeeId,
+              name: name || '',
+              email: email || ''
+            };
+          }
+        });
+      }
+      console.log('Final employee mapping:', employeeMapping);
+      
       const btn = document.getElementById('saveBtn');
       const msg = document.getElementById('msg');
       if (msg) { msg.textContent=''; msg.className='hint'; }
@@ -744,7 +772,8 @@ MS_ADMIN_HTML = """
             api_token: apiToken,
             enabled: enabled,
             notifications: notifications,
-            incoming_call_actions: incoming_call_actions
+            incoming_call_actions: incoming_call_actions,
+            employee_mapping: employeeMapping
           }) 
         });
         const jr = await r.json();
@@ -842,8 +871,17 @@ MS_ADMIN_HTML = """
             list.innerHTML = '<div style="color: #a8c0e0; text-align: center; padding: 16px;">Сотрудники не найдены</div>';
           } else {
             employees.forEach(emp => {
+              console.log('Creating element for employee:', emp);
               const row = document.createElement('div');
+              row.className = 'employee-item';
               row.style.cssText = 'display: grid; grid-template-columns: 2fr 2fr 1fr 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid #374151;';
+              
+              // Добавляем data-атрибуты для сохранения соответствий
+              if (emp.id) row.dataset.employeeId = emp.id;
+              if (emp.extension) row.dataset.extension = emp.extension;
+              if (emp.name) row.dataset.name = emp.name;
+              if (emp.email) row.dataset.email = emp.email;
+              console.log('Added data attributes:', {employeeId: emp.id, extension: emp.extension, name: emp.name, email: emp.email});
               
               const extensionStyle = emp.has_extension ? 
                 'background: #065f46; color: #10b981; padding: 2px 8px; border-radius: 4px; text-align: center; font-weight: bold;' :
@@ -896,6 +934,8 @@ MS_ADMIN_HTML = """
 
     // Загружаем конфигурацию при открытии страницы
     load();
+    // Автоматически загружаем сотрудников при входе  
+    loadEmployees();
   } catch(e) { console.error('Main script error:', e); }
   })();
   </script>
@@ -1060,7 +1100,8 @@ async def ms_admin_api_get_config(enterprise_number: str):
                 "create_client": incoming_call_actions.get("create_client", True),
                 "create_order": incoming_call_actions.get("create_order", "none"),
                 "order_source": incoming_call_actions.get("order_source", "Телефонный звонок")
-            }
+            },
+            "employee_mapping": ms_config.get("employee_mapping", {})
         }
         
     except Exception as e:
@@ -1139,7 +1180,8 @@ async def ms_admin_api_put_config(enterprise_number: str, request: Request):
             "enabled": bool(body.get("enabled", False)),
             "webhook_uuid": webhook_uuid,
             "notifications": body.get("notifications", {}),
-            "incoming_call_actions": body.get("incoming_call_actions", {})
+            "incoming_call_actions": body.get("incoming_call_actions", {}),
+            "employee_mapping": body.get("employee_mapping", {})
         }
         
         current_config["ms"] = ms_config
@@ -1795,6 +1837,47 @@ async def find_employee_by_extension(phone_api_url: str, integration_code: str, 
     
     return {"found": False}
 
+async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, enterprise_number: str, unique_id: str):
+    """Обработка входящего звонка для МойСклад - создание звонка и отправка попапа"""
+    try:
+        integration_code = ms_config.get('integration_code')
+        api_token = ms_config.get('api_token')
+        
+        if not integration_code:
+            logger.error(f"❌ Missing integration_code for enterprise {enterprise_number}")
+            return
+        
+        # Поиск контакта в МойСклад
+        contact_info = {}
+        if api_token:
+            contact_info = await find_contact_by_phone(phone, api_token)
+        
+        # Создание звонка в МойСклад Phone API
+        phone_api_url = "https://api.moysklad.ru/api/phone/1.0"
+        call_id = await create_ms_call(phone_api_url, integration_code, phone, extension, contact_info)
+        
+        if call_id:
+            # Отправка попапа сотруднику используя сохраненные соответствия
+            if extension:
+                employee_mapping = ms_config.get('employee_mapping', {})
+                employee_data = employee_mapping.get(extension)
+                
+                if employee_data and employee_data.get('employee_id'):
+                    employee_id = employee_data['employee_id']
+                    employee_name = employee_data.get('name', 'Unknown')
+                    
+                    await send_ms_popup(phone_api_url, integration_code, call_id, "SHOW", extension, employee_id)
+                    logger.info(f"✅ МойСклад call popup sent to extension {extension} ({employee_name}) using saved mapping")
+                else:
+                    logger.warning(f"⚠️ Employee mapping not found for extension {extension}. Please save employee configuration in admin panel.")
+            else:
+                logger.warning(f"⚠️ No extension provided for call {call_id}")
+        else:
+            logger.error(f"❌ Failed to create call in МойСклад for {phone}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error processing МойСклад incoming call: {e}")
+
 async def process_ms_webhook_event(webhook_data: dict, ms_config: dict, enterprise_number: str):
     """Обработка событий webhook от внешних систем (Asterisk) для МойСклад"""
     try:
@@ -1847,6 +1930,66 @@ async def process_ms_webhook_event(webhook_data: dict, ms_config: dict, enterpri
                 
     except Exception as e:
         logger.error(f"Error processing MS webhook event: {e}")
+
+# =============================================================================
+# ВНУТРЕННИЕ ЭНДПОИНТЫ ДЛЯ ИНТЕГРАЦИИ
+# =============================================================================
+
+@app.post("/internal/ms/incoming-call")
+async def internal_ms_incoming_call(request: Request):
+    """Внутренний endpoint для обработки входящих звонков от integration_cache"""
+    try:
+        payload = await request.json()
+        logger.info(f"📞 Received incoming call from integration_cache: {payload}")
+        
+        enterprise_number = payload.get("enterprise_number")
+        phone = payload.get("phone")
+        extension = payload.get("extension", "")
+        direction = payload.get("direction", "in")
+        unique_id = payload.get("unique_id")
+        
+        if not enterprise_number or not phone:
+            raise HTTPException(status_code=400, detail="Missing enterprise_number or phone")
+        
+        # Получить конфигурацию МойСклад для предприятия
+        import asyncpg, json
+        conn = await asyncpg.connect(
+            host="localhost",
+            port=5432,
+            database="postgres",
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        try:
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1",
+                enterprise_number
+            )
+            if not row:
+                logger.error(f"❌ Enterprise {enterprise_number} not found")
+                raise HTTPException(status_code=404, detail="Enterprise not found")
+            
+            integrations_config = row['integrations_config']
+            if isinstance(integrations_config, str):
+                integrations_config = json.loads(integrations_config)
+            
+            ms_config = integrations_config.get('ms', {})
+            if not ms_config.get('enabled'):
+                logger.info(f"ℹ️ МойСклад integration not enabled for enterprise {enterprise_number}")
+                return {"status": "disabled"}
+            
+            # Обработать входящий звонок (только для входящих)
+            if direction == "in":
+                await process_ms_incoming_call(phone, extension, ms_config, enterprise_number, unique_id)
+            
+            return {"status": "success"}
+            
+        finally:
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"❌ Error processing incoming call: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
 # WEBHOOK ЭНДПОИНТЫ ДЛЯ МОЙСКЛАД

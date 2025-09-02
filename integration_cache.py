@@ -873,6 +873,64 @@ async def dispatch_call_event(request: Request):
         except Exception as e:
             logger.error(f"❌ U-ON forward failed: {e}")
 
+    # МойСклад → попап при dial
+    if active.get("ms") and event_type == "dial":
+        try:
+            import aiohttp
+            # Определяем направление/номер/внутренний
+            try:
+                event_kind, external_phone_e164 = guess_direction_and_phone(raw, None)
+            except Exception:
+                event_kind, external_phone_e164 = ("in", normalize_phone_e164(str(raw.get("Phone") or "")))
+            internal_code = determine_internal_code(raw)
+
+            timeout = aiohttp.ClientTimeout(total=3)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                # Отправляем событие в МойСклад webhook
+                payload = {
+                    "enterprise_number": enterprise_number,
+                    "phone": external_phone_e164,
+                    "extension": internal_code or "",
+                    "direction": event_kind,
+                    "event_type": "dial",
+                    "unique_id": unique_id,
+                    "raw": raw
+                }
+                logger.info(f"🔗 Sending dial event to МойСклад: {payload}")
+                try:
+                    async with session.post("http://127.0.0.1:8023/internal/ms/incoming-call", json=payload) as r:
+                        ok = (r.status == 200)
+                        try:
+                            data = await r.json()
+                        except Exception:
+                            data = {"status": r.status}
+                        await write_integration_log(
+                            enterprise_number=enterprise_number,
+                            event_type="incoming_call",
+                            request_data={"uniqueId": unique_id, "payload": payload},
+                            response_data=data,
+                            status_ok=ok,
+                            error_message=None if ok else f"http={r.status}",
+                            integration_type="ms",
+                        )
+                        if ok:
+                            logger.info(f"✅ МойСклад dial notification sent successfully")
+                        else:
+                            logger.error(f"❌ МойСклад dial notification failed with status {r.status}")
+                except Exception as er:
+                    await write_integration_log(
+                        enterprise_number=enterprise_number,
+                        event_type="incoming_call",
+                        request_data={"uniqueId": unique_id, "payload": payload},
+                        response_data=None,
+                        status_ok=False,
+                        error_message=str(er),
+                        integration_type="ms",
+                    )
+                    logger.error(f"❌ МойСклад dial notification exception: {er}")
+        except Exception as e:
+            logger.error(f"❌ МойСклад forward failed: {e}")
+
     return {"success": True}
 
 # Совместимость с вызовами со слэшем на конце
