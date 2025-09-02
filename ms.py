@@ -1722,6 +1722,7 @@ async def responsible_extension(request: Request):
 async def find_contact_by_phone(phone: str, api_token: str) -> dict:
     """Поиск контакта по номеру телефона в МойСклад основном API"""
     try:
+        logger.info(f"🔍 Searching for contact with phone: {phone}")
         async with httpx.AsyncClient() as client:
             # Ищем контрагентов по номеру телефона
             response = await client.get(
@@ -1730,11 +1731,15 @@ async def find_contact_by_phone(phone: str, api_token: str) -> dict:
                 params={"filter": f"phone~{phone}"}
             )
             
+            logger.info(f"📞 Contact search response: status={response.status_code}")
+            
             if response.status_code == 200:
                 data = response.json()
+                logger.info(f"📋 Found {len(data.get('rows', []))} contacts")
+                
                 if data.get("rows"):
                     contact = data["rows"][0]
-                    return {
+                    result = {
                         "found": True,
                         "name": contact.get("name", ""),
                         "phone": contact.get("phone", ""),
@@ -1742,9 +1747,15 @@ async def find_contact_by_phone(phone: str, api_token: str) -> dict:
                         "id": contact.get("id", ""),
                         "description": contact.get("description", "")
                     }
+                    logger.info(f"✅ Contact found: {result['name']} ({result['phone']})")
+                    return result
+                else:
+                    logger.warning(f"⚠️ No contacts found for phone {phone}")
+            else:
+                logger.error(f"❌ Contact search failed with status {response.status_code}: {response.text}")
                     
     except Exception as e:
-        logger.error(f"Error finding contact by phone {phone}: {e}")
+        logger.error(f"❌ Error finding contact by phone {phone}: {e}")
     
     return {"found": False}
 
@@ -1752,27 +1763,50 @@ async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone
     """Создание звонка в МойСклад Phone API"""
     try:
         async with httpx.AsyncClient() as client:
-            # Генерируем уникальный externalId для звонка
+            # Генерируем уникальный externalId для звонка с номером
             import time
-            external_id = f"webhook-{int(time.time())}-{caller_phone.replace('+', '')}"
+            external_id = f"webhook-{int(time.time())}-{caller_phone.replace('+', '')}-{called_extension}"
             
             call_data = {
                 "from": caller_phone,
-                "number": called_extension,
+                "number": caller_phone,  # Номер телефона, а не внутренний номер
                 "externalId": external_id,
                 "isIncoming": True,
-                "startTime": "2025-09-02 12:45:00"
+                "startTime": "2025-09-02 12:45:00",
+                "extension": called_extension  # Внутренний номер отдельно
             }
             
+            # Временно отключаем counterparty для отладки
+            # if contact_info.get("found") and contact_info.get("id"):
+            #     call_data["counterparty"] = {
+            #         "meta": {
+            #             "href": f"https://api.moysklad.ru/api/remap/1.2/entity/counterparty/{contact_info.get('id')}",
+            #             "type": "counterparty",
+            #             "mediaType": "application/json"
+            #         }
+            #     }
+            #     logger.info(f"📋 Creating call with counterparty: {contact_info.get('name')} (ID: {contact_info.get('id')})")
+            # else:
+            logger.info(f"📋 Creating call without counterparty info for {caller_phone} (debugging)")
+            
+            logger.info(f"📞 Creating MS call with data: {call_data}")
+            
+            # Используем POST - МойСклад автоматически найдет контрагента и сотрудника
             response = await client.post(
                 f"{phone_api_url}/call",
                 headers={"Lognex-Phone-Auth-Token": integration_code},
                 json=call_data
             )
             
+            logger.info(f"📞 MS call creation response: status={response.status_code}")
+            
             if response.status_code == 200:
                 result = response.json()
-                return result.get("id", "")
+                call_id = result.get("id", "")
+                logger.info(f"✅ MS call created successfully: {call_id}")
+                return call_id
+            else:
+                logger.error(f"❌ MS call creation failed: {response.status_code} - {response.text}")
                 
     except Exception as e:
         logger.error(f"Error creating MS call: {e}")
@@ -1852,21 +1886,24 @@ async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, 
         if api_token:
             contact_info = await find_contact_by_phone(phone, api_token)
         
-        # Создание звонка в МойСклад Phone API
+        # Создание звонков и отправка попапов ТОЛЬКО для тех номеров, у которых есть соответствия
         phone_api_url = "https://api.moysklad.ru/api/phone/1.0"
-        call_id = await create_ms_call(phone_api_url, integration_code, phone, extension, contact_info)
+        extensions = call_data.get('raw', {}).get('Extensions', [])
         
-        if call_id:
-            # Отправка попапов ВСЕМ сотрудникам, у которых есть соответствия
-            extensions = call_data.get('raw', {}).get('Extensions', [])
-            if extensions:
-                employee_mapping = ms_config.get('employee_mapping', {})
-                sent_popups = 0
+        if extensions:
+            employee_mapping = ms_config.get('employee_mapping', {})
+            logger.info(f"🔍 Employee mapping loaded: {employee_mapping}")
+            logger.info(f"📋 Processing extensions: {extensions}")
+            sent_popups = 0
+            
+            for ext in extensions:
+                employee_data = employee_mapping.get(ext)
                 
-                for ext in extensions:
-                    employee_data = employee_mapping.get(ext)
+                if employee_data and employee_data.get('employee_id'):
+                    # Создаем отдельный звонок для каждого сотрудника
+                    call_id = await create_ms_call(phone_api_url, integration_code, phone, ext, contact_info)
                     
-                    if employee_data and employee_data.get('employee_id'):
+                    if call_id:
                         employee_id = employee_data['employee_id']
                         employee_name = employee_data.get('name', 'Unknown')
                         
@@ -1874,16 +1911,16 @@ async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, 
                         logger.info(f"✅ МойСклад call popup sent to extension {ext} ({employee_name}) using saved mapping")
                         sent_popups += 1
                     else:
-                        logger.debug(f"🔄 Extension {ext} has no employee mapping - skipping popup")
-                
-                if sent_popups == 0:
-                    logger.warning(f"⚠️ No employee mappings found for any extensions {extensions}. Please save employee configuration in admin panel.")
+                        logger.error(f"❌ Failed to create call for extension {ext}")
                 else:
-                    logger.info(f"📱 МойСклад popups sent to {sent_popups} employees")
+                    logger.debug(f"🔄 Extension {ext} has no employee mapping - skipping popup")
+            
+            if sent_popups == 0:
+                logger.warning(f"⚠️ No employee mappings found for any extensions {extensions}. Please save employee configuration in admin panel.")
             else:
-                logger.warning(f"⚠️ No extensions provided for call {call_id}")
+                logger.info(f"📱 МойСклад popups sent to {sent_popups} employees")
         else:
-            logger.error(f"❌ Failed to create call in МойСклад for {phone}")
+            logger.warning(f"⚠️ No extensions provided for call")
             
     except Exception as e:
         logger.error(f"❌ Error processing МойСклад incoming call: {e}")
