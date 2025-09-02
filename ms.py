@@ -1837,7 +1837,7 @@ async def find_employee_by_extension(phone_api_url: str, integration_code: str, 
     
     return {"found": False}
 
-async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, enterprise_number: str, unique_id: str):
+async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, enterprise_number: str, unique_id: str, call_data: dict):
     """Обработка входящего звонка для МойСклад - создание звонка и отправка попапа"""
     try:
         integration_code = ms_config.get('integration_code')
@@ -1857,21 +1857,31 @@ async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, 
         call_id = await create_ms_call(phone_api_url, integration_code, phone, extension, contact_info)
         
         if call_id:
-            # Отправка попапа сотруднику используя сохраненные соответствия
-            if extension:
+            # Отправка попапов ВСЕМ сотрудникам, у которых есть соответствия
+            extensions = call_data.get('raw', {}).get('Extensions', [])
+            if extensions:
                 employee_mapping = ms_config.get('employee_mapping', {})
-                employee_data = employee_mapping.get(extension)
+                sent_popups = 0
                 
-                if employee_data and employee_data.get('employee_id'):
-                    employee_id = employee_data['employee_id']
-                    employee_name = employee_data.get('name', 'Unknown')
+                for ext in extensions:
+                    employee_data = employee_mapping.get(ext)
                     
-                    await send_ms_popup(phone_api_url, integration_code, call_id, "SHOW", extension, employee_id)
-                    logger.info(f"✅ МойСклад call popup sent to extension {extension} ({employee_name}) using saved mapping")
+                    if employee_data and employee_data.get('employee_id'):
+                        employee_id = employee_data['employee_id']
+                        employee_name = employee_data.get('name', 'Unknown')
+                        
+                        await send_ms_popup(phone_api_url, integration_code, call_id, "SHOW", ext, employee_id)
+                        logger.info(f"✅ МойСклад call popup sent to extension {ext} ({employee_name}) using saved mapping")
+                        sent_popups += 1
+                    else:
+                        logger.debug(f"🔄 Extension {ext} has no employee mapping - skipping popup")
+                
+                if sent_popups == 0:
+                    logger.warning(f"⚠️ No employee mappings found for any extensions {extensions}. Please save employee configuration in admin panel.")
                 else:
-                    logger.warning(f"⚠️ Employee mapping not found for extension {extension}. Please save employee configuration in admin panel.")
+                    logger.info(f"📱 МойСклад popups sent to {sent_popups} employees")
             else:
-                logger.warning(f"⚠️ No extension provided for call {call_id}")
+                logger.warning(f"⚠️ No extensions provided for call {call_id}")
         else:
             logger.error(f"❌ Failed to create call in МойСклад for {phone}")
             
@@ -1980,7 +1990,7 @@ async def internal_ms_incoming_call(request: Request):
             
             # Обработать входящий звонок (только для входящих)
             if direction == "in":
-                await process_ms_incoming_call(phone, extension, ms_config, enterprise_number, unique_id)
+                await process_ms_incoming_call(phone, extension, ms_config, enterprise_number, unique_id, payload)
             
             return {"status": "success"}
             
