@@ -73,7 +73,9 @@ RECENT_DIAL_TTL = 300  # 5 минут
 
 # Дедупликация hangup событий по unique_id
 processed_hangups: Dict[str, float] = {}
+processed_dials: Dict[str, float] = {}
 HANGUP_DEDUP_TTL = 300  # 5 минут
+DIAL_DEDUP_TTL = 60     # 1 минута
 
 # ===== Вспомогательные функции =====
 
@@ -632,21 +634,36 @@ async def dispatch_call_event(request: Request):
     if not token or not unique_id or event_type not in {"dial", "hangup"}:
         raise HTTPException(status_code=400, detail="invalid payload")
     
-    # Дедупликация hangup событий
+    # Дедупликация dial и hangup событий
     import time
-    if event_type == "hangup":
-        now = time.time()
-        # Очищаем старые записи
+    now = time.time()
+    
+    if event_type == "dial":
+        # Очищаем старые dial записи
+        expired_keys = [k for k, v in processed_dials.items() if now - v > DIAL_DEDUP_TTL]
+        for k in expired_keys:
+            del processed_dials[k]
+        
+        # Проверяем дубликат dial
+        if unique_id in processed_dials:
+            logger.info(f"🚫 Duplicate dial event for unique_id={unique_id} - IGNORING")
+            return {"status": "ignored", "reason": "duplicate"}
+        
+        # Запоминаем dial
+        processed_dials[unique_id] = now
+    
+    elif event_type == "hangup":
+        # Очищаем старые hangup записи
         expired_keys = [k for k, v in processed_hangups.items() if now - v > HANGUP_DEDUP_TTL]
         for k in expired_keys:
             del processed_hangups[k]
         
-        # Проверяем дубликат
+        # Проверяем дубликат hangup
         if unique_id in processed_hangups:
             logger.info(f"🚫 Duplicate hangup event for unique_id={unique_id} - IGNORING")
             return {"status": "ignored", "reason": "duplicate"}
         
-        # Запоминаем
+        # Запоминаем hangup
         processed_hangups[unique_id] = now
 
     enterprise_number = await fetch_enterprise_by_token(token)

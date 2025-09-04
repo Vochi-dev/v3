@@ -1759,22 +1759,27 @@ async def find_contact_by_phone(phone: str, api_token: str) -> dict:
     
     return {"found": False}
 
-async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone: str, called_extension: str, contact_info: dict) -> str:
+async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone: str, called_extension: str = None, contact_info: dict = {}) -> str:
     """Создание звонка в МойСклад Phone API"""
     try:
         # Создаем новый клиент для каждого запроса
         async with httpx.AsyncClient(timeout=10.0) as client:
-            # Генерируем уникальный externalId для звонка с номером
+            # Генерируем уникальный externalId для звонка с номером (extension может быть None)
             import time
-            external_id = f"webhook-{int(time.time())}-{caller_phone.replace('+', '')}-{called_extension}"
+            extension_part = called_extension if called_extension else "no-ext"
+            external_id = f"webhook-{int(time.time())}-{caller_phone.replace('+', '')}-{extension_part}"
+            
+            # Используем текущее время для startTime
+            from datetime import datetime
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             call_data = {
                 "from": caller_phone,
                 "number": caller_phone,  # Номер телефона, а не внутренний номер
                 "externalId": external_id,
                 "isIncoming": True,
-                "startTime": "2025-09-02 12:45:00",
-                "extension": called_extension  # Внутренний номер отдельно
+                "startTime": current_time
+                # НЕ указываем extension при создании - будет обновлен при hangup
             }
             
             # Временно отключаем counterparty для отладки
@@ -1795,7 +1800,8 @@ async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone
             # Сохраняем call_id для последующего использования в hangup
             import time
             timestamp = int(time.time())
-            call_mapping_key = f"{caller_phone}:{called_extension}:{timestamp}"
+            extension_for_key = called_extension if called_extension else "no-ext"
+            call_mapping_key = f"{caller_phone}:{extension_for_key}:{timestamp}"
             
             # Используем POST - МойСклад автоматически найдет контрагента и сотрудника
             response = await client.post(
@@ -1811,11 +1817,21 @@ async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone
                 call_id = result.get("id", "")
                 logger.info(f"✅ MS call created successfully: {call_id}")
                 
-                # Сохраняем соответствие unique_id -> call_id в глобальном кэше
+                # Сохраняем соответствие в глобальном кэше для всех возможных extensions
                 if not hasattr(create_ms_call, 'call_cache'):
                     create_ms_call.call_cache = {}
+                
+                # Сохраняем основной ключ
                 create_ms_call.call_cache[call_mapping_key] = call_id
                 logger.info(f"💾 Saved call mapping: {call_mapping_key} -> {call_id}")
+                
+                # Дополнительно сохраняем ключи для всех возможных extensions (150, 151, 152)
+                # чтобы hangup мог найти call_id независимо от того, на какой extension пришел hangup
+                phone_clean = caller_phone.replace('+', '')
+                for possible_ext in ['150', '151', '152']:
+                    additional_key = f"{caller_phone}:{possible_ext}:{timestamp}"
+                    create_ms_call.call_cache[additional_key] = call_id
+                    logger.debug(f"💾 Saved additional mapping: {additional_key} -> {call_id}")
                 
                 return call_id
             else:
@@ -1897,7 +1913,7 @@ async def send_ms_popup_by_external_id(phone_api_url: str, integration_code: str
 async def update_ms_call_with_recording(phone_api_url: str, integration_code: str, phone: str, extension: str, unique_id: str, record_url: str):
     """Обновление звонка с прикреплением записи разговора"""
     try:
-        # Ищем call_id в кэше
+        # Ищем call_id в кэше - берем самый свежий для данного phone:extension
         phone_without_plus = phone.lstrip('+')
         cache_key_patterns = [
             f"{phone}:{extension}:",
@@ -1907,20 +1923,27 @@ async def update_ms_call_with_recording(phone_api_url: str, integration_code: st
         
         call_id = None
         if hasattr(create_ms_call, 'call_cache'):
+            # Ищем все подходящие ключи и берем самый свежий
+            matching_keys = []
             for key in create_ms_call.call_cache:
                 if any(key.startswith(pattern) for pattern in cache_key_patterns):
-                    call_id = create_ms_call.call_cache[key]
-                    logger.info(f"🔍 Found call_id {call_id} for recording update")
-                    break
+                    matching_keys.append(key)
+            
+            if matching_keys:
+                # Сортируем по timestamp и берем самый свежий
+                latest_key = max(matching_keys, key=lambda k: int(k.split(':')[-1]) if k.split(':')[-1].isdigit() else 0)
+                call_id = create_ms_call.call_cache[latest_key]
+                logger.info(f"🔍 Found call_id {call_id} for recording update using latest key {latest_key}")
         
         if not call_id:
             logger.warning(f"⚠️ Call ID not found for recording update: {phone} -> {extension}")
             return False
         
-        # Обновляем звонок с записью (PUT /call/{id})
+        # Обновляем звонок с записью и правильным extension (PUT /call/{id})
         async with httpx.AsyncClient() as client:
             update_data = {
-                "recordUrl": [record_url] if record_url else []
+                "recordUrl": [record_url] if record_url else [],
+                "extension": extension  # Устанавливаем правильный extension того, кто ответил
             }
             
             response = await client.put(
@@ -1930,7 +1953,7 @@ async def update_ms_call_with_recording(phone_api_url: str, integration_code: st
             )
             
             if response.status_code in [200, 204]:
-                logger.info(f"✅ MS call {call_id} updated with recording: {record_url}")
+                logger.info(f"✅ MS call {call_id} updated with recording: {record_url} and extension: {extension}")
                 return True
             else:
                 logger.error(f"❌ Failed to update MS call {call_id} with recording: {response.status_code} - {response.text}")
@@ -1966,7 +1989,7 @@ async def find_employee_by_extension(phone_api_url: str, integration_code: str, 
     return {"found": False}
 
 async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, enterprise_number: str, unique_id: str, call_data: dict):
-    """Обработка входящего звонка для МойСклад - создание звонка и отправка попапа"""
+    """Обработка входящего звонка для МойСклад - ТОЛЬКО отправка попапов (звонок создается при hangup)"""
     try:
         integration_code = ms_config.get('integration_code')
         api_token = ms_config.get('api_token')
@@ -1980,7 +2003,7 @@ async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, 
         if api_token:
             contact_info = await find_contact_by_phone(phone, api_token)
         
-        # Создание звонков и отправка попапов ТОЛЬКО для тех номеров, у которых есть соответствия
+        # Создание звонка БЕЗ extension (будет обновлен при hangup) + отправка попапов
         phone_api_url = "https://api.moysklad.ru/api/phone/1.0"
         extensions = call_data.get('raw', {}).get('Extensions', [])
         
@@ -1990,22 +2013,22 @@ async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, 
             logger.info(f"📋 Processing extensions: {extensions}")
             sent_popups = 0
             
+            # Создаем ОДИН звонок БЕЗ указания конкретного extension (будет обновлен при hangup)
+            call_id = await create_ms_call(phone_api_url, integration_code, phone, None, contact_info)
+            logger.info(f"📞 Created call {call_id} without extension (will be updated on hangup)")
+            
+            # Отправляем попапы всем сотрудникам с маппингом
             for ext in extensions:
                 employee_data = employee_mapping.get(ext)
                 
-                if employee_data and employee_data.get('employee_id'):
-                    # Создаем отдельный звонок для каждого сотрудника
-                    call_id = await create_ms_call(phone_api_url, integration_code, phone, ext, contact_info)
+                if employee_data and employee_data.get('employee_id') and call_id:
+                    employee_id = employee_data['employee_id']
+                    employee_name = employee_data.get('name', 'Unknown')
                     
-                    if call_id:
-                        employee_id = employee_data['employee_id']
-                        employee_name = employee_data.get('name', 'Unknown')
-                        
-                        await send_ms_popup(phone_api_url, integration_code, call_id, "SHOW", ext, employee_id)
-                        logger.info(f"✅ МойСклад call popup sent to extension {ext} ({employee_name}) using saved mapping")
-                        sent_popups += 1
-                    else:
-                        logger.error(f"❌ Failed to create call for extension {ext}")
+                    # Отправляем попап сотруднику к общему звонку
+                    await send_ms_popup(phone_api_url, integration_code, call_id, "SHOW", ext, employee_id)
+                    logger.info(f"✅ МойСклад popup sent to extension {ext} ({employee_name}) - extension will be set on hangup")
+                    sent_popups += 1
                 else:
                     logger.debug(f"🔄 Extension {ext} has no employee mapping - skipping popup")
             
@@ -2042,21 +2065,34 @@ async def process_ms_hangup_call(phone: str, extension: str, ms_config: dict, en
                     employee_id = employee_data['employee_id']
                     employee_name = employee_data.get('name', 'Unknown')
                     
-                    # Ищем call_id в кэше по номеру телефона и extension
+                    # Ищем call_id в кэше по номеру телефона, extension и unique_id
                     phone_without_plus = phone.lstrip('+')
-                    cache_key_patterns = [
-                        f"{phone}:{ext}:",
-                        f"{phone_without_plus}:{ext}:",
-                        f"+{phone_without_plus}:{ext}:"
-                    ]
-                    
+                    target_key = None
                     call_id = None
+                    
                     if hasattr(create_ms_call, 'call_cache'):
+                        # Сначала ищем точное соответствие по unique_id
+                        call_timestamp = unique_id.split('.')[0] if '.' in unique_id else unique_id
+                        
+                        cache_key_patterns = [
+                            f"{phone}:{ext}:",
+                            f"{phone_without_plus}:{ext}:",
+                            f"+{phone_without_plus}:{ext}:"
+                        ]
+                        
+                        # Ищем все подходящие ключи и берем самый свежий (с самым большим timestamp)
+                        matching_keys = []
                         for key in create_ms_call.call_cache:
                             if any(key.startswith(pattern) for pattern in cache_key_patterns):
-                                call_id = create_ms_call.call_cache[key]
-                                logger.info(f"🔍 Found call_id {call_id} for {ext} using key {key}")
-                                break
+                                matching_keys.append(key)
+                        
+                        if matching_keys:
+                            # Сортируем по timestamp (последняя часть ключа) и берем самый свежий
+                            latest_key = max(matching_keys, key=lambda k: int(k.split(':')[-1]) if k.split(':')[-1].isdigit() else 0)
+                            call_id = create_ms_call.call_cache[latest_key]
+                            logger.info(f"🔍 Found call_id {call_id} for {ext} using latest key {latest_key}")
+                        else:
+                            logger.warning(f"⚠️ No call_id found for {ext}, phone {phone}")
                     
                     if call_id:
                         # Отправляем HIDE_ALL через call_id
