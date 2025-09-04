@@ -930,6 +930,44 @@ async def dispatch_call_event(request: Request):
                     logger.error(f"❌ МойСклад dial notification exception: {er}")
         except Exception as e:
             logger.error(f"❌ МойСклад forward failed: {e}")
+    
+    # МойСклад → скрыть карточку при hangup
+    if active.get("ms") and event_type == "hangup":
+        try:
+            import aiohttp
+            # Определяем направление/номер/внутренний
+            try:
+                event_kind, external_phone_e164 = guess_direction_and_phone(raw, None)
+            except Exception:
+                event_kind, external_phone_e164 = ("in", normalize_phone_e164(str(raw.get("Phone") or "")))
+            internal_code = determine_internal_code(raw)
+
+            timeout = aiohttp.ClientTimeout(total=3)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                # Отправляем событие hangup в МойСклад
+                payload = {
+                    "enterprise_number": enterprise_number,
+                    "phone": external_phone_e164,
+                    "extension": internal_code or "",
+                    "direction": event_kind,
+                    "event_type": "hangup",
+                    "unique_id": unique_id,
+                    "record_url": record_url,
+                    "raw": raw
+                }
+                logger.info(f"🔗 Sending hangup event to МойСклад: {payload}")
+                try:
+                    async with session.post("http://127.0.0.1:8023/internal/ms/hangup-call", json=payload) as r:
+                        ok = (r.status == 200)
+                        try:
+                            data = await r.json()
+                        except Exception:
+                            data = {}
+                        logger.info(f"🔗 МойСклад hangup response: {r.status} - {data}")
+                except Exception as inner_e:
+                    logger.error(f"❌ МойСклад hangup HTTP error: {inner_e}")
+        except Exception as e:
+            logger.error(f"❌ МойСклад hangup forward failed: {e}")
 
     return {"success": True}
 

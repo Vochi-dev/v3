@@ -1762,7 +1762,8 @@ async def find_contact_by_phone(phone: str, api_token: str) -> dict:
 async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone: str, called_extension: str, contact_info: dict) -> str:
     """Создание звонка в МойСклад Phone API"""
     try:
-        async with httpx.AsyncClient() as client:
+        # Создаем новый клиент для каждого запроса
+        async with httpx.AsyncClient(timeout=10.0) as client:
             # Генерируем уникальный externalId для звонка с номером
             import time
             external_id = f"webhook-{int(time.time())}-{caller_phone.replace('+', '')}-{called_extension}"
@@ -1790,6 +1791,11 @@ async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone
             logger.info(f"📋 Creating call without counterparty info for {caller_phone} (debugging)")
             
             logger.info(f"📞 Creating MS call with data: {call_data}")
+        
+            # Сохраняем call_id для последующего использования в hangup
+            import time
+            timestamp = int(time.time())
+            call_mapping_key = f"{caller_phone}:{called_extension}:{timestamp}"
             
             # Используем POST - МойСклад автоматически найдет контрагента и сотрудника
             response = await client.post(
@@ -1797,16 +1803,24 @@ async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone
                 headers={"Lognex-Phone-Auth-Token": integration_code},
                 json=call_data
             )
-            
+        
             logger.info(f"📞 MS call creation response: status={response.status_code}")
             
             if response.status_code == 200:
                 result = response.json()
                 call_id = result.get("id", "")
                 logger.info(f"✅ MS call created successfully: {call_id}")
+                
+                # Сохраняем соответствие unique_id -> call_id в глобальном кэше
+                if not hasattr(create_ms_call, 'call_cache'):
+                    create_ms_call.call_cache = {}
+                create_ms_call.call_cache[call_mapping_key] = call_id
+                logger.info(f"💾 Saved call mapping: {call_mapping_key} -> {call_id}")
+                
                 return call_id
             else:
                 logger.error(f"❌ MS call creation failed: {response.status_code} - {response.text}")
+                return ""
                 
     except Exception as e:
         logger.error(f"Error creating MS call: {e}")
@@ -1845,6 +1859,86 @@ async def send_ms_popup(phone_api_url: str, integration_code: str, call_id: str,
         logger.error(f"Error sending MS popup: {e}")
     
     return False
+
+async def send_ms_popup_by_external_id(phone_api_url: str, integration_code: str, external_id: str, event_type: str, extension: str, employee_id: str) -> bool:
+    """Отправка попапа через externalId (для hangup событий)"""
+    try:
+        async with httpx.AsyncClient() as client:
+            event_data = {
+                "eventType": event_type,
+                "extension": extension,
+                "sequence": 999 if event_type == "HIDE_ALL" else 1
+            }
+            
+            if employee_id:
+                event_data["employee"] = {
+                    "href": f"https://api.moysklad.ru/api/remap/1.2/entity/employee/{employee_id}",
+                    "type": "employee"
+                }
+            
+            response = await client.post(
+                f"{phone_api_url}/call/extid/{external_id}/event",
+                headers={"Lognex-Phone-Auth-Token": integration_code},
+                json=event_data
+            )
+            
+            # 204 - успешно без контента, 200 - успешно с контентом
+            if response.status_code in [200, 204]:
+                logger.info(f"MS popup sent successfully: {event_type} to extension {extension} (extid: {external_id})")
+                return True
+            else:
+                logger.error(f"MS popup failed: {response.status_code} - {response.text}")
+                
+    except Exception as e:
+        logger.error(f"Error sending MS popup by external_id: {e}")
+    
+    return False
+
+async def update_ms_call_with_recording(phone_api_url: str, integration_code: str, phone: str, extension: str, unique_id: str, record_url: str):
+    """Обновление звонка с прикреплением записи разговора"""
+    try:
+        # Ищем call_id в кэше
+        phone_without_plus = phone.lstrip('+')
+        cache_key_patterns = [
+            f"{phone}:{extension}:",
+            f"{phone_without_plus}:{extension}:",
+            f"+{phone_without_plus}:{extension}:"
+        ]
+        
+        call_id = None
+        if hasattr(create_ms_call, 'call_cache'):
+            for key in create_ms_call.call_cache:
+                if any(key.startswith(pattern) for pattern in cache_key_patterns):
+                    call_id = create_ms_call.call_cache[key]
+                    logger.info(f"🔍 Found call_id {call_id} for recording update")
+                    break
+        
+        if not call_id:
+            logger.warning(f"⚠️ Call ID not found for recording update: {phone} -> {extension}")
+            return False
+        
+        # Обновляем звонок с записью (PUT /call/{id})
+        async with httpx.AsyncClient() as client:
+            update_data = {
+                "recordUrl": [record_url] if record_url else []
+            }
+            
+            response = await client.put(
+                f"{phone_api_url}/call/{call_id}",
+                headers={"Lognex-Phone-Auth-Token": integration_code},
+                json=update_data
+            )
+            
+            if response.status_code in [200, 204]:
+                logger.info(f"✅ MS call {call_id} updated with recording: {record_url}")
+                return True
+            else:
+                logger.error(f"❌ Failed to update MS call {call_id} with recording: {response.status_code} - {response.text}")
+                return False
+                
+    except Exception as e:
+        logger.error(f"Error updating MS call with recording: {e}")
+        return False
 
 async def find_employee_by_extension(phone_api_url: str, integration_code: str, extension: str) -> dict:
     """Поиск сотрудника по добавочному номеру в Phone API"""
@@ -1924,6 +2018,73 @@ async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, 
             
     except Exception as e:
         logger.error(f"❌ Error processing МойСклад incoming call: {e}")
+
+async def process_ms_hangup_call(phone: str, extension: str, ms_config: dict, enterprise_number: str, unique_id: str, record_url: str, call_data: dict):
+    """Обработка hangup события для МойСклад - отправка HIDE_ALL и обновление записи"""
+    try:
+        integration_code = ms_config.get('integration_code')
+        
+        if not integration_code:
+            logger.error(f"❌ Missing integration_code for enterprise {enterprise_number}")
+            return
+        
+        phone_api_url = "https://api.moysklad.ru/api/phone/1.0"
+        extensions = call_data.get('raw', {}).get('Extensions', [])
+        
+        if extensions:
+            employee_mapping = ms_config.get('employee_mapping', {})
+            sent_hides = 0
+            
+            for ext in extensions:
+                employee_data = employee_mapping.get(ext)
+                
+                if employee_data and employee_data.get('employee_id'):
+                    employee_id = employee_data['employee_id']
+                    employee_name = employee_data.get('name', 'Unknown')
+                    
+                    # Ищем call_id в кэше по номеру телефона и extension
+                    phone_without_plus = phone.lstrip('+')
+                    cache_key_patterns = [
+                        f"{phone}:{ext}:",
+                        f"{phone_without_plus}:{ext}:",
+                        f"+{phone_without_plus}:{ext}:"
+                    ]
+                    
+                    call_id = None
+                    if hasattr(create_ms_call, 'call_cache'):
+                        for key in create_ms_call.call_cache:
+                            if any(key.startswith(pattern) for pattern in cache_key_patterns):
+                                call_id = create_ms_call.call_cache[key]
+                                logger.info(f"🔍 Found call_id {call_id} for {ext} using key {key}")
+                                break
+                    
+                    if call_id:
+                        # Отправляем HIDE_ALL через call_id
+                        success = await send_ms_popup(phone_api_url, integration_code, call_id, "HIDE_ALL", ext, employee_id)
+                        if success:
+                            logger.info(f"✅ МойСклад HIDE_ALL sent to extension {ext} ({employee_name})")
+                            sent_hides += 1
+                            # Обновляем звонок с записью
+                            await update_ms_call_with_recording(phone_api_url, integration_code, phone, ext, unique_id, record_url)
+                        else:
+                            logger.error(f"❌ Failed to send HIDE_ALL to extension {ext}")
+                    else:
+                        logger.warning(f"⚠️ Call ID not found for extension {ext}, phone {phone} - cannot send HIDE_ALL")
+                        # Попытка обновить звонок с записью, даже если HIDE_ALL не получилось
+                        await update_ms_call_with_recording(phone_api_url, integration_code, phone, ext, unique_id, record_url)
+                        sent_hides += 1  # Считаем как обработанный
+                else:
+                    logger.debug(f"🔄 Extension {ext} has no employee mapping - skipping HIDE_ALL")
+            
+            if sent_hides == 0:
+                logger.warning(f"⚠️ No HIDE_ALL events sent for extensions {extensions}")
+            else:
+                logger.info(f"🔄 МойСклад HIDE_ALL sent to {sent_hides} employees")
+        else:
+            logger.warning(f"⚠️ No extensions provided for hangup call {unique_id}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error processing МойСклад hangup call: {e}")
 
 async def process_ms_webhook_event(webhook_data: dict, ms_config: dict, enterprise_number: str):
     """Обработка событий webhook от внешних систем (Asterisk) для МойСклад"""
@@ -2036,6 +2197,62 @@ async def internal_ms_incoming_call(request: Request):
             
     except Exception as e:
         logger.error(f"❌ Error processing incoming call: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/internal/ms/hangup-call")
+async def ms_internal_hangup_call(request: Request):
+    """Внутренний endpoint для обработки hangup событий от integration_cache"""
+    try:
+        payload = await request.json()
+        logger.info(f"📞 Received hangup event from integration_cache: {payload}")
+        
+        enterprise_number = payload.get("enterprise_number")
+        phone = payload.get("phone")
+        extension = payload.get("extension", "")
+        direction = payload.get("direction", "in")
+        unique_id = payload.get("unique_id")
+        record_url = payload.get("record_url")
+        
+        if not enterprise_number or not phone:
+            raise HTTPException(status_code=400, detail="Missing enterprise_number or phone")
+        
+        # Получить конфигурацию МойСклад для предприятия
+        import asyncpg, json
+        conn = await asyncpg.connect(
+            host="localhost",
+            port=5432,
+            database="postgres",
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        try:
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1",
+                enterprise_number
+            )
+            if not row:
+                logger.error(f"❌ Enterprise {enterprise_number} not found")
+                raise HTTPException(status_code=404, detail="Enterprise not found")
+            
+            integrations_config = row['integrations_config']
+            if isinstance(integrations_config, str):
+                integrations_config = json.loads(integrations_config)
+            
+            ms_config = integrations_config.get('ms', {})
+            if not ms_config.get('enabled'):
+                logger.info(f"ℹ️ МойСклад integration not enabled for enterprise {enterprise_number}")
+                return {"status": "disabled"}
+            
+            # Обработать hangup event
+            await process_ms_hangup_call(phone, extension, ms_config, enterprise_number, unique_id, record_url, payload)
+            
+            return {"status": "success"}
+            
+        finally:
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"❌ Error in MS hangup call handler: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
