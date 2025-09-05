@@ -1925,12 +1925,12 @@ async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone
             extension_part = called_extension if called_extension else "no-ext"
             external_id = f"webhook-{int(time.time())}-{caller_phone.replace('+', '')}-{extension_part}"
             
-            # Используем текущее время в GMT+3 для startTime
+            # Используем текущее время в GMT+3 для startTime (МойСклад ожидает местное время)
             from datetime import datetime, timezone, timedelta
             gmt_plus_3 = timezone(timedelta(hours=3))
             current_time_local = datetime.now(gmt_plus_3)
-            current_time_utc = current_time_local.astimezone(timezone.utc)
-            current_time = current_time_utc.strftime("%Y-%m-%d %H:%M:%S")
+            # Отправляем местное время GMT+3, а НЕ UTC
+            current_time = current_time_local.strftime("%Y-%m-%d %H:%M:%S")
             
             call_data = {
                 "from": caller_phone,
@@ -2074,11 +2074,20 @@ async def update_ms_call_with_recording(phone_api_url: str, integration_code: st
     try:
         # Ищем call_id в кэше - берем самый свежий для данного phone:extension
         phone_without_plus = phone.lstrip('+')
-        cache_key_patterns = [
-            f"{phone}:{extension}:",
-            f"{phone_without_plus}:{extension}:",
-            f"+{phone_without_plus}:{extension}:"
-        ]
+        
+        # Для пропущенных звонков (extension пустой) ищем по любому extension
+        if not extension or extension.strip() == '':
+            cache_key_patterns = [
+                f"{phone}:",
+                f"{phone_without_plus}:",
+                f"+{phone_without_plus}:"
+            ]
+        else:
+            cache_key_patterns = [
+                f"{phone}:{extension}:",
+                f"{phone_without_plus}:{extension}:",
+                f"+{phone_without_plus}:{extension}:"
+            ]
         
         call_id = None
         if hasattr(create_ms_call, 'call_cache'):
@@ -2133,14 +2142,20 @@ async def update_ms_call_with_recording(phone_api_url: str, integration_code: st
                     # Рассчитываем длительность
                     duration_seconds = int((end_dt_utc - start_dt_utc).total_seconds())
                     
-                    if duration_seconds > 0:
-                        # Отправляем время в UTC формате для МойСклад + duration в секундах
-                        update_data["endTime"] = end_dt_utc.strftime("%Y-%m-%d %H:%M:%S.000")
-                        update_data["duration"] = duration_seconds
-                        
-                        logger.info(f"🕐 Call duration calculated: {duration_seconds} seconds")
-                        logger.info(f"🌍 Local times (GMT+3): {start_time} - {end_time}")
-                        logger.info(f"🌍 UTC endTime for API: {end_dt_utc.strftime('%Y-%m-%d %H:%M:%S')}")
+                    # Проверяем, не пытаемся ли мы установить endTime раньше текущего момента
+                    # Если да, то это исторические данные - только комментарий, без времени
+                    current_utc = datetime.now(timezone.utc)
+                    if end_dt_utc <= current_utc:
+                        logger.info(f"⏰ Historical call detected: endTime {end_dt_utc} <= current {current_utc}")
+                        logger.info(f"📝 Updating only comment and recording, skipping time update")
+                        # Не обновляем время для исторических звонков
+                    else:
+                        # Только для "живых" звонков обновляем время (отправляем GMT+3, а не UTC)
+                        update_data["endTime"] = end_dt_tz.strftime("%Y-%m-%d %H:%M:%S.000") 
+                        logger.info(f"🌍 GMT+3 endTime for API: {end_dt_tz.strftime('%Y-%m-%d %H:%M:%S')}")
+                    
+                    logger.info(f"🕐 Call duration calculated: {duration_seconds} seconds")
+                    logger.info(f"🌍 Local times (GMT+3): {start_time} - {end_time}")
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to calculate call duration: {e}")
             
@@ -2382,13 +2397,208 @@ async def process_ms_hangup_call(phone: str, extension: str, ms_config: dict, en
             
             if sent_hides == 0:
                 logger.warning(f"⚠️ No HIDE_ALL events sent for extensions {extensions}")
+                
+                # Для пропущенных звонков (extension пустой) все равно обновляем звонок
+                if not extensions or extensions == ['']:
+                    logger.info(f"📝 Updating missed call without extension mapping")
+                    await update_ms_call_with_recording(phone_api_url, integration_code, phone, '', unique_id, record_url, call_data)
             else:
                 logger.info(f"🔄 МойСклад HIDE_ALL sent to {sent_hides} employees")
         else:
             logger.warning(f"⚠️ No extensions provided for hangup call {unique_id}")
+            # Обновляем звонок даже если нет extension'ов
+            logger.info(f"📝 Updating call without any extensions")
+            await update_ms_call_with_recording(phone_api_url, integration_code, phone, '', unique_id, record_url, call_data)
             
     except Exception as e:
         logger.error(f"❌ Error processing МойСклад hangup call: {e}")
+
+async def process_outgoing_call_request(webhook_data: dict, ms_config: dict, enterprise_number: str):
+    """Обработка запроса на исходящий звонок из МойСклад (выполняется асинхронно)"""
+    try:
+        logger.info(f"🚀 Starting background outgoing call processing for enterprise {enterprise_number}")
+        # Извлекаем данные webhook
+        src_number = webhook_data.get("srcNumber", "")  # Добавочный номер в МойСклад
+        dest_number = webhook_data.get("destNumber", "")  # Номер клиента
+        uid = webhook_data.get("uid", "")  # UID пользователя МойСклад
+        
+        logger.info(f"📞 Outgoing call request: {src_number} -> {dest_number} (user: {uid})")
+        
+        # Валидация данных
+        if not src_number or not dest_number:
+            logger.error(f"❌ Invalid outgoing call data: srcNumber={src_number}, destNumber={dest_number}")
+            return
+        
+        # Найти внутренний номер Asterisk по srcNumber
+        employee_mapping = ms_config.get("employee_mapping", {})
+        internal_extension = None
+        
+        # Ищем в employee_mapping по ключу srcNumber
+        if src_number in employee_mapping:
+            employee_info = employee_mapping[src_number]
+            if isinstance(employee_info, dict):
+                # employee_mapping содержит объекты с name, email, employee_id
+                internal_extension = src_number  # Используем сам srcNumber как внутренний номер
+                logger.info(f"✅ Found employee mapping: {src_number} -> {employee_info.get('name', 'Unknown')}")
+            else:
+                internal_extension = src_number
+        else:
+            logger.warning(f"⚠️ No employee mapping found for srcNumber {src_number}, using as-is")
+            internal_extension = src_number
+        
+        logger.info(f"📞 Mapping: МойСклад extension {src_number} -> Asterisk extension {internal_extension}")
+        
+        # Получаем секрет предприятия для Asterisk API
+        import asyncpg
+        conn = await asyncpg.connect(
+            host="localhost",
+            port=5432,
+            database="postgres",
+            user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg=="
+        )
+        
+        try:
+            row = await conn.fetchrow(
+                "SELECT secret FROM enterprises WHERE number = $1",
+                enterprise_number
+            )
+            
+            if not row:
+                logger.error(f"❌ Enterprise secret not found for {enterprise_number}")
+                return
+                
+            client_id = row["secret"]
+            logger.info(f"🔑 Using enterprise secret: {client_id[:8]}...")
+            
+        finally:
+            await conn.close()
+        
+        # Инициируем звонок через Asterisk API
+        asterisk_result = await call_asterisk_api(
+            code=internal_extension,
+            phone=dest_number,
+            client_id=client_id
+        )
+        
+        if asterisk_result["success"]:
+            logger.info(f"✅ Outgoing call initiated successfully: {internal_extension} -> {dest_number}")
+            
+            # Создаем запись исходящего звонка в МойСклад
+            await create_outgoing_call_in_moysklad(
+                ms_config=ms_config,
+                src_number=src_number,
+                dest_number=dest_number,
+                uid=uid
+            )
+            
+        else:
+            logger.error(f"❌ Failed to initiate outgoing call: {asterisk_result.get('error', 'Unknown error')}")
+            
+        logger.info(f"🏁 Background outgoing call processing completed for enterprise {enterprise_number}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error in background outgoing call processing for enterprise {enterprise_number}: {e}")
+        # В background задаче мы не можем вернуть ошибку пользователю, только логируем
+
+async def call_asterisk_api(code: str, phone: str, client_id: str) -> dict:
+    """Вызывает asterisk.py API для инициации звонка"""
+    try:
+        import aiohttp, json
+        
+        asterisk_url = "http://localhost:8018/api/makecallexternal"
+        params = {
+            "code": code,
+            "phone": phone,
+            "clientId": client_id
+        }
+        
+        logger.info(f"🔗 Calling Asterisk API: {asterisk_url} with params {params}")
+        
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(asterisk_url, params=params) as response:
+                response_text = await response.text()
+                
+                if response.status == 200:
+                    try:
+                        result = json.loads(response_text)
+                        logger.info(f"✅ Asterisk API success: {result}")
+                        return {"success": True, "data": result}
+                    except json.JSONDecodeError:
+                        logger.info(f"✅ Asterisk API success (non-JSON): {response_text}")
+                        return {"success": True, "message": response_text}
+                else:
+                    logger.error(f"❌ Asterisk API error {response.status}: {response_text}")
+                    return {"success": False, "error": f"HTTP {response.status}: {response_text}"}
+                    
+    except Exception as e:
+        logger.error(f"❌ Error calling asterisk API: {e}")
+        return {"success": False, "error": str(e)}
+
+async def create_outgoing_call_in_moysklad(ms_config: dict, src_number: str, dest_number: str, uid: str):
+    """Создает запись исходящего звонка в МойСклад"""
+    try:
+        import time
+        
+        phone_api_url = ms_config.get("phone_api_url", "https://api.moysklad.ru/api/phone/1.0")
+        integration_code = ms_config.get("integration_code", "")
+        
+        if not integration_code:
+            logger.warning(f"⚠️ No integration code for outgoing call creation")
+            return
+        
+        # Генерируем уникальный externalId для исходящего звонка
+        external_id = f"outgoing-{int(time.time())}-{dest_number.replace('+', '')}-{src_number}"
+        
+        # Используем текущее время в GMT+3 для startTime
+        from datetime import datetime, timezone, timedelta
+        gmt_plus_3 = timezone(timedelta(hours=3))
+        current_time_local = datetime.now(gmt_plus_3)
+        current_time = current_time_local.strftime("%Y-%m-%d %H:%M:%S")
+        
+        call_data = {
+            "from": dest_number,  # Номер клиента (кому звоним)
+            "number": dest_number,
+            "externalId": external_id,
+            "isIncoming": False,  # Исходящий звонок
+            "startTime": current_time,
+            "extension": src_number  # Добавочный номер сотрудника
+        }
+        
+        logger.info(f"📞 Creating outgoing MS call: {call_data}")
+        
+        # Создаем звонок в МойСклад
+        async with httpx.AsyncClient(timeout=10) as client:
+            headers = {
+                "Lognex-Phone-Auth-Token": integration_code,
+                "Content-Type": "application/json",
+                "Accept-Encoding": "gzip"
+            }
+            
+            resp = await client.post(
+                f"{phone_api_url}/call",
+                headers=headers,
+                json=call_data
+            )
+            resp.raise_for_status()
+            result = resp.json()
+            
+            call_id = result.get("id")
+            logger.info(f"✅ Outgoing MS call created: {call_id}")
+            
+            # Отправляем popup сотруднику
+            await send_ms_popup(
+                phone_api_url=phone_api_url,
+                integration_code=integration_code,
+                call_id=call_id,
+                event_type="SHOW",
+                extension=src_number,
+                employee_id=""  # Не обязательно для исходящих
+            )
+            
+    except Exception as e:
+        logger.error(f"❌ Error creating outgoing call in МойСклад: {e}")
 
 async def process_ms_webhook_event(webhook_data: dict, ms_config: dict, enterprise_number: str):
     """Обработка событий webhook от внешних систем (Asterisk) для МойСклад"""
@@ -2688,11 +2898,22 @@ async def ms_webhook(webhook_uuid: str, request: Request):
                 logger.warning(f"MoySklad integration disabled for enterprise {enterprise_number}")
                 return {"success": False, "error": "Integration disabled"}
             
-            # Обрабатываем webhook данные
-            await process_ms_webhook_event(data, ms_config, enterprise_number)
-            
-            logger.info(f"MS webhook processed successfully for enterprise {enterprise_number}")
-            return {"success": True, "message": "Webhook processed"}
+            # Проверяем тип webhook данных
+            if "srcNumber" in data and "destNumber" in data:
+                # Это исходящий звонок из МойСклад
+                logger.info(f"🔄 Processing outgoing call request from MoySklad")
+                
+                # Быстро отвечаем МойСклад, обработку делаем в фоне
+                import asyncio
+                asyncio.create_task(process_outgoing_call_request(data, ms_config, enterprise_number))
+                
+                logger.info(f"✅ Outgoing call request accepted for enterprise {enterprise_number}")
+                return {"success": True, "message": "Call initiation started"}
+            else:
+                # Старая логика для событий от Asterisk
+                await process_ms_webhook_event(data, ms_config, enterprise_number)
+                logger.info(f"MS webhook processed successfully for enterprise {enterprise_number}")
+                return {"success": True, "message": "Webhook processed"}
             
         finally:
             await conn.close()
