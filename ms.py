@@ -2702,6 +2702,424 @@ async def ms_webhook(webhook_uuid: str, request: Request):
         return {"success": False, "error": str(e)}
 
 # =============================================================================
+# SMART.PY INTEGRATION ENDPOINTS
+# =============================================================================
+
+def normalize_phone_e164(phone: str) -> str:
+    """Нормализует телефонный номер в формат E.164"""
+    if not phone:
+        return ""
+    
+    # Удаляем все кроме цифр
+    digits = "".join(c for c in phone if c.isdigit())
+    
+    if not digits:
+        return ""
+    
+    # Если номер начинается с 375 (Беларусь) и имеет 9 цифр
+    if len(digits) == 9 and digits.startswith("375"):
+        return "+" + digits
+    
+    # Если номер начинается с 375 и имеет 12 цифр  
+    if len(digits) == 12 and digits.startswith("375"):
+        return "+" + digits
+    
+    # Если номер начинается с 7 (Россия) и имеет 11 цифр
+    if len(digits) == 11 and digits.startswith("7"):
+        return "+" + digits
+        
+    # Для других случаев добавляем +
+    if not phone.startswith("+"):
+        return "+" + digits
+    
+    return phone
+
+
+async def search_ms_customer(api_token: str, phone_e164: str):
+    """Поиск клиента в МойСклад по номеру телефона"""
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            headers = {
+                "Authorization": f"Bearer {api_token}",
+                "Accept": "application/json;charset=utf-8",
+                "Content-Type": "application/json;charset=utf-8"
+            }
+            
+            # Убираем + из номера для поиска
+            search_phone = phone_e164.replace("+", "") if phone_e164.startswith("+") else phone_e164
+            
+            # Поиск контрагентов по номеру телефона
+            url = f"https://api.moysklad.ru/api/remap/1.2/entity/counterparty"
+            params = {
+                "filter": f"phone~{search_phone}",
+                "limit": 10
+            }
+            
+            response = await client.get(url, headers=headers, params=params)
+            
+            if response.status_code == 200:
+                data = response.json() or {}
+                rows = data.get("rows", [])
+                
+                if rows:
+                    # Возвращаем первый найденный контрагент
+                    return {
+                        "found": True,
+                        "raw": rows[0]
+                    }
+                else:
+                    return {"found": False}
+            else:
+                logger.warning(f"MS customer search failed: {response.status_code} - {response.text}")
+                return {"found": False}
+                
+    except Exception as e:
+        logger.error(f"search_ms_customer error: {e}")
+        return {"found": False}
+
+
+@app.get("/internal/ms/responsible-extension")
+async def ms_responsible_extension(phone: str, enterprise_number: Optional[str] = None):
+    """
+    Возвращает extension ответственного менеджера для номера через МойСклад.
+    Аналогично retailcrm и uon интеграциям.
+    
+    Returns: {"extension": str|null, "manager_id": str|null}
+    """
+    try:
+        # Получаем конфигурацию МойСклад
+        import asyncpg
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres", 
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        
+        if enterprise_number:
+            # Получаем конфигурацию МойСклад из БД
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1",
+                enterprise_number
+            )
+            if row and row["integrations_config"]:
+                config_data = row["integrations_config"]
+                if isinstance(config_data, str):
+                    import json
+                    config_data = json.loads(config_data)
+                config = config_data.get("ms", {}) if config_data else {}
+            else:
+                config = None
+        else:
+            # Ищем любое предприятие с активной интеграцией МойСклад
+            row = await conn.fetchrow(
+                "SELECT number, integrations_config FROM enterprises WHERE active = true "
+                "AND integrations_config -> 'ms' ->> 'enabled' = 'true' LIMIT 1"
+            )
+            if row:
+                enterprise_number = row["number"]
+                config_data = row["integrations_config"]
+                if isinstance(config_data, str):
+                    import json
+                    config_data = json.loads(config_data)
+                config = config_data.get("ms", {}) if config_data else {}
+            else:
+                config = None
+        
+        await conn.close()
+        
+        if not config or not config.get("enabled"):
+            return {"extension": None, "manager_id": None}
+        
+        api_token = config.get("api_token")  # Main API token
+        if not api_token:
+            return {"extension": None, "manager_id": None}
+        
+        # Нормализуем номер телефона
+        phone_e164 = normalize_phone_e164(phone)
+        if not phone_e164:
+            return {"extension": None, "manager_id": None}
+        
+        # Ищем клиента в МойСклад через Main API
+        counterparty_data = await search_ms_customer(api_token, phone_e164)
+        
+        if not counterparty_data or not counterparty_data.get("found"):
+            return {"extension": None, "manager_id": None}
+        
+        # Извлекаем owner (ответственного менеджера) из данных контрагента
+        raw_data = counterparty_data.get("raw", {})
+        owner_href = None
+        
+        if isinstance(raw_data, dict):
+            owner = raw_data.get("owner")
+            if isinstance(owner, dict) and owner.get("meta"):
+                owner_href = owner["meta"].get("href")
+        
+        if not owner_href:
+            return {"extension": None, "manager_id": None}
+        
+        # Извлекаем employee ID из href
+        # Пример: https://api.moysklad.ru/api/remap/1.2/entity/employee/b822ef8f-8649-11f0-0a80-14bb00347cf2
+        import re
+        match = re.search(r'/employee/([a-f0-9-]+)$', owner_href)
+        if not match:
+            return {"extension": None, "manager_id": None}
+        
+        employee_id = match.group(1)
+        
+        # Ищем маппинг employee_id -> extension в конфигурации
+        employee_mapping = config.get("employee_mapping", {})
+        mapped_extension = None
+        
+        if isinstance(employee_mapping, dict):
+            for ext, employee_data in employee_mapping.items():
+                if isinstance(employee_data, dict):
+                    emp_id = employee_data.get("employee_id")
+                    if emp_id == employee_id:
+                        mapped_extension = ext
+                        break
+                elif isinstance(employee_data, str):
+                    # Fallback для простого формата extension -> employee_id
+                    if employee_data == employee_id:
+                        mapped_extension = ext
+                        break
+        
+        logger.info(f"🔍 MS responsible-extension: phone={phone_e164}, employee_id={employee_id}, extension={mapped_extension}")
+        
+        return {
+            "extension": mapped_extension,
+            "manager_id": employee_id
+        }
+        
+    except Exception as e:
+        logger.error(f"ms_responsible_extension error: {e}")
+        return {"extension": None, "manager_id": None}
+
+
+@app.get("/internal/ms/customer-name")
+async def ms_customer_name(phone: str, enterprise_number: Optional[str] = None):
+    """
+    Возвращает имя клиента из МойСклад для отображения на телефоне.
+    Аналогично retailcrm и uon интеграциям.
+    
+    Returns: {"name": str|null}
+    """
+    try:
+        # Получаем конфигурацию МойСклад
+        import asyncpg
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres", 
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        
+        if enterprise_number:
+            # Получаем конфигурацию МойСклад из БД
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1",
+                enterprise_number
+            )
+            if row and row["integrations_config"]:
+                config_data = row["integrations_config"]
+                if isinstance(config_data, str):
+                    import json
+                    config_data = json.loads(config_data)
+                config = config_data.get("ms", {}) if config_data else {}
+            else:
+                config = None
+        else:
+            # Ищем любое предприятие с активной интеграцией МойСклад
+            row = await conn.fetchrow(
+                "SELECT number, integrations_config FROM enterprises WHERE active = true "
+                "AND integrations_config -> 'ms' ->> 'enabled' = 'true' LIMIT 1"
+            )
+            if row:
+                enterprise_number = row["number"]
+                config_data = row["integrations_config"]
+                if isinstance(config_data, str):
+                    import json
+                    config_data = json.loads(config_data)
+                config = config_data.get("ms", {}) if config_data else {}
+            else:
+                config = None
+        
+        await conn.close()
+        
+        if not config or not config.get("enabled"):
+            return {"name": None}
+        
+        api_token = config.get("api_token")  # Main API token
+        if not api_token:
+            return {"name": None}
+        
+        # Нормализуем номер телефона
+        phone_e164 = normalize_phone_e164(phone)
+        if not phone_e164:
+            return {"name": None}
+        
+        # Ищем клиента в МойСклад через Main API
+        counterparty_data = await search_ms_customer(api_token, phone_e164)
+        
+        if not counterparty_data or not counterparty_data.get("found"):
+            return {"name": None}
+        
+        # Формируем имя для отображения
+        raw_data = counterparty_data.get("raw", {})
+        display_name = None
+        
+        if isinstance(raw_data, dict):
+            # Приоритет: имя компании -> ФИО контакта
+            company_name = raw_data.get("name", "").strip()
+            
+            # Пытаемся найти ФИО в метаданных или атрибутах
+            contact_name = None
+            
+            # Поиск ФИО в атрибутах
+            attributes = raw_data.get("attributes", [])
+            if isinstance(attributes, list):
+                first_name = None
+                last_name = None
+                for attr in attributes:
+                    if isinstance(attr, dict):
+                        attr_name = (attr.get("name") or "").lower()
+                        attr_value = attr.get("value", "").strip()
+                        if "имя" in attr_name or "first" in attr_name:
+                            first_name = attr_value
+                        elif "фамилия" in attr_name or "last" in attr_name:
+                            last_name = attr_value
+                
+                if first_name or last_name:
+                    contact_name = f"{last_name or ''} {first_name or ''}".strip()
+            
+            # Используем имя компании или ФИО контакта
+            if company_name and company_name != phone_e164:
+                display_name = company_name
+                if contact_name:
+                    display_name = f"{company_name} ({contact_name})"
+            elif contact_name:
+                display_name = contact_name
+        
+        logger.info(f"🔍 MS customer-name: phone={phone_e164}, name={display_name}")
+        
+        return {"name": display_name}
+        
+    except Exception as e:
+        logger.error(f"ms_customer_name error: {e}")
+        return {"name": None}
+
+
+@app.get("/internal/ms/customer-profile")
+async def ms_customer_profile(phone: str, enterprise_number: Optional[str] = None):
+    """
+    Возвращает полный профиль клиента из МойСклад для обогащения БД.
+    Аналогично retailcrm и uon интеграциям.
+    
+    Returns: {
+        "last_name": str|null,
+        "first_name": str|null, 
+        "middle_name": str|null,
+        "enterprise_name": str|null,
+        "source": {"raw": dict}
+    }
+    """
+    try:
+        # Получаем конфигурацию МойСклад
+        import asyncpg
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres", 
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        
+        if enterprise_number:
+            # Получаем конфигурацию МойСклад из БД
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1",
+                enterprise_number
+            )
+            if row and row["integrations_config"]:
+                config_data = row["integrations_config"]
+                if isinstance(config_data, str):
+                    import json
+                    config_data = json.loads(config_data)
+                config = config_data.get("ms", {}) if config_data else {}
+            else:
+                config = None
+        else:
+            # Ищем любое предприятие с активной интеграцией МойСклад
+            row = await conn.fetchrow(
+                "SELECT number, integrations_config FROM enterprises WHERE active = true "
+                "AND integrations_config -> 'ms' ->> 'enabled' = 'true' LIMIT 1"
+            )
+            if row:
+                enterprise_number = row["number"]
+                config_data = row["integrations_config"]
+                if isinstance(config_data, str):
+                    import json
+                    config_data = json.loads(config_data)
+                config = config_data.get("ms", {}) if config_data else {}
+            else:
+                config = None
+        
+        await conn.close()
+        
+        if not config or not config.get("enabled"):
+            return {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
+        
+        api_token = config.get("api_token")  # Main API token
+        if not api_token:
+            return {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
+        
+        # Нормализуем номер телефона
+        phone_e164 = normalize_phone_e164(phone)
+        if not phone_e164:
+            return {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
+        
+        # Ищем клиента в МойСклад через Main API
+        counterparty_data = await search_ms_customer(api_token, phone_e164)
+        
+        if not counterparty_data or not counterparty_data.get("found"):
+            return {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
+        
+        # Извлекаем данные профиля
+        raw_data = counterparty_data.get("raw", {})
+        profile = {
+            "last_name": None,
+            "first_name": None,
+            "middle_name": None,
+            "enterprise_name": None
+        }
+        
+        if isinstance(raw_data, dict):
+            # Имя компании
+            company_name = raw_data.get("name", "").strip()
+            if company_name and company_name != phone_e164:
+                profile["enterprise_name"] = company_name
+            
+            # Поиск ФИО в атрибутах
+            attributes = raw_data.get("attributes", [])
+            if isinstance(attributes, list):
+                for attr in attributes:
+                    if isinstance(attr, dict):
+                        attr_name = (attr.get("name") or "").lower()
+                        attr_value = attr.get("value", "").strip()
+                        
+                        if ("имя" in attr_name or "first" in attr_name) and not profile["first_name"]:
+                            profile["first_name"] = attr_value
+                        elif ("фамилия" in attr_name or "last" in attr_name) and not profile["last_name"]:
+                            profile["last_name"] = attr_value
+                        elif ("отчество" in attr_name or "middle" in attr_name or "patronymic" in attr_name) and not profile["middle_name"]:
+                            profile["middle_name"] = attr_value
+        
+        logger.info(f"🔍 MS customer-profile: phone={phone_e164}, profile={profile}")
+        
+        # Возвращаем профиль с исходными данными для обогащения
+        return {
+            **profile,
+            "source": {"raw": raw_data}
+        }
+        
+    except Exception as e:
+        logger.error(f"ms_customer_profile error: {e}")
+        return {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
+
+# =============================================================================
 
 if __name__ == "__main__":
     uvicorn.run(

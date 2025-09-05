@@ -1118,6 +1118,19 @@ async def get_customer_name(enterprise_number: str, phone: str):
                                 name = " ".join([p for p in name_parts if p])
                 except Exception as e:
                     logger.warning(f"retailcrm name lookup failed: {e}")
+            elif primary == "ms":
+                # Query local moysklad service for customer name
+                url = "http://127.0.0.1:8023/internal/ms/customer-name"
+                try:
+                    async with httpx.AsyncClient(timeout=2.5) as client:
+                        resp = await client.get(url, params={"phone": phone_e164, "enterprise_number": enterprise_number})
+                        if resp.status_code == 200:
+                            data = resp.json() or {}
+                            n = data.get("name")
+                            if isinstance(n, str) and n.strip():
+                                name = n.strip()
+                except Exception as e:
+                    logger.warning(f"moysklad name lookup failed: {e}")
             elif primary == "uon":
                 # Query local uon service for customer profile
                 url = "http://127.0.0.1:8022/internal/uon/customer-by-phone"
@@ -1252,6 +1265,25 @@ async def get_customer_profile(enterprise_number: str, phone: str):
                                 logger.warning(f"Company search failed: {e}")
                 except Exception as e:
                     logger.warning(f"customer-profile retailcrm lookup failed: {e}")
+            elif primary == "ms":
+                # Query local moysklad service for customer profile
+                url = "http://127.0.0.1:8023/internal/ms/customer-profile"
+                try:
+                    async with httpx.AsyncClient(timeout=2.5) as client:
+                        resp = await client.get(url, params={"phone": phone_e164, "enterprise_number": enterprise_number})
+                        if resp.status_code == 200:
+                            data = resp.json() or {}
+                            # Extract profile data
+                            for key in ("last_name", "first_name", "middle_name", "enterprise_name"):
+                                value = data.get(key)
+                                if isinstance(value, str) and value.strip():
+                                    prof[key] = value.strip()
+                            
+                            source_data = data.get("source", {})
+                            if source_data:
+                                extra_source = source_data
+                except Exception as e:
+                    logger.warning(f"customer-profile moysklad lookup failed: {e}")
             elif primary == "uon":
                 url = "http://127.0.0.1:8022/internal/uon/customer-by-phone"
                 try:
@@ -1354,6 +1386,18 @@ async def get_responsible_extension(enterprise_number: str, phone: str, nocache:
                     if primary == "retailcrm":
                         retail = cfg.get("retailcrm") or {}
                         user_ext_map = retail.get("user_extensions") or {}
+                    elif primary == "ms":
+                        ms = cfg.get("ms") or {}
+                        raw_mapping = ms.get("employee_mapping") or {}
+                        # Преобразуем МойСклад формат в простой для совместимости
+                        user_ext_map = {}
+                        for ext, emp_data in raw_mapping.items():
+                            if isinstance(emp_data, dict):
+                                emp_id = emp_data.get("employee_id")
+                                if emp_id:
+                                    user_ext_map[emp_id] = ext
+                            elif isinstance(emp_data, str):
+                                user_ext_map[emp_data] = ext
                     elif primary == "uon":
                         uon = cfg.get("uon") or {}
                         user_ext_map = uon.get("user_extensions") or {}
@@ -1372,32 +1416,57 @@ async def get_responsible_extension(enterprise_number: str, phone: str, nocache:
                     async with httpx.AsyncClient(timeout=2.0) as client:
                         for attempt in range(2):
                             try:
-                                resp = await client.get(url, params={"phone": phone_e164})
+                                resp = await client.get(url, params={"phone": phone_e164, "enterprise_number": enterprise_number})
                                 if resp.status_code == 200:
                                     data = resp.json() or {}
                                     code = data.get("extension") if isinstance(data, dict) else None
                                     mid = data.get("manager_id") if isinstance(data, dict) else None
                                     if isinstance(code, str) and code.isdigit():
                                         ext = code
-                                    # попробуем проставить manager_id даже если code не пришёл
-                                    try:
-                                        manager_id_from_api = int(mid) if str(mid).isdigit() else None
-                                    except Exception:
-                                        manager_id_from_api = None
-                                    if manager_id_from_api is not None:
-                                        # приоритет: ручная карта user_extensions
-                                        mapped = user_ext_map.get(str(manager_id_from_api))
-                                        if isinstance(mapped, str) and mapped.isdigit():
-                                            mapped_ext = mapped
-                                    logger.info(f"responsible-extension retailcrm ok ext={ext} mapped={mapped_ext} manager_id={manager_id_from_api} phone={phone_e164}")
+                                    # МойСклад возвращает employee_id, ищем его в user_ext_map
+                                    if isinstance(mid, str) and mid.strip():
+                                        # user_ext_map теперь в формате employee_id -> extension
+                                        mapped_extension = user_ext_map.get(mid)
+                                        if mapped_extension and mapped_extension.isdigit():
+                                            mapped_ext = mapped_extension
+                                    logger.info(f"responsible-extension moysklad ok ext={ext} mapped={mapped_ext} employee_id={mid} phone={phone_e164}")
                                     break
                                 else:
-                                    logger.warning(f"responsible-extension retailcrm http={resp.status_code} attempt={attempt+1}")
+                                    logger.warning(f"responsible-extension moysklad http={resp.status_code} attempt={attempt+1}")
                             except Exception as er:
-                                logger.warning(f"responsible-extension retailcrm error attempt={attempt+1}: {er}")
+                                logger.warning(f"responsible-extension moysklad error attempt={attempt+1}: {er}")
                                 await asyncio.sleep(0.05)
                 except Exception as e:
                     logger.warning(f"responsible-extension retailcrm client setup failed: {e}")
+            elif primary == "ms":
+                # Ask local moysklad service for responsible manager
+                url = f"http://127.0.0.1:8023/internal/ms/responsible-extension"
+                try:
+                    async with httpx.AsyncClient(timeout=2.0) as client:
+                        for attempt in range(2):
+                            try:
+                                resp = await client.get(url, params={"phone": phone_e164, "enterprise_number": enterprise_number})
+                                if resp.status_code == 200:
+                                    data = resp.json() or {}
+                                    code = data.get("extension") if isinstance(data, dict) else None
+                                    mid = data.get("manager_id") if isinstance(data, dict) else None
+                                    if isinstance(code, str) and code.isdigit():
+                                        ext = code
+                                    # МойСклад возвращает employee_id, ищем его в user_ext_map
+                                    if isinstance(mid, str) and mid.strip():
+                                        # user_ext_map теперь в формате employee_id -> extension
+                                        mapped_extension = user_ext_map.get(mid)
+                                        if mapped_extension and mapped_extension.isdigit():
+                                            mapped_ext = mapped_extension
+                                    logger.info(f"responsible-extension moysklad ok ext={ext} mapped={mapped_ext} employee_id={mid} phone={phone_e164}")
+                                    break
+                                else:
+                                    logger.warning(f"responsible-extension moysklad http={resp.status_code} attempt={attempt+1}")
+                            except Exception as er:
+                                logger.warning(f"responsible-extension moysklad error attempt={attempt+1}: {er}")
+                                await asyncio.sleep(0.05)
+                except Exception as e:
+                    logger.warning(f"responsible-extension moysklad client setup failed: {e}")
             elif primary == "uon":
                 url = f"http://127.0.0.1:8022/internal/uon/responsible-extension"
                 try:

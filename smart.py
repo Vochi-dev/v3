@@ -472,6 +472,18 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
                         alt = await _compute_dialplan(conn, enterprise_number, trunk, phone_norm, "last_call")
                         if alt:
                             dialplan = alt
+                elif algorithm == "ms":
+                    e164 = "+" + phone_norm if not phone_norm.startswith("+") else phone_norm
+                    ms_ext = await _get_responsible_extension_via_8020(enterprise_number, e164)
+                    if isinstance(ms_ext, str) and ms_ext.isdigit():
+                        ms_internal_id = await _get_internal_id_for_extension(conn, enterprise_number, ms_ext)
+                        if ms_internal_id is not None:
+                            dialplan = f"mngr{ms_internal_id}_{trunk}_1"
+                    # Fallback: если не получили ответственного — используем last_call
+                    if dialplan is None:
+                        alt = await _compute_dialplan(conn, enterprise_number, trunk, phone_norm, "last_call")
+                        if alt:
+                            dialplan = alt
                 else:
                     dialplan = await _compute_dialplan(conn, enterprise_number, trunk, phone_norm, algorithm)
                 if dialplan:
@@ -535,7 +547,9 @@ async def get_customer_data(request: Request, body: GetCustomerDataRequest, Toke
                     "retailcrm_ext": retailcrm_ext if 'retailcrm_ext' in locals() else None,
                     "retailcrm_internal_id": retailcrm_internal_id if 'retailcrm_internal_id' in locals() else None,
                     "uon_ext": uon_ext if 'uon_ext' in locals() else None,
-                    "uon_internal_id": uon_internal_id if 'uon_internal_id' in locals() else None
+                    "uon_internal_id": uon_internal_id if 'uon_internal_id' in locals() else None,
+                    "ms_ext": ms_ext if 'ms_ext' in locals() else None,
+                    "ms_internal_id": ms_internal_id if 'ms_internal_id' in locals() else None
                 },
                 "latency_ms": elapsed
             }, ensure_ascii=False)
