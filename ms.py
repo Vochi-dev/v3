@@ -36,6 +36,9 @@ import asyncpg
 # КОНФИГУРАЦИЯ
 # =============================================================================
 
+# Глобальный set для отслеживания обработанных hangup событий
+processed_hangup_events = set()
+
 # МойСклад настройки по умолчанию
 MOYSKLAD_CONFIG = {
     "base_url": "https://api.moysklad.ru/api/remap/1.2",
@@ -2072,6 +2075,37 @@ async def send_ms_popup_by_external_id(phone_api_url: str, integration_code: str
 async def update_ms_call_with_recording(phone_api_url: str, integration_code: str, phone: str, extension: str, unique_id: str, record_url: str, call_data: dict = None):
     """Обновление звонка с прикреплением записи разговора и дополнительными данными"""
     try:
+        # Создаем ключ для дедупликации hangup событий
+        # Группируем по phone+extension в течение небольшого окна времени (30 сек)
+        import time
+        current_time = int(time.time())
+        time_window = current_time // 30  # 30-секундные окна
+        dedup_key = f"{phone}:{extension}:{time_window}"
+        
+        if dedup_key in processed_hangup_events:
+            logger.info(f"⏭️ Hangup event already processed for {dedup_key}, skipping duplicate")
+            return
+            
+        # Проверяем тип канала для фильтрации служебных событий
+        raw_data = call_data.get('raw', {}) if call_data else {}
+        call_type = raw_data.get('CallType', '')
+        trunk = raw_data.get('Trunk', '')
+        
+        # Фильтруем служебные каналы для исходящих звонков из МойСклад
+        if call_type == 2 and not trunk:
+            logger.info(f"⏭️ Skipping parasitic incoming channel for outgoing call: CallType={call_type}, Trunk='{trunk}'")
+            return
+        
+        # Добавляем в set обработанных событий
+        processed_hangup_events.add(dedup_key)
+        logger.info(f"🆕 Processing new hangup event: {dedup_key} (CallType={call_type}, Trunk='{trunk}')")
+        
+        # Ограничиваем размер set'а (оставляем последние 1000 событий)
+        if len(processed_hangup_events) > 1000:
+            oldest_events = list(processed_hangup_events)[:100]  # Удаляем первые 100
+            for event in oldest_events:
+                processed_hangup_events.discard(event)
+            logger.info(f"🧹 Cleaned up old hangup events, current size: {len(processed_hangup_events)}")
         # Ищем call_id в кэше - берем самый свежий для данного phone:extension
         phone_without_plus = phone.lstrip('+')
         
@@ -2162,6 +2196,18 @@ async def update_ms_call_with_recording(phone_api_url: str, integration_code: st
             # Добавляем комментарий на основе CallStatus
             call_status = raw_data.get('CallStatus', '')
             direction = call_data.get('direction', 'in')
+            
+            # Проверяем, это исходящий звонок по externalId в кэше
+            is_outgoing_call = False
+            if hasattr(create_ms_call, 'call_cache') and call_id:
+                call_cache = create_ms_call.call_cache
+                # Ищем external_id среди ключей кэша с этим call_id
+                for cached_key, cached_call_id in call_cache.items():
+                    if cached_call_id == call_id and 'outgoing-' in cached_key:
+                        is_outgoing_call = True
+                        direction = 'out'  # Принудительно устанавливаем direction для исходящих
+                        logger.info(f"🔄 Detected outgoing call by cache key: {cached_key}")
+                        break
             
             comment_parts = []
             
