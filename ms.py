@@ -1925,9 +1925,12 @@ async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone
             extension_part = called_extension if called_extension else "no-ext"
             external_id = f"webhook-{int(time.time())}-{caller_phone.replace('+', '')}-{extension_part}"
             
-            # Используем текущее время для startTime
-            from datetime import datetime
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Используем текущее время в GMT+3 для startTime
+            from datetime import datetime, timezone, timedelta
+            gmt_plus_3 = timezone(timedelta(hours=3))
+            current_time_local = datetime.now(gmt_plus_3)
+            current_time_utc = current_time_local.astimezone(timezone.utc)
+            current_time = current_time_utc.strftime("%Y-%m-%d %H:%M:%S")
             
             call_data = {
                 "from": caller_phone,
@@ -2066,8 +2069,8 @@ async def send_ms_popup_by_external_id(phone_api_url: str, integration_code: str
     
     return False
 
-async def update_ms_call_with_recording(phone_api_url: str, integration_code: str, phone: str, extension: str, unique_id: str, record_url: str):
-    """Обновление звонка с прикреплением записи разговора"""
+async def update_ms_call_with_recording(phone_api_url: str, integration_code: str, phone: str, extension: str, unique_id: str, record_url: str, call_data: dict = None):
+    """Обновление звонка с прикреплением записи разговора и дополнительными данными"""
     try:
         # Ищем call_id в кэше - берем самый свежий для данного phone:extension
         phone_without_plus = phone.lstrip('+')
@@ -2095,21 +2098,123 @@ async def update_ms_call_with_recording(phone_api_url: str, integration_code: st
             logger.warning(f"⚠️ Call ID not found for recording update: {phone} -> {extension}")
             return False
         
-        # Обновляем звонок с записью и правильным extension (PUT /call/{id})
-        async with httpx.AsyncClient() as client:
-            update_data = {
-                "recordUrl": [record_url] if record_url else [],
-                "extension": extension  # Устанавливаем правильный extension того, кто ответил
-            }
+        # Подготавливаем данные для обновления
+        update_data = {
+            "recordUrl": [record_url] if record_url else [],
+            "extension": extension  # Устанавливаем правильный extension того, кто ответил
+        }
+        
+        # Обрабатываем дополнительные данные из call_data
+        if call_data and call_data.get('raw'):
+            raw_data = call_data['raw']
             
+            # Рассчитываем длительность из StartTime и EndTime
+            start_time = raw_data.get('StartTime')
+            end_time = raw_data.get('EndTime')
+            if start_time and end_time:
+                try:
+                    from datetime import datetime, timezone, timedelta
+                    
+                    # Устанавливаем жестко GMT+3 (Минск/Москва) для нашего сервиса
+                    gmt_plus_3 = timezone(timedelta(hours=3))
+                    
+                    # Парсим времена как GMT+3
+                    start_dt_local = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+                    end_dt_local = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
+                    
+                    # Добавляем информацию о часовом поясе GMT+3
+                    start_dt_tz = start_dt_local.replace(tzinfo=gmt_plus_3)
+                    end_dt_tz = end_dt_local.replace(tzinfo=gmt_plus_3)
+                    
+                    # Конвертируем в UTC для МойСклад API
+                    start_dt_utc = start_dt_tz.astimezone(timezone.utc)
+                    end_dt_utc = end_dt_tz.astimezone(timezone.utc)
+                    
+                    # Рассчитываем длительность
+                    duration_seconds = int((end_dt_utc - start_dt_utc).total_seconds())
+                    
+                    if duration_seconds > 0:
+                        # Отправляем время в UTC формате для МойСклад + duration в секундах
+                        update_data["endTime"] = end_dt_utc.strftime("%Y-%m-%d %H:%M:%S.000")
+                        update_data["duration"] = duration_seconds
+                        
+                        logger.info(f"🕐 Call duration calculated: {duration_seconds} seconds")
+                        logger.info(f"🌍 Local times (GMT+3): {start_time} - {end_time}")
+                        logger.info(f"🌍 UTC endTime for API: {end_dt_utc.strftime('%Y-%m-%d %H:%M:%S')}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to calculate call duration: {e}")
+            
+            # Добавляем комментарий на основе CallStatus
+            call_status = raw_data.get('CallStatus', '')
+            direction = call_data.get('direction', 'in')
+            
+            comment_parts = []
+            
+            if call_status == '0':
+                if direction == 'in':
+                    comment_parts.append("Пропущенный входящий звонок")
+                else:
+                    comment_parts.append("Неотвеченный исходящий звонок")
+            elif call_status == '2':
+                if direction == 'in':
+                    comment_parts.append("Входящий звонок отвечен")
+                else:
+                    comment_parts.append("Исходящий звонок отвечен")
+            elif call_status == '1':
+                comment_parts.append("Звонок занят")
+            else:
+                comment_parts.append(f"Звонок завершен (статус: {call_status})")
+            
+            # Добавляем информацию о длительности в комментарий
+            if update_data.get("duration"):
+                duration_sec = update_data["duration"]  # Теперь уже в секундах
+                minutes = duration_sec // 60
+                seconds = duration_sec % 60
+                if minutes > 0:
+                    comment_parts.append(f"Длительность: {minutes} мин {seconds} сек")
+                else:
+                    comment_parts.append(f"Длительность: {seconds} сек")
+            
+            comment = " | ".join(comment_parts)
+            if comment:
+                update_data["comment"] = comment
+                logger.info(f"💬 Call comment: {comment}")
+        
+        # Пытаемся найти externalId из кэша call_id -> externalId
+        external_id = None
+        if hasattr(create_ms_call, 'call_cache'):
+            # Ищем external_id среди ключей кэша
+            for cache_key, cached_call_id in create_ms_call.call_cache.items():
+                if cached_call_id == call_id:
+                    # Извлекаем external_id из cache_key формата: phone:extension:timestamp
+                    parts = cache_key.split(':')
+                    if len(parts) >= 3:
+                        timestamp = parts[-1]
+                        phone_clean = phone.replace('+', '')
+                        ext_part = extension if extension else "no-ext"
+                        external_id = f"webhook-{timestamp}-{phone_clean}-{ext_part}"
+                        break
+        
+        # Используем обычный endpoint по call_id (externalId не работает)
+        update_url = f"{phone_api_url}/call/{call_id}"
+        logger.info(f"🔧 Updating call {call_id} with data: {update_data}")
+        if external_id:
+            logger.info(f"🔧 (externalId would be: {external_id})")
+        
+        async with httpx.AsyncClient() as client:
             response = await client.put(
-                f"{phone_api_url}/call/{call_id}",
+                update_url,
                 headers={"Lognex-Phone-Auth-Token": integration_code},
                 json=update_data
             )
             
             if response.status_code in [200, 204]:
                 logger.info(f"✅ MS call {call_id} updated with recording: {record_url} and extension: {extension}")
+                try:
+                    response_data = response.json()
+                    logger.info(f"📝 API response: {response_data}")
+                except:
+                    logger.info(f"📝 API response (non-JSON): {response.text[:200]}")
                 return True
             else:
                 logger.error(f"❌ Failed to update MS call {call_id} with recording: {response.status_code} - {response.text}")
@@ -2263,14 +2368,14 @@ async def process_ms_hangup_call(phone: str, extension: str, ms_config: dict, en
                         if success:
                             logger.info(f"✅ МойСклад HIDE_ALL sent to extension {ext} ({employee_name})")
                             sent_hides += 1
-                            # Обновляем звонок с записью
-                            await update_ms_call_with_recording(phone_api_url, integration_code, phone, ext, unique_id, record_url)
+                            # Обновляем звонок с записью и дополнительными данными
+                            await update_ms_call_with_recording(phone_api_url, integration_code, phone, ext, unique_id, record_url, call_data)
                         else:
                             logger.error(f"❌ Failed to send HIDE_ALL to extension {ext}")
                     else:
                         logger.warning(f"⚠️ Call ID not found for extension {ext}, phone {phone} - cannot send HIDE_ALL")
                         # Попытка обновить звонок с записью, даже если HIDE_ALL не получилось
-                        await update_ms_call_with_recording(phone_api_url, integration_code, phone, ext, unique_id, record_url)
+                        await update_ms_call_with_recording(phone_api_url, integration_code, phone, ext, unique_id, record_url, call_data)
                         sent_hides += 1  # Считаем как обработанный
                 else:
                     logger.debug(f"🔄 Extension {ext} has no employee mapping - skipping HIDE_ALL")
