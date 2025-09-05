@@ -362,6 +362,10 @@ async def create_customer(
             "email": customer_data.get("email", ""),
             "tags": customer_data.get("tags", [])
         }
+        
+        # Добавляем владельца, если указан
+        if customer_data.get("owner_id"):
+            data["owner"] = {"meta": {"href": f"https://api.moysklad.ru/api/remap/1.2/entity/employee/{customer_data['owner_id']}", "type": "employee"}}
 
         logger.info(f"🆕 Creating customer via Main API: {data['name']} ({data['phone']})")
         
@@ -629,6 +633,36 @@ MS_ADMIN_HTML = """
           <input type="text" id="orderSource" value="Телефонный звонок" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:14px;">
         </div>
       </div>
+      
+      <div style="margin-top:30px;">
+        <h3 style="margin:0 0 15px 0; font-size:18px; color:#e7eef8;">Действия при исходящем звонке</h3>
+        
+        <div style="margin-bottom:15px;">
+          <label style="display:flex; align-items:center; gap:8px; margin:0 0 10px 0; color:#e7eef8; cursor:pointer;">
+            <input type="checkbox" id="createClientOnOutgoing" style="width:16px; height:16px; accent-color:#2563eb;">
+            Создание клиента при неизвестном номере
+          </label>
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <div style="color:#a8c0e0; font-size:14px; margin-bottom:8px;">Создание заказа</div>
+          <div style="display:flex; gap:15px; align-items:center; margin-bottom:10px;">
+            <label style="display:flex; align-items:center; gap:8px; margin:0; color:#e7eef8; cursor:pointer;">
+              <input type="radio" name="createOrderOutgoing" value="none" checked style="width:16px; height:16px; accent-color:#2563eb;">
+              Не создавать
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; margin:0; color:#e7eef8; cursor:pointer;">
+              <input type="radio" name="createOrderOutgoing" value="always" style="width:16px; height:16px; accent-color:#2563eb;">
+              Всегда создавать
+            </label>
+          </div>
+        </div>
+        
+        <div style="margin-bottom:15px;">
+          <label style="color:#a8c0e0; font-size:14px; margin-bottom:8px; display:block;">Источник заказа</label>
+          <input type="text" id="orderSourceOutgoing" value="Исходящий звонок" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #2c4a6e; background:#0b1a2a; color:#e7eef8; font-size:14px;">
+        </div>
+      </div>
     </div>
   </div>
   <script>
@@ -708,6 +742,27 @@ MS_ADMIN_HTML = """
           orderSource.value = actions.order_source || 'Телефонный звонок';
         }
         
+        // Загружаем настройки действий при исходящем звонке
+        const outgoingActions = cfg.outgoing_call_actions || {};
+        const createClientOnOutgoing = document.getElementById('createClientOnOutgoing');
+        const createOrderOutgoingNone = document.querySelector('input[name="createOrderOutgoing"][value="none"]');
+        const createOrderOutgoingAlways = document.querySelector('input[name="createOrderOutgoing"][value="always"]');
+        const orderSourceOutgoing = document.getElementById('orderSourceOutgoing');
+        
+        if (createClientOnOutgoing) {
+          createClientOnOutgoing.checked = outgoingActions.create_client !== false;
+        }
+        
+        if (createOrderOutgoingNone && createOrderOutgoingAlways) {
+          const createOrderOutgoingMode = outgoingActions.create_order || 'none';
+          createOrderOutgoingNone.checked = (createOrderOutgoingMode === 'none');
+          createOrderOutgoingAlways.checked = (createOrderOutgoingMode === 'always');
+        }
+        
+        if (orderSourceOutgoing) {
+          orderSourceOutgoing.value = outgoingActions.order_source || 'Исходящий звонок';
+        }
+        
         console.log('✅ Конфигурация загружена:', cfg);
       } catch(e) { 
         console.warn('load() error', e); 
@@ -752,6 +807,21 @@ MS_ADMIN_HTML = """
         order_source: (orderSource && orderSource.value) || 'Телефонный звонок'
       };
       
+      // Собираем настройки действий при исходящем звонке
+      const createClientOnOutgoing = document.getElementById('createClientOnOutgoing');
+      const createOrderOutgoingNone = document.querySelector('input[name="createOrderOutgoing"][value="none"]');
+      const createOrderOutgoingAlways = document.querySelector('input[name="createOrderOutgoing"][value="always"]');
+      const orderSourceOutgoing = document.getElementById('orderSourceOutgoing');
+      
+      let createOrderOutgoingMode = 'none';
+      if (createOrderOutgoingAlways && createOrderOutgoingAlways.checked) createOrderOutgoingMode = 'always';
+      
+      const outgoing_call_actions = {
+        create_client: !!(createClientOnOutgoing && createClientOnOutgoing.checked),
+        create_order: createOrderOutgoingMode,
+        order_source: (orderSourceOutgoing && orderSourceOutgoing.value) || 'Исходящий звонок'
+      };
+      
       // Собираем данные о сотрудниках для сохранения соответствий ID ↔ extension
       const employeeMapping = {};
       if (employeesList) {
@@ -789,6 +859,7 @@ MS_ADMIN_HTML = """
             enabled: enabled,
             notifications: notifications,
             incoming_call_actions: incoming_call_actions,
+            outgoing_call_actions: outgoing_call_actions,
             employee_mapping: employeeMapping
           }) 
         });
@@ -1082,6 +1153,7 @@ async def ms_admin_api_get_config(enterprise_number: str):
         ms_config = (cfg.get("ms") if isinstance(cfg, dict) else None) or {}
         notifications = ms_config.get("notifications", {})
         incoming_call_actions = ms_config.get("incoming_call_actions", {})
+        outgoing_call_actions = ms_config.get("outgoing_call_actions", {})
 
         # Генерируем webhook URL с UUID для безопасности
         webhook_uuid = ms_config.get("webhook_uuid")
@@ -1117,6 +1189,11 @@ async def ms_admin_api_get_config(enterprise_number: str):
                 "create_order": incoming_call_actions.get("create_order", "none"),
                 "order_source": incoming_call_actions.get("order_source", "Телефонный звонок")
             },
+            "outgoing_call_actions": {
+                "create_client": outgoing_call_actions.get("create_client", False),
+                "create_order": outgoing_call_actions.get("create_order", "none"),
+                "order_source": outgoing_call_actions.get("order_source", "Исходящий звонок")
+            },
             "employee_mapping": ms_config.get("employee_mapping", {})
         }
         
@@ -1142,6 +1219,11 @@ async def ms_admin_api_get_config(enterprise_number: str):
                 "create_client": True,
                 "create_order": "none",
                 "order_source": "Телефонный звонок"
+            },
+            "outgoing_call_actions": {
+                "create_client": False,
+                "create_order": "none",
+                "order_source": "Исходящий звонок"
             }
         }
 
@@ -1197,6 +1279,7 @@ async def ms_admin_api_put_config(enterprise_number: str, request: Request):
             "webhook_uuid": webhook_uuid,
             "notifications": body.get("notifications", {}),
             "incoming_call_actions": body.get("incoming_call_actions", {}),
+            "outgoing_call_actions": body.get("outgoing_call_actions", {}),
             "employee_mapping": body.get("employee_mapping", {})
         }
         
@@ -1775,7 +1858,7 @@ async def find_contact_by_phone(phone: str, api_token: str) -> dict:
     
     return {"found": False}
 
-async def find_or_create_contact(phone: str, auto_create: bool, ms_config: dict) -> dict:
+async def find_or_create_contact(phone: str, auto_create: bool, ms_config: dict, employee_id: str = None) -> dict:
     """Поиск контакта по телефону или создание нового при необходимости"""
     try:
         # Сначала пытаемся найти существующий контакт
@@ -1805,6 +1888,11 @@ async def find_or_create_contact(phone: str, auto_create: bool, ms_config: dict)
             "tags": ["Создан автоматически"]
         }
         
+        # Добавляем владельца, если указан
+        if employee_id:
+            customer_data["owner_id"] = employee_id
+            logger.info(f"🔧 Setting customer owner to employee: {employee_id}")
+        
         customer_id = await create_customer(customer_data, api_token)
         
         if customer_id:
@@ -1827,7 +1915,7 @@ async def find_or_create_contact(phone: str, auto_create: bool, ms_config: dict)
         logger.error(f"❌ Error in find_or_create_contact for {phone}: {e}")
         return {"found": False}
 
-async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone: str, called_extension: str = None, contact_info: dict = {}) -> str:
+async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone: str, called_extension: str = None, contact_info: dict = {}, is_incoming: bool = True) -> str:
     """Создание звонка в МойСклад Phone API"""
     try:
         # Создаем новый клиент для каждого запроса
@@ -1845,7 +1933,7 @@ async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone
                 "from": caller_phone,
                 "number": caller_phone,  # Номер телефона, а не внутренний номер
                 "externalId": external_id,
-                "isIncoming": True,
+                "isIncoming": is_incoming,
                 "startTime": current_time
                 # НЕ указываем extension при создании - будет обновлен при hangup
             }
@@ -2096,7 +2184,7 @@ async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, 
             for ext in extensions:
                 employee_data = employee_mapping.get(ext)
                 
-                if employee_data and employee_data.get('employee_id') and call_id:
+                if employee_data and employee_data.get('employee_id'):
                     employee_id = employee_data['employee_id']
                     employee_name = employee_data.get('name', 'Unknown')
                     
@@ -2250,13 +2338,86 @@ async def process_ms_webhook_event(webhook_data: dict, ms_config: dict, enterpri
     except Exception as e:
         logger.error(f"Error processing MS webhook event: {e}")
 
+async def process_ms_outgoing_call(phone: str, extension: str, ms_config: dict, enterprise_number: str, unique_id: str, call_data: dict):
+    """Обработка исходящего звонка для МойСклад - попап ТОЛЬКО у звонящего сотрудника"""
+    try:
+        integration_code = ms_config.get('integration_code')
+        api_token = ms_config.get('api_token')
+        
+        if not integration_code:
+            logger.error(f"❌ Missing integration_code for enterprise {enterprise_number}")
+            return
+        
+        # Проверяем, включены ли уведомления для исходящих звонков
+        notifications = ms_config.get('notifications', {})
+        if not notifications.get('notify_outgoing', False):
+            logger.info(f"ℹ️ Outgoing call notifications disabled for enterprise {enterprise_number}")
+            return
+        
+        # Определяем ЗВОНЯЩЕГО сотрудника
+        raw_data = call_data.get('raw', {})
+        caller_id = raw_data.get('CallerIDNum', '')
+        
+        calling_extension = None
+        
+        # Пытаемся определить звонящего из CallerIDNum
+        if caller_id and caller_id.isdigit():
+            calling_extension = caller_id
+            logger.info(f"📞 Outgoing call from CallerIDNum: {calling_extension}")
+        else:
+            # Если CallerIDNum пустой, используем Extensions (обычно один элемент для исходящих)
+            extensions = raw_data.get('Extensions', [])
+            if len(extensions) == 1:
+                calling_extension = extensions[0]
+                logger.info(f"📞 Outgoing call from Extensions[0]: {calling_extension}")
+            else:
+                logger.warning(f"⚠️ Cannot determine calling extension: CallerIDNum='{caller_id}', Extensions={extensions}")
+        
+        if calling_extension:
+            employee_mapping = ms_config.get('employee_mapping', {})
+            employee_data = employee_mapping.get(calling_extension)
+            
+            if employee_data and employee_data.get('employee_id'):
+                employee_id = employee_data['employee_id']
+                employee_name = employee_data.get('name', 'Unknown')
+                
+                # Поиск/создание контакта с правильным владельцем
+                contact_info = {}
+                if api_token:
+                    # Получаем настройку автосоздания клиентов для исходящих
+                    outgoing_call_actions = ms_config.get('outgoing_call_actions', {})
+                    auto_create = outgoing_call_actions.get('create_client', False)
+                    logger.info(f"🔧 outgoing_call_actions: {outgoing_call_actions}")
+                    logger.info(f"🔧 Auto-create setting for outgoing: {auto_create}")
+                    
+                    # Используем функцию с автосозданием и правильным employee_id
+                    contact_info = await find_or_create_contact(phone, auto_create, ms_config, employee_id)
+                
+                # Создаем звонок от конкретного сотрудника (исходящий)
+                phone_api_url = "https://api.moysklad.ru/api/phone/1.0"
+                call_id = await create_ms_call(phone_api_url, integration_code, phone, calling_extension, contact_info, is_incoming=False)
+                
+                if call_id:
+                    # Отправляем попап ТОЛЬКО звонящему сотруднику
+                    await send_ms_popup(phone_api_url, integration_code, call_id, "SHOW", calling_extension, employee_id)
+                    logger.info(f"✅ МойСклад outgoing popup sent ONLY to calling extension {calling_extension} ({employee_name})")
+                else:
+                    logger.error(f"❌ Failed to create outgoing call for extension {calling_extension}")
+            else:
+                logger.warning(f"⚠️ No employee mapping found for calling extension {calling_extension}")
+        else:
+            logger.warning(f"⚠️ Cannot determine calling extension from call data")
+            
+    except Exception as e:
+        logger.error(f"❌ Error processing МойСклад outgoing call: {e}")
+
 # =============================================================================
 # ВНУТРЕННИЕ ЭНДПОИНТЫ ДЛЯ ИНТЕГРАЦИИ
 # =============================================================================
 
 @app.post("/internal/ms/incoming-call")
-async def internal_ms_incoming_call(request: Request):
-    """Внутренний endpoint для обработки входящих звонков от integration_cache"""
+async def internal_ms_call_event(request: Request):
+    """Внутренний endpoint для обработки dial событий (входящих и исходящих) от integration_cache"""
     try:
         payload = await request.json()
         logger.info(f"📞 Received incoming call from integration_cache: {payload}")
@@ -2297,9 +2458,11 @@ async def internal_ms_incoming_call(request: Request):
                 logger.info(f"ℹ️ МойСклад integration not enabled for enterprise {enterprise_number}")
                 return {"status": "disabled"}
             
-            # Обработать входящий звонок (только для входящих)
+            # Обработать звонок в зависимости от направления
             if direction == "in":
                 await process_ms_incoming_call(phone, extension, ms_config, enterprise_number, unique_id, payload)
+            elif direction == "out":
+                await process_ms_outgoing_call(phone, extension, ms_config, enterprise_number, unique_id, payload)
             
             return {"status": "success"}
             
