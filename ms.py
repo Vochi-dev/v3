@@ -348,11 +348,10 @@ async def get_customer_by_phone(
 
 async def create_customer(
     customer_data: Dict[str, Any],
-    login: str,
-    password: str,
-    api_url: str
+    api_token: str,
+    api_url: str = "https://api.moysklad.ru/api/remap/1.2"
 ) -> Optional[str]:
-    """Создание нового клиента"""
+    """Создание нового клиента через Bearer token"""
     try:
         url = f"{api_url}/entity/counterparty"
 
@@ -364,15 +363,32 @@ async def create_customer(
             "tags": customer_data.get("tags", [])
         }
 
-        response = await moy_sklad_request("POST", url, login, password, data)
-
-        if response["success"]:
-            return response["data"]["id"]
-
-        return None
+        logger.info(f"🆕 Creating customer via Main API: {data['name']} ({data['phone']})")
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {api_token}",
+                    "Accept": "application/json;charset=utf-8",
+                    "Content-Type": "application/json;charset=utf-8"
+                },
+                json=data
+            )
+            
+            logger.info(f"📞 Create customer response: status={response.status_code}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                customer_id = result.get("id")
+                logger.info(f"✅ Customer created successfully: {customer_id}")
+                return customer_id
+            else:
+                logger.error(f"❌ Failed to create customer: {response.status_code} - {response.text}")
+                return None
 
     except Exception as e:
-        logger.error(f"Error creating customer: {e}")
+        logger.error(f"❌ Error creating customer: {e}")
         return None
 
 
@@ -1759,6 +1775,58 @@ async def find_contact_by_phone(phone: str, api_token: str) -> dict:
     
     return {"found": False}
 
+async def find_or_create_contact(phone: str, auto_create: bool, ms_config: dict) -> dict:
+    """Поиск контакта по телефону или создание нового при необходимости"""
+    try:
+        # Сначала пытаемся найти существующий контакт
+        api_token = ms_config.get('api_token')
+        if api_token:
+            contact_info = await find_contact_by_phone(phone, api_token)
+            if contact_info.get("found"):
+                logger.info(f"✅ Existing contact found: {contact_info['name']} ({contact_info['phone']})")
+                return contact_info
+        
+        # Контакт не найден - проверяем настройку автосоздания
+        if not auto_create:
+            logger.info(f"🔄 Contact not found for {phone}, auto-creation disabled")
+            return {"found": False}
+        
+        # Используем тот же api_token что и для Phone API
+        if not api_token:
+            logger.warning(f"⚠️ Cannot auto-create contact for {phone}: missing api_token in configuration")
+            return {"found": False}
+        
+        # Создаем нового клиента
+        logger.info(f"🆕 Creating new customer for phone: {phone}")
+        customer_data = {
+            "name": phone,
+            "phone": phone,
+            "email": "",
+            "tags": ["Создан автоматически"]
+        }
+        
+        customer_id = await create_customer(customer_data, api_token)
+        
+        if customer_id:
+            logger.info(f"✅ Successfully created customer {customer_id} for phone {phone}")
+            # Возвращаем в том же формате что и find_contact_by_phone
+            return {
+                "found": True,
+                "name": customer_data["name"],
+                "phone": phone,
+                "email": "",
+                "id": customer_id,
+                "description": "Автоматически созданный клиент",
+                "auto_created": True  # Дополнительный флаг
+            }
+        else:
+            logger.error(f"❌ Failed to create customer for phone {phone}")
+            return {"found": False}
+            
+    except Exception as e:
+        logger.error(f"❌ Error in find_or_create_contact for {phone}: {e}")
+        return {"found": False}
+
 async def create_ms_call(phone_api_url: str, integration_code: str, caller_phone: str, called_extension: str = None, contact_info: dict = {}) -> str:
     """Создание звонка в МойСклад Phone API"""
     try:
@@ -1998,10 +2066,17 @@ async def process_ms_incoming_call(phone: str, extension: str, ms_config: dict, 
             logger.error(f"❌ Missing integration_code for enterprise {enterprise_number}")
             return
         
-        # Поиск контакта в МойСклад
+        # Поиск контакта в МойСклад (с возможностью автосоздания)
         contact_info = {}
         if api_token:
-            contact_info = await find_contact_by_phone(phone, api_token)
+            # Получаем настройку автосоздания клиентов
+            incoming_call_actions = ms_config.get('incoming_call_actions', {})
+            auto_create = incoming_call_actions.get('create_client', False)
+            logger.info(f"🔧 incoming_call_actions: {incoming_call_actions}")
+            logger.info(f"🔧 Auto-create setting: {auto_create}")
+            
+            # Используем новую функцию с автосозданием
+            contact_info = await find_or_create_contact(phone, auto_create, ms_config)
         
         # Создание звонка БЕЗ extension (будет обновлен при hangup) + отправка попапов
         phone_api_url = "https://api.moysklad.ru/api/phone/1.0"
