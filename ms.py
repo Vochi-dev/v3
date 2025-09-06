@@ -3386,6 +3386,139 @@ async def ms_customer_profile(phone: str, enterprise_number: Optional[str] = Non
         logger.error(f"ms_customer_profile error: {e}")
         return {"last_name": None, "first_name": None, "middle_name": None, "enterprise_name": None}
 
+@app.post("/internal/ms/recovery-call")
+async def recovery_call(request: Request):
+    """
+    Recovery режим: создание клиентов и звонков для пропущенных событий
+    БЕЗ попапов, но С созданием всех записей
+    """
+    try:
+        body = await request.json()
+        logger.info(f"📦 Recovery call: {body}")
+        
+        enterprise_number = body.get("enterprise_number")
+        phone = body.get("phone")
+        extension = body.get("extension", "")
+        direction = body.get("direction", "in")
+        unique_id = body.get("unique_id")
+        record_url = body.get("record_url")
+        raw = body.get("raw", {})
+        
+        if not all([enterprise_number, phone, unique_id]):
+            return {"error": "Missing required fields"}
+        
+        # Получаем конфигурацию МойСклад из БД
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres", 
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        try:
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1",
+                enterprise_number
+            )
+            if not row or not row["integrations_config"]:
+                return {"error": "МойСклад not configured"}
+                
+            config_data = row["integrations_config"]
+            if isinstance(config_data, str):
+                import json
+                config_data = json.loads(config_data)
+            
+            ms_config = config_data.get("ms", {})
+            if not ms_config:
+                return {"error": "МойСклад not configured"}
+                
+            api_token = ms_config.get('api_token')
+            if not api_token:
+                return {"error": "МойСклад API token not found"}
+        finally:
+            await conn.close()
+        
+        logger.info(f"🔄 Recovery: {direction} call {phone} -> {extension}, status: {raw.get('CallStatus')}")
+        
+        # 1. СОЗДАЕМ КЛИЕНТА (если настроено автосоздание)
+        try:
+            if direction == "in":
+                # Входящий звонок - проверяем incoming_call_actions
+                incoming_call_actions = ms_config.get('incoming_call_actions', {})
+                auto_create = incoming_call_actions.get('create_client', False)
+                logger.info(f"🔧 Incoming auto-create: {auto_create}")
+            else:
+                # Исходящий звонок - проверяем outgoing_call_actions  
+                outgoing_call_actions = ms_config.get('outgoing_call_actions', {})
+                auto_create = outgoing_call_actions.get('create_client', False)
+                logger.info(f"🔧 Outgoing auto-create: {auto_create}")
+            
+            if auto_create:
+                # Определяем employee_id для исходящих звонков
+                employee_id = None
+                if direction == "out" and extension:
+                    employee_mapping = ms_config.get("employee_mapping", {})
+                    for emp_data in employee_mapping:
+                        if isinstance(emp_data, dict) and emp_data.get("extension") == extension:
+                            employee_id = emp_data.get("employee_id")
+                            break
+                
+                # Создаем/находим клиента
+                customer_data = await find_or_create_contact(
+                    phone=phone,
+                    auto_create=True,
+                    ms_config=ms_config,
+                    employee_id=employee_id
+                )
+                logger.info(f"✅ Customer processed: {customer_data.get('name', 'Unknown')}")
+            else:
+                logger.info(f"ℹ️ Auto-create disabled for {direction} calls")
+                
+        except Exception as e:
+            logger.error(f"Customer creation failed: {e}")
+        
+        # 2. СОЗДАЕМ ЗВОНОК В МОЙСКЛАД
+        try:
+            phone_api_url = ms_config.get("phone_api_url", "https://api.moysklad.ru/api/phone/1.0")
+            integration_code = ms_config.get("integration_code", "webhook")
+            
+            # Создаем звонок
+            call_id = await create_ms_call(
+                phone_api_url=phone_api_url,
+                integration_code=integration_code,
+                caller_phone=phone,
+                called_extension=extension,
+                contact_info=customer_data if 'customer_data' in locals() else {},
+                is_incoming=(direction == "in")
+            )
+            
+            if call_id:
+                logger.info(f"✅ Recovery call created in МойСклад: {call_id}")
+                
+                # 3. ОБНОВЛЯЕМ С ЗАПИСЬЮ И ВРЕМЕННЫМИ ДАННЫМИ
+                if record_url or raw.get("EndTime"):
+                    await update_ms_call_with_recording(
+                        phone_api_url=phone_api_url,
+                        integration_code=integration_code,
+                        phone=phone,
+                        extension=extension,
+                        unique_id=unique_id,
+                        record_url=record_url or "",
+                        call_data={"raw": raw}
+                    )
+                    logger.info(f"📝 Recovery call updated with recording")
+                
+                return {"status": "success", "call_id": call_id, "message": "Recovery call processed"}
+            else:
+                logger.warning(f"⚠️ Recovery call creation failed")
+                return {"status": "warning", "message": "Call creation failed"}
+                
+        except Exception as e:
+            logger.error(f"Recovery call creation error: {e}")
+            return {"status": "error", "message": f"Call processing failed: {str(e)}"}
+            
+    except Exception as e:
+        logger.error(f"Recovery call processing error: {e}")
+        return {"error": f"Processing failed: {str(e)}"}
+
+
 # =============================================================================
 
 if __name__ == "__main__":

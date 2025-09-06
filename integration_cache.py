@@ -890,8 +890,8 @@ async def dispatch_call_event(request: Request):
         except Exception as e:
             logger.error(f"❌ U-ON forward failed: {e}")
 
-    # МойСклад → попап при dial
-    if active.get("ms") and event_type == "dial":
+    # МойСклад → попап при dial (только live события, не recovery)
+    if active.get("ms") and event_type == "dial" and origin != "download":
         try:
             import aiohttp
             # Определяем направление/номер/внутренний
@@ -948,7 +948,7 @@ async def dispatch_call_event(request: Request):
         except Exception as e:
             logger.error(f"❌ МойСклад forward failed: {e}")
     
-    # МойСклад → скрыть карточку при hangup
+    # МойСклад → обработка hangup событий
     if active.get("ms") and event_type == "hangup":
         try:
             import aiohttp
@@ -961,6 +961,16 @@ async def dispatch_call_event(request: Request):
 
             timeout = aiohttp.ClientTimeout(total=3)
             async with aiohttp.ClientSession(timeout=timeout) as session:
+                # Выбираем endpoint в зависимости от типа события
+                if origin == "download":
+                    # Recovery событие - только создание звонка без попапов
+                    endpoint = "http://127.0.0.1:8023/internal/ms/recovery-call"
+                    logger.info(f"🔄 Sending recovery hangup event to МойСклад")
+                else:
+                    # Live событие - обычная обработка с попапами
+                    endpoint = "http://127.0.0.1:8023/internal/ms/hangup-call"
+                    logger.info(f"🔗 Sending live hangup event to МойСклад")
+                
                 # Отправляем событие hangup в МойСклад
                 payload = {
                     "enterprise_number": enterprise_number,
@@ -970,19 +980,43 @@ async def dispatch_call_event(request: Request):
                     "event_type": "hangup",
                     "unique_id": unique_id,
                     "record_url": record_url,
-                    "raw": raw
+                    "raw": raw,
+                    "origin": origin  # Передаем флаг recovery/download
                 }
-                logger.info(f"🔗 Sending hangup event to МойСклад: {payload}")
+                
                 try:
-                    async with session.post("http://127.0.0.1:8023/internal/ms/hangup-call", json=payload) as r:
+                    async with session.post(endpoint, json=payload) as r:
                         ok = (r.status == 200)
                         try:
                             data = await r.json()
                         except Exception:
                             data = {}
                         logger.info(f"🔗 МойСклад hangup response: {r.status} - {data}")
+                        
+                        # Логируем результат
+                        event_type_log = "recovery_call" if origin == "download" else "hangup_call"
+                        await write_integration_log(
+                            enterprise_number=enterprise_number,
+                            event_type=event_type_log,
+                            request_data={"uniqueId": unique_id, "payload": payload},
+                            response_data=data,
+                            status_ok=ok,
+                            error_message=None if ok else f"http={r.status}",
+                            integration_type="ms",
+                        )
                 except Exception as inner_e:
                     logger.error(f"❌ МойСклад hangup HTTP error: {inner_e}")
+                    # Логируем ошибку
+                    event_type_log = "recovery_call" if origin == "download" else "hangup_call"
+                    await write_integration_log(
+                        enterprise_number=enterprise_number,
+                        event_type=event_type_log,
+                        request_data={"uniqueId": unique_id, "payload": payload},
+                        response_data=None,
+                        status_ok=False,
+                        error_message=str(inner_e),
+                        integration_type="ms",
+                    )
         except Exception as e:
             logger.error(f"❌ МойСклад hangup forward failed: {e}")
 
