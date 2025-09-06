@@ -540,7 +540,6 @@ MS_ADMIN_HTML = """
       <div class="actions">
         <label><input id="enabled" type="checkbox" /> Активен?</label>
         <button id="saveBtn" type="button" class="btn">Сохранить</button>
-        <button id="testBtn" type="button" class="btn" style="background:#059669;">Тестировать</button>
         <button id="deleteBtn" type="button" class="btn" style="background:#dc2626; margin-left:auto;">Удалить интеграцию</button>
         <button id="journalBtn" type="button" class="btn" style="background:#374151;">Журнал</button>
         <span id="msg" class="hint"></span>
@@ -561,11 +560,10 @@ MS_ADMIN_HTML = """
 
         <div id="employeesContainer" style="display: none;">
           <div style="background: #1e2537; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-            <div style="display: grid; grid-template-columns: 2fr 2fr 1fr 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid #2d3a52; margin-bottom: 12px; font-weight: bold; color: #a8c0e0;">
+            <div style="display: grid; grid-template-columns: 3fr 1fr 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid #2d3a52; margin-bottom: 12px; font-weight: bold; color: #a8c0e0;">
               <div>ФИО</div>
-              <div>Email</div>
-              <div>Телефон</div>
               <div>Внутренний номер</div>
+              <div>Тестирование</div>
             </div>
             <div id="employeesList"></div>
           </div>
@@ -902,25 +900,48 @@ MS_ADMIN_HTML = """
       }
     }
 
-    async function test() {
-      const btn = document.getElementById('testBtn');
+    // Глобальная функция для тестирования менеджера
+    window.testManager = async function(employeeId, extension, name) {
+      console.log('🧪 Testing manager:', {employeeId, extension, name});
+      
       const msg = document.getElementById('msg');
-      if (msg) { msg.textContent=''; msg.className='hint'; }
-      if (btn) btn.disabled = true;
-      try {
-        const r = await fetch(`./api/test/${enterprise}`, { method:'POST', headers:{'Content-Type':'application/json'} });
-        const jr = await r.json();
-        if (jr.success) {
-          if (msg) { msg.textContent=`✅ Подключение работает!`; msg.className='hint success'; }
-        } else {
-          if (msg) { msg.textContent=`❌ ${jr.error}`; msg.className='hint error'; }
-        }
-      } catch(e) {
-        if (msg) { msg.textContent= 'Ошибка теста: '+ e.message; msg.className='hint error'; }
-      } finally {
-        if (btn) btn.disabled=false;
+      if (msg) { 
+        msg.textContent = `🧪 Отправляем тестовый звонок для ${name} (внутр. ${extension})...`;
+        msg.className = 'hint';
       }
-    }
+      
+      try {
+        const response = await fetch(`./api/test-manager/${enterprise}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            employee_id: employeeId,
+            extension: extension,
+            name: name
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          if (msg) {
+            msg.textContent = `✅ Тестовый звонок отправлен для ${name}! Проверьте кабинет МойСклад.`;
+            msg.className = 'hint success';
+          }
+        } else {
+          if (msg) {
+            msg.textContent = `❌ Ошибка тестирования: ${result.error}`;
+            msg.className = 'hint error';
+          }
+        }
+      } catch(error) {
+        console.error('Test manager error:', error);
+        if (msg) {
+          msg.textContent = `❌ Ошибка соединения: ${error.message}`;
+          msg.className = 'hint error';
+        }
+      }
+    };
 
     function openJournal() {
       const url = `./journal?enterprise_number=${enterprise}`;
@@ -930,12 +951,10 @@ MS_ADMIN_HTML = """
     // События
     const saveBtn = document.getElementById('saveBtn');
     const deleteBtn = document.getElementById('deleteBtn');
-    const testBtn = document.getElementById('testBtn');
     const journalBtn = document.getElementById('journalBtn');
     
     if (saveBtn) saveBtn.addEventListener('click', save);
     if (deleteBtn) deleteBtn.addEventListener('click', deleteIntegration);
-    if (testBtn) testBtn.addEventListener('click', test);
     if (journalBtn) journalBtn.addEventListener('click', openJournal);
 
     // Функции для работы с сотрудниками
@@ -968,7 +987,7 @@ MS_ADMIN_HTML = """
               console.log('Creating element for employee:', emp);
               const row = document.createElement('div');
               row.className = 'employee-item';
-              row.style.cssText = 'display: grid; grid-template-columns: 2fr 2fr 1fr 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid #374151;';
+              row.style.cssText = 'display: grid; grid-template-columns: 3fr 1fr 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid #374151; align-items: center;';
               
               // Добавляем data-атрибуты для сохранения соответствий
               if (emp.id) row.dataset.employeeId = emp.id;
@@ -981,11 +1000,20 @@ MS_ADMIN_HTML = """
                 'background: #065f46; color: #10b981; padding: 2px 8px; border-radius: 4px; text-align: center; font-weight: bold;' :
                 'color: #6b7280; text-align: center;';
               
+              // Кнопка тестирования для менеджеров с внутренним номером
+              const testButtonHtml = emp.has_extension ? 
+                `<button type="button" 
+                   onclick="testManager('${emp.id}', '${emp.extension}', '${emp.name}')" 
+                   style="background: #059669; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                   title="Тестовый звонок для ${emp.name}">
+                  🧪 Тест
+                </button>` :
+                '<span style="color: #6b7280; text-align: center;">—</span>';
+              
               row.innerHTML = `
                 <div style="color: #ffffff;">${emp.name}</div>
-                <div style="color: #a8c0e0;">${emp.email || '—'}</div>
-                <div style="color: #a8c0e0;">${emp.phone || '—'}</div>
                 <div style="${extensionStyle}">${emp.extension || '—'}</div>
+                <div style="text-align: center;">${testButtonHtml}</div>
               `;
               list.appendChild(row);
             });
@@ -1621,6 +1649,123 @@ async def test_organizations():
             "success": False,
             "error": str(e)
         }
+
+@app.post("/ms-admin/api/test-manager/{enterprise_number}")
+async def ms_admin_api_test_manager(enterprise_number: str, request: Request):
+    """Тестирование конкретного менеджера - полный флоу звонка с записью в МойСклад"""
+    try:
+        body = await request.json()
+        employee_id = body.get("employee_id")
+        extension = body.get("extension")
+        name = body.get("name", "")
+        
+        logger.info(f"🧪 Testing manager {name} (ID: {employee_id}, ext: {extension}) for enterprise {enterprise_number}")
+        
+        # Получаем конфигурацию МойСклад
+        ms_config = await get_ms_config_from_cache(enterprise_number)
+        if not ms_config:
+            return {"success": False, "error": "Конфигурация МойСклад не найдена"}
+        
+        integration_code = ms_config.get('integration_code')
+        phone_api_url = ms_config.get('phone_api_url', 'https://api.moysklad.ru/api/phone/1.0')
+        
+        if not integration_code:
+            return {"success": False, "error": "Ключ интеграции не настроен"}
+        
+        # Тестовые данные
+        test_phone = "+375290000000"
+        test_unique_id = f"test-manager-{employee_id}-{int(time.time())}"
+        test_comment = f"Тестовое событие для {name}"
+        
+        # 1. Создаем тестового клиента в МойСклад (если настроено автосоздание)
+        contact_info = {}
+        incoming_call_actions = ms_config.get('incoming_call_actions', {})
+        if incoming_call_actions.get('create_client', False):
+            contact_info = await find_or_create_contact(
+                phone=test_phone,
+                auto_create=True,
+                ms_config=ms_config,
+                employee_id=employee_id
+            )
+            logger.info(f"📞 Test contact created/found: {contact_info.get('name', 'Unknown')}")
+        
+        # 2. Имитируем входящий звонок (dial event) 
+        logger.info(f"📞 Simulating incoming call from {test_phone} to extension {extension}")
+        
+        # Отправляем popup в МойСклад после создания звонка (создается позже)
+        
+        # 3. Создаем звонок в МойСклад
+        call_id = await create_ms_call(
+            phone_api_url=phone_api_url,
+            integration_code=integration_code,
+            caller_phone=test_phone,
+            called_extension=extension,
+            contact_info=contact_info,
+            is_incoming=True
+        )
+        
+        if not call_id:
+            return {"success": False, "error": "Не удалось создать звонок в МойСклад"}
+        
+        logger.info(f"📞 Test call created in МойСклад: {call_id}")
+        
+        # 3.5. Отправляем popup с созданным call_id
+        try:
+            await send_ms_popup(
+                phone_api_url=phone_api_url,
+                integration_code=integration_code,
+                call_id=call_id,
+                event_type="SHOW",
+                extension=extension,
+                employee_id=employee_id
+            )
+            logger.info(f"✅ Popup sent successfully for call {call_id}")
+        except Exception as popup_error:
+            logger.warning(f"⚠️ Popup failed: {popup_error}")
+        
+        # 4. Имитируем завершение звонка (hangup event) через небольшую задержку
+        await asyncio.sleep(1)  # Небольшая пауза для реалистичности
+        
+        # Подготавливаем данные hangup события
+        hangup_raw = {
+            "CallStatus": "2",  # Отвеченный звонок
+            "StartTime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "EndTime": (datetime.now() + timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S"),
+            "Duration": "30",
+            "BillSec": "25",
+            "Trunk": "test-trunk",
+            "Comment": test_comment
+        }
+        
+        # 5. Обновляем звонок с записью и комментарием
+        success = await update_ms_call_with_recording(
+            phone_api_url=phone_api_url,
+            integration_code=integration_code,
+            phone=test_phone,
+            extension=extension,
+            unique_id=test_unique_id,
+            record_url="",  # Пустая запись для теста
+            call_data={"raw": hangup_raw}
+        )
+        
+        if success:
+            logger.info(f"✅ Test call completed successfully for {name}")
+            return {
+                "success": True,
+                "message": f"Тестовый звонок успешно отправлен для {name}",
+                "call_id": call_id,
+                "contact_created": contact_info.get("found", False),
+                "contact_name": contact_info.get("name", "")
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Звонок создан, но обновление не удалось"
+            }
+        
+    except Exception as e:
+        logger.error(f"❌ Test manager error for {enterprise_number}: {e}")
+        return {"success": False, "error": str(e)}
 
 
 @app.post("/notify-incoming")
