@@ -39,6 +39,10 @@ import asyncpg
 # Глобальный set для отслеживания обработанных hangup событий
 processed_hangup_events = set()
 
+# Кэш конфигураций МойСклад для уменьшения запросов к БД/cache
+ms_config_cache = {}  # {enterprise_number: {"config": {...}, "expires": timestamp}}
+MS_CONFIG_CACHE_TTL = 300  # 5 минут
+
 # МойСклад настройки по умолчанию
 MOYSKLAD_CONFIG = {
     "base_url": "https://api.moysklad.ru/api/remap/1.2",
@@ -3170,44 +3174,14 @@ async def ms_customer_name(phone: str, enterprise_number: Optional[str] = None):
     Returns: {"name": str|null}
     """
     try:
-        # Получаем конфигурацию МойСклад
-        import asyncpg
-        conn = await asyncpg.connect(
-            host="localhost", port=5432, user="postgres", 
-            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
-        )
-        
         if enterprise_number:
-            # Получаем конфигурацию МойСклад из БД
-            row = await conn.fetchrow(
-                "SELECT integrations_config FROM enterprises WHERE number = $1",
-                enterprise_number
-            )
-            if row and row["integrations_config"]:
-                config_data = row["integrations_config"]
-                if isinstance(config_data, str):
-                    import json
-                    config_data = json.loads(config_data)
-                config = config_data.get("ms", {}) if config_data else {}
-            else:
-                config = None
+            # Получаем конфигурацию МойСклад через cache service с fallback к БД
+            config = await get_ms_config_from_cache(enterprise_number)
         else:
-            # Ищем любое предприятие с активной интеграцией МойСклад
-            row = await conn.fetchrow(
-                "SELECT number, integrations_config FROM enterprises WHERE active = true "
-                "AND integrations_config -> 'ms' ->> 'enabled' = 'true' LIMIT 1"
-            )
-            if row:
-                enterprise_number = row["number"]
-                config_data = row["integrations_config"]
-                if isinstance(config_data, str):
-                    import json
-                    config_data = json.loads(config_data)
-                config = config_data.get("ms", {}) if config_data else {}
-            else:
-                config = None
-        
-        await conn.close()
+            # Пока оставляем старую логику для поиска любого предприятия
+            config = await get_ms_config_legacy_fallback("0367")  # TODO: улучшить логику поиска
+            if config:
+                enterprise_number = "0367"
         
         if not config or not config.get("enabled"):
             return {"name": None}
@@ -3518,6 +3492,154 @@ async def recovery_call(request: Request):
         logger.error(f"Recovery call processing error: {e}")
         return {"error": f"Processing failed: {str(e)}"}
 
+
+# =============================================================================
+# УТИЛИТЫ И КЭШИРОВАНИЕ КОНФИГУРАЦИЙ
+# =============================================================================
+
+def normalize_phone_e164(phone: str) -> str:
+    """Нормализует номер телефона в формат E164."""
+    if not phone:
+        return phone
+    
+    # Убираем все символы кроме цифр
+    digits = ''.join(c for c in phone if c.isdigit())
+    
+    # Если номер начинается с 8, заменяем на 7
+    if digits.startswith('8') and len(digits) == 11:
+        digits = '7' + digits[1:]
+    
+    # Если номер начинается с 375 (Беларусь) - оставляем как есть
+    if digits.startswith('375') and len(digits) == 12:
+        return '+' + digits
+    
+    # Если номер начинается с 7 (Россия) - оставляем как есть 
+    if digits.startswith('7') and len(digits) == 11:
+        return '+' + digits
+    
+    # Для остальных случаев добавляем + если его нет
+    if not phone.startswith('+'):
+        return '+' + digits
+    
+    return phone
+
+async def get_ms_config_legacy_fallback(enterprise_number: str) -> Optional[Dict[str, Any]]:
+    """
+    LEGACY: Прямое обращение к БД для получения конфигурации МойСклад.
+    Используется как fallback в старых функциях.
+    """
+    try:
+        import asyncpg, json
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        try:
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1",
+                enterprise_number
+            )
+            if not row or not row["integrations_config"]:
+                return None
+
+            config_data = row["integrations_config"]
+            if isinstance(config_data, str):
+                config_data = json.loads(config_data)
+
+            ms_config = config_data.get("ms", {})
+            return ms_config if ms_config else None
+                
+        finally:
+            await conn.close()
+    
+    except Exception as e:
+        logger.error(f"❌ Legacy DB fallback failed for {enterprise_number}: {e}")
+        return None
+
+async def get_ms_config_from_cache(enterprise_number: str) -> Optional[Dict[str, Any]]:
+    """
+    Получает конфигурацию МойСклад из cache service с локальным кэшированием.
+    Приоритет: локальный кэш -> cache service (8020) -> БД
+    """
+    current_time = time.time()
+    
+    # 1. Проверяем локальный кэш
+    if enterprise_number in ms_config_cache:
+        cached_entry = ms_config_cache[enterprise_number]
+        if cached_entry["expires"] > current_time:
+            logger.debug(f"🎯 MS config from LOCAL cache for {enterprise_number}")
+            return cached_entry["config"]
+        else:
+            # Удаляем просроченную запись
+            del ms_config_cache[enterprise_number]
+    
+    try:
+        # 2. Запрашиваем из cache service (8020)
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            response = await client.get(f"http://127.0.0.1:8020/config/{enterprise_number}/ms")
+            
+            if response.status_code == 200:
+                data = response.json()
+                ms_config = data.get("config", {})
+                
+                # Сохраняем в локальный кэш
+                ms_config_cache[enterprise_number] = {
+                    "config": ms_config,
+                    "expires": current_time + MS_CONFIG_CACHE_TTL
+                }
+                
+                logger.info(f"✅ MS config from CACHE service for {enterprise_number}: enabled={ms_config.get('enabled', False)}")
+                return ms_config
+            
+            elif response.status_code == 404:
+                logger.warning(f"⚠️ MS integration not configured for {enterprise_number}")
+                return None
+            
+            else:
+                logger.warning(f"⚠️ Cache service error {response.status_code} for {enterprise_number}")
+                
+    except Exception as e:
+        logger.warning(f"⚠️ Cache service unavailable for {enterprise_number}: {e}")
+    
+    # 3. Fallback к БД (временно, пока cache не стабилен)
+    try:
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        try:
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1",
+                enterprise_number
+            )
+            if not row or not row["integrations_config"]:
+                logger.warning(f"⚠️ No integrations config found for {enterprise_number}")
+                return None
+
+            config_data = row["integrations_config"]
+            if isinstance(config_data, str):
+                config_data = json.loads(config_data)
+
+            ms_config = config_data.get("ms", {})
+            if ms_config:
+                # Сохраняем в локальный кэш
+                ms_config_cache[enterprise_number] = {
+                    "config": ms_config,
+                    "expires": current_time + MS_CONFIG_CACHE_TTL
+                }
+                
+                logger.info(f"🔄 MS config from DATABASE fallback for {enterprise_number}: enabled={ms_config.get('enabled', False)}")
+                return ms_config
+            else:
+                logger.warning(f"⚠️ MS config not found in integrations for {enterprise_number}")
+                return None
+                
+        finally:
+            await conn.close()
+    
+    except Exception as e:
+        logger.error(f"❌ Database fallback failed for {enterprise_number}: {e}")
+        return None
 
 # =============================================================================
 

@@ -49,11 +49,16 @@ app = FastAPI(title="Integration Cache Service", version="1.0.0")
 # Глобальные переменные
 pg_pool: Optional[asyncpg.Pool] = None
 integration_cache: Dict[str, Dict[str, Any]] = {}
+# Новый кэш для полных конфигураций
+full_config_cache: Dict[str, Dict[str, Any]] = {}
 cache_stats = {
     "hits": 0,
     "misses": 0,
     "refreshes": 0,
     "cache_size": 0,
+    "config_hits": 0,
+    "config_misses": 0,
+    "config_cache_size": 0,
     "last_full_refresh": None,
     "total_requests": 0
 }
@@ -371,7 +376,22 @@ async def init_database():
         raise
 
 async def load_integration_matrix() -> Dict[str, Dict[str, bool]]:
-    """Загружает матрицу включённости всех интеграций из БД"""
+    """Загружает матрицу включённости всех интеграций из БД (для совместимости)"""
+    full_configs = await load_full_integration_configs()
+    
+    # Преобразуем полные конфигурации в матрицу enabled
+    matrix = {}
+    for enterprise_number, configs in full_configs.items():
+        enabled_integrations = {}
+        for integration_type, config in configs.items():
+            if isinstance(config, dict):
+                enabled_integrations[integration_type] = config.get('enabled', False)
+        matrix[enterprise_number] = enabled_integrations
+    
+    return matrix
+
+async def load_full_integration_configs() -> Dict[str, Dict[str, Any]]:
+    """Загружает ПОЛНЫЕ конфигурации всех интеграций из БД"""
     if not pg_pool:
         return {}
     
@@ -384,15 +404,15 @@ async def load_integration_matrix() -> Dict[str, Dict[str, bool]]:
             """
             rows = await conn.fetch(query)
             
-            matrix = {}
+            configs = {}
             for row in rows:
                 enterprise_number = row['number']
                 integrations_config = row['integrations_config']
                 
                 logger.info(f"📋 Processing enterprise {enterprise_number}, config type: {type(integrations_config)}")
                 
-                # Парсим включённые интеграции
-                enabled_integrations = {}
+                # Парсим полные конфигурации
+                full_configs = {}
                 if integrations_config:
                     try:
                         # Если это строка, парсим JSON
@@ -401,19 +421,20 @@ async def load_integration_matrix() -> Dict[str, Dict[str, bool]]:
                         
                         # integrations_config должен быть dict
                         if isinstance(integrations_config, dict):
+                            # Сохраняем ПОЛНЫЕ конфигурации
                             for integration_type, config in integrations_config.items():
                                 if isinstance(config, dict):
-                                    enabled_integrations[integration_type] = config.get('enabled', False)
+                                    full_configs[integration_type] = config
                                     logger.info(f"   📍 {integration_type}: enabled={config.get('enabled', False)}")
                         else:
                             logger.warning(f"⚠️ Unexpected config type for {enterprise_number}: {type(integrations_config)}")
                     except Exception as e:
                         logger.error(f"❌ Error parsing config for {enterprise_number}: {e}")
                 
-                matrix[enterprise_number] = enabled_integrations
+                configs[enterprise_number] = full_configs
             
-            logger.info(f"📊 Loaded integration matrix for {len(matrix)} enterprises")
-            return matrix
+            logger.info(f"📊 Loaded full integration configs for {len(configs)} enterprises")
+            return configs
             
     except Exception as e:
         logger.error(f"❌ Error loading integration matrix: {e}")
@@ -421,19 +442,37 @@ async def load_integration_matrix() -> Dict[str, Dict[str, bool]]:
 
 async def refresh_cache():
     """Полное обновление кэша"""
-    global integration_cache, cache_stats
+    global integration_cache, full_config_cache, cache_stats
     
     start_time = time.time()
-    matrix = await load_integration_matrix()
     
-    # Атомарное обновление кэша
+    # Загружаем полные конфигурации
+    full_configs = await load_full_integration_configs()
+    
+    # Атомарное обновление кэша полных конфигураций
+    new_full_cache = {}
+    for enterprise_number, configs in full_configs.items():
+        new_full_cache[enterprise_number] = CacheEntry(configs)
+    
+    # Преобразуем в матрицу enabled для совместимости
+    matrix = {}
+    for enterprise_number, configs in full_configs.items():
+        enabled_integrations = {}
+        for integration_type, config in configs.items():
+            if isinstance(config, dict):
+                enabled_integrations[integration_type] = config.get('enabled', False)
+        matrix[enterprise_number] = enabled_integrations
+    
+    # Атомарное обновление кэша статусов
     new_cache = {}
     for enterprise_number, integrations in matrix.items():
         new_cache[enterprise_number] = CacheEntry(integrations)
     
     integration_cache = new_cache
+    full_config_cache = new_full_cache
     cache_stats["refreshes"] += 1
     cache_stats["cache_size"] = len(integration_cache)
+    cache_stats["config_cache_size"] = len(full_config_cache)
     cache_stats["last_full_refresh"] = datetime.now().isoformat()
     
     elapsed = time.time() - start_time
@@ -551,10 +590,14 @@ async def get_stats():
     """Статистика кэша"""
     hit_rate = cache_stats["hits"] / max(1, cache_stats["total_requests"]) * 100
     
+    config_hit_rate = cache_stats["config_hits"] / max(1, cache_stats["config_hits"] + cache_stats["config_misses"]) * 100
+    
     return {
         **cache_stats,
         "hit_rate_percent": round(hit_rate, 2),
+        "config_hit_rate_percent": round(config_hit_rate, 2),
         "cache_entries": len(integration_cache),
+        "config_cache_entries": len(full_config_cache),
         "incoming_transform_cached": len(incoming_transform_cache)
     }
 
@@ -588,6 +631,75 @@ async def get_integrations(enterprise_number: str):
     # ИГНОРИРУЕМ предприятия без интеграций
     logger.info(f"⚠️ Enterprise {enterprise_number} has no integrations configured - IGNORING")
     raise HTTPException(status_code=404, detail="Enterprise not found")
+
+@app.get("/config/{enterprise_number}")
+async def get_integration_config(enterprise_number: str):
+    """Получить ПОЛНУЮ конфигурацию интеграций для предприятия"""
+    global cache_stats, full_config_cache
+    
+    cache_stats["total_requests"] += 1
+    
+    # Проверяем кэш полных конфигураций
+    if enterprise_number in full_config_cache:
+        entry = full_config_cache[enterprise_number]
+        if not entry.is_expired():
+            cache_stats["config_hits"] += 1
+            integrations_data = entry.to_dict()
+            # Исправляем дублирование структуры
+            if "integrations" in integrations_data:
+                integrations_data = integrations_data["integrations"]
+            
+            return {
+                "enterprise_number": enterprise_number,
+                "integrations": integrations_data,
+                "source": "cache",
+                "cached_at": datetime.fromtimestamp(entry.created_at).isoformat() if hasattr(entry, 'created_at') else None
+            }
+        else:
+            # Просроченная запись
+            del full_config_cache[enterprise_number]
+    
+    # Cache miss - загружаем из БД
+    cache_stats["config_misses"] += 1
+    full_configs = await load_full_integration_configs()
+    
+    if enterprise_number in full_configs:
+        configs = full_configs[enterprise_number]
+        entry = CacheEntry(configs)
+        full_config_cache[enterprise_number] = entry
+        cache_stats["config_cache_size"] = len(full_config_cache)
+        
+        return {
+            "enterprise_number": enterprise_number,
+            "integrations": configs,
+            "source": "database",
+            "cached_at": datetime.fromtimestamp(entry.created_at).isoformat() if hasattr(entry, 'created_at') else None
+        }
+    
+    # Предприятие не найдено или нет конфигураций
+    raise HTTPException(
+        status_code=404, 
+        detail=f"No integration configurations found for enterprise {enterprise_number}"
+    )
+
+@app.get("/config/{enterprise_number}/{integration_type}")
+async def get_specific_integration_config(enterprise_number: str, integration_type: str):
+    """Получить конфигурацию конкретной интеграции"""
+    full_config = await get_integration_config(enterprise_number)
+    
+    integrations = full_config.get("integrations", {})
+    if integration_type not in integrations:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Integration '{integration_type}' not configured for enterprise {enterprise_number}"
+        )
+    
+    return {
+        "enterprise_number": enterprise_number,
+        "integration_type": integration_type,
+        "config": integrations[integration_type],
+        "source": full_config.get("source", "unknown")
+    }
 
 @app.get("/incoming-transform/{enterprise_number}")
 async def get_incoming_transform(enterprise_number: str):
