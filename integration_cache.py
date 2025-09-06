@@ -1411,25 +1411,6 @@ async def get_customer_profile(enterprise_number: str, phone: str):
                                 logger.warning(f"Company search failed: {e}")
                 except Exception as e:
                     logger.warning(f"customer-profile retailcrm lookup failed: {e}")
-            elif primary == "ms":
-                # Query local moysklad service for customer profile
-                url = "http://127.0.0.1:8023/internal/ms/customer-profile"
-                try:
-                    async with httpx.AsyncClient(timeout=2.5) as client:
-                        resp = await client.get(url, params={"phone": phone_e164, "enterprise_number": enterprise_number})
-                        if resp.status_code == 200:
-                            data = resp.json() or {}
-                            # Extract profile data
-                            for key in ("last_name", "first_name", "middle_name", "enterprise_name"):
-                                value = data.get(key)
-                                if isinstance(value, str) and value.strip():
-                                    prof[key] = value.strip()
-                            
-                            source_data = data.get("source", {})
-                            if source_data:
-                                extra_source = source_data
-                except Exception as e:
-                    logger.warning(f"customer-profile moysklad lookup failed: {e}")
             elif primary == "uon":
                 url = "http://127.0.0.1:8022/internal/uon/customer-by-phone"
                 try:
@@ -1464,12 +1445,62 @@ async def get_customer_profile(enterprise_number: str, phone: str):
                                 extra_source = {"raw": raw_data}
                 except Exception as e:
                     logger.warning(f"customer-profile uon lookup failed: {e}")
+            elif primary == "ms":
+                # Получаем профиль клиента через сервис МойСклад
+                logger.info(f"[get_customer_profile] МойСклад lookup for {phone_e164}")
+                url = "http://127.0.0.1:8023/internal/ms/customer-debug"
+                try:
+                    async with httpx.AsyncClient(timeout=2.5) as client:
+                        resp = await client.get(url, params={"phone": phone_e164, "enterprise_number": enterprise_number})
+                        if resp.status_code == 200:
+                            data = resp.json() or {}
+                            
+                            # Получаем данные контрагента
+                            counterparty = data.get("counterparty", {})
+                            if counterparty:
+                                counterparty_name = counterparty.get("name", "").strip()
+                                
+                                # Всегда устанавливаем данные (логика автогенерации проверяется в ms.py)
+                                if counterparty_name:
+                                    # Для МойСклад у контрагента нет отдельных полей ФИО, только name
+                                    prof["last_name"] = counterparty_name
+                                    prof["enterprise_name"] = counterparty_name
+                                
+                                # Формируем сырые данные для merge_customer_identity
+                                ms_raw = {
+                                    "id": counterparty.get("id"),
+                                    "name": counterparty_name,
+                                    "phone": phone_e164,
+                                    "contact_persons": []
+                                }
+                                
+                                # Добавляем контактные лица
+                                contact_persons = data.get("contact_persons", [])
+                                for contact in contact_persons:
+                                    contact_name = contact.get("name", "").strip()
+                                    contact_phone = contact.get("phone", "").strip()
+                                    if contact_name and contact_phone:
+                                        ms_raw["contact_persons"].append({
+                                            "id": contact.get("id"),
+                                            "name": contact_name,
+                                            "phone": contact_phone
+                                        })
+                                
+                                extra_source = {"raw": ms_raw, "type": "moysklad"}
+                                logger.info(f"[get_customer_profile] МойСклад profile enriched: last_name={prof.get('last_name')}, enterprise_name={prof.get('enterprise_name')}, source_created={bool(extra_source)}")
+                                
+                except Exception as e:
+                    logger.warning(f"customer-profile moysklad lookup failed: {e}")
             else:
                 pass
 
-            customer_profile_cache[cache_key] = {**prof, "expires": now + TTL_SECONDS}
+            # НЕ кэшируем профиль, если есть source, чтобы всегда возвращать актуальные данные
+            if not extra_source:
+                customer_profile_cache[cache_key] = {**prof, "expires": now + TTL_SECONDS}
             # Возвращаем профиль, добавляя source (без кэширования source)
+            logger.info(f"[get_customer_profile] Returning profile: prof={prof.keys()}, extra_source={bool(extra_source)}")
             if extra_source:
+                logger.info(f"[get_customer_profile] Returning with extra_source: type={extra_source.get('type')}")
                 return {**prof, "source": extra_source}
             # Если данные есть, но source не найден, добавляем дефолтный source с минимальным raw
             if any(prof.get(k) for k in ("last_name", "first_name", "enterprise_name")):
@@ -1742,6 +1773,11 @@ async def enrich_customer(enterprise_number: str, phone_e164: str):
             company_id = company_info.get("id")
             if isinstance(company_id, (str, int)) and str(company_id).strip():
                 external_id = str(company_id).strip()
+        elif source_type == "moysklad":
+            # Для МойСклад используем ID контрагента
+            ext_id = source_raw.get("id")
+            if isinstance(ext_id, (str, int)) and str(ext_id).strip():
+                external_id = str(ext_id).strip()
         
         if not external_id:
             return {"success": False, "error": f"No external_id found for {source_type}"}
@@ -1768,6 +1804,26 @@ async def enrich_customer(enterprise_number: str, phone_e164: str):
                     for phone_str in contact_phones:
                         if isinstance(phone_str, str) and phone_str.strip().startswith("+"):
                             all_client_phones.append(phone_str.strip())
+        elif source_type == "moysklad":
+            # Для МойСклад собираем все номера контрагента и контактных лиц
+            # Основной номер контрагента
+            if hasattr(source_raw, 'get'):
+                counterparty_phone = source_raw.get("phone", "").strip()
+                if counterparty_phone and counterparty_phone.startswith("+"):
+                    all_client_phones.append(counterparty_phone)
+            
+            # Номера контактных лиц
+            contact_persons = source_raw.get("contact_persons", []) if hasattr(source_raw, 'get') else []
+            if isinstance(contact_persons, list):
+                for contact in contact_persons:
+                    if isinstance(contact, dict):
+                        contact_phone = contact.get("phone", "").strip()
+                        if contact_phone and contact_phone.startswith("+"):
+                            all_client_phones.append(contact_phone)
+            
+            # Fallback: добавляем текущий номер если ничего не найдено
+            if not all_client_phones:
+                all_client_phones.append(phone_e164)
         elif source_type == "uon":
             # Для U-ON можно добавить аналогичную логику, если данные доступны
             # Пока добавляем только текущий номер

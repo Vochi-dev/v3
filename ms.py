@@ -3246,6 +3246,111 @@ async def ms_customer_name(phone: str, enterprise_number: Optional[str] = None):
         return {"name": None}
 
 
+@app.post("/internal/ms/enrich-customer")
+async def ms_enrich_customer(phone: str, enterprise_number: Optional[str] = None):
+    """
+    Endpoint для обогащения БД данными клиента из МойСклад.
+    """
+    try:
+        if not enterprise_number:
+            enterprise_number = "0367"  # Дефолтное предприятие для тестов
+            
+        result = await enrich_customer_data_from_moysklad(enterprise_number, phone)
+        return result
+        
+    except Exception as e:
+        logger.error(f"ms_enrich_customer error: {e}")
+        return {"enriched": 0, "skipped": 0, "errors": [str(e)]}
+
+@app.get("/internal/ms/customer-debug")
+async def ms_customer_debug(phone: str, enterprise_number: Optional[str] = None):
+    """
+    DEBUG: Детальный анализ данных клиента из МойСклад.
+    Возвращает полную структуру для анализа обогащения БД.
+    """
+    try:
+        if enterprise_number:
+            config = await get_ms_config_from_cache(enterprise_number)
+        else:
+            config = await get_ms_config_legacy_fallback("0367")
+            if config:
+                enterprise_number = "0367"
+        
+        if not config or not config.get("enabled"):
+            return {"error": "МойСклад integration not enabled"}
+        
+        api_token = config.get("api_token")
+        if not api_token:
+            return {"error": "МойСклад API token not found"}
+        
+        phone_e164 = normalize_phone_e164(phone)
+        logger.info(f"🔍 MS customer DEBUG: phone={phone_e164}")
+        
+        # Поиск контрагента
+        counterparty_data = await search_ms_customer(api_token, phone_e164)
+        
+        if not counterparty_data or not counterparty_data.get("found"):
+            return {"found": False, "phone": phone_e164}
+        
+        raw_data = counterparty_data.get("raw", {})
+        
+        # Дополнительно запрашиваем контактные лица
+        contactpersons = []
+        try:
+            counterparty_id = raw_data.get("id")
+            if counterparty_id:
+                async with httpx.AsyncClient(timeout=5) as client:
+                    headers = {
+                        "Authorization": f"Bearer {api_token}",
+                        "Accept": "application/json;charset=utf-8",
+                        "User-Agent": "VochiCRM/1.0"
+                    }
+                    
+                    contacts_url = f"https://api.moysklad.ru/api/remap/1.2/entity/counterparty/{counterparty_id}/contactpersons"
+                    response = await client.get(contacts_url, headers=headers)
+                    
+                    logger.info(f"🌐 Contacts request: {response.status_code} {response.reason_phrase}")
+                    
+                    if response.status_code == 200:
+                        contacts_data = response.json()
+                        contactpersons = contacts_data.get("rows", [])
+                        logger.info(f"📞 Found {len(contactpersons)} contact persons")
+                    else:
+                        logger.warning(f"⚠️ Contacts request failed: {response.status_code}")
+                        logger.warning(f"⚠️ Response body: {response.text[:200]}")
+        except Exception as e:
+            logger.warning(f"⚠️ Error fetching contacts: {e}")
+        
+        return {
+            "found": True,
+            "phone": phone_e164,
+            "counterparty": {
+                "id": raw_data.get("id"),
+                "name": raw_data.get("name"),
+                "companyType": raw_data.get("companyType"),
+                "phone": raw_data.get("phone"),
+                "email": raw_data.get("email"),
+                "tags": raw_data.get("tags", [])
+            },
+            "contactpersons": [
+                {
+                    "id": cp.get("id"),
+                    "name": cp.get("name"),
+                    "phone": cp.get("phone"),  
+                    "email": cp.get("email"),
+                    "position": cp.get("position")
+                } for cp in contactpersons
+            ],
+            "raw_structure": {
+                "counterparty_keys": list(raw_data.keys()) if raw_data else [],
+                "contactperson_keys": [list(cp.keys()) for cp in contactpersons[:1]] if contactpersons else []
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"ms_customer_debug error: {e}")
+        return {"error": str(e)}
+
 @app.get("/internal/ms/customer-profile")
 async def ms_customer_profile(phone: str, enterprise_number: Optional[str] = None):
     """
@@ -3522,6 +3627,166 @@ def normalize_phone_e164(phone: str) -> str:
         return '+' + digits
     
     return phone
+
+def is_auto_generated_name(name: str, phone: str) -> bool:
+    """
+    Проверяет, является ли название автосгенерированным (содержит номер телефона).
+    """
+    if not name or not phone:
+        return True
+    
+    # Убираем все не-цифры из номера для сравнения
+    phone_digits = ''.join(c for c in phone if c.isdigit())
+    name_digits = ''.join(c for c in name if c.isdigit())
+    
+    # Если в названии есть цифры номера телефона - это автосгенерированное название
+    if phone_digits and phone_digits in name_digits:
+        return True
+        
+    # Если название начинается с + и содержит цифры - тоже автосгенерированное
+    if name.startswith('+') and any(c.isdigit() for c in name):
+        return True
+        
+    return False
+
+async def enrich_customer_data_from_moysklad(enterprise_number: str, phone: str) -> Dict[str, Any]:
+    """
+    Обогащает локальную БД данными клиента из МойСклад.
+    
+    Алгоритм:
+    1. Получает данные контрагента и контактных лиц из МойСклад
+    2. Проверяет названия на автогенерацию (содержат номер телефона)
+    3. Обогащает last_name и enterprise_name, очищает first_name/middle_name
+    4. Связывает все номера контрагента через enterprise_name
+    
+    Returns: {"enriched": int, "skipped": int, "errors": list}
+    """
+    enriched_count = 0
+    skipped_count = 0
+    errors = []
+    
+    try:
+        # Получаем конфигурацию МойСклад
+        config = await get_ms_config_from_cache(enterprise_number)
+        if not config or not config.get("enabled"):
+            return {"enriched": 0, "skipped": 0, "errors": ["МойСклад integration not enabled"]}
+        
+        api_token = config.get("api_token")
+        if not api_token:
+            return {"enriched": 0, "skipped": 0, "errors": ["МойСклад API token not found"]}
+        
+        phone_e164 = normalize_phone_e164(phone)
+        logger.info(f"🔍 Enriching customer data for {phone_e164}")
+        
+        # Поиск контрагента в МойСклад
+        counterparty_data = await search_ms_customer(api_token, phone_e164)
+        
+        if not counterparty_data or not counterparty_data.get("found"):
+            logger.info(f"⚠️ Customer not found in МойСклад: {phone_e164}")
+            return {"enriched": 0, "skipped": 1, "errors": []}
+        
+        raw_data = counterparty_data.get("raw", {})
+        counterparty_name = raw_data.get("name", "").strip()
+        counterparty_id = raw_data.get("id")
+        
+        # Подключение к БД
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres",
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        
+        try:
+            # 1. Обработка основного контрагента
+            if is_auto_generated_name(counterparty_name, phone_e164):
+                logger.info(f"⏭️ Skipping auto-generated counterparty name: '{counterparty_name}'")
+                skipped_count += 1
+            else:
+                # Обогащаем основной номер
+                await conn.execute("""
+                    INSERT INTO customers (enterprise_number, phone_e164, last_name, first_name, middle_name, enterprise_name, meta)
+                    VALUES ($1, $2, $3, NULL, NULL, $4, $5)
+                    ON CONFLICT (enterprise_number, phone_e164) 
+                    DO UPDATE SET 
+                        last_name = EXCLUDED.last_name,
+                        first_name = NULL,
+                        middle_name = NULL,
+                        enterprise_name = EXCLUDED.enterprise_name,
+                        meta = COALESCE(customers.meta, '{}'::jsonb) || EXCLUDED.meta
+                """, enterprise_number, phone_e164, counterparty_name, counterparty_name, 
+                json.dumps({"moysklad_counterparty_id": counterparty_id, "source": "moysklad", "updated_at": datetime.now().isoformat()}))
+                
+                logger.info(f"🏢 Enriched counterparty: {phone_e164} → '{counterparty_name}'")
+                enriched_count += 1
+            
+            # 2. Получение и обработка контактных лиц
+            contactpersons = []
+            try:
+                if counterparty_id:
+                    async with httpx.AsyncClient(timeout=5) as client:
+                        headers = {
+                            "Authorization": f"Bearer {api_token}",
+                            "Accept": "application/json;charset=utf-8",
+                            "User-Agent": "VochiCRM/1.0"
+                        }
+                        
+                        contacts_url = f"https://api.moysklad.ru/api/remap/1.2/entity/counterparty/{counterparty_id}/contactpersons"
+                        response = await client.get(contacts_url, headers=headers)
+                        
+                        if response.status_code == 200:
+                            contacts_data = response.json()
+                            contactpersons = contacts_data.get("rows", [])
+                            logger.info(f"📞 Found {len(contactpersons)} contact persons")
+                        else:
+                            logger.warning(f"⚠️ Contacts request failed: {response.status_code}")
+            except Exception as e:
+                logger.warning(f"⚠️ Error fetching contacts: {e}")
+                errors.append(f"Error fetching contacts: {str(e)}")
+            
+            # 3. Обработка контактных лиц
+            for contact in contactpersons:
+                contact_name = contact.get("name", "").strip()
+                contact_phone = contact.get("phone", "").strip()
+                
+                if not contact_phone:
+                    logger.info(f"⏭️ Skipping contact without phone: '{contact_name}'")
+                    continue
+                
+                # Нормализуем номер контактного лица
+                contact_phone_e164 = normalize_phone_e164(contact_phone)
+                
+                if not contact_name or is_auto_generated_name(contact_name, contact_phone_e164):
+                    logger.info(f"⏭️ Skipping auto-generated contact name: '{contact_name}'")
+                    skipped_count += 1
+                    continue
+                
+                # Обогащаем номер контактного лица
+                await conn.execute("""
+                    INSERT INTO customers (enterprise_number, phone_e164, last_name, first_name, middle_name, enterprise_name, meta)
+                    VALUES ($1, $2, $3, NULL, NULL, $4, $5)
+                    ON CONFLICT (enterprise_number, phone_e164) 
+                    DO UPDATE SET 
+                        last_name = EXCLUDED.last_name,
+                        first_name = NULL,
+                        middle_name = NULL,
+                        enterprise_name = EXCLUDED.enterprise_name,
+                        meta = COALESCE(customers.meta, '{}'::jsonb) || EXCLUDED.meta
+                """, enterprise_number, contact_phone_e164, contact_name, counterparty_name,
+                json.dumps({"moysklad_contact_id": contact.get("id"), "source": "moysklad", "updated_at": datetime.now().isoformat()}))
+                
+                logger.info(f"👤 Enriched contact person: {contact_phone_e164} → '{contact_name}' (company: '{counterparty_name}')")
+                enriched_count += 1
+        
+        finally:
+            await conn.close()
+        
+        logger.info(f"🔗 Enrichment completed: {enriched_count} enriched, {skipped_count} skipped")
+        return {"enriched": enriched_count, "skipped": skipped_count, "errors": errors}
+        
+    except Exception as e:
+        error_msg = f"Enrichment error: {str(e)}"
+        logger.error(f"❌ {error_msg}")
+        errors.append(error_msg)
+        return {"enriched": enriched_count, "skipped": skipped_count, "errors": errors}
 
 async def get_ms_config_legacy_fallback(enterprise_number: str) -> Optional[Dict[str, Any]]:
     """
