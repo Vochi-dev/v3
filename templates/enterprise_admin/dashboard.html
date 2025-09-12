@@ -4238,6 +4238,9 @@
                 <li style="margin:8px 0;">
                   <a href="#" onclick="openMSAdmin(); return false;">МойСклад</a>
                 </li>
+                <li style="margin:8px 0;">
+                  <a href="#" onclick="openBitrix24Admin(); return false;">Bitrix24</a>
+                </li>
               </ul>
             </div>
             <div style="min-width:0;">
@@ -4258,6 +4261,10 @@
                     <label style="display:flex; align-items:center; gap:8px;">
                       <input type="radio" name="primaryIntegration" value="ms">
                       <span>МойСклад</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px;">
+                      <input type="radio" name="primaryIntegration" value="bitrix24">
+                      <span>Bitrix24</span>
                     </label>
                   </div>
                   <div id="primaryMsg" style="font-size:13px; color:#059669; display:none;">Сохранено</div>
@@ -4290,6 +4297,12 @@
         window.open(url, '_blank');
         closeIntegrationsModal();
       }
+      function openBitrix24Admin(){
+        const enterpriseNumber = '{{ enterprise.number }}';
+        const url = `/24-admin/${enterpriseNumber}`;
+        window.open(url, '_blank');
+        closeIntegrationsModal();
+      }
 
       // Primary integration UI logic
       (function(){
@@ -4304,8 +4317,8 @@
               const r = await fetch(`/enterprise/${enterpriseNumber}/integrations/summary`);
               if (!r.ok) { primaryBlock.style.display = 'none'; return; }
               const data = await r.json();
-              const enabled = data.enabled || {retailcrm:false, uon:false, ms:false};
-              const enabledCount = (enabled.retailcrm?1:0) + (enabled.uon?1:0) + (enabled.ms?1:0);
+              const enabled = data.enabled || {retailcrm:false, uon:false, ms:false, bitrix24:false};
+              const enabledCount = (enabled.retailcrm?1:0) + (enabled.uon?1:0) + (enabled.ms?1:0) + (enabled.bitrix24?1:0);
               if (enabledCount > 1){
                 primaryBlock.style.display = 'block';
                 const val = data.primary || 'retailcrm';

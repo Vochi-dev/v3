@@ -300,10 +300,10 @@ async def get_smart_primary(enterprise_number: str):
 
 @app.put("/enterprise/{enterprise_number}/smart/primary", response_class=JSONResponse)
 async def set_smart_primary(enterprise_number: str, payload: dict = Body(...)):
-    """Устанавливает primary-интеграцию (retailcrm|uon|ms) в enterprises.integrations_config.smart.primary"""
+    """Устанавливает primary-интеграцию (retailcrm|uon|ms|bitrix24) в enterprises.integrations_config.smart.primary"""
     primary = (payload or {}).get("primary")
-    if primary not in ("retailcrm", "uon", "ms"):
-        raise HTTPException(status_code=400, detail="primary must be 'retailcrm', 'uon' or 'ms'")
+    if primary not in ("retailcrm", "uon", "ms", "bitrix24"):
+        raise HTTPException(status_code=400, detail="primary must be 'retailcrm', 'uon', 'ms' or 'bitrix24'")
 
     conn = await get_db_connection()
     if not conn:
@@ -336,8 +336,8 @@ async def set_smart_primary(enterprise_number: str, payload: dict = Body(...)):
 async def get_integrations_summary(enterprise_number: str):
     """Возвращает сводную информацию об интеграциях для модалки:
     {
-      "enabled": {"retailcrm": bool, "uon": bool, "ms": bool},
-      "primary": "retailcrm"|"uon"|"ms"
+      "enabled": {"retailcrm": bool, "uon": bool, "ms": bool, "bitrix24": bool},
+      "primary": "retailcrm"|"uon"|"ms"|"bitrix24"
     }
     """
     conn = await get_db_connection()
@@ -354,15 +354,17 @@ async def get_integrations_summary(enterprise_number: str):
                 cfg = json.loads(cfg)
             except Exception:
                 cfg = None
-        enabled = {"retailcrm": False, "uon": False, "ms": False}
+        enabled = {"retailcrm": False, "uon": False, "ms": False, "bitrix24": False}
         primary = "retailcrm"
         if isinstance(cfg, dict):
             r = cfg.get("retailcrm") or {}
             u = cfg.get("uon") or {}
             m = cfg.get("ms") or {}
+            b = cfg.get("bitrix24") or {}
             enabled["retailcrm"] = bool(r.get("enabled", False))
             enabled["uon"] = bool(u.get("enabled", False))
             enabled["ms"] = bool(m.get("enabled", False))
+            enabled["bitrix24"] = bool(b.get("enabled", False))
             smart = cfg.get("smart") or {}
             p = smart.get("primary")
             if isinstance(p, str) and p.strip():
