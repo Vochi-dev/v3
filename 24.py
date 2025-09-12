@@ -9,6 +9,7 @@
 import asyncio
 import json
 import time
+import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
 
@@ -53,6 +54,107 @@ async def root():
         "status": "running",
         "timestamp": datetime.now().isoformat()
     }
+
+@app.post("/api/bitrix24-crm/{webhook_uuid}")
+async def uuid_webhook_handler(webhook_uuid: str, request: Request):
+    """UUID-based обработчик вебхуков от Битрикс24"""
+    try:
+        # Получаем данные
+        content_type = request.headers.get("content-type", "")
+        
+        if "application/json" in content_type:
+            data = await request.json()
+        else:
+            # Для form-data
+            form_data = await request.form()
+            data = dict(form_data)
+        
+        logger.info(f"🎯 Получен вебхук Битрикс24 для UUID: {webhook_uuid}")
+        logger.info(f"Event: {data.get('event')}")
+        
+        # Находим предприятие по UUID
+        enterprise_number = await find_enterprise_by_webhook_uuid(webhook_uuid)
+        if not enterprise_number:
+            logger.warning(f"❌ Предприятие с UUID {webhook_uuid} не найдено")
+            raise HTTPException(status_code=404, detail="Webhook UUID not found")
+        
+        # Получаем конфигурацию Битрикс24
+        b24_config = await get_bitrix24_config(enterprise_number)
+        if not b24_config:
+            logger.warning(f"❌ Конфигурация Битрикс24 для {enterprise_number} не найдена")
+            raise HTTPException(status_code=404, detail="Bitrix24 configuration not found")
+        
+        # Проверяем токен
+        expected_token = b24_config.get('webhook_token')
+        received_token = data.get('auth', {}).get('application_token')
+        
+        if not expected_token or expected_token != received_token:
+            logger.warning(f"🔒 Неверный токен для UUID {webhook_uuid}")
+            raise HTTPException(status_code=401, detail="Invalid application token")
+        
+        # Обработка события
+        event_type = data.get('event')
+        logger.info(f"🎯 Processing Bitrix24 event: {event_type} for enterprise {enterprise_number}")
+        
+        if event_type == 'OnExternalCallStart':
+            result = await handle_external_call_start(enterprise_number, data)
+        elif event_type == 'OnExternalCallBackStart':
+            result = await handle_callback_start(enterprise_number, data)
+        else:
+            logger.warning(f"⚠️ Unknown Bitrix24 event type: {event_type}")
+            result = {"status": "unknown_event", "event_type": event_type}
+        
+        return {"status": "success", "result": result}
+        
+    except Exception as e:
+        logger.error(f"💥 Error processing UUID webhook: {e}")
+        raise HTTPException(status_code=500, detail=f"Webhook processing failed: {str(e)}")
+
+@app.post("/bitrix24/webhook/test")
+async def test_webhook_handler(request: Request):
+    """Тестовый обработчик для получения данных исходящего вебхука от Битрикс24"""
+    try:
+        # Получаем данные
+        content_type = request.headers.get("content-type", "")
+        
+        if "application/json" in content_type:
+            data = await request.json()
+        else:
+            # Для form-data
+            form_data = await request.form()
+            data = dict(form_data)
+        
+        # Логируем полученные данные
+        logger.info("🔥 ТЕСТ: Получен вебхук от Битрикс24:")
+        logger.info(f"Headers: {dict(request.headers)}")
+        logger.info(f"Data: {json.dumps(data, ensure_ascii=False, indent=2)}")
+        
+        # Сохраняем в файл для анализа
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        with open(f"/tmp/bitrix24_webhook_test_{timestamp}.json", "w", encoding="utf-8") as f:
+            json.dump({
+                "headers": dict(request.headers),
+                "data": data,
+                "timestamp": timestamp
+            }, f, ensure_ascii=False, indent=2)
+        
+        # Ищем application_token
+        app_token = None
+        if isinstance(data, dict):
+            auth_data = data.get("auth", {})
+            if isinstance(auth_data, dict):
+                app_token = auth_data.get("application_token")
+        
+        if app_token:
+            logger.info(f"🎯 APPLICATION_TOKEN найден: {app_token}")
+        else:
+            logger.warning("⚠️ APPLICATION_TOKEN не найден в данных")
+        
+        return {"status": "ok", "received": True, "app_token": app_token}
+        
+    except Exception as e:
+        logger.error(f"Ошибка обработки тестового вебхука: {e}")
+        return {"status": "error", "message": str(e)}
 
 @app.get("/health")
 async def health_check():
@@ -124,6 +226,33 @@ async def bitrix24_webhook(enterprise_number: str, request: Request):
     except Exception as e:
         logger.error(f"💥 Error processing Bitrix24 webhook: {e}")
         raise HTTPException(status_code=500, detail=f"Webhook processing failed: {str(e)}")
+
+async def find_enterprise_by_webhook_uuid(webhook_uuid: str) -> Optional[str]:
+    """Поиск предприятия по UUID вебхука"""
+    try:
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres", 
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        
+        try:
+            # Ищем предприятие где в integrations_config.bitrix24.webhook_uuid = webhook_uuid
+            row = await conn.fetchrow("""
+                SELECT number FROM enterprises 
+                WHERE integrations_config->'bitrix24'->>'webhook_uuid' = $1
+            """, webhook_uuid)
+            
+            if row:
+                return row['number']
+            else:
+                return None
+                
+        finally:
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"Ошибка поиска предприятия по UUID {webhook_uuid}: {e}")
+        return None
 
 async def get_bitrix24_config(enterprise_number: str) -> Optional[Dict[str, Any]]:
     """Получение конфигурации Битрикс24 с приоритетом кеша"""
@@ -353,7 +482,7 @@ async def bitrix24_admin_page(enterprise_number: str):
         
         try:
             row = await conn.fetchrow(
-                "SELECT name FROM enterprises WHERE number = $1", 
+                "SELECT name, integrations_config FROM enterprises WHERE number = $1", 
                 enterprise_number
             )
             
@@ -361,6 +490,21 @@ async def bitrix24_admin_page(enterprise_number: str):
                 raise HTTPException(status_code=404, detail="Предприятие не найдено")
             
             enterprise_name = row['name'] or f"Предприятие {enterprise_number}"
+            
+            # Получаем или генерируем UUID для исходящего вебхука
+            integrations_config = row['integrations_config'] or {}
+            if isinstance(integrations_config, str):
+                integrations_config = json.loads(integrations_config)
+            bitrix24_config = integrations_config.get('bitrix24', {})
+            
+            # Если UUID еще нет - генерируем новый
+            webhook_uuid = bitrix24_config.get('webhook_uuid')
+            if not webhook_uuid:
+                webhook_uuid = str(uuid.uuid4())
+                
+            # Текущие значения формы
+            incoming_webhook = bitrix24_config.get('incoming_webhook', '')
+            webhook_token = bitrix24_config.get('webhook_token', '')
             
         finally:
             await conn.close()
@@ -502,6 +646,7 @@ async def bitrix24_admin_page(enterprise_number: str):
                 <div class="form-group">
                     <label for="incoming-webhook">Входящий вебхук</label>
                     <input type="url" id="incoming-webhook" name="incoming_webhook" 
+                           value="{incoming_webhook}"
                            placeholder="https://your-portal.bitrix24.ru/rest/1/your_token/" 
                            class="form-control">
                     <small class="form-text">URL вебхука от Битрикс24 для отправки данных</small>
@@ -511,26 +656,22 @@ async def bitrix24_admin_page(enterprise_number: str):
                     <label for="outgoing-webhook">Исходящий вебхук</label>
                     <div class="input-group">
                         <input type="text" id="outgoing-webhook" name="outgoing_webhook" 
-                               value="https://bot.vochi.by/bitrix24/webhook/{enterprise_number}" 
+                               value="https://bot.vochi.by/api/bitrix24-crm/{webhook_uuid}" 
                                class="form-control" readonly>
                         <button type="button" class="btn btn-secondary" onclick="copyToClipboard('outgoing-webhook')">
                             Копировать
                         </button>
                     </div>
-                    <small class="form-text">URL для настройки исходящего вебхука в Битрикс24</small>
+                    <small class="form-text">Используйте этот URL при создании исходящего вебхука в Битрикс24</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="webhook-token">Токен безопасности</label>
-                    <div class="input-group">
-                        <input type="text" id="webhook-token" name="webhook_token" 
-                               value="b24_token_placeholder_12345" 
-                               class="form-control" readonly>
-                        <button type="button" class="btn btn-secondary" onclick="copyToClipboard('webhook-token')">
-                            Копировать
-                        </button>
-                    </div>
-                    <small class="form-text">Токен для аутентификации входящих запросов</small>
+                    <label for="webhook-token">Токен безопасности от Битрикс24</label>
+                    <input type="text" id="webhook-token" name="webhook_token" 
+                           value="{webhook_token}"
+                           placeholder="Вставьте сюда application_token из Битрикс24" 
+                           class="form-control">
+                    <small class="form-text">Токен application_token, который предоставит Битрикс24 при создании исходящего вебхука</small>
                 </div>
 
                 <div class="form-actions">
@@ -568,21 +709,44 @@ async def bitrix24_admin_page(enterprise_number: str):
             e.preventDefault();
             
             const formData = new FormData(this);
-            const config = Object.fromEntries(formData);
-            
-            // TODO: Отправка данных на сервер
-            console.log('Конфигурация для сохранения:', config);
-            
-            // Временная заглушка - показываем успешное сохранение
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
-            submitBtn.textContent = 'Сохранено!';
-            submitBtn.style.background = '#28a745';
             
-            setTimeout(function() {{
-                submitBtn.textContent = originalText;
-                submitBtn.style.background = '#00b4db';
-            }}, 2000);
+            // Показываем процесс сохранения
+            submitBtn.textContent = 'Сохранение...';
+            submitBtn.disabled = true;
+            
+            // Отправляем данные на сервер
+            fetch('/24-admin/{enterprise_number}/save', {{
+                method: 'POST',
+                body: formData
+            }})
+            .then(response => response.json())
+            .then(data => {{
+                if (data.status === 'success') {{
+                    submitBtn.textContent = 'Сохранено!';
+                    submitBtn.style.background = '#28a745';
+                    
+                    setTimeout(function() {{
+                        submitBtn.textContent = originalText;
+                        submitBtn.style.background = '#00b4db';
+                        submitBtn.disabled = false;
+                    }}, 2000);
+                }} else {{
+                    throw new Error(data.message || 'Ошибка сохранения');
+                }}
+            }})
+            .catch(error => {{
+                console.error('Ошибка:', error);
+                submitBtn.textContent = 'Ошибка!';
+                submitBtn.style.background = '#dc3545';
+                
+                setTimeout(function() {{
+                    submitBtn.textContent = originalText;
+                    submitBtn.style.background = '#00b4db';
+                    submitBtn.disabled = false;
+                }}, 3000);
+            }});
         }});
     </script>
 </body>
@@ -594,6 +758,72 @@ async def bitrix24_admin_page(enterprise_number: str):
     except Exception as e:
         logger.error(f"Ошибка админки Битрикс24: {e}")
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+
+@app.post("/24-admin/{enterprise_number}/save")
+async def save_bitrix24_config(enterprise_number: str, request: Request):
+    """Сохранение конфигурации Битрикс24"""
+    try:
+        # Получаем данные из формы
+        form_data = await request.form()
+        incoming_webhook = form_data.get('incoming_webhook', '').strip()
+        webhook_token = form_data.get('webhook_token', '').strip()
+        
+        logger.info(f"💾 Сохранение конфигурации Битрикс24 для {enterprise_number}")
+        
+        # Подключаемся к БД
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres", 
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        
+        try:
+            # Получаем текущую конфигурацию
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1", 
+                enterprise_number
+            )
+            
+            if not row:
+                raise HTTPException(status_code=404, detail="Предприятие не найдено")
+            
+            # Обновляем конфигурацию
+            integrations_config = row['integrations_config'] or {}
+            if isinstance(integrations_config, str):
+                integrations_config = json.loads(integrations_config)
+            bitrix24_config = integrations_config.get('bitrix24', {})
+            
+            # Генерируем UUID если его еще нет
+            if not bitrix24_config.get('webhook_uuid'):
+                bitrix24_config['webhook_uuid'] = str(uuid.uuid4())
+                logger.info(f"🆔 Сгенерирован новый UUID для {enterprise_number}: {bitrix24_config['webhook_uuid']}")
+            
+            # Обновляем значения
+            bitrix24_config['incoming_webhook'] = incoming_webhook
+            bitrix24_config['webhook_token'] = webhook_token
+            bitrix24_config['updated_at'] = datetime.now().isoformat()
+            
+            # Сохраняем в БД
+            integrations_config['bitrix24'] = bitrix24_config
+            
+            await conn.execute(
+                "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",
+                json.dumps(integrations_config), enterprise_number
+            )
+            
+            # Сбрасываем кеш
+            if enterprise_number in bitrix24_config_cache:
+                del bitrix24_config_cache[enterprise_number]
+            
+            logger.info(f"✅ Конфигурация Битрикс24 сохранена для {enterprise_number}")
+            
+            return {"status": "success", "message": "Конфигурация сохранена"}
+            
+        finally:
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"💥 Ошибка сохранения конфигурации Битрикс24: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка сохранения: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8024, log_level="info")
