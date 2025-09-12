@@ -63,6 +63,31 @@ async def health_check():
         "timestamp": datetime.now().isoformat()
     }
 
+@app.get("/24-admin/favicon.ico")
+async def serve_favicon():
+    """Отдача favicon для админки"""
+    from fastapi.responses import FileResponse
+    import os
+    
+    # Используем общий favicon системы
+    favicon_path = "/root/asterisk-webhook/app/static/favicon.ico"
+    if os.path.exists(favicon_path):
+        return FileResponse(favicon_path, media_type="image/x-icon")
+    else:
+        raise HTTPException(status_code=404, detail="Favicon not found")
+
+@app.get("/24-admin/logo.png")
+async def serve_logo():
+    """Отдача логотипа Битрикс24"""
+    from fastapi.responses import FileResponse
+    import os
+    
+    logo_path = "/root/asterisk-webhook/24.png"
+    if os.path.exists(logo_path):
+        return FileResponse(logo_path, media_type="image/png")
+    else:
+        raise HTTPException(status_code=404, detail="Logo not found")
+
 @app.post("/bitrix24/webhook/{enterprise_number}")
 async def bitrix24_webhook(enterprise_number: str, request: Request):
     """Обработка входящих webhook'ов от Битрикс24"""
@@ -340,8 +365,6 @@ async def bitrix24_admin_page(enterprise_number: str):
         finally:
             await conn.close()
         
-        # Base64 логотип Битрикс24
-        logo_base64 = "iVBORw0KGgoAAAANSUhEUgAAAdkAAAB9CAYAAADuvRlOAAAEDmlDQ1BrQ0dDb2xvclNwYWNlR2VuZXJpY1JHQgAAOI2NVV1oHFUUPpu5syskzoPUpqaSDv41lLRsUtGE2uj+ZbNt3CyTbLRBkMns3Z1pJjPj/KRpKT4UQRDBqOCT4P9bwSchaqvtiy2itFCiBIMo+ND6R6HSFwnruTOzu5O4a73L3PnmnO9+595z7t4LkLgsW5beJQIsGq4t5dPis8fmxMQ6dMF90A190C0rjpUqlSYBG+PCv9rt7yDG3tf2t/f/Z+uuUEcBiN2F2Kw4yiLiZQD+FcWyXYAEQfvICddi+AnEO2ycIOISw7UAVxieD/Cyz5mRMohfRSwoqoz+xNuIB+cj9loEB3Pw2448NaitKSLLRck2q5pOI9O9g/t/tkXda8Tbg0+PszB9FN8DuPaXKnKW4YcQn1Xk3HSIry5ps8UQ/2W5aQnxIwBdu7yFcgrxPsRjVXu8HOh0qao30cArp9SZZxDfg3h1wTzKxu5E/LUxX5wKdX5SnAzmDx4A4OIqLbB69yMesE1pKojLjVdoNsfyiPi45hZmAn3uLWdpOtfQOaVmikEs7ovj8hFWpz7EV6mel0L9Xy23FMYlPYZenAx0yDB1/PX6dledmQjikjkXCxqMJS9WtfFCyH9XtSekEF+2dH+P4tzITduTygGfv58a5VCTH5PtXD7EFZiNyUDBhHnsFTBgE0SQIA9pfFtgo6cKGuhooeilaKH41eDs38Ip+f4At1Rq/sjr6NEwQqb/I/DQqsLvaFUjvAx+eWirddAJZnAj1DFJL0mSg/gcIpPkMBkhoyCSJ8lTZIxk0TpKDjXHliJzZPO50dR5ASNSnzeLvIvod0HG/mdkmOC0z8VKnzcQ2M/Yz2vKldduXjp9bleLu0ZWn7vWc+l0JGcaai10yNrUnXLP/8Jf59ewX+c3Wgz+B34Df+vbVrc16zTMVgp9um9bxEfzPU5kPqUtVWxhs6OiWTVW+gIfywB9uXi7CGcGW/zk98k/kmvJ95IfJn/j3uQ+4c5zn3Kfcd+AyF3gLnJfcl9xH3OfR2rUee80a+6vo7EK5mmXUdyfQlrYLTwoZIU9wsPCZEtP6BWGhAlhL3p2N6sTjRdduwbHsG9kq32sgBepc+xurLPW4T9URpYGJ3ym4+8zA05u44QjST8ZIoVtu3qE7fWmdn5LPdqvgcZz8Ww8BWJ8X3w0PhQ/wnCDGd+LvlHs8dRy6bLLDuKMaZ20tZrqisPJ5ONiCq8yKhYM5cCgKOu66Lsc0aYOtZdo5QCwezI4wm9J/v0X23mlZXOfBjj8Jzv3WrY5D+CsA9D7aMs2gGfjve8ArD6mePZSeCfEYt8CONWDw8FXTxrPqx/r9Vt4biXeANh8vV7/+/16ffMD1N8AuKD/A/8leAvFY9bLAAAAbGVYSWZNTQAqAAAACAAEARoABQAAAAEAAAA+ARsABQAAAAEAAABGASgAAwAAAAEAAgAAh2kABAAAAAEAAABOAAAAAAACBKsAAAcwAAMn+gAACz8AAqACAAQAAAABAAAB2aADAAQAAAABAAAAfQAAAABD03ebAAAACXBIWXMAAAsOAAALDQFrk7KCAABAAElEQVR4Aey9B5xdxXn//Zzb7/aiLqFGE703Y4NDRwQbXIKNMbEd23FiJ3FJYifx/3WK48SJ+aTYsR13MHEDY0wxprkAoxAAkQRSKigrtX2dts85"
         
         # HTML шаблон админки
         html_content = f"""
@@ -351,7 +374,7 @@ async def bitrix24_admin_page(enterprise_number: str):
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{enterprise_name} Bitrix24</title>
-    <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyZpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNi1jMTExIDc5LjE1ODMyNSwgMjAxMC8xMi8xNS0xODoyMDo0NSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNS4xIFdpbmRvd3MiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RjI0QkE1MEY2NUIzMTFFMUEwNzlFMUQ4OTk3NjBFQTciIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RjI0QkE1MTA2NUIzMTFFMUEwNzlFMUQ4OTk3NjBFQTciPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDpGMjRCQTUwRDY1QjMxMUUxQTA3OUUxRDg5OTc2MEVBNyIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDpGMjRCQTUwRTY1QjMxMUUxQTA3OUUxRDg5OTc2MEVBNyIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PkKdVAkAAAK8SURBVHjanFdNiFRREK01KTFT1CLmYuIzSEGDKfKLigTCJe14pn0QrpJhJMnpZhGxZVJUK0nXSVgOQhGCWaGROCpZmGdK4x8iU4PGFEyU3F7nFa2+t++9N//7j/vC3br/937vvnP+7n0fY/wfvPjnNkPkmY0d6dQKgZggBHEYdlHYy8bQQ8lLa8wDcCNgATpgBepgG34G7I8B+wB7YeQfXQswA28C1sNK+ADQDVvhemAT/Qf4wB6YgR0wAc+BHfgnB6iOkGMrTMAjcB3wgMtC7AOVsArOhQvgSriG/+G5rXABfgd8Bi/Co2xk2AdjQAmcAN0QwSxsBqrU6aYC2A+/wmGYpzcBy3AjPALnwwuwgSrnJjgXDsJ02A+V8CnY0/AAfKJBIwPwPNg6eAiOw0o+ALXA5kxIb8CRZK8O7ID1MAwP8z8Mq2EB7IJ9TP+FNzgdKMAOJozgBjgPtsA4rIU2eJL5tOEy8Ef83kMdQhVJCAA9sAQ+hJvgfPgYfoBlsDvQSEJCK7wK/fA/VALb4c2+Fz5gU9EaL0EkMV3kKkZT2Oui3l5SqNOB9+gB2VCaXrGZbAFsVJSKDZ89UlPgGhvfQzOOgPRKoOxCNBGJYUcXzJ9NqrVOqo6/K9VBoU6IBQPNJ6dTT7MpLYAP4BwYZC2nA+tOIrCdLZyEJPJBhJ1K9PLSN8A9sJ09J1VHNpQngnx+5t9KpMX7qIzL3qBNXzIGFoJMIHrZLm2JgcwfA4U2XOV3UxlcgZZYBLdDJtyNJCTGQK8tUOJHOPRAq2zJDjGQRLvfZp2Cq5ym8QBUZK9wHxWGI+AQ1YhKL/8l8CPch/+C5n4BXIXdVCkzqSJ8uJ+O6V+p5kUQOzBK19EpG7AT+uGCGFLYJhm8+CfAAOQgX4G8YG5JAAAAAElFTkSuQmCC" type="image/png">
+    <link rel="icon" href="/24-admin/favicon.ico">
     <style>
         body {{ 
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; 
@@ -381,10 +404,7 @@ async def bitrix24_admin_page(enterprise_number: str):
         .logo {{ 
             height: 48px; 
             width: auto; 
-            background: white; 
-            padding: 4px; 
-            border-radius: 4px; 
-            border: 1px solid #ddd; 
+            max-width: 200px;
         }}
         .card {{ 
             background: #0f2233; 
@@ -398,7 +418,7 @@ async def bitrix24_admin_page(enterprise_number: str):
     <div class="wrap">
         <div class="header">
             <h1>{enterprise_name} Bitrix24</h1>
-            <img src="data:image/png;base64,{logo_base64}" alt="Bitrix24" class="logo">
+            <img src="/24-admin/logo.png" alt="Bitrix24" class="logo">
         </div>
         <div class="card">
             <p>Админка Битрикс24 находится в разработке...</p>
