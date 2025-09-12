@@ -383,26 +383,19 @@ async def get_bitrix24_admin_js():
         if (!select) return;
         
         const selectedExtension = select.value;
-        
-        // Собираем все текущие назначения со страницы
-        const allAssignments = {};
-        document.querySelectorAll('[id^="extension-"]').forEach(sel => {
-            const uid = sel.id.replace('extension-', '');
-            const ext = sel.value;
-            if (ext) {
-                allAssignments[uid] = ext;
-            }
-        });
-        
+
         try {
-            const r = await fetch(`/24-admin/api/save-extensions/${enterprise}`, {
+            const r = await fetch(`/24-admin/api/save-extension/${enterprise}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(allAssignments)
+                body: JSON.stringify({
+                    user_id: userId,
+                    extension: selectedExtension
+                })
             });
             
             const result = await r.json();
-            if (!result.success) throw new Error(result.error || 'Ошибка сохранения');
+            if (!result.success) throw new Error(result.error || 'Ошибка назначения');
             
             // Обновляем отображение пользователей
             loadUsers();
@@ -1263,6 +1256,95 @@ async def get_internal_phones(enterprise_number: str):
         logger.error(f"💥 Ошибка получения внутренних номеров: {e}")
         return []
 
+@app.post("/24-admin/api/save-extension/{enterprise_number}")
+async def save_bitrix24_extension(enterprise_number: str, request: Request):
+    """Сохранение назначения номера одному пользователю Битрикс24"""
+    try:
+        data = await request.json()
+        user_id = data.get('user_id')
+        extension = data.get('extension', '').strip()
+
+        if not user_id:
+            return {"success": False, "error": "Не указан ID пользователя"}
+
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres", 
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        
+        try:
+            # Получаем конфигурацию Битрикс24
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1", 
+                enterprise_number
+            )
+            
+            if not row:
+                return {"success": False, "error": "Предприятие не найдено"}
+            
+            integrations_config = row['integrations_config'] or {}
+            if isinstance(integrations_config, str):
+                integrations_config = json.loads(integrations_config)
+            
+            bitrix24_config = integrations_config.get('bitrix24', {})
+            incoming_webhook = bitrix24_config.get('incoming_webhook')
+            
+            if not incoming_webhook:
+                return {"success": False, "error": "Не настроен входящий webhook"}
+            
+            # Обновляем назначения в локальной конфигурации
+            user_extensions = bitrix24_config.get('user_extensions', {})
+            
+            # Убираем этот номер у других пользователей
+            for uid, ext in list(user_extensions.items()):
+                if ext == extension and uid != user_id:
+                    del user_extensions[uid]
+            
+            # Назначаем номер пользователю
+            if extension:
+                user_extensions[user_id] = extension
+            else:
+                user_extensions.pop(user_id, None)
+                
+            bitrix24_config['user_extensions'] = user_extensions
+            integrations_config['bitrix24'] = bitrix24_config
+            
+            await conn.execute(
+                "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",
+                json.dumps(integrations_config), enterprise_number
+            )
+            
+            # НЕ ТРОГАЕМ user_internal_phones - это таблица для назначения номеров юнита!
+            
+            # Обновляем UF_PHONE_INNER в Битрикс24
+            import httpx
+            logger.info(f"🔄 Обновление UF_PHONE_INNER в Битрикс24: user_id={user_id}, extension={extension}")
+            logger.info(f"🌐 Webhook URL: {incoming_webhook}")
+            
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.post(f"{incoming_webhook}user.update", json={
+                        "ID": user_id,
+                        "UF_PHONE_INNER": extension
+                    })
+                    
+                    logger.info(f"📡 Ответ Битрикс24: status={response.status_code}, content={response.text[:200]}")
+                    
+                    if response.status_code != 200:
+                        logger.error(f"❌ Не удалось обновить UF_PHONE_INNER для пользователя {user_id}: {response.text}")
+                
+                except Exception as e:
+                    logger.error(f"💥 Ошибка обновления номера в Битрикс24: {e}")
+            
+            return {"success": True, "message": "Номер успешно назначен"}
+        
+        finally:
+            await conn.close()
+    
+    except Exception as e:
+        logger.error(f"💥 Ошибка назначения номера: {e}")
+        return {"success": False, "error": f"Ошибка: {str(e)}"}
+
 @app.post("/24-admin/api/save-extensions/{enterprise_number}")
 async def save_bitrix24_extensions(enterprise_number: str, request: Request):
     """Сохранение назначений внутренних номеров пользователям Битрикс24"""
@@ -1304,21 +1386,34 @@ async def save_bitrix24_extensions(enterprise_number: str, request: Request):
                 json.dumps(integrations_config), enterprise_number
             )
             
-            # Обновляем таблицу users для синхронизации с другими сервисами
-            # Сначала очищаем старые назначения для этого предприятия
-            await conn.execute(
-                "UPDATE users SET internal_phone = NULL, bitrix24_user_id = NULL WHERE enterprise_number = $1 AND bitrix24_user_id IS NOT NULL",
-                enterprise_number
-            )
+            # Обновляем таблицу user_internal_phones (как в RetailCRM)
+            # Сначала очищаем старые назначения пользователей Битрикс24
+            await conn.execute("""
+                UPDATE user_internal_phones 
+                SET user_id = NULL 
+                WHERE enterprise_number = $1 
+                AND user_id IN (
+                    SELECT id FROM users 
+                    WHERE enterprise_number = $1 
+                    AND external_id LIKE 'bitrix24_%'
+                )
+            """, enterprise_number)
             
             # Устанавливаем новые назначения
             for user_id, extension in assignments.items():
-                await conn.execute("""
-                    INSERT INTO users (enterprise_number, bitrix24_user_id, internal_phone, created_at)
-                    VALUES ($1, $2, $3, NOW())
-                    ON CONFLICT (enterprise_number, bitrix24_user_id) 
-                    DO UPDATE SET internal_phone = $3, updated_at = NOW()
-                """, enterprise_number, int(user_id), extension)
+                # Проверяем, существует ли пользователь
+                user_row = await conn.fetchrow("""
+                    SELECT id FROM users 
+                    WHERE enterprise_number = $1 AND external_id = $2
+                """, enterprise_number, f"bitrix24_{user_id}")
+                
+                if user_row:
+                    # Назначаем номер пользователю
+                    await conn.execute("""
+                        UPDATE user_internal_phones 
+                        SET user_id = $1 
+                        WHERE enterprise_number = $2 AND phone_number = $3
+                    """, user_row['id'], enterprise_number, extension)
             
             # Обновляем UF_PHONE_INNER в Битрикс24 для каждого пользователя
             import httpx
