@@ -308,7 +308,8 @@ async def get_bitrix24_admin_js():
                         <div>
                             <div style="font-weight: 500; color: #e7eef8; margin-bottom: 4px;">${user.name || 'Без имени'}</div>
                             <div style="font-size: 12px; color: #a8b3c7;">ID: ${user.id} • ${user.email || 'email не указан'}</div>
-                            ${user.current_extension ? `<div style="font-size: 12px; color: #00b4db; margin-top: 2px;">📞 ${user.current_extension}</div>` : ''}
+                            ${user.current_extension ? `<div style="font-size: 12px; color: #00b4db; margin-top: 2px;">📞 Назначен: ${user.current_extension}</div>` : ''}
+                            ${user.bitrix_extension ? `<div style="font-size: 12px; color: #22c55e; margin-top: 2px;">📞 В Битрикс24: ${user.bitrix_extension}</div>` : ''}
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <select id="extension-${user.id}" style="padding: 6px 8px; border: 1px solid #1b3350; border-radius: 4px; background: #0b1728; color: #e7eef8; font-size: 12px;">
@@ -359,8 +360,9 @@ async def get_bitrix24_admin_js():
                     option.style.color = '#f87171';
                 }
                 
-                // Если это текущий номер пользователя
-                if (phone.assigned_user_id === user.id) {
+                // Если это текущий номер пользователя ИЛИ номер из Битрикс24
+                if (phone.assigned_user_id === user.id || 
+                    (!user.current_extension && phone.extension === user.bitrix_extension)) {
                     option.selected = true;
                 }
                 
@@ -1154,6 +1156,7 @@ async def refresh_bitrix24_managers(enterprise_number: str):
                         user_extensions = bitrix24_config.get('user_extensions', {})
                         
                         for user_data in data['result']:
+                            
                             users.append({
                                 "id": user_data.get('ID'),
                                 "name": f"{user_data.get('NAME', '')} {user_data.get('LAST_NAME', '')}".strip(),
