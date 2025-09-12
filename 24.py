@@ -1110,9 +1110,46 @@ async def delete_bitrix24_config(enterprise_number: str):
         logger.error(f"💥 Ошибка удаления конфигурации Битрикс24: {e}")
         return {"success": False, "error": f"Ошибка удаления: {str(e)}"}
 
+async def sync_user_extensions_from_bitrix24(enterprise_number: str, incoming_webhook: str):
+    """Синхронизация user_extensions из Битрикс24 в нашу БД"""
+    try:
+        logger.info(f"🔄 Синхронизация user_extensions из Битрикс24 для {enterprise_number}")
+        
+        import httpx
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{incoming_webhook}user.get", json={
+                "filter": {"ACTIVE": "Y"},
+                "select": ["ID", "UF_PHONE_INNER"]
+            })
+            
+            if response.status_code != 200:
+                logger.warning(f"⚠️ Не удалось получить пользователей для синхронизации: {response.status_code}")
+                return {}
+            
+            data = response.json()
+            if not data.get('result'):
+                return {}
+            
+            # Формируем актуальный user_extensions из Битрикс24
+            synchronized_extensions = {}
+            for user_data in data['result']:
+                user_id = user_data.get('ID')
+                uf_phone_inner = user_data.get('UF_PHONE_INNER', '').strip()
+                
+                if uf_phone_inner:  # Только если номер установлен
+                    synchronized_extensions[user_id] = uf_phone_inner
+                    logger.info(f"📞 Найден номер {uf_phone_inner} у пользователя {user_id} в Битрикс24")
+            
+            logger.info(f"✅ Синхронизировано {len(synchronized_extensions)} назначений из Битрикс24")
+            return synchronized_extensions
+    
+    except Exception as e:
+        logger.warning(f"⚠️ Ошибка синхронизации user_extensions: {e}")
+        return {}
+
 @app.post("/24-admin/api/refresh-managers/{enterprise_number}")
 async def refresh_bitrix24_managers(enterprise_number: str):
-    """Загрузка менеджеров из Битрикс24"""
+    """Загрузка менеджеров из Битрикс24 с автоматической синхронизацией"""
     try:
         logger.info(f"👥 Загрузка пользователей Битрикс24 для {enterprise_number}")
         
@@ -1141,6 +1178,20 @@ async def refresh_bitrix24_managers(enterprise_number: str):
             if not incoming_webhook:
                 return {"success": False, "error": "Не настроен входящий webhook"}
             
+            # АВТОМАТИЧЕСКАЯ СИНХРОНИЗАЦИЯ user_extensions из Битрикс24
+            synchronized_extensions = await sync_user_extensions_from_bitrix24(enterprise_number, incoming_webhook)
+            
+            # Обновляем user_extensions в БД синхронизированными данными
+            bitrix24_config['user_extensions'] = synchronized_extensions
+            integrations_config['bitrix24'] = bitrix24_config
+            
+            await conn.execute(
+                "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",
+                json.dumps(integrations_config), enterprise_number
+            )
+            
+            logger.info(f"💾 Обновлен user_extensions в БД: {synchronized_extensions}")
+            
             # Загружаем пользователей из Битрикс24
             import httpx
             async with httpx.AsyncClient() as client:
@@ -1154,17 +1205,18 @@ async def refresh_bitrix24_managers(enterprise_number: str):
                     users = []
                     
                     if data.get('result'):
-                        # Получаем существующие назначения
-                        user_extensions = bitrix24_config.get('user_extensions', {})
-                        
                         for user_data in data['result']:
+                            user_id = user_data.get('ID')
+                            name = f"{user_data.get('NAME', '')} {user_data.get('LAST_NAME', '')}".strip()
+                            if not name:
+                                name = user_data.get('EMAIL', '') or f"ID:{user_id}"
                             
                             users.append({
-                                "id": user_data.get('ID'),
-                                "name": f"{user_data.get('NAME', '')} {user_data.get('LAST_NAME', '')}".strip(),
+                                "id": user_id,
+                                "name": name,
                                 "email": user_data.get('EMAIL', ''),
-                                "current_extension": user_extensions.get(user_data.get('ID')),
-                                "bitrix_extension": user_data.get('UF_PHONE_INNER')
+                                "current_extension": synchronized_extensions.get(user_id, ''),  # Используем синхронизированные данные
+                                "bitrix_extension": user_data.get('UF_PHONE_INNER', '')
                             })
                     
                     return {"success": True, "users": users}
@@ -1292,13 +1344,49 @@ async def save_bitrix24_extension(enterprise_number: str, request: Request):
             if not incoming_webhook:
                 return {"success": False, "error": "Не настроен входящий webhook"}
             
+            # Сначала получаем актуальные назначения из Битрикс24
+            import httpx
+            bitrix24_users_with_extension = []
+            if extension:  # Только если назначаем номер (не очищаем)
+                try:
+                    async with httpx.AsyncClient() as client:
+                        response = await client.post(f"{incoming_webhook}user.get", json={
+                            "filter": {"ACTIVE": "Y", "UF_PHONE_INNER": extension},
+                            "select": ["ID", "UF_PHONE_INNER"]
+                        })
+                        
+                        if response.status_code == 200:
+                            data = response.json()
+                            if data.get('result'):
+                                for user_data in data['result']:
+                                    b24_user_id = user_data.get('ID')
+                                    if b24_user_id != user_id:  # Не тот же пользователь
+                                        bitrix24_users_with_extension.append(b24_user_id)
+                                        logger.info(f"🔍 В Битрикс24 номер {extension} назначен пользователю {b24_user_id}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Не удалось проверить назначения в Битрикс24: {e}")
+            
             # Обновляем назначения в локальной конфигурации
             user_extensions = bitrix24_config.get('user_extensions', {})
+            logger.info(f"📋 Текущие назначения в БД: {user_extensions}")
             
-            # Убираем этот номер у других пользователей
+            # Находим пользователей, у которых нужно забрать этот номер (из нашей БД + из Битрикс24)
+            users_to_clear = set()
+            
+            # Из нашей БД
             for uid, ext in list(user_extensions.items()):
                 if ext == extension and uid != user_id:
+                    logger.info(f"🎯 В БД найден пользователь {uid} с номером {extension}")
+                    users_to_clear.add(uid)
                     del user_extensions[uid]
+            
+            # Из Битрикс24
+            for b24_user_id in bitrix24_users_with_extension:
+                logger.info(f"🎯 В Битрикс24 найден пользователь {b24_user_id} с номером {extension}")
+                users_to_clear.add(b24_user_id)
+            
+            users_to_clear = list(users_to_clear)
+            logger.info(f"🗑️ Пользователи для очистки: {users_to_clear}")
             
             # Назначаем номер пользователю
             if extension:
@@ -1322,19 +1410,64 @@ async def save_bitrix24_extension(enterprise_number: str, request: Request):
             logger.info(f"🌐 Webhook URL: {incoming_webhook}")
             
             async with httpx.AsyncClient() as client:
-                try:
-                    response = await client.post(f"{incoming_webhook}user.update", json={
-                        "ID": user_id,
-                        "UF_PHONE_INNER": extension
-                    })
+                # Сначала очищаем номер у предыдущих владельцев
+                for old_user_id in users_to_clear:
+                    try:
+                        logger.info(f"🗑️ Очищаем номер {extension} у пользователя {old_user_id}")
+                        clear_response = await client.post(f"{incoming_webhook}user.update", json={
+                            "ID": old_user_id,
+                            "UF_PHONE_INNER": ""
+                        })
+                        
+                        logger.info(f"📡 Очистка у {old_user_id}: status={clear_response.status_code}")
+                        
+                        if clear_response.status_code != 200:
+                            logger.warning(f"⚠️ Не удалось очистить номер у пользователя {old_user_id}: {clear_response.text}")
                     
-                    logger.info(f"📡 Ответ Битрикс24: status={response.status_code}, content={response.text[:200]}")
-                    
-                    if response.status_code != 200:
-                        logger.error(f"❌ Не удалось обновить UF_PHONE_INNER для пользователя {user_id}: {response.text}")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Ошибка очистки номера у пользователя {old_user_id}: {e}")
                 
-                except Exception as e:
-                    logger.error(f"💥 Ошибка обновления номера в Битрикс24: {e}")
+                # Теперь назначаем номер новому пользователю (только если extension не пустой)
+                if extension:
+                    try:
+                        response = await client.post(f"{incoming_webhook}user.update", json={
+                            "ID": user_id,
+                            "UF_PHONE_INNER": extension
+                        })
+                        
+                        logger.info(f"📡 Назначение {user_id}: status={response.status_code}, content={response.text[:200]}")
+                        
+                        if response.status_code != 200:
+                            logger.error(f"❌ Не удалось назначить номер пользователю {user_id}: {response.text}")
+                    
+                    except Exception as e:
+                        logger.error(f"💥 Ошибка назначения номера в Битрикс24: {e}")
+                else:
+                    # Если extension пустой, то просто очищаем у текущего пользователя
+                    try:
+                        logger.info(f"🗑️ Очищаем номер у пользователя {user_id}")
+                        response = await client.post(f"{incoming_webhook}user.update", json={
+                            "ID": user_id,
+                            "UF_PHONE_INNER": ""
+                        })
+                        
+                        logger.info(f"📡 Очистка у {user_id}: status={response.status_code}")
+                        
+                        if response.status_code != 200:
+                            logger.warning(f"⚠️ Не удалось очистить номер у пользователя {user_id}: {response.text}")
+                    
+                    except Exception as e:
+                        logger.warning(f"⚠️ Ошибка очистки номера у пользователя {user_id}: {e}")
+            
+            # Обновляем кэш интеграций
+            try:
+                async with httpx.AsyncClient() as client:
+                    cache_response = await client.post(f"http://localhost:8020/update_cache/{enterprise_number}", json={
+                        "integrations_config": integrations_config
+                    })
+                    logger.info(f"🔄 Обновление кэша: status={cache_response.status_code}")
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось обновить кэш: {e}")
             
             return {"success": True, "message": "Номер успешно назначен"}
         
