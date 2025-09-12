@@ -412,6 +412,81 @@ async def bitrix24_admin_page(enterprise_number: str):
             border-radius: 12px; 
             padding: 22px; 
         }}
+        h3 {{
+            color: #e7eef8;
+            margin: 0 0 20px 0;
+            font-size: 20px;
+        }}
+        .form-group {{
+            margin-bottom: 20px;
+        }}
+        label {{
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #e7eef8;
+        }}
+        .form-control {{
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #1b3350;
+            border-radius: 6px;
+            background: #0b1728;
+            color: #e7eef8;
+            font-size: 14px;
+            box-sizing: border-box;
+        }}
+        .form-control:focus {{
+            outline: none;
+            border-color: #00b4db;
+            box-shadow: 0 0 0 2px rgba(0, 180, 219, 0.2);
+        }}
+        .form-control[readonly] {{
+            background: #162332;
+            color: #a8b3c7;
+        }}
+        .input-group {{
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }}
+        .input-group .form-control {{
+            flex: 1;
+        }}
+        .btn {{
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }}
+        .btn-primary {{
+            background: #00b4db;
+            color: white;
+        }}
+        .btn-primary:hover {{
+            background: #0083b0;
+        }}
+        .btn-secondary {{
+            background: #1b3350;
+            color: #e7eef8;
+            white-space: nowrap;
+        }}
+        .btn-secondary:hover {{
+            background: #2a4a6b;
+        }}
+        .form-text {{
+            display: block;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #a8b3c7;
+        }}
+        .form-actions {{
+            margin-top: 30px;
+            text-align: center;
+        }}
     </style>
 </head>
 <body>
@@ -421,9 +496,95 @@ async def bitrix24_admin_page(enterprise_number: str):
             <img src="/24-admin/logo.png" alt="Bitrix24" class="logo">
         </div>
         <div class="card">
-            <p>Админка Битрикс24 находится в разработке...</p>
+            <h3>Настройка интеграции Bitrix24</h3>
+            
+            <form id="bitrix24-config-form">
+                <div class="form-group">
+                    <label for="incoming-webhook">Входящий вебхук</label>
+                    <input type="url" id="incoming-webhook" name="incoming_webhook" 
+                           placeholder="https://your-portal.bitrix24.ru/rest/1/your_token/" 
+                           class="form-control">
+                    <small class="form-text">URL вебхука от Битрикс24 для отправки данных</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="outgoing-webhook">Исходящий вебхук</label>
+                    <div class="input-group">
+                        <input type="text" id="outgoing-webhook" name="outgoing_webhook" 
+                               value="https://bot.vochi.by/bitrix24/webhook/{enterprise_number}" 
+                               class="form-control" readonly>
+                        <button type="button" class="btn btn-secondary" onclick="copyToClipboard('outgoing-webhook')">
+                            Копировать
+                        </button>
+                    </div>
+                    <small class="form-text">URL для настройки исходящего вебхука в Битрикс24</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="webhook-token">Токен безопасности</label>
+                    <div class="input-group">
+                        <input type="text" id="webhook-token" name="webhook_token" 
+                               value="b24_token_placeholder_12345" 
+                               class="form-control" readonly>
+                        <button type="button" class="btn btn-secondary" onclick="copyToClipboard('webhook-token')">
+                            Копировать
+                        </button>
+                    </div>
+                    <small class="form-text">Токен для аутентификации входящих запросов</small>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
         </div>
     </div>
+    
+    <script>
+        function copyToClipboard(elementId) {{
+            const element = document.getElementById(elementId);
+            const text = element.value;
+            
+            navigator.clipboard.writeText(text).then(function() {{
+                // Визуальная обратная связь
+                const button = element.nextElementSibling;
+                const originalText = button.textContent;
+                button.textContent = 'Скопировано!';
+                button.style.background = '#28a745';
+                
+                setTimeout(function() {{
+                    button.textContent = originalText;
+                    button.style.background = '#1b3350';
+                }}, 2000);
+            }}).catch(function(err) {{
+                console.error('Ошибка копирования: ', err);
+                // Fallback для старых браузеров
+                element.select();
+                document.execCommand('copy');
+            }});
+        }}
+        
+        document.getElementById('bitrix24-config-form').addEventListener('submit', function(e) {{
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const config = Object.fromEntries(formData);
+            
+            // TODO: Отправка данных на сервер
+            console.log('Конфигурация для сохранения:', config);
+            
+            // Временная заглушка - показываем успешное сохранение
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Сохранено!';
+            submitBtn.style.background = '#28a745';
+            
+            setTimeout(function() {{
+                submitBtn.textContent = originalText;
+                submitBtn.style.background = '#00b4db';
+            }}, 2000);
+        }});
+    </script>
 </body>
 </html>
         """
