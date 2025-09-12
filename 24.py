@@ -810,9 +810,23 @@ async def save_bitrix24_config(enterprise_number: str, request: Request):
                 json.dumps(integrations_config), enterprise_number
             )
             
-            # Сбрасываем кеш
+            # Сбрасываем локальный кеш
             if enterprise_number in bitrix24_config_cache:
                 del bitrix24_config_cache[enterprise_number]
+            
+            # Отправляем обновленную конфигурацию в глобальный кеш
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    response = await client.put(
+                        f"http://127.0.0.1:8020/config/{enterprise_number}/bitrix24",
+                        json=bitrix24_config
+                    )
+                    if response.status_code == 200:
+                        logger.info(f"🔄 Bitrix24 config sent to global cache for {enterprise_number}")
+                    else:
+                        logger.warning(f"⚠️ Failed to update global cache: {response.status_code}")
+            except Exception as e:
+                logger.error(f"❌ Error updating global cache for {enterprise_number}: {e}")
             
             logger.info(f"✅ Конфигурация Битрикс24 сохранена для {enterprise_number}")
             

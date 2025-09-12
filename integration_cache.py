@@ -433,12 +433,62 @@ async def load_full_integration_configs() -> Dict[str, Dict[str, Any]]:
                 
                 configs[enterprise_number] = full_configs
             
-            logger.info(f"📊 Loaded full integration configs for {len(configs)} enterprises")
-            return configs
-            
+        logger.info(f"📊 Loaded full integration configs for {len(configs)} enterprises")
+        return configs
+        
     except Exception as e:
         logger.error(f"❌ Error loading integration matrix: {e}")
         return {}
+
+async def load_enterprise_full_config(enterprise_number: str) -> Optional[Dict[str, Any]]:
+    """Загружает ПОЛНУЮ конфигурацию интеграций для конкретного предприятия и обновляет кэш"""
+    global full_config_cache
+    
+    if not pg_pool:
+        return None
+    
+    try:
+        async with pg_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1 AND active = true", 
+                enterprise_number
+            )
+            
+            if not row:
+                logger.warning(f"⚠️ Enterprise {enterprise_number} not found or inactive")
+                return None
+            
+            integrations_config = row['integrations_config']
+            
+            # Парсим полные конфигурации
+            full_configs = {}
+            if integrations_config:
+                try:
+                    # Если это строка, парсим JSON
+                    if isinstance(integrations_config, str):
+                        integrations_config = json.loads(integrations_config)
+                    
+                    # integrations_config должен быть dict
+                    if isinstance(integrations_config, dict):
+                        # Сохраняем ПОЛНЫЕ конфигурации
+                        for integration_type, config in integrations_config.items():
+                            if isinstance(config, dict):
+                                full_configs[integration_type] = config
+                                logger.info(f"   📍 {integration_type}: enabled={config.get('enabled', False)}")
+                    else:
+                        logger.warning(f"⚠️ Unexpected config type for {enterprise_number}: {type(integrations_config)}")
+                except Exception as e:
+                    logger.error(f"❌ Error parsing config for {enterprise_number}: {e}")
+            
+            # Обновляем кэш полных конфигураций
+            full_config_cache[enterprise_number] = CacheEntry({"integrations": full_configs})
+            
+            logger.info(f"🔄 Refreshed full config cache for enterprise {enterprise_number}")
+            return full_configs
+            
+    except Exception as e:
+        logger.error(f"❌ Error loading config for enterprise {enterprise_number}: {e}")
+        return None
 
 async def refresh_cache():
     """Полное обновление кэша"""
@@ -688,6 +738,11 @@ async def get_specific_integration_config(enterprise_number: str, integration_ty
     full_config = await get_integration_config(enterprise_number)
     
     integrations = full_config.get("integrations", {})
+    
+    # Исправляем дублирование структуры если есть integrations.integrations
+    if "integrations" in integrations:
+        integrations = integrations["integrations"]
+    
     if integration_type not in integrations:
         raise HTTPException(
             status_code=404,
@@ -1144,6 +1199,61 @@ async def invalidate_cache(enterprise_number: str):
     """Принудительная инвалидация кэша для предприятия"""
     await invalidate_enterprise_cache(enterprise_number)
     return {"message": f"Cache invalidated for enterprise {enterprise_number}"}
+
+@app.put("/config/{enterprise_number}/{integration_type}")
+async def update_integration_config(enterprise_number: str, integration_type: str, config_data: dict = Body(...)):
+    """Обновление конфигурации интеграции в кэше"""
+    global full_config_cache
+    
+    try:
+        logger.info(f"📝 Updating {integration_type} config for enterprise {enterprise_number}")
+        
+        # Сначала инвалидируем кэш для предприятия
+        await invalidate_enterprise_cache(enterprise_number)
+        
+        # Получаем текущую полную конфигурацию из БД
+        if not pg_pool:
+            raise HTTPException(status_code=500, detail="Database not available")
+            
+        async with pg_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1", 
+                enterprise_number
+            )
+            
+            if not row:
+                raise HTTPException(status_code=404, detail="Enterprise not found")
+            
+            # Парсим текущую конфигурацию
+            current_config = row['integrations_config'] or {}
+            if isinstance(current_config, str):
+                current_config = json.loads(current_config)
+            
+            # Обновляем конфигурацию конкретной интеграции
+            current_config[integration_type] = config_data
+            
+            # Сохраняем обратно в БД
+            await conn.execute(
+                "UPDATE enterprises SET integrations_config = $1 WHERE number = $2",
+                json.dumps(current_config), enterprise_number
+            )
+            
+            logger.info(f"✅ {integration_type} config saved to DB for enterprise {enterprise_number}")
+        
+        # Форсируем обновление кэша для этого предприятия
+        await load_enterprise_full_config(enterprise_number)
+        
+        logger.info(f"🔄 Cache refreshed for enterprise {enterprise_number}")
+        
+        return {
+            "status": "success", 
+            "message": f"{integration_type} configuration updated",
+            "enterprise_number": enterprise_number
+        }
+        
+    except Exception as e:
+        logger.error(f"💥 Error updating {integration_type} config for {enterprise_number}: {e}")
+        raise HTTPException(status_code=500, detail=f"Configuration update failed: {str(e)}")
 
 @app.post("/cache/refresh")
 async def force_refresh():
