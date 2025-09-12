@@ -1144,12 +1144,12 @@ async def sync_user_extensions_from_bitrix24(enterprise_number: str, incoming_we
         finally:
             await conn.close()
         
-        # Получаем пользователей из Битрикс24
+        # Получаем ВСЕХ пользователей из Битрикс24 (включая уволенных для очистки конфликтов)
         import httpx
         async with httpx.AsyncClient() as client:
             response = await client.post(f"{incoming_webhook}user.get", json={
-                "filter": {"ACTIVE": "Y"},
-                "select": ["ID", "UF_PHONE_INNER"]
+                "filter": {},  # Без фильтра - получаем всех
+                "select": ["ID", "ACTIVE", "UF_PHONE_INNER"]
             })
             
             if response.status_code != 200:
@@ -1160,30 +1160,101 @@ async def sync_user_extensions_from_bitrix24(enterprise_number: str, incoming_we
             if not data.get('result'):
                 return {"synchronized_extensions": {}, "invalid_extensions": []}
             
-            # Формируем актуальный user_extensions из Битрикс24 с валидацией
+            # Формируем актуальный user_extensions из Битрикс24 с валидацией и очисткой уволенных
             synchronized_extensions = {}
             invalid_extensions = []
+            users_to_clear_in_bitrix = []  # Пользователи для очистки в Битрикс24
+            
+            # Группируем пользователей по номерам для поиска конфликтов
+            extensions_usage = {}
             
             for user_data in data['result']:
                 user_id = user_data.get('ID')
+                is_active = user_data.get('ACTIVE', False)
                 uf_phone_inner = user_data.get('UF_PHONE_INNER', '').strip()
                 
-                if uf_phone_inner:  # Только если номер установлен
-                    if uf_phone_inner in valid_extensions:
-                        # Номер существует в юните - добавляем в синхронизацию
-                        synchronized_extensions[user_id] = uf_phone_inner
-                        logger.info(f"✅ Найден валидный номер {uf_phone_inner} у пользователя {user_id} в Битрикс24")
-                    else:
-                        # Номер НЕ существует в юните - добавляем в список невалидных
+                if uf_phone_inner:
+                    if uf_phone_inner not in extensions_usage:
+                        extensions_usage[uf_phone_inner] = []
+                    extensions_usage[uf_phone_inner].append({
+                        "user_id": user_id,
+                        "is_active": is_active
+                    })
+            
+            # Обрабатываем каждый номер
+            for extension, users in extensions_usage.items():
+                if extension not in valid_extensions:
+                    # Номер не существует в юните - очищаем у ВСЕХ
+                    for user in users:
                         invalid_extensions.append({
-                            "user_id": user_id,
-                            "extension": uf_phone_inner
+                            "user_id": user["user_id"],
+                            "extension": extension
                         })
-                        logger.warning(f"⚠️ Пользователь {user_id} имеет НЕСУЩЕСТВУЮЩИЙ номер {uf_phone_inner} в Битрикс24!")
+                        users_to_clear_in_bitrix.append(user["user_id"])
+                        logger.warning(f"⚠️ Пользователь {user['user_id']} имеет НЕСУЩЕСТВУЮЩИЙ номер {extension} - будет очищен!")
+                    continue
+                
+                # Номер существует в юните
+                active_users = [u for u in users if u["is_active"]]
+                inactive_users = [u for u in users if not u["is_active"]]
+                
+                if len(users) > 1:
+                    # КОНФЛИКТ: несколько пользователей имеют один номер
+                    logger.warning(f"⚠️ КОНФЛИКТ! Номер {extension} назначен {len(users)} пользователям:")
+                    for user in users:
+                        status = "АКТИВНЫЙ" if user["is_active"] else "УВОЛЕННЫЙ"
+                        logger.warning(f"   - Пользователь {user['user_id']} ({status})")
+                    
+                    # Очищаем номер у всех неактивных пользователей
+                    for user in inactive_users:
+                        users_to_clear_in_bitrix.append(user["user_id"])
+                        logger.warning(f"🧹 Очищаем номер {extension} у УВОЛЕННОГО пользователя {user['user_id']}")
+                    
+                    # Если есть активные пользователи - берем первого
+                    if active_users:
+                        chosen_user = active_users[0]
+                        synchronized_extensions[chosen_user["user_id"]] = extension
+                        logger.info(f"✅ Номер {extension} оставлен за АКТИВНЫМ пользователем {chosen_user['user_id']}")
+                        
+                        # Если активных несколько - очищаем остальных
+                        for user in active_users[1:]:
+                            users_to_clear_in_bitrix.append(user["user_id"])
+                            logger.warning(f"🧹 Очищаем дублированный номер {extension} у активного пользователя {user['user_id']}")
+                else:
+                    # Только один пользователь имеет этот номер
+                    user = users[0]
+                    if user["is_active"]:
+                        # Активный пользователь - оставляем номер
+                        synchronized_extensions[user["user_id"]] = extension
+                        logger.info(f"✅ Найден валидный номер {extension} у активного пользователя {user['user_id']}")
+                    else:
+                        # Неактивный пользователь - очищаем номер
+                        users_to_clear_in_bitrix.append(user["user_id"])
+                        logger.warning(f"🧹 Очищаем номер {extension} у УВОЛЕННОГО пользователя {user['user_id']}")
+            
+            # Очищаем номера у пользователей в Битрикс24
+            if users_to_clear_in_bitrix:
+                logger.info(f"🧹 Очищаем номера у {len(users_to_clear_in_bitrix)} пользователей в Битрикс24")
+                for user_id in users_to_clear_in_bitrix:
+                    try:
+                        clear_response = await client.post(f"{incoming_webhook}user.update", json={
+                            "ID": user_id,
+                            "UF_PHONE_INNER": ""
+                        })
+                        
+                        if clear_response.status_code == 200:
+                            logger.info(f"✅ Очищен номер у пользователя {user_id}")
+                        else:
+                            logger.warning(f"⚠️ Не удалось очистить номер у пользователя {user_id}: {clear_response.text}")
+                    
+                    except Exception as e:
+                        logger.warning(f"⚠️ Ошибка очистки номера у пользователя {user_id}: {e}")
             
             logger.info(f"✅ Синхронизировано {len(synchronized_extensions)} валидных назначений из Битрикс24")
             if invalid_extensions:
                 logger.warning(f"⚠️ Найдено {len(invalid_extensions)} невалидных номеров в Битрикс24")
+            if users_to_clear_in_bitrix:
+                logger.info(f"🧹 Очищено {len(users_to_clear_in_bitrix)} конфликтных номеров в Битрикс24")
             
             return {
                 "synchronized_extensions": synchronized_extensions,
