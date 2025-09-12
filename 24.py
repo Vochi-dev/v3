@@ -302,7 +302,16 @@ async def get_bitrix24_admin_js():
         
         let html = '';
         users.forEach(user => {
-                   const extension = user.bitrix_extension ? `📞 ${user.bitrix_extension}` : '📞 не назначен';
+                   let extension = user.bitrix_extension ? `📞 ${user.bitrix_extension}` : '📞 не назначен';
+                   let extensionColor = '#059669'; // зеленый по умолчанию
+                   let warningHtml = '';
+                   
+                   // Если номер невалидный - показываем предупреждение
+                   if (user.is_invalid_extension && user.bitrix_extension) {
+                       extensionColor = '#dc2626'; // красный
+                       warningHtml = `<div style="color:#dc2626; font-size:12px; margin-top:3px; font-weight:500;">⚠️ Внимание! Этот номер не существует в Vochi!</div>`;
+                   }
+                   
                    html += `
                        <div style="border:1px solid #e5e7eb; border-radius:8px; padding:15px; margin-bottom:10px; background:#f9fafb;">
                            <div style="display:flex; align-items:flex-start; justify-content:space-between;">
@@ -311,7 +320,8 @@ async def get_bitrix24_admin_js():
                                        ${user.name || 'Без имени'}
                                    </div>
                                    <div style="color:#6b7280; margin-bottom:3px;">ID: ${user.id} • ${user.email || 'email не указан'}</div>
-                                   <div style="color:#059669; font-weight:500; margin-bottom:3px;">${extension}</div>
+                                   <div style="color:${extensionColor}; font-weight:500; margin-bottom:3px;">${extension}</div>
+                                   ${warningHtml}
                                </div>
                         <div style="display:flex; align-items:center; gap:10px;">
                             <select id="extension-${user.id}" style="padding:8px; border:1px solid #d1d5db; border-radius:4px; font-size:14px; min-width:160px; background:white;">
@@ -1111,10 +1121,30 @@ async def delete_bitrix24_config(enterprise_number: str):
         return {"success": False, "error": f"Ошибка удаления: {str(e)}"}
 
 async def sync_user_extensions_from_bitrix24(enterprise_number: str, incoming_webhook: str):
-    """Синхронизация user_extensions из Битрикс24 в нашу БД"""
+    """Синхронизация user_extensions из Битрикс24 в нашу БД с валидацией номеров"""
     try:
         logger.info(f"🔄 Синхронизация user_extensions из Битрикс24 для {enterprise_number}")
         
+        # Сначала получаем список доступных номеров юнита
+        conn = await asyncpg.connect(
+            host="localhost", port=5432, user="postgres", 
+            password="r/Yskqh/ZbZuvjb2b3ahfg==", database="postgres"
+        )
+        
+        try:
+            rows = await conn.fetch("""
+                SELECT phone_number FROM user_internal_phones 
+                WHERE enterprise_number = $1 
+                ORDER BY phone_number::int
+            """, enterprise_number)
+            
+            valid_extensions = {row["phone_number"] for row in rows}
+            logger.info(f"📋 Доступные номера юнита {enterprise_number}: {sorted(valid_extensions)}")
+            
+        finally:
+            await conn.close()
+        
+        # Получаем пользователей из Битрикс24
         import httpx
         async with httpx.AsyncClient() as client:
             response = await client.post(f"{incoming_webhook}user.get", json={
@@ -1124,28 +1154,45 @@ async def sync_user_extensions_from_bitrix24(enterprise_number: str, incoming_we
             
             if response.status_code != 200:
                 logger.warning(f"⚠️ Не удалось получить пользователей для синхронизации: {response.status_code}")
-                return {}
+                return {"synchronized_extensions": {}, "invalid_extensions": []}
             
             data = response.json()
             if not data.get('result'):
-                return {}
+                return {"synchronized_extensions": {}, "invalid_extensions": []}
             
-            # Формируем актуальный user_extensions из Битрикс24
+            # Формируем актуальный user_extensions из Битрикс24 с валидацией
             synchronized_extensions = {}
+            invalid_extensions = []
+            
             for user_data in data['result']:
                 user_id = user_data.get('ID')
                 uf_phone_inner = user_data.get('UF_PHONE_INNER', '').strip()
                 
                 if uf_phone_inner:  # Только если номер установлен
-                    synchronized_extensions[user_id] = uf_phone_inner
-                    logger.info(f"📞 Найден номер {uf_phone_inner} у пользователя {user_id} в Битрикс24")
+                    if uf_phone_inner in valid_extensions:
+                        # Номер существует в юните - добавляем в синхронизацию
+                        synchronized_extensions[user_id] = uf_phone_inner
+                        logger.info(f"✅ Найден валидный номер {uf_phone_inner} у пользователя {user_id} в Битрикс24")
+                    else:
+                        # Номер НЕ существует в юните - добавляем в список невалидных
+                        invalid_extensions.append({
+                            "user_id": user_id,
+                            "extension": uf_phone_inner
+                        })
+                        logger.warning(f"⚠️ Пользователь {user_id} имеет НЕСУЩЕСТВУЮЩИЙ номер {uf_phone_inner} в Битрикс24!")
             
-            logger.info(f"✅ Синхронизировано {len(synchronized_extensions)} назначений из Битрикс24")
-            return synchronized_extensions
+            logger.info(f"✅ Синхронизировано {len(synchronized_extensions)} валидных назначений из Битрикс24")
+            if invalid_extensions:
+                logger.warning(f"⚠️ Найдено {len(invalid_extensions)} невалидных номеров в Битрикс24")
+            
+            return {
+                "synchronized_extensions": synchronized_extensions,
+                "invalid_extensions": invalid_extensions
+            }
     
     except Exception as e:
         logger.warning(f"⚠️ Ошибка синхронизации user_extensions: {e}")
-        return {}
+        return {"synchronized_extensions": {}, "invalid_extensions": []}
 
 @app.post("/24-admin/api/refresh-managers/{enterprise_number}")
 async def refresh_bitrix24_managers(enterprise_number: str):
@@ -1179,7 +1226,9 @@ async def refresh_bitrix24_managers(enterprise_number: str):
                 return {"success": False, "error": "Не настроен входящий webhook"}
             
             # АВТОМАТИЧЕСКАЯ СИНХРОНИЗАЦИЯ user_extensions из Битрикс24
-            synchronized_extensions = await sync_user_extensions_from_bitrix24(enterprise_number, incoming_webhook)
+            sync_result = await sync_user_extensions_from_bitrix24(enterprise_number, incoming_webhook)
+            synchronized_extensions = sync_result["synchronized_extensions"]
+            invalid_extensions = sync_result["invalid_extensions"]
             
             # Обновляем user_extensions в БД синхронизированными данными
             bitrix24_config['user_extensions'] = synchronized_extensions
@@ -1191,6 +1240,8 @@ async def refresh_bitrix24_managers(enterprise_number: str):
             )
             
             logger.info(f"💾 Обновлен user_extensions в БД: {synchronized_extensions}")
+            if invalid_extensions:
+                logger.warning(f"⚠️ Исключены невалидные номера: {invalid_extensions}")
             
             # Загружаем пользователей из Битрикс24
             import httpx
@@ -1211,15 +1262,24 @@ async def refresh_bitrix24_managers(enterprise_number: str):
                             if not name:
                                 name = user_data.get('EMAIL', '') or f"ID:{user_id}"
                             
+                            bitrix_extension = user_data.get('UF_PHONE_INNER', '')
+                            
+                            # Проверяем, является ли номер невалидным
+                            is_invalid = any(
+                                inv['user_id'] == user_id and inv['extension'] == bitrix_extension 
+                                for inv in invalid_extensions
+                            )
+                            
                             users.append({
                                 "id": user_id,
                                 "name": name,
                                 "email": user_data.get('EMAIL', ''),
                                 "current_extension": synchronized_extensions.get(user_id, ''),  # Используем синхронизированные данные
-                                "bitrix_extension": user_data.get('UF_PHONE_INNER', '')
+                                "bitrix_extension": bitrix_extension,
+                                "is_invalid_extension": is_invalid
                             })
                     
-                    return {"success": True, "users": users}
+                    return {"success": True, "users": users, "invalid_extensions": invalid_extensions}
                 else:
                     return {"success": False, "error": f"Ошибка API Битрикс24: {response.status_code}"}
         
