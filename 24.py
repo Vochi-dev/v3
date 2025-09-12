@@ -235,7 +235,7 @@ async def get_bitrix24_admin_js():
             const formData = new FormData();
             formData.append('incoming_webhook', incoming_webhook);
             formData.append('webhook_token', webhook_token);
-            formData.append('enabled', enabled);
+            formData.append('enabled', enabled ? 'on' : '');
             
             const r = await fetch(`/24-admin/${enterprise}/save`, {
                 method: 'POST',
@@ -302,20 +302,22 @@ async def get_bitrix24_admin_js():
         
         let html = '';
         users.forEach(user => {
-            html += `
-                <div style="background: #162332; border: 1px solid #1b3350; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <div>
-                            <div style="font-weight: 500; color: #e7eef8; margin-bottom: 4px;">${user.name || 'Без имени'}</div>
-                            <div style="font-size: 12px; color: #a8b3c7;">ID: ${user.id} • ${user.email || 'email не указан'}</div>
-                            ${user.current_extension ? `<div style="font-size: 12px; color: #00b4db; margin-top: 2px;">📞 Назначен: ${user.current_extension}</div>` : ''}
-                            ${user.bitrix_extension ? `<div style="font-size: 12px; color: #22c55e; margin-top: 2px;">📞 В Битрикс24: ${user.bitrix_extension}</div>` : ''}
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <select id="extension-${user.id}" style="padding: 6px 8px; border: 1px solid #1b3350; border-radius: 4px; background: #0b1728; color: #e7eef8; font-size: 12px;">
-                                <option value="">Без номера</option>
+                   const extension = user.bitrix_extension ? `📞 ${user.bitrix_extension}` : '📞 не назначен';
+                   html += `
+                       <div style="border:1px solid #e5e7eb; border-radius:8px; padding:15px; margin-bottom:10px; background:#f9fafb;">
+                           <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+                               <div style="flex:1;">
+                                   <div style="font-size:18px; font-weight:600; color:#1f2937; margin-bottom:5px;">
+                                       ${user.name || 'Без имени'}
+                                   </div>
+                                   <div style="color:#6b7280; margin-bottom:3px;">ID: ${user.id} • ${user.email || 'email не указан'}</div>
+                                   <div style="color:#059669; font-weight:500; margin-bottom:3px;">${extension}</div>
+                               </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <select id="extension-${user.id}" style="padding:8px; border:1px solid #d1d5db; border-radius:4px; font-size:14px; min-width:160px; background:white;">
+                                <option value="">Выберите номер...</option>
                             </select>
-                            <button onclick="saveExtension('${user.id}')" style="padding: 6px 12px; background: #059669; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Сохранить</button>
+                            <button onclick="saveExtension('${user.id}')" style="padding:8px 12px; background:#059669; color:white; border:none; border-radius:4px; font-size:12px; cursor:pointer; white-space:nowrap;">💾 Сохранить</button>
                         </div>
                     </div>
                 </div>
@@ -352,19 +354,23 @@ async def get_bitrix24_admin_js():
             phones.forEach(phone => {
                 const option = document.createElement('option');
                 option.value = phone.extension;
-                option.textContent = phone.extension;
                 
-                // Если номер занят другим пользователем, помечаем
+                // Формируем текст опции с информацией о владельце
+                let optionText = phone.extension;
+                if (phone.owner_name) {
+                    optionText += ` (${phone.owner_name})`;
+                }
+                option.textContent = optionText;
+                
+                // Если номер занят другим пользователем, помечаем цветом
                 if (phone.assigned_user_id && phone.assigned_user_id !== user.id) {
-                    option.textContent += ` (занят)`;
                     option.style.color = '#f87171';
                 }
                 
-                // Если это текущий номер пользователя ИЛИ номер из Битрикс24
-                if (phone.assigned_user_id === user.id || 
-                    (!user.current_extension && phone.extension === user.bitrix_extension)) {
-                    option.selected = true;
-                }
+                       // Если это номер пользователя из Битрикс24
+                       if (phone.extension === user.bitrix_extension) {
+                           option.selected = true;
+                       }
                 
                 select.appendChild(option);
             });
@@ -774,6 +780,9 @@ async def bitrix24_admin_page(enterprise_number: str):
             incoming_webhook = bitrix24_config.get('incoming_webhook', '')
             webhook_token = bitrix24_config.get('webhook_token', '')
             enabled = bitrix24_config.get('enabled', False)
+            # Проверяем, что enabled действительно True, а не строка "true"
+            if isinstance(enabled, str):
+                enabled = enabled.lower() == 'true'
             
         finally:
             await conn.close()
@@ -1186,30 +1195,64 @@ async def get_internal_phones(enterprise_number: str):
         )
         
         try:
-            # Получаем внутренние номера из таблицы user_internal_phones
+            # Получаем конфигурацию Битрикс24 для загрузки имён пользователей
+            row = await conn.fetchrow(
+                "SELECT integrations_config FROM enterprises WHERE number = $1", 
+                enterprise_number
+            )
+            
+            users_map = {}
+            if row:
+                integrations_config = row['integrations_config'] or {}
+                if isinstance(integrations_config, str):
+                    integrations_config = json.loads(integrations_config)
+                
+                bitrix24_config = integrations_config.get('bitrix24', {})
+                incoming_webhook = bitrix24_config.get('incoming_webhook')
+                
+                # Загружаем пользователей из Битрикс24 для получения имён
+                if incoming_webhook:
+                    import httpx
+                    async with httpx.AsyncClient() as client:
+                        response = await client.post(f"{incoming_webhook}user.get", json={
+                            "filter": {"ACTIVE": "Y"},
+                            "select": ["ID", "NAME", "LAST_NAME"]
+                        })
+                        
+                        if response.status_code == 200:
+                            data = response.json()
+                            if data.get('result'):
+                                for user_data in data['result']:
+                                    user_id = user_data.get('ID')
+                                    last_name = user_data.get('LAST_NAME', '')
+                                    users_map[user_id] = last_name
+            
+            # Получаем внутренние номера из таблицы user_internal_phones (как в RetailCRM)
             rows = await conn.fetch("""
                 SELECT 
-                    uip.extension,
-                    u.enterprise_number,
-                    u.bitrix24_user_id,
-                    CASE 
-                        WHEN u.bitrix24_user_id IS NOT NULL THEN u.bitrix24_user_id::text
-                        ELSE NULL 
-                    END as assigned_user_id
+                    uip.phone_number,
+                    u.first_name,
+                    u.last_name,
+                    u.id as user_id
                 FROM user_internal_phones uip
-                LEFT JOIN users u ON u.internal_phone = uip.extension 
-                    AND u.enterprise_number = $1 
-                    AND u.bitrix24_user_id IS NOT NULL
+                LEFT JOIN users u ON uip.user_id = u.id
                 WHERE uip.enterprise_number = $1
-                ORDER BY uip.extension::int
+                ORDER BY uip.phone_number::int
             """, enterprise_number)
             
             phones = []
             for row in rows:
-                phones.append({
-                    "extension": row['extension'],
-                    "assigned_user_id": row['assigned_user_id']
-                })
+                phone_info = {
+                    "extension": row["phone_number"],
+                    "assigned_user_id": str(row["user_id"]) if row["user_id"] else None,
+                    "owner_name": None
+                }
+                
+                # Добавляем информацию о владельце если есть
+                if row["user_id"] and row["first_name"] and row["last_name"]:
+                    phone_info["owner_name"] = f"{row['last_name']}"
+                
+                phones.append(phone_info)
             
             return phones
         
