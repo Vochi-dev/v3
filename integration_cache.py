@@ -26,6 +26,9 @@ from fastapi import FastAPI, HTTPException, Request, Body
 from fastapi.responses import JSONResponse
 import httpx
 
+# Импорт нашего кэша метаданных
+from app.services.metadata_cache import MetadataCache
+
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -38,8 +41,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Конфигурация
-REFRESH_INTERVAL_BASE = 240  # 4 минуты
-REFRESH_JITTER_MAX = 60      # ±60 сек джиттер
+REFRESH_INTERVAL_BASE = 300  # 5 минут (как запросил пользователь)
+REFRESH_JITTER_MAX = 30      # ±30 сек джиттер (уменьшили для более частого обновления)
 TTL_SECONDS = 90             # TTL записи в кэше
 CACHE_CLEANUP_INTERVAL = 30  # Очистка просроченных записей
 
@@ -51,6 +54,8 @@ pg_pool: Optional[asyncpg.Pool] = None
 integration_cache: Dict[str, Dict[str, Any]] = {}
 # Новый кэш для полных конфигураций
 full_config_cache: Dict[str, Dict[str, Any]] = {}
+# Кэш метаданных (линии, менеджеры, предприятия)
+metadata_cache: Optional[MetadataCache] = None
 cache_stats = {
     "hits": 0,
     "misses": 0,
@@ -357,7 +362,7 @@ class CacheEntry:
 
 async def init_database():
     """Инициализация подключения к БД"""
-    global pg_pool
+    global pg_pool, metadata_cache
     try:
         password = os.environ.get('DB_PASSWORD', 'r/Yskqh/ZbZuvjb2b3ahfg==')
         pg_pool = await asyncpg.create_pool(
@@ -371,6 +376,11 @@ async def init_database():
             timeout=5
         )
         logger.info("✅ Database connection pool created")
+        
+        # Инициализируем кэш метаданных
+        metadata_cache = MetadataCache(pg_pool)
+        logger.info("✅ Metadata cache initialized")
+        
     except Exception as e:
         logger.error(f"❌ Failed to connect to database: {e}")
         raise
@@ -1267,6 +1277,137 @@ async def get_cache_entries():
     return {
         enterprise: entry.to_dict() 
         for enterprise, entry in integration_cache.items()
+    }
+
+# === Эндпоинты для кэша метаданных ===
+
+@app.get("/metadata/stats")
+async def get_metadata_stats():
+    """Получить статистику кэша метаданных"""
+    if not metadata_cache:
+        raise HTTPException(status_code=503, detail="Metadata cache not initialized")
+    
+    return metadata_cache.get_cache_stats()
+
+@app.get("/metadata/{enterprise_number}/lines")
+async def get_enterprise_lines(enterprise_number: str):
+    """Получить все линии предприятия"""
+    if not metadata_cache:
+        raise HTTPException(status_code=503, detail="Metadata cache not initialized")
+    
+    lines = metadata_cache.get_all_line_ids(enterprise_number)
+    if not lines:
+        raise HTTPException(status_code=404, detail=f"No lines found for enterprise {enterprise_number}")
+    
+    # Возвращаем детальную информацию о линиях
+    result = {}
+    if enterprise_number in metadata_cache.cache:
+        gsm_lines = metadata_cache.cache[enterprise_number].get("gsm_lines", {})
+        sip_lines = metadata_cache.cache[enterprise_number].get("sip_lines", {})
+        result = {**gsm_lines, **sip_lines}
+    
+    return {
+        "enterprise_number": enterprise_number,
+        "lines_count": len(lines),
+        "lines": result
+    }
+
+@app.get("/metadata/{enterprise_number}/managers")
+async def get_enterprise_managers(enterprise_number: str):
+    """Получить всех менеджеров предприятия"""
+    if not metadata_cache:
+        raise HTTPException(status_code=503, detail="Metadata cache not initialized")
+    
+    internal_phones = metadata_cache.get_all_internal_phones(enterprise_number)
+    if not internal_phones:
+        raise HTTPException(status_code=404, detail=f"No managers found for enterprise {enterprise_number}")
+    
+    # Возвращаем детальную информацию о менеджерах
+    result = {}
+    if enterprise_number in metadata_cache.cache:
+        managers = metadata_cache.cache[enterprise_number].get("managers", {})
+        result = managers
+    
+    return {
+        "enterprise_number": enterprise_number,
+        "managers_count": len(internal_phones),
+        "managers": result
+    }
+
+@app.get("/metadata/{enterprise_number}/line/{line_id}")
+async def get_line_info(enterprise_number: str, line_id: str):
+    """Получить информацию о конкретной линии"""
+    if not metadata_cache:
+        raise HTTPException(status_code=503, detail="Metadata cache not initialized")
+    
+    if not metadata_cache.is_line_exists(enterprise_number, line_id):
+        raise HTTPException(status_code=404, detail=f"Line {line_id} not found for enterprise {enterprise_number}")
+    
+    line_name = metadata_cache.get_line_name(enterprise_number, line_id)
+    line_operator = metadata_cache.get_line_operator(enterprise_number, line_id)
+    
+    return {
+        "enterprise_number": enterprise_number,
+        "line_id": line_id,
+        "name": line_name,
+        "operator": line_operator,
+        "exists": True
+    }
+
+@app.get("/metadata/{enterprise_number}/manager/{internal_phone}")
+async def get_manager_info(enterprise_number: str, internal_phone: str):
+    """Получить информацию о конкретном менеджере"""
+    if not metadata_cache:
+        raise HTTPException(status_code=503, detail="Metadata cache not initialized")
+    
+    if not metadata_cache.is_manager_exists(enterprise_number, internal_phone):
+        raise HTTPException(status_code=404, detail=f"Manager {internal_phone} not found for enterprise {enterprise_number}")
+    
+    # Получаем полные данные менеджера
+    manager_data = metadata_cache.get_manager_full_data(enterprise_number, internal_phone)
+    if not manager_data:
+        raise HTTPException(status_code=500, detail=f"Failed to get manager data for {internal_phone}")
+    
+    return {
+        "enterprise_number": enterprise_number,
+        "internal_phone": internal_phone,
+        "full_name": manager_data.get("full_name"),
+        "short_name": manager_data.get("short_name"),
+        "personal_phone": manager_data.get("personal_phone"),
+        "follow_me_number": manager_data.get("follow_me_number"),
+        "follow_me_enabled": manager_data.get("follow_me_enabled", False),
+        "user_id": manager_data.get("user_id"),
+        "exists": True
+    }
+
+@app.post("/metadata/{enterprise_number}/refresh")
+async def refresh_enterprise_metadata(enterprise_number: str):
+    """Обновить метаданные конкретного предприятия"""
+    if not metadata_cache:
+        raise HTTPException(status_code=503, detail="Metadata cache not initialized")
+    
+    success = await metadata_cache.load_enterprise_metadata(enterprise_number)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to refresh metadata for enterprise {enterprise_number}")
+    
+    return {
+        "message": f"Metadata refreshed for enterprise {enterprise_number}",
+        "enterprise_number": enterprise_number,
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.post("/metadata/refresh-all")
+async def refresh_all_metadata():
+    """Обновить метаданные всех активных предприятий"""
+    if not metadata_cache:
+        raise HTTPException(status_code=503, detail="Metadata cache not initialized")
+    
+    loaded_count = await metadata_cache.load_all_active_enterprises()
+    
+    return {
+        "message": "All metadata refreshed",
+        "loaded_enterprises": loaded_count,
+        "timestamp": datetime.now().isoformat()
     }
 
 
@@ -2169,7 +2310,14 @@ async def background_refresh_task():
             sleep_time = REFRESH_INTERVAL_BASE + jitter
             
             await asyncio.sleep(sleep_time)
+            
+            # Обновляем кэш интеграций
             await refresh_cache()
+            
+            # Обновляем кэш метаданных
+            if metadata_cache:
+                loaded_count = await metadata_cache.load_all_active_enterprises()
+                logger.info(f"🗄️ Метаданные обновлены для {loaded_count} предприятий")
             
         except Exception as e:
             logger.error(f"❌ Error in background refresh: {e}")
@@ -2196,8 +2344,13 @@ async def startup_event():
     # Инициализация БД
     await init_database()
     
-    # Первоначальная загрузка кэша
+    # Первоначальная загрузка кэша интеграций
     await refresh_cache()
+    
+    # Первоначальная загрузка кэша метаданных
+    if metadata_cache:
+        loaded_count = await metadata_cache.load_all_active_enterprises()
+        logger.info(f"🗄️ Начальная загрузка метаданных завершена для {loaded_count} предприятий")
     
     # Запуск фоновых задач
     asyncio.create_task(background_refresh_task())

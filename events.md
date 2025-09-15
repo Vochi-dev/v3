@@ -1001,3 +1001,340 @@ async def safe_edit_message(chat_id: int, message_id: int, new_text: str, call_k
 ---
 
 **ВАЖНО:** Этот мануал основан на анализе 42 типов звонков. План будет дополняться по мере реализации и тестирования.
+
+---
+
+## 🗄️ **СТРУКТУРА БАЗЫ ДАННЫХ ДЛЯ КЭШИРОВАНИЯ МЕТАДАННЫХ**
+
+### **📋 АНАЛИЗ ТАБЛИЦ И ЗАВИСИМОСТЕЙ**
+
+#### **🏢 Основная таблица: `enterprises`**
+```sql
+enterprises (id, number, name, bot_token, chat_id, ip, secret, host, ...)
+```
+**Описание:** Основная справочная таблица предприятий
+- `number` - номер предприятия (например, "0367")
+- `name` - название предприятия
+- `bot_token` - токен Telegram бота
+- `chat_id` - ID чата для уведомлений
+- `ip`, `host` - адреса удаленных хостов
+
+#### **📱 GSM линии: `gsm_lines`**
+```sql
+gsm_lines (id, enterprise_number, line_id, internal_id, phone_number, line_name, goip_id, ...)
+```
+**Описание:** GSM линии предприятий
+- `enterprise_number` → `enterprises.number` (FK)
+- `goip_id` → `goip.id` (FK)
+- `line_id` - внешний идентификатор линии (приходит в событиях)
+- `internal_id` - внутренний идентификатор
+- `phone_number` - номер телефона линии
+- `line_name` - человекочитаемое название (МТС-1, A1 Главный офис)
+
+#### **🌐 GoIP устройства: `goip`**
+```sql
+goip (id, enterprise_number, gateway_name, device_ip, device_model, line_count, ...)
+```
+**Описание:** GoIP шлюзы GSM
+- `enterprise_number` → `enterprises.number` (FK)
+- `gateway_name` - название шлюза
+- `device_ip` - IP адрес устройства
+- `line_count` - количество линий на устройстве
+
+#### **☎️ SIP линии: `sip_unit`**
+```sql
+sip_unit (id, enterprise_number, line_name, password, prefix, provider_id, ...)
+```
+**Описание:** SIP подключения (интернет-телефония)
+- `enterprise_number` → `enterprises.number` (FK)
+- `line_name` - название SIP линии
+- `provider_id` → `sip.id` (провайдер SIP)
+
+#### **👥 Пользователи: `users`**
+```sql
+users (id, enterprise_number, email, last_name, first_name, patronymic, personal_phone, follow_me_number, ...)
+```
+**Описание:** Менеджеры предприятий
+- `enterprise_number` → `enterprises.number` (FK)
+- `last_name`, `first_name`, `patronymic` - ФИО
+- `personal_phone` - мобильный номер
+- `follow_me_number` - номер для FollowMe переадресации
+
+#### **📞 Внутренние номера: `user_internal_phones`**
+```sql
+user_internal_phones (id, user_id, phone_number, password, enterprise_number, ...)
+```
+**Описание:** Привязка внутренних номеров к пользователям
+- `user_id` → `users.id` (FK)
+- `enterprise_number` → `enterprises.number` (FK)
+- `phone_number` - внутренний номер (150, 151, 152, ...)
+
+#### **🏪 Торговые точки: `shops` + `shop_lines`**
+```sql
+shops (id, enterprise_number, name, ...)
+shop_lines (shop_id, gsm_line_id, enterprise_number)
+```
+**Описание:** Группировка GSM линий по торговым точкам
+- `shops.enterprise_number` → `enterprises.number`
+- `shop_lines.shop_id` → `shops.id` (FK)
+- `shop_lines.gsm_line_id` → `gsm_lines.id` (FK)
+
+---
+
+### **🔗 СХЕМА ЗАВИСИМОСТЕЙ**
+
+```
+enterprises (базовая таблица)
+├── users (менеджеры)
+│   └── user_internal_phones (внутренние номера)
+├── goip (GSM шлюзы)
+│   └── gsm_lines (GSM линии)
+├── sip_unit (SIP линии)
+└── shops (торговые точки)
+    └── shop_lines → gsm_lines
+```
+
+---
+
+### **📦 СТРУКТУРА КЭША МЕТАДАННЫХ (СЕРВИС 8020)**
+
+#### **🎯 Что нужно кэшировать для отправки в Telegram:**
+
+#### **1. 📱 Справочник GSM/SIP линий:**
+```python
+line_cache = {
+    "0367": {  # enterprise_number
+        "0001363": {  # line_id (приходит в событиях)
+            "name": "МТС Главный офис",
+            "phone": "+375296254070", 
+            "operator": "МТС",
+            "goip_name": "GoIP-1",
+            "shop_name": "Центральный офис"
+        }
+    }
+}
+```
+
+#### **2. 👥 Справочник менеджеров:**
+```python
+manager_cache = {
+    "0367": {  # enterprise_number
+        "150": {  # internal phone (приходит в событиях)
+            "user_id": 123,
+            "full_name": "Иванов Иван Иванович",
+            "short_name": "Иванов И.И.",
+            "personal_phone": "+375296254070",
+            "follow_me": 300,
+            "department": "Отдел продаж"
+        }
+    }
+}
+```
+
+#### **3. 🏢 Справочник предприятий:**
+```python
+enterprise_cache = {
+    "0367": {
+        "name": "ООО Рога и Копыта",
+        "bot_token": "7280164925:AAHPPXH4Muq07RFMI_J5DyUhZXEo73l7LWI",
+        "chat_id": 374573193,
+        "host": "10.88.10.xx"
+    }
+}
+```
+
+#### **4. 🔄 Резервные линии:**
+```python
+backup_lines_cache = {
+    "0367": {
+        "0001363": ["0001364", "0001365"],  # основная → [резервы]
+        "МТС-1": ["МТС-2", "A1-1"]
+    }
+}
+```
+
+---
+
+### **⚡ АЛГОРИТМ ЗАГРУЗКИ В КЭШ**
+
+#### **Полная загрузка метаданных:**
+```sql
+-- 1. Загрузка GSM линий с названиями GoIP и торговых точек
+SELECT 
+    gl.enterprise_number,
+    gl.line_id,
+    gl.internal_id,
+    gl.phone_number,
+    gl.line_name,
+    g.gateway_name as goip_name,
+    s.name as shop_name
+FROM gsm_lines gl
+LEFT JOIN goip g ON gl.goip_id = g.id
+LEFT JOIN shop_lines sl ON gl.id = sl.gsm_line_id
+LEFT JOIN shops s ON sl.shop_id = s.id
+WHERE gl.enterprise_number = %s
+
+-- 2. Загрузка SIP линий
+SELECT 
+    enterprise_number,
+    line_name,
+    prefix,
+    provider_id
+FROM sip_unit
+WHERE enterprise_number = %s
+
+-- 3. Загрузка менеджеров с внутренними номерами
+SELECT 
+    u.enterprise_number,
+    uip.phone_number as internal_phone,
+    u.id as user_id,
+    CONCAT(u.last_name, ' ', u.first_name, ' ', COALESCE(u.patronymic, '')) as full_name,
+    CONCAT(u.last_name, ' ', LEFT(u.first_name, 1), '.', LEFT(COALESCE(u.patronymic, ''), 1), '.') as short_name,
+    u.personal_phone,
+    u.follow_me_number
+FROM users u
+JOIN user_internal_phones uip ON u.id = uip.user_id
+WHERE u.enterprise_number = %s
+
+-- 4. Загрузка данных предприятий
+SELECT 
+    number,
+    name,
+    bot_token,
+    chat_id,
+    host,
+    ip
+FROM enterprises
+WHERE number = %s
+```
+
+---
+
+### **🚀 ТЕХНИЧЕСКАЯ РЕАЛИЗАЦИЯ В СЕРВИСЕ 8020**
+
+#### **Класс MetadataCache:**
+```python
+class MetadataCache:
+    def __init__(self, db_connection):
+        self.db = db_connection
+        self.cache = {}
+        self.last_update = {}
+        
+    async def load_enterprise_metadata(self, enterprise_number: str):
+        """Загружает все метаданные предприятия в кэш"""
+        
+        # Загружаем GSM линии
+        self.cache[enterprise_number]["lines"] = await self._load_gsm_lines(enterprise_number)
+        
+        # Загружаем SIP линии
+        self.cache[enterprise_number]["sip_lines"] = await self._load_sip_lines(enterprise_number)
+        
+        # Загружаем менеджеров
+        self.cache[enterprise_number]["managers"] = await self._load_managers(enterprise_number)
+        
+        # Загружаем данные предприятия
+        self.cache[enterprise_number]["enterprise"] = await self._load_enterprise_data(enterprise_number)
+        
+        self.last_update[enterprise_number] = datetime.now()
+        
+    def get_line_name(self, enterprise_number: str, line_id: str) -> str:
+        """Получает название линии по ID"""
+        return self.cache.get(enterprise_number, {}).get("lines", {}).get(line_id, {}).get("name", f"Линия {line_id}")
+        
+    def get_manager_name(self, enterprise_number: str, internal_phone: str) -> str:
+        """Получает ФИО менеджера по внутреннему номеру"""
+        return self.cache.get(enterprise_number, {}).get("managers", {}).get(internal_phone, {}).get("full_name", f"Доб.{internal_phone}")
+        
+    def get_backup_lines(self, enterprise_number: str, primary_line: str) -> List[str]:
+        """Получает список резервных линий"""
+        return self.cache.get(enterprise_number, {}).get("backup_lines", {}).get(primary_line, [])
+```
+
+---
+
+### **📊 ОЦЕНКА ОБЪЕМА ДАННЫХ**
+
+#### **Расчет памяти для кэша:**
+
+**Предприятие среднего размера (например, 0367):**
+- **GSM линии:** 50 линий × 200 байт = 10 KB
+- **SIP линии:** 20 линий × 150 байт = 3 KB  
+- **Менеджеры:** 100 человек × 300 байт = 30 KB
+- **Справочники:** 5 KB
+- **ИТОГО на предприятие:** ~50 KB
+
+**Для 50 предприятий:** 50 × 50 KB = **2.5 MB**
+
+**Для всей системы (200 предприятий):** 200 × 50 KB = **10 MB**
+
+✅ **ВЫВОД:** При доступных 16 GB RAM и текущем использовании 3-5 GB, кэширование метаданных займет менее 1% памяти - **АБСОЛЮТНО БЕЗОПАСНО**.
+
+---
+
+### **🔄 СТРАТЕГИЯ ОБНОВЛЕНИЯ КЭША**
+
+#### **1. Инициализация при старте сервиса:**
+```python
+async def startup_cache_initialization():
+    """Загружает кэш всех активных предприятий при старте"""
+    active_enterprises = await db.fetch_all("SELECT number FROM enterprises WHERE active = true")
+    
+    for enterprise in active_enterprises:
+        await metadata_cache.load_enterprise_metadata(enterprise['number'])
+        
+    logger.info(f"🗄️ Загружен кэш для {len(active_enterprises)} предприятий")
+```
+
+#### **2. Автообновление по расписанию:**
+```python
+async def scheduled_cache_refresh():
+    """Обновление кэша каждые 30 минут"""
+    while True:
+        await asyncio.sleep(1800)  # 30 минут
+        
+        for enterprise_number in metadata_cache.cache.keys():
+            await metadata_cache.load_enterprise_metadata(enterprise_number)
+            
+        logger.info("🔄 Кэш метаданных обновлен")
+```
+
+#### **3. Реактивное обновление по событиям:**
+```python
+async def handle_metadata_change_event(event_type: str, enterprise_number: str):
+    """Обновляет кэш при изменении данных через админку"""
+    if event_type in ["user_updated", "line_updated", "enterprise_updated"]:
+        await metadata_cache.load_enterprise_metadata(enterprise_number)
+        logger.info(f"🔄 Кэш предприятия {enterprise_number} обновлен по событию {event_type}")
+```
+
+---
+
+### **🎯 ИНТЕГРАЦИЯ С ФИЛЬТРАЦИЕЙ TELEGRAM**
+
+#### **Использование кэша при формировании сообщений:**
+```python
+async def format_telegram_message(event_data: dict, enterprise_number: str) -> str:
+    """Форматирует сообщение для Telegram с использованием кэша"""
+    
+    # Получаем название линии
+    line_id = event_data.get("Exten")
+    line_name = metadata_cache.get_line_name(enterprise_number, line_id)
+    
+    # Получаем ФИО менеджера
+    internal_phone = event_data.get("Channel", "").split("/")[-1]
+    manager_name = metadata_cache.get_manager_name(enterprise_number, internal_phone)
+    
+    # Форматируем внешний номер
+    external_phone = format_phone_display(event_data.get("CallerIDNum", ""))
+    
+    return f"""
+✅ Успешный входящий звонок
+💰{external_phone}
+☎️{manager_name}
+📡{line_name}
+⌛ Длительность: {event_data.get('Duration', 'N/A')}
+🔉Запись разговора
+"""
+```
+
+**ИТОГО:** Система кэша метаданных обеспечит быстрое получение человекочитаемых названий и ФИО без запросов к БД при каждом событии.
