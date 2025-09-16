@@ -191,10 +191,37 @@ def format_phone_number(phone: str) -> str:
         phone = "+" + phone
     try:
         parsed = phonenumbers.parse(phone, None)
-        return phonenumbers.format_number(
-            parsed,
-            phonenumbers.PhoneNumberFormat.INTERNATIONAL
-        )
+        
+        # Получаем код страны и национальный номер
+        country_code = parsed.country_code
+        national = str(parsed.national_number)
+        
+        # Форматируем по международному стандарту с префиксом в скобках
+        if country_code == 375 and len(national) == 9:
+            # Беларусь: +375 (29) 625-40-70
+            return f"+375 ({national[:2]}) {national[2:5]}-{national[5:7]}-{national[7:]}"
+        elif country_code == 7 and len(national) == 10:
+            # Россия: +7 (495) 123-45-67
+            return f"+7 ({national[:3]}) {national[3:6]}-{national[6:8]}-{national[8:]}"
+        elif country_code == 1 and len(national) == 10:
+            # США/Канада: +1 (555) 123-4567
+            return f"+1 ({national[:3]}) {national[3:6]}-{national[6:]}"
+        elif country_code == 380 and len(national) == 9:
+            # Украина: +380 (67) 123-45-67
+            return f"+380 ({national[:2]}) {national[2:5]}-{national[5:7]}-{national[7:]}"
+        else:
+            # Для других стран пытаемся применить общую логику
+            international = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+            # Заменяем первый пробел на ( и добавляем ) после кода оператора
+            parts = international.split(' ', 2)
+            if len(parts) >= 2:
+                country_part = parts[0]  # +XX
+                operator_part = parts[1]  # YYY
+                rest = ' '.join(parts[2:]) if len(parts) > 2 else ''
+                return f"{country_part} ({operator_part}) {rest}".strip()
+            else:
+                return international
+                
     except Exception:
         return phone
 

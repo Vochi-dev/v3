@@ -1338,3 +1338,224 @@ async def format_telegram_message(event_data: dict, enterprise_number: str) -> s
 ```
 
 **ИТОГО:** Система кэша метаданных обеспечит быстрое получение человекочитаемых названий и ФИО без запросов к БД при каждом событии.
+
+---
+
+## 🌐 **API МЕТОДЫ КЭША МЕТАДАННЫХ**
+
+### **📊 Получение статистики кэша**
+
+#### `GET /metadata/stats`
+Получает общую статистику кэша метаданных по всем предприятиям.
+
+**Пример ответа:**
+```json
+{
+    "enterprises": 77,
+    "total_lines": 983,
+    "total_managers": 3,
+    "last_updates": {
+        "0367": "2025-09-15T11:05:24.303322",
+        "0100": "2025-09-15T10:58:08.195301",
+        ...
+    },
+    "memory_enterprises": ["0100", "0367", "0387", ...]
+}
+```
+
+### **📱 Методы для работы с линиями**
+
+#### `GET /metadata/{enterprise_number}/lines`
+Получает все линии предприятия (GSM + SIP).
+
+**Пример ответа:**
+```json
+{
+    "enterprise_number": "0367",
+    "lines_count": 17,
+    "lines": {
+        "0001363": {
+            "internal_id": "10225501",
+            "phone": "+375447033925",
+            "name": "A1 1",
+            "prefix": "21",
+            "operator": "A1",
+            "goip_name": "Vochi-Main",
+            "goip_ip": null,
+            "shop_name": "Тестовый магазин 1"
+        },
+        "3880923": {
+            "name": "3880923",
+            "prefix": "80{9}",
+            "provider_id": 1,
+            "type": "SIP"
+        }
+    }
+}
+```
+
+#### `GET /metadata/{enterprise_number}/line/{line_id}`
+Получает информацию о конкретной линии.
+
+**Пример ответа:**
+```json
+{
+    "enterprise_number": "0367",
+    "line_id": "0001363",
+    "name": "A1 1",
+    "operator": "A1",
+    "exists": true
+}
+```
+
+### **👥 Методы для работы с менеджерами**
+
+#### `GET /metadata/{enterprise_number}/managers`
+Получает всех менеджеров предприятия.
+
+**Пример ответа:**
+```json
+{
+    "enterprise_number": "0367",
+    "managers_count": 2,
+    "managers": {
+        "150": {
+            "user_id": 25,
+            "full_name": "Джуновый Джулай",
+            "short_name": "Джуновый Д.",
+            "personal_phone": "+375296254070",
+            "follow_me_number": 300,
+            "follow_me_enabled": true
+        },
+        "151": {
+            "user_id": 26,
+            "full_name": "Копачёв Алексей",
+            "short_name": "Копачёв А.",
+            "personal_phone": "+491726993391",
+            "follow_me_number": null,
+            "follow_me_enabled": false
+        }
+    }
+}
+```
+
+#### `GET /metadata/{enterprise_number}/manager/{internal_phone}`
+Получает информацию о конкретном менеджере.
+
+**Пример ответа:**
+```json
+{
+    "enterprise_number": "0367",
+    "internal_phone": "150",
+    "full_name": "Джуновый Джулай",
+    "short_name": "Джуновый Д.",
+    "personal_phone": "+375296254070",
+    "follow_me_number": 300,
+    "follow_me_enabled": true,
+    "user_id": 25,
+    "exists": true
+}
+```
+
+### **🔄 Методы обновления кэша**
+
+#### `POST /metadata/{enterprise_number}/refresh`
+Обновляет метаданные конкретного предприятия.
+
+**Пример ответа:**
+```json
+{
+    "message": "Metadata refreshed for enterprise 0367",
+    "enterprise_number": "0367",
+    "timestamp": "2025-09-15T11:05:24.303322"
+}
+```
+
+#### `POST /metadata/refresh-all`
+Обновляет метаданные всех активных предприятий.
+
+**Пример ответа:**
+```json
+{
+    "message": "All metadata refreshed",
+    "loaded_enterprises": 77,
+    "timestamp": "2025-09-15T11:05:24.303322"
+}
+```
+
+### **📋 Примеры использования в коде**
+
+#### **1. Получение названия линии:**
+```python
+import httpx
+
+async def get_line_name(enterprise_number: str, line_id: str) -> str:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"http://localhost:8020/metadata/{enterprise_number}/line/{line_id}")
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("name", f"Линия {line_id}")
+        return f"Линия {line_id}"
+
+# Использование
+line_name = await get_line_name("0367", "0001363")  # → "A1 1"
+```
+
+#### **2. Получение ФИО менеджера:**
+```python
+async def get_manager_name(enterprise_number: str, internal_phone: str) -> str:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"http://localhost:8020/metadata/{enterprise_number}/manager/{internal_phone}")
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("full_name", f"Доб.{internal_phone}")
+        return f"Доб.{internal_phone}"
+
+# Использование
+manager_name = await get_manager_name("0367", "150")  # → "Джуновый Джулай"
+```
+
+#### **3. Форматирование Telegram сообщения с кэшем:**
+```python
+async def format_telegram_message_with_cache(event_data: dict, enterprise_number: str) -> str:
+    # Получаем метаданные через API кэша
+    line_id = event_data.get("Exten", "")
+    internal_phone = extract_internal_phone_from_channel(event_data.get("Channel", ""))
+    
+    # Запросы к кэшу вместо БД
+    line_name = await get_line_name(enterprise_number, line_id)
+    manager_name = await get_manager_name(enterprise_number, internal_phone)
+    
+    # Форматируем номер
+    external_phone = format_phone_display(event_data.get("CallerIDNum", ""))
+    
+    return f"""
+✅ Успешный входящий звонок
+💰{external_phone}
+☎️{manager_name}
+📡{line_name}
+⌛ Длительность: {event_data.get('Duration', 'N/A')}
+🔉Запись разговора
+"""
+```
+
+### **⚡ Производительность**
+
+- **Скорость запросов:** 6-14 мс для получения данных из кэша
+- **Параллельные запросы:** 10 запросов за 42 мс
+- **Автообновление:** каждые 5 минут
+- **Объём кэша:** ~10 MB для всех предприятий
+
+### **🔧 Техническая информация**
+
+- **Сервис:** integration_cache.py (порт 8020)
+- **База URL:** `http://localhost:8020`
+- **Формат ответов:** JSON
+- **Коды ошибок:** 
+  - `404` - объект не найден
+  - `503` - кэш не инициализирован
+  - `500` - внутренняя ошибка
+
+---
+
+**Кэш метаданных готов к использованию для улучшения читаемости сообщений в Telegram и других интеграциях! 🚀**

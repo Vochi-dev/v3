@@ -1,0 +1,76 @@
+{
+  "test_id": "busy_manager",
+  "call_type": 0,
+  "description": "Звонок занятому менеджеру (тип 2-19-2-22): активный разговор + новый входящий",
+  "complexity": "BUSY_MANAGER",
+  "expected_telegram_messages": 2,
+  "expected_final_content": ["Звонок занятому менеджеру"],
+  "events": [
+    {
+      "event_type": "bridge",
+      "endpoint": "/bridge",
+      "delay": 0,
+      "data": {
+        "UniqueId": "1757773200.90",
+        "CallerIDNum": "151",
+        "ConnectedLineNum": "152",
+        "BridgeUniqueid": "active-bridge-managers",
+        "Token": "375293332255"
+      }
+    },
+    {
+      "event_type": "start",
+      "endpoint": "/start",
+      "delay": 1.0,
+      "data": {
+        "UniqueId": "1757773201.91",
+        "CallType": 0,
+        "Phone": "375296254070",
+        "Token": "375293332255",
+        "Trunk": "0001363"
+      }
+    },
+    {
+      "event_type": "dial",
+      "endpoint": "/dial",
+      "delay": 0.5,
+      "data": {
+        "UniqueId": "1757773201.91",
+        "CallType": 0,
+        "Phone": "375296254070",
+        "Extensions": ["151"],
+        "Token": "375293332255"
+      }
+    },
+    {
+      "event_type": "hangup",
+      "endpoint": "/hangup",
+      "delay": 5.0,
+      "data": {
+        "UniqueId": "1757773201.91",
+        "Phone": "375296254070",
+        "Token": "375293332255",
+        "Cause": "No Answer"
+      }
+    },
+    {
+      "event_type": "hangup",
+      "endpoint": "/hangup",
+      "delay": 2.0,
+      "data": {
+        "UniqueId": "1757773200.90",
+        "Phone": "151",
+        "Token": "375293332255",
+        "Cause": "Normal Clearing"
+      }
+    }
+  ],
+  "expected_results": {
+    "bitrix24_events": 2,
+    "telegram_events": 2,
+    "complexity": "BUSY_MANAGER",
+    "primary_uid": "1757773201.91"
+  }
+}
+
+

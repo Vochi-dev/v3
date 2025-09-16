@@ -1,0 +1,69 @@
+{
+  "test_id": "2-1-real",
+  "description": "Реальный простой входящий звонок (ответили) - на основе CallsManual_V2",
+  "call_type": 0,
+  "complexity": "SIMPLE",
+  "expected_telegram_messages": 4,
+  "expected_final_content": [
+    "✅ Успешный входящий звонок",
+    "375447034448",
+    "151"
+  ],
+  "events": [
+    {
+      "type": "start",
+      "delay_ms": 0,
+      "data": {
+        "CallType": 0,
+        "Trunk": "0001363", 
+        "UniqueId": "WILL_BE_REPLACED",
+        "Phone": "375447034448",
+        "Token": "WILL_BE_REPLACED"
+      }
+    },
+    {
+      "type": "dial",
+      "delay_ms": 1000,
+      "data": {
+        "ExtTrunk": "",
+        "ExtPhone": "375447034448",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Phone": "375447034448",
+        "Trunk": "0001363",
+        "CallType": 0,
+        "Token": "WILL_BE_REPLACED",
+        "Extensions": ["150", "151", "152"]
+      }
+    },
+    {
+      "type": "bridge",
+      "delay_ms": 4000,
+      "data": {
+        "Exten": "0001363",
+        "CallerIDName": "-375447034448",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Channel": "SIP/0001363-00000004",
+        "ConnectedLineName": "<unknown>",
+        "BridgeUniqueid": "c50ef955-2780-4484-a218-dfb1db61b5bc",
+        "CallerIDNum": "375447034448",
+        "Token": "WILL_BE_REPLACED",
+        "ConnectedLineNum": "151"
+      }
+    },
+    {
+      "type": "hangup",
+      "delay_ms": 45000,
+      "data": {
+        "CallStatus": "2",
+        "EndTime": "WILL_BE_REPLACED",
+        "DateReceived": "WILL_BE_REPLACED", 
+        "UniqueId": "WILL_BE_REPLACED",
+        "Phone": "375447034448",
+        "StartTime": "WILL_BE_REPLACED",
+        "CallType": 0,
+        "Token": "WILL_BE_REPLACED",
+        "Extensions": ["151"]
+      }
+    }
+  ]
+}

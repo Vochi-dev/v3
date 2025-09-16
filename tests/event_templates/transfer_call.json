@@ -1,0 +1,101 @@
+{
+  "test_id": "transfer",
+  "call_type": 0,
+  "description": "Перевод звонка (тип 2-18): A→B→C с множественными мостами",
+  "complexity": "MULTIPLE_TRANSFER",
+  "expected_telegram_messages": 4,
+  "expected_final_content": ["Перевод звонка"],
+  "events": [
+    {
+      "event_type": "start",
+      "endpoint": "/start",
+      "delay": 0,
+      "data": {
+        "UniqueId": "1757773100.80",
+        "CallType": 0,
+        "Phone": "375296254070",
+        "Token": "375293332255",
+        "Trunk": "0001363"
+      }
+    },
+    {
+      "event_type": "dial",
+      "endpoint": "/dial",
+      "delay": 0.5,
+      "data": {
+        "UniqueId": "1757773100.80",
+        "CallType": 0,
+        "Phone": "375296254070",
+        "Extensions": ["151"],
+        "Token": "375293332255"
+      }
+    },
+    {
+      "event_type": "bridge",
+      "endpoint": "/bridge",
+      "delay": 2.0,
+      "data": {
+        "UniqueId": "1757773100.80",
+        "CallerIDNum": "375296254070",
+        "ConnectedLineNum": "151",
+        "BridgeUniqueid": "bridge-1-initial",
+        "Token": "375293332255"
+      }
+    },
+    {
+      "event_type": "dial",
+      "endpoint": "/dial",
+      "delay": 5.0,
+      "data": {
+        "UniqueId": "1757773101.81",
+        "CallType": 1,
+        "Phone": "152",
+        "Extension": "151",
+        "Token": "375293332255"
+      }
+    },
+    {
+      "event_type": "bridge",
+      "endpoint": "/bridge",
+      "delay": 2.0,
+      "data": {
+        "UniqueId": "1757773101.81",
+        "CallerIDNum": "151",
+        "ConnectedLineNum": "152",
+        "BridgeUniqueid": "bridge-2-consultation",
+        "Token": "375293332255"
+      }
+    },
+    {
+      "event_type": "bridge",
+      "endpoint": "/bridge",
+      "delay": 3.0,
+      "data": {
+        "UniqueId": "1757773100.80",
+        "CallerIDNum": "375296254070",
+        "ConnectedLineNum": "152",
+        "BridgeUniqueid": "bridge-3-final",
+        "Token": "375293332255"
+      }
+    },
+    {
+      "event_type": "hangup",
+      "endpoint": "/hangup",
+      "delay": 10.0,
+      "data": {
+        "UniqueId": "1757773100.80",
+        "Phone": "375296254070",
+        "Token": "375293332255",
+        "Cause": "Normal Clearing"
+      }
+    }
+  ],
+  "expected_results": {
+    "bitrix24_events": 4,
+    "telegram_events": 2,
+    "complexity": "MULTIPLE_TRANSFER",
+    "primary_uid": "1757773100.80"
+  }
+}
+
+

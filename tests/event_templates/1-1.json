@@ -1,0 +1,62 @@
+{
+  "test_id": "1-1", 
+  "description": "Простой исходящий звонок (ответили)",
+  "call_type": 1,
+  "complexity": "SIMPLE",
+  "expected_telegram_messages": 3,
+  "expected_final_content": [
+    "✅ Успешный исходящий звонок",
+    "Джуновый",
+    "A1 1"
+  ],
+  "events": [
+    {
+      "type": "dial",
+      "delay_ms": 0,
+      "data": {
+        "Event": "dial",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Token": "WILL_BE_REPLACED",
+        "CallerIDNum": "150",
+        "Phone": "+375296254070",
+        "Extensions": ["150"],
+        "CallType": 1,
+        "Trunk": "0001363",
+        "Channel": "SIP/150-00000001"
+      }
+    },
+    {
+      "type": "bridge",
+      "delay_ms": 8000,
+      "data": {
+        "Event": "bridge", 
+        "UniqueId": "WILL_BE_REPLACED",
+        "Token": "WILL_BE_REPLACED",
+        "CallerIDNum": "150",
+        "ConnectedLineNum": "+375296254070",
+        "CallType": 1,
+        "Channel": "SIP/150-00000001",
+        "DestChannel": "SIP/0001363-00000002"
+      }
+    },
+    {
+      "type": "hangup",
+      "delay_ms": 30000,
+      "data": {
+        "Event": "hangup",
+        "UniqueId": "WILL_BE_REPLACED", 
+        "Token": "WILL_BE_REPLACED",
+        "CallerIDNum": "150",
+        "Phone": "+375296254070",
+        "Extensions": ["150"],
+        "CallType": 1,
+        "CallStatus": 2,
+        "StartTime": "WILL_BE_REPLACED",
+        "EndTime": "WILL_BE_REPLACED",
+        "Channel": "SIP/150-00000001",
+        "Cause": "16",
+        "CauseTxt": "Normal Clearing"
+      }
+    }
+  ]
+}

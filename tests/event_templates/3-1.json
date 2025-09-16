@@ -1,0 +1,46 @@
+{
+  "test_id": "3-1",
+  "description": "Простой внутренний звонок (ответили)",
+  "call_type": 2,
+  "complexity": "SIMPLE", 
+  "expected_telegram_messages": 2,
+  "expected_final_content": [
+    "✅ Успешный внутренний звонок",
+    "Джуновый",
+    "Копачёв"
+  ],
+  "events": [
+    {
+      "type": "bridge",
+      "delay_ms": 0,
+      "data": {
+        "Event": "bridge",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Token": "WILL_BE_REPLACED",
+        "CallerIDNum": "150",
+        "ConnectedLineNum": "151",
+        "CallType": 2,
+        "Channel": "SIP/150-00000001",
+        "DestChannel": "SIP/151-00000002"
+      }
+    },
+    {
+      "type": "hangup",
+      "delay_ms": 90000,
+      "data": {
+        "Event": "hangup",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Token": "WILL_BE_REPLACED", 
+        "CallerIDNum": "150",
+        "Extensions": ["151"],
+        "CallType": 2,
+        "CallStatus": 2,
+        "StartTime": "WILL_BE_REPLACED",
+        "EndTime": "WILL_BE_REPLACED",
+        "Channel": "SIP/150-00000001",
+        "Cause": "16",
+        "CauseTxt": "Normal Clearing"
+      }
+    }
+  ]
+}

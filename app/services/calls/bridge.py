@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
+from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 from .utils import (
     format_phone_number,
     bridge_store,
@@ -357,13 +358,48 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
 
     logging.info(f"[send_bridge_to_single_chat] Bridge: {caller} <-> {connected}")
 
+    # ───────── Шаг 3.5. Получаем обогащённые метаданные ─────────
+    token = data.get("Token", "")
+    enterprise_number = token[:4] if token else "0000"
+    
+    # Обогащаем метаданными
+    enriched_data = {}
+    try:
+        enriched_data = await metadata_client.enrich_message_data(
+            enterprise_number=enterprise_number,
+            line_id=None,  # Для bridge не всегда есть line_id
+            internal_phone=internal_ext if internal_ext and is_internal_number(internal_ext) else None,
+            external_phone=external_phone,
+            short_names=True  # Используем краткие ФИО для bridge сообщений
+        )
+        logging.info(f"[send_bridge_to_single_chat] Enriched data: {enriched_data}")
+    except Exception as e:
+        logging.error(f"[send_bridge_to_single_chat] Error enriching metadata: {e}")
+
     # ───────── Шаг 4. Формируем текст согласно Пояснению ─────────
     if call_direction == "internal":
-        # Внутренний звонок: ☎️185 📞➡️ ☎️186📞
-        text = f"☎️{caller} 📞➡️ ☎️{connected}📞"
+        # Внутренний звонок с обогащением ФИО
+        caller_display = caller
+        connected_display = connected
+        
+        # Обогащаем ФИО участников
+        try:
+            if is_internal_number(caller):
+                caller_name = await metadata_client.get_manager_name(enterprise_number, caller, short=True)
+                if not caller_name.startswith("Доб."):
+                    caller_display = f"{caller_name}"
+            
+            if is_internal_number(connected):
+                connected_name = await metadata_client.get_manager_name(enterprise_number, connected, short=True)
+                if not connected_name.startswith("Доб."):
+                    connected_display = f"{connected_name}"
+        except Exception as e:
+            logging.error(f"[send_bridge_to_single_chat] Error enriching internal names: {e}")
+        
+        text = f"☎️{caller_display} 📞➡️ ☎️{connected_display}📞"
     
     elif call_direction in ["incoming", "outgoing"]:
-        # Внешний звонок - ИСПРАВЛЕНО: внутренний у ☎️, внешний у 💰
+        # Внешний звонок с обогащением метаданными
         if external_phone:
             # ИСПРАВЛЕНО: заменяем <unknown> на безопасный текст
             if external_phone == "<unknown>" or external_phone.startswith("<unknown>") or external_phone.endswith("<unknown>"):
@@ -371,11 +407,18 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
             else:
                 formatted_external = format_phone_number(external_phone)
                 display_external = formatted_external if not formatted_external.startswith("+000") else "Номер не определен"
+                
+                # Обогащаем номер клиента именем если есть
+                if enriched_data.get("customer_name"):
+                    display_external = f"{display_external} ({enriched_data['customer_name']})"
         else:
             display_external = "Номер не определен"
         
+        # Обогащаем ФИО менеджера
+        manager_display = enriched_data.get("manager_name", f"Доб.{internal_ext}")
+        
         # И для входящих, и для исходящих: внутренний номер у ☎️, внешний у 💰
-        text = f"☎️{internal_ext} 📞➡️ 💰{display_external}📞"
+        text = f"☎️{manager_display} 📞➡️ 💰{display_external}📞"
     
     else:
         # Неопределенный тип

@@ -1546,6 +1546,38 @@ async def get_customer_name(enterprise_number: str, phone: str):
                 # Other integrations can be added here
                 name = None
 
+            # Fallback: ищем в локальной БД customers если имя не найдено в интеграциях
+            if not name:
+                try:
+                    customer_row = await conn.fetchrow(
+                        """
+                        SELECT last_name, first_name, middle_name, enterprise_name 
+                        FROM customers 
+                        WHERE enterprise_number = $1 AND phone_e164 = $2
+                        AND (last_name IS NOT NULL OR first_name IS NOT NULL OR enterprise_name IS NOT NULL)
+                        ORDER BY last_seen_at DESC NULLS LAST
+                        LIMIT 1
+                        """, 
+                        enterprise_number, phone_e164
+                    )
+                    
+                    if customer_row:
+                        # Приоритет: enterprise_name (для корпоративных), затем ФИО
+                        en = (customer_row["enterprise_name"] or "").strip()
+                        fn = (customer_row["first_name"] or "").strip()
+                        ln = (customer_row["last_name"] or "").strip()
+                        mn = (customer_row["middle_name"] or "").strip()
+                        
+                        if en:
+                            name = en
+                        elif fn or ln:
+                            name_parts = [ln, fn, mn]
+                            name = " ".join([p for p in name_parts if p])
+                        
+                        logger.debug(f"Found customer in local DB: {name}")
+                except Exception as e:
+                    logger.warning(f"Local DB customer lookup failed: {e}")
+
             # Возвращаем свежее имя без кэширования
             return {"name": name}
     except Exception as e:

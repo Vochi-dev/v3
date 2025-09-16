@@ -1,0 +1,108 @@
+{
+  "test_id": "followme",
+  "call_type": 0,
+  "description": "FollowMe переадресация (тип 2-23-2-30): входящий → множественные переадресации",
+  "complexity": "FOLLOWME",
+  "expected_telegram_messages": 2,
+  "expected_final_content": ["FollowMe переадресация"],
+  "events": [
+    {
+      "event_type": "start",
+      "endpoint": "/start",
+      "delay": 0,
+      "data": {
+        "UniqueId": "1757773000.70",
+        "CallType": 0,
+        "Phone": "375296254070",
+        "Token": "375293332255",
+        "Trunk": "0001363"
+      }
+    },
+    {
+      "event_type": "start",
+      "endpoint": "/start",
+      "delay": 0.2,
+      "data": {
+        "UniqueId": "1757773001.71",
+        "CallType": 1,
+        "Phone": "151",
+        "Token": "375293332255"
+      }
+    },
+    {
+      "event_type": "start",
+      "endpoint": "/start",
+      "delay": 0.2,
+      "data": {
+        "UniqueId": "1757773002.72",
+        "CallType": 1,
+        "Phone": "375291234567",
+        "Token": "375293332255"
+      }
+    },
+    {
+      "event_type": "start",
+      "endpoint": "/start",
+      "delay": 0.2,
+      "data": {
+        "UniqueId": "1757773003.73",
+        "CallType": 1,
+        "Phone": "375291234568",
+        "Token": "375293332255"
+      }
+    },
+    {
+      "event_type": "bridge",
+      "endpoint": "/bridge",
+      "delay": 3.0,
+      "data": {
+        "UniqueId": "1757773001.71",
+        "CallerIDNum": "375296254070",
+        "ConnectedLineNum": "151",
+        "BridgeUniqueid": "99e35996-aeef-6f59-a08d-a9c9fef2d18c",
+        "Token": "375293332255"
+      }
+    },
+    {
+      "event_type": "hangup",
+      "endpoint": "/hangup",
+      "delay": 0.1,
+      "data": {
+        "UniqueId": "1757773002.72",
+        "Phone": "375291234567",
+        "Token": "375293332255",
+        "Cause": "No Answer"
+      }
+    },
+    {
+      "event_type": "hangup",
+      "endpoint": "/hangup",
+      "delay": 0.1,
+      "data": {
+        "UniqueId": "1757773003.73",
+        "Phone": "375291234568",
+        "Token": "375293332255",
+        "Cause": "No Answer"
+      }
+    },
+    {
+      "event_type": "hangup",
+      "endpoint": "/hangup",
+      "delay": 12.0,
+      "data": {
+        "UniqueId": "1757773000.70",
+        "Phone": "375296254070",
+        "Token": "375293332255",
+        "Cause": "Normal Clearing"
+      }
+    }
+  ],
+  "expected_results": {
+    "bitrix24_events": 2,
+    "telegram_events": 2,
+    "complexity": "FOLLOWME",
+    "primary_uid": "1757773000.70"
+  }
+}
+
+

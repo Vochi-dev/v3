@@ -1,0 +1,98 @@
+{
+  "test_id": "2-19-real",
+  "description": "Реальный звонок занятому менеджеру - на основе CallsManual_V2/2-19",
+  "call_type": 0,
+  "complexity": "BUSY_MANAGER",
+  "expected_telegram_messages": 2,
+  "expected_final_content": [
+    "✅ Успешный внутренний звонок",
+    "✅ Успешный входящий звонок"
+  ],
+  "events": [
+    {
+      "type": "bridge",
+      "delay_ms": 0,
+      "data": {
+        "CallerIDName": "",
+        "CallerIDNum": "150",
+        "BridgeUniqueid": "45ec1f12-8845-48f6-bb56-7090be11cf3a",
+        "ConnectedLineName": "152",
+        "Channel": "SIP/150-0000000b",
+        "Token": "WILL_BE_REPLACED",
+        "Exten": "",
+        "UniqueId": "1757841094.32",
+        "ConnectedLineNum": "152"
+      }
+    },
+    {
+      "type": "start",
+      "delay_ms": 12000,
+      "data": {
+        "Token": "WILL_BE_REPLACED",
+        "Phone": "375447034448",
+        "CallType": 0,
+        "UniqueId": "1757841115.33",
+        "Trunk": "0001363"
+      }
+    },
+    {
+      "type": "dial",
+      "delay_ms": 1000,
+      "data": {
+        "Phone": "375447034448",
+        "CallType": 0,
+        "Trunk": "0001363",
+        "Token": "WILL_BE_REPLACED",
+        "Extensions": ["150", "151", "152"],
+        "ExtTrunk": "",
+        "UniqueId": "1757841115.33",
+        "ExtPhone": "375447034448"
+      }
+    },
+    {
+      "type": "bridge",
+      "delay_ms": 4000,
+      "data": {
+        "CallerIDName": "-375447034448",
+        "CallerIDNum": "375447034448",
+        "BridgeUniqueid": "012b81e0-d65b-4f4f-8e1a-7eeaf70327d4",
+        "ConnectedLineName": "<unknown>",
+        "Channel": "SIP/0001363-0000000c",
+        "Token": "WILL_BE_REPLACED",
+        "Exten": "0001363",
+        "UniqueId": "1757841115.33",
+        "ConnectedLineNum": "151"
+      }
+    },
+    {
+      "type": "hangup",
+      "delay_ms": 69000,
+      "data": {
+        "Phone": "375447034448",
+        "StartTime": "WILL_BE_REPLACED",
+        "CallType": 0,
+        "DateReceived": "WILL_BE_REPLACED",
+        "EndTime": "WILL_BE_REPLACED",
+        "Token": "WILL_BE_REPLACED",
+        "Extensions": ["152"],
+        "CallStatus": "0",
+        "UniqueId": "1757841115.33"
+      }
+    },
+    {
+      "type": "hangup",
+      "delay_ms": 2000,
+      "data": {
+        "Phone": "152",
+        "StartTime": "",
+        "CallType": 2,
+        "DateReceived": "WILL_BE_REPLACED",
+        "EndTime": "WILL_BE_REPLACED",
+        "Token": "WILL_BE_REPLACED",
+        "Extensions": ["150"],
+        "CallStatus": "2",
+        "UniqueId": "1757841093.31"
+      }
+    }
+  ]
+}

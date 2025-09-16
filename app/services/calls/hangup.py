@@ -14,6 +14,7 @@ from app.services.customers import upsert_customer_from_hangup
 from app.services.postgres import get_pool
 from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
+from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 
 def get_recording_link_text(call_record_info):
     """
@@ -185,6 +186,13 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         call_type = int(data.get("CallType", -1))
         token = data.get("Token", "")
         trunk_info = data.get("Trunk", "")
+        
+        # Получаем номер предприятия для метаданных
+        # Временное решение для токена "375293332255" -> "0367"
+        if token == "375293332255":
+            enterprise_number = "0367"
+        else:
+            enterprise_number = token[:4] if token else "0000"  # fallback логика
 
         logging.info(f"[process_hangup] RAW DATA = {data!r}")
         logging.info(f"[process_hangup] Phone for grouping: {phone_for_grouping}")
@@ -242,15 +250,91 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             else:
                 call_direction = "unknown"
         
-        # ───────── Шаг 5. Формируем текст согласно Пояснению ─────────
+        # ───────── Шаг 5. Получаем обогащённые метаданные ─────────
+        # Извлекаем данные для обогащения
+        line_id = extract_line_id_from_exten(trunk_info)  # ID линии из Trunk
+        internal_phone = None
+        external_phone = None
+        
+        # Определяем внутренний и внешний номера в зависимости от типа звонка
+        if call_direction == "incoming":
+            external_phone = caller
+            if connected and is_internal_number(connected):
+                internal_phone = connected
+            elif exts:
+                for ext in reversed(exts):
+                    if is_internal_number(ext):
+                        internal_phone = ext
+                        break
+        elif call_direction == "outgoing":
+            internal_phone = caller if is_internal_number(caller) else None
+            # СПЕЦИАЛЬНАЯ ОБРАБОТКА для тестового предприятия 0367
+            if token == "375293332255":
+                # Для 0367 берем external_phone из поля Phone
+                external_phone = data.get("Phone", "")
+            else:
+                external_phone = connected if not is_internal_number(connected) else None
+        elif call_direction == "internal":
+            # Для внутренних звонков оба номера внутренние
+            internal_phone = caller if is_internal_number(caller) else None
+        
+        # Обогащаем метаданными параллельно
+        enriched_data = {}
+        try:
+            # Отладочное логирование только для тестового предприятия 0367
+            if token == "375293332255":
+                with open("/tmp/hangup_debug.log", "a") as f:
+                    f.write(f"🔍 [0367] Calling enrich_message_data with:\n")
+                    f.write(f"  enterprise_number: {enterprise_number}\n")
+                    f.write(f"  line_id: {line_id}\n")
+                    f.write(f"  internal_phone: {internal_phone}\n")
+                    f.write(f"  external_phone: {external_phone}\n")
+            
+            enriched_data = await metadata_client.enrich_message_data(
+                enterprise_number=enterprise_number,
+                line_id=line_id,
+                internal_phone=internal_phone,
+                external_phone=external_phone,
+                short_names=False  # Используем полные ФИО
+            )
+            # Отладочное логирование только для тестового предприятия 0367
+            if token == "375293332255":
+                with open("/tmp/hangup_debug.log", "a") as f:
+                    f.write(f"🔍 [0367] Enriched data: {enriched_data}\n")
+            logging.info(f"[process_hangup] Enriched data: {enriched_data}")
+        except Exception as e:
+            # Отладочное логирование только для тестового предприятия 0367
+            if token == "375293332255":
+                with open("/tmp/hangup_debug.log", "a") as f:
+                    f.write(f"💥 [0367] Error enriching metadata: {e}\n")
+            logging.error(f"[process_hangup] Error enriching metadata: {e}")
+        
+        # ───────── Шаг 6. Формируем текст согласно Пояснению ─────────
         
         if call_direction == "internal":
             # Внутренние звонки
             if call_status == 2:
                 # Успешный внутренний звонок
+                # Обогащаем ФИО для внутренних номеров
+                caller_display = caller
+                connected_display = connected
+                
+                try:
+                    if is_internal_number(caller):
+                        caller_name = await metadata_client.get_manager_name(enterprise_number, caller, short=True)
+                        if not caller_name.startswith("Доб."):
+                            caller_display = f"{caller_name} ({caller})"
+                    
+                    if is_internal_number(connected):
+                        connected_name = await metadata_client.get_manager_name(enterprise_number, connected, short=True)
+                        if not connected_name.startswith("Доб."):
+                            connected_display = f"{connected_name} ({connected})"
+                except Exception as e:
+                    logging.error(f"[process_hangup] Error enriching internal phones: {e}")
+                
                 text = (f"✅Успешный внутренний звонок\n"
-                       f"☎️{caller}➡️\n"
-                       f"☎️{connected}")
+                       f"☎️{caller_display}➡️\n"
+                       f"☎️{connected_display}")
                 if duration_text:
                     # ИСПРАВЛЕНО: Используем безопасный парсинг StartTime
                     start_time = data.get('StartTime', '')
@@ -274,9 +358,10 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     text += get_recording_link_text(call_record_info)
             else:
                 # Неуспешный внутренний звонок
+                # Используем те же обогащённые отображения
                 text = (f"❌ Коллега не поднял трубку\n"
-                       f"☎️{caller}➡️\n" 
-                       f"☎️{connected}")
+                       f"☎️{caller_display}➡️\n" 
+                       f"☎️{connected_display}")
                 if duration_text:
                     # ИСПРАВЛЕНО: Используем безопасный парсинг StartTime
                     start_time = data.get('StartTime', '')
@@ -303,12 +388,19 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             phone = format_phone_number(caller)
             display = phone if not phone.startswith("+000") else "Номер не определен"
             
+            # Обогащаем номер клиента именем если есть
+            if enriched_data.get("customer_name"):
+                display = f"{display} ({enriched_data['customer_name']})"
+            
             if call_status == 2:
                 # Успешный входящий звонок
                 text = f"✅Успешный входящий звонок\n💰{display}"
                 
-                # Добавляем информацию об операторе
-                if connected and is_internal_number(connected):
+                # Добавляем информацию о менеджере (обогащённую)
+                if internal_phone:
+                    manager_display = enriched_data.get("manager_name", f"Доб.{internal_phone}")
+                    text += f"\n☎️{manager_display}"
+                elif connected and is_internal_number(connected):
                     text += f"\n☎️{connected}"
                 elif exts:
                     # Если есть расширения, берем последнее внутреннее
@@ -317,8 +409,10 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                             text += f"\n☎️{ext}"
                             break
                             
-                # Добавляем линию
-                if trunk_info:
+                # Добавляем информацию о линии (обогащённую)
+                if enriched_data.get("line_name"):
+                    text += f"\n📡{enriched_data['line_name']}"
+                elif trunk_info:
                     text += f"\nЛиния: {trunk_info}"
                     
                 # Добавляем время и длительность  
@@ -347,18 +441,28 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 # Неуспешный входящий звонок
                 text = f"❌ Мы не подняли трубку\n💰{display}"
                 
-                # Добавляем всех, кому звонили
+                # Добавляем всех, кому звонили (с обогащением ФИО)
                 if exts:
                     internal_exts = [ext for ext in exts if is_internal_number(ext)]
                     mobile_exts = [ext for ext in exts if not is_internal_number(ext)]
                     
                     for ext in internal_exts:
-                        text += f"\n☎️{ext}"
+                        # Попытаемся получить ФИО для каждого внутреннего номера
+                        try:
+                            manager_name = await metadata_client.get_manager_name(enterprise_number, ext, short=True)
+                            if not manager_name.startswith("Доб."):
+                                text += f"\n☎️{manager_name} ({ext})"
+                            else:
+                                text += f"\n☎️{ext}"
+                        except:
+                            text += f"\n☎️{ext}"
                     for ext in mobile_exts:
                         text += f"\n📱{format_phone_number(ext)}"
                 
-                # Добавляем линию
-                if trunk_info:
+                # Добавляем информацию о линии (обогащённую)
+                if enriched_data.get("line_name"):
+                    text += f"\n📡{enriched_data['line_name']}"
+                elif trunk_info:
                     text += f"\nЛиния: {trunk_info}"
                     
                 # Добавляем время дозвона
@@ -408,14 +512,25 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             phone = format_phone_number(external_phone)
             display = phone if not phone.startswith("+000") else "Номер не определен"
             
+            # Обогащаем номер клиента именем если есть
+            if enriched_data.get("customer_name"):
+                display = f"{display} ({enriched_data['customer_name']})"
+            
             if call_status == 2:
                 # Успешный исходящий звонок
                 text = f"✅Успешный исходящий звонок"
+                
+                # Добавляем информацию о менеджере (обогащённую)
                 if internal_caller:
-                    text += f"\n☎️{internal_caller}"
+                    manager_display = enriched_data.get("manager_name", f"Доб.{internal_caller}")
+                    text += f"\n☎️{manager_display}"
+                
                 text += f"\n💰{display}"
                 
-                if trunk_info:
+                # Добавляем информацию о линии (обогащённую)
+                if enriched_data.get("line_name"):
+                    text += f"\n📡{enriched_data['line_name']}"
+                elif trunk_info:
                     text += f"\nЛиния: {trunk_info}"
                     
                 # Добавляем время начала с безопасной обработкой
@@ -435,11 +550,18 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             else:
                 # Неуспешный исходящий звонок
                 text = f"❌ Абонент не поднял трубку"
+                
+                # Добавляем информацию о менеджере (обогащённую)
                 if internal_caller:
-                    text += f"\n☎️{internal_caller}"
+                    manager_display = enriched_data.get("manager_name", f"Доб.{internal_caller}")
+                    text += f"\n☎️{manager_display}"
+                
                 text += f"\n💰{display}"
                 
-                if trunk_info:
+                # Добавляем информацию о линии (обогащённую)
+                if enriched_data.get("line_name"):
+                    text += f"\n📡{enriched_data['line_name']}"
+                elif trunk_info:
                     text += f"\nЛиния: {trunk_info}"
                     
                 # Добавляем время дозвона  

@@ -6,6 +6,7 @@ from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
 from .hangup import create_call_record  # Импортируем функцию создания записи в calls
+from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 from .utils import (
     update_call_pair_message,
     update_hangup_message_map,
@@ -23,8 +24,29 @@ async def process_internal_start(bot: Bot, chat_id: int, data: dict):
     exts   = data.get("Extensions", [])
     caller = data.get("CallerIDNum", "") or data.get("Phone", "")
     callee = exts[0] if exts else ""
+    
+    # Получаем номер предприятия для метаданных
+    token = data.get("Token", "")
+    enterprise_number = token[:4] if token else "0000"
+    
+    # Обогащаем ФИО участников
+    caller_display = caller
+    callee_display = callee
+    
+    try:
+        if caller:
+            caller_name = await metadata_client.get_manager_name(enterprise_number, caller, short=True)
+            if not caller_name.startswith("Доб."):
+                caller_display = f"{caller_name} ({caller})"
+        
+        if callee:
+            callee_name = await metadata_client.get_manager_name(enterprise_number, callee, short=True)
+            if not callee_name.startswith("Доб."):
+                callee_display = f"{callee_name} ({callee})"
+    except Exception as e:
+        logging.error(f"[process_internal_start] Error enriching names: {e}")
 
-    text = f"🛎️ Внутренний звонок\n{caller} ➡️ {callee}"
+    text = f"🛎️ Внутренний звонок\n{caller_display} ➡️ {callee_display}"
     safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
     logging.debug(f"[process_internal_start] => {safe_text!r}")
 
@@ -67,7 +89,28 @@ async def process_internal_bridge(bot: Bot, chat_id: int, data: dict):
         except:
             pass
 
-    text = f"⏱ Идет внутренний разговор\n{caller} ➡️ {connected}"
+    # Получаем номер предприятия для метаданных
+    token = data.get("Token", "")
+    enterprise_number = token[:4] if token else "0000"
+    
+    # Обогащаем ФИО участников
+    caller_display = caller
+    connected_display = connected
+    
+    try:
+        if caller:
+            caller_name = await metadata_client.get_manager_name(enterprise_number, caller, short=True)
+            if not caller_name.startswith("Доб."):
+                caller_display = caller_name
+        
+        if connected:
+            connected_name = await metadata_client.get_manager_name(enterprise_number, connected, short=True)
+            if not connected_name.startswith("Доб."):
+                connected_display = connected_name
+    except Exception as e:
+        logging.error(f"[process_internal_bridge] Error enriching names: {e}")
+
+    text = f"⏱ Идет внутренний разговор\n{caller_display} ➡️ {connected_display}"
     safe_text = text.replace("<","&lt;").replace(">","&gt;")
     logging.debug(f"[process_internal_bridge] => {safe_text!r}")
 
@@ -122,10 +165,30 @@ async def process_internal_hangup(bot: Bot, chat_id: int, data: dict):
     except:
         pass
 
+    # Получаем номер предприятия для метаданных
+    enterprise_number = token[:4] if token else "0000"
+    
+    # Обогащаем ФИО участников
+    caller_display = caller
+    callee_display = callee
+    
+    try:
+        if caller:
+            caller_name = await metadata_client.get_manager_name(enterprise_number, caller, short=True)
+            if not caller_name.startswith("Доб."):
+                caller_display = caller_name
+        
+        if callee:
+            callee_name = await metadata_client.get_manager_name(enterprise_number, callee, short=True)
+            if not callee_name.startswith("Доб."):
+                callee_display = callee_name
+    except Exception as e:
+        logging.error(f"[process_internal_hangup] Error enriching names: {e}")
+
     # text
     status = int(data.get("CallStatus",0))
     prefix = "✅ Успешный внутренний звонок" if status==2 else "❌ Абонент не ответил"
-    text   = f"{prefix}\n{caller} ➡️ {callee}\n⌛ {dur}"
+    text   = f"{prefix}\n{caller_display} ➡️ {callee_display}\n⌛ {dur}"
     safe_text = text.replace("<","&lt;").replace(">","&gt;")
     logging.debug(f"[process_internal_hangup] => {safe_text!r}")
 

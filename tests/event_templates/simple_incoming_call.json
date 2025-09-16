@@ -1,0 +1,55 @@
+{
+  "test_id": "simple_incoming",
+  "call_type": 0,
+  "description": "Простой входящий звонок (тип 2-1): start → dial → bridge → hangup",
+  "complexity": "SIMPLE",
+  "expected_telegram_messages": 4,
+  "expected_final_content": ["Успешный входящий звонок"],
+  "events": [
+    {
+      "type": "start",
+      "delay_ms": 0,
+      "data": {
+        "UniqueId": "1757772742.60",
+        "CallType": 0,
+        "Phone": "375296254070",
+        "Token": "375293332255",
+        "Trunk": "0001363"
+      }
+    },
+    {
+      "type": "dial",
+      "delay_ms": 500,
+      "data": {
+        "UniqueId": "1757772742.60",
+        "CallType": 0,
+        "Phone": "375296254070",
+        "Extensions": ["150", "151", "152"],
+        "Token": "375293332255"
+      }
+    },
+    {
+      "type": "bridge",
+      "delay_ms": 2000,
+      "data": {
+        "UniqueId": "1757772742.60",
+        "CallerIDNum": "375296254070",
+        "ConnectedLineNum": "151",
+        "BridgeUniqueid": "77c13775-bede-4f37-886b-86a7dcf0b06a",
+        "Token": "375293332255"
+      }
+    },
+    {
+      "type": "hangup",
+      "delay_ms": 10000,
+      "data": {
+        "UniqueId": "1757772742.60",
+        "Phone": "375296254070",
+        "Token": "375293332255",
+        "Cause": "Normal Clearing"
+      }
+    }
+  ]
+}
+
+

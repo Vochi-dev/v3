@@ -1,0 +1,57 @@
+{
+  "test_id": "1-1-real",
+  "description": "Реальный исходящий звонок 1-1: исх. 151 → внеш. номер через 0001363",
+  "call_type": 1,
+  "complexity": "SIMPLE",
+  "expected_telegram_messages": 3,
+  "expected_final_content": [
+    "✅ Успешный исходящий звонок",
+    "151"
+  ],
+  "events": [
+    {
+      "type": "dial",
+      "delay_ms": 0,
+      "data": {
+        "ExtTrunk": "",
+        "ExtPhone": "375296254070",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Phone": "375296254070",
+        "Trunk": "0001363",
+        "CallType": 1,
+        "Token": "WILL_BE_REPLACED",
+        "Extensions": ["151"]
+      }
+    },
+    {
+      "type": "bridge",
+      "delay_ms": 13000,
+      "data": {
+        "Exten": "",
+        "CallerIDName": "",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Channel": "SIP/151-00000000",
+        "ConnectedLineName": "",
+        "BridgeUniqueid": "WILL_BE_REPLACED",
+        "CallerIDNum": "151",
+        "Token": "WILL_BE_REPLACED",
+        "ConnectedLineNum": "375296254070"
+      }
+    },
+    {
+      "type": "hangup",
+      "delay_ms": 4000,
+      "data": {
+        "CallStatus": "2",
+        "EndTime": "WILL_BE_REPLACED",
+        "DateReceived": "WILL_BE_REPLACED",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Phone": "375296254070",
+        "StartTime": "WILL_BE_REPLACED",
+        "CallType": 1,
+        "Token": "WILL_BE_REPLACED",
+        "Extensions": ["151"]
+      }
+    }
+  ]
+}

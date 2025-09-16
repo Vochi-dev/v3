@@ -1,0 +1,78 @@
+{
+  "test_id": "2-1",
+  "description": "Простой входящий звонок (ответили)",
+  "call_type": 0,
+  "complexity": "SIMPLE",
+  "expected_telegram_messages": 4,
+  "expected_final_content": [
+    "✅ Успешный входящий звонок",
+    "Джуновый",
+    "A1 1",
+    "Тестовый покупатель"
+  ],
+  "events": [
+    {
+      "type": "start",
+      "delay_ms": 0,
+      "data": {
+        "Event": "start",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Token": "WILL_BE_REPLACED", 
+        "CallerIDNum": "+375296254070",
+        "Extensions": ["150", "151", "152"],
+        "CallType": 0,
+        "Exten": "0001363",
+        "StartTime": "WILL_BE_REPLACED",
+        "Channel": "SIP/0001363-00000001"
+      }
+    },
+    {
+      "type": "dial",
+      "delay_ms": 2000,
+      "data": {
+        "Event": "dial",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Token": "WILL_BE_REPLACED",
+        "CallerIDNum": "+375296254070", 
+        "Phone": "+375296254070",
+        "Extensions": ["150", "151", "152"],
+        "CallType": 0,
+        "Trunk": "0001363",
+        "Channel": "SIP/0001363-00000001"
+      }
+    },
+    {
+      "type": "bridge",
+      "delay_ms": 5000,
+      "data": {
+        "Event": "bridge",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Token": "WILL_BE_REPLACED",
+        "CallerIDNum": "+375296254070",
+        "ConnectedLineNum": "150",
+        "CallType": 0,
+        "Channel": "SIP/150-00000002",
+        "DestChannel": "SIP/0001363-00000001"
+      }
+    },
+    {
+      "type": "hangup", 
+      "delay_ms": 45000,
+      "data": {
+        "Event": "hangup",
+        "UniqueId": "WILL_BE_REPLACED",
+        "Token": "WILL_BE_REPLACED",
+        "CallerIDNum": "+375296254070",
+        "Phone": "+375296254070", 
+        "Extensions": ["150"],
+        "CallType": 0,
+        "CallStatus": 2,
+        "StartTime": "WILL_BE_REPLACED",
+        "EndTime": "WILL_BE_REPLACED",
+        "Channel": "SIP/150-00000002",
+        "Cause": "16",
+        "CauseTxt": "Normal Clearing"
+      }
+    }
+  ]
+}

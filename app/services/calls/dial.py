@@ -6,6 +6,7 @@ from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
+from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
@@ -48,6 +49,9 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     callee = exts[0] if exts else ""
     token = data.get("Token", "")
     trunk_info = data.get("Trunk", "")
+    
+    # Получаем номер предприятия для метаданных
+    enterprise_number = token[:4] if token else "0000"  # fallback логика
 
     logging.info(f"[process_dial] RAW DATA = {data!r}")
     logging.info(f"[process_dial] Phone for grouping: {phone_for_grouping}, call_type: {call_type}")
@@ -70,36 +74,84 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         except Exception:
             pass
 
-    # ───────── Шаг 3. Формируем текст согласно Пояснению ─────────
+    # ───────── Шаг 2.5. Получаем обогащённые метаданные ─────────
+    # Извлекаем данные для обогащения
+    line_id = extract_line_id_from_exten(trunk_info)  # ID линии из Trunk
+    internal_phone = None
+    external_phone = None
+    
+    # Определяем внутренний и внешний номера
     if is_int:
         # Внутренний звонок
-        text = f"🛎️ Внутренний звонок\n ➡️ {callee}"
+        internal_phone = data.get("CallerIDNum", "") if is_internal_number(data.get("CallerIDNum", "")) else None
+    else:
+        # Внешний звонок
+        external_phone = raw_phone
+        
+        # Ищем внутренний номер
+        if exts:
+            for ext in exts:
+                if is_internal_number(ext):
+                    internal_phone = ext
+                    break
+        
+        if not internal_phone:
+            caller_id = data.get("CallerIDNum", "")
+            if is_internal_number(caller_id):
+                internal_phone = caller_id
+    
+    # Обогащаем метаданными параллельно
+    enriched_data = {}
+    try:
+        enriched_data = await metadata_client.enrich_message_data(
+            enterprise_number=enterprise_number,
+            line_id=line_id,
+            internal_phone=internal_phone,
+            external_phone=external_phone,
+            short_names=True  # Используем краткие ФИО для dial сообщений
+        )
+        logging.info(f"[process_dial] Enriched data: {enriched_data}")
+    except Exception as e:
+        logging.error(f"[process_dial] Error enriching metadata: {e}")
+    
+    # ───────── Шаг 3. Формируем текст согласно Пояснению ─────────
+    if is_int:
+        # Внутренний звонок с обогащением ФИО
+        callee_display = callee
+        
+        # Обогащаем ФИО получателя звонка
+        try:
+            if is_internal_number(callee):
+                callee_name = await metadata_client.get_manager_name(enterprise_number, callee, short=True)
+                if not callee_name.startswith("Доб."):
+                    callee_display = f"{callee_name} ({callee})"
+        except Exception as e:
+            logging.error(f"[process_dial] Error enriching internal callee: {e}")
+        
+        text = f"🛎️ Внутренний звонок\n ➡️ {callee_display}"
     else:
         # Внешний звонок - ИСПРАВЛЕНО: внутренний номер у ☎️, внешний у 💰
         display = phone if not phone.startswith("+000") else "Номер не определен"
         
-        # Определяем внутренний номер - из Extensions или CallerIDNum
-        internal_num = ""
-        if exts:
-            # Ищем внутренний номер среди Extensions
-            for ext in exts:
-                if is_internal_number(ext):
-                    internal_num = ext
-                    break
+        # Обогащаем номер клиента именем если есть
+        if enriched_data.get("customer_name"):
+            display = f"{display} ({enriched_data['customer_name']})"
         
-        if not internal_num:
-            # Если не нашли в Extensions, проверяем CallerIDNum
-            caller_id = data.get("CallerIDNum", "")
-            if is_internal_number(caller_id):
-                internal_num = caller_id
+        # Определяем внутренний номер - из уже обработанных данных
+        internal_num = internal_phone or ""
 
         # Формируем сообщение: внутренний у ☎️, внешний у 💰
         if internal_num:
-            text = f"☎️{internal_num} ➡️ 💰{display}"
+            # Обогащаем ФИО менеджера
+            manager_display = enriched_data.get("manager_name", f"Доб.{internal_num}")
+            text = f"☎️{manager_display} ➡️ 💰{display}"
         else:
             text = f"📞 ➡️ 💰{display}"
             
-        if trunk_info:
+        # Добавляем информацию о линии (обогащённую)
+        if enriched_data.get("line_name"):
+            text += f"\n📡{enriched_data['line_name']}"
+        elif trunk_info:
             text += f"\nЛиния: {trunk_info}"
             
         # Добавляем историю звонков для входящих
