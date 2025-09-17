@@ -362,6 +362,26 @@
                                 </div>
                             </div>
 
+                            <!-- На кого перевели -->
+                            <div class="col-md-6" data-field="transfer_to_manager">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-share"></i> На кого перевели
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-user-friends"></i>
+                                        <select class="form-select" name="transfer_to_manager" id="transfer_to_manager">
+                                            <option value="">Выберите менеджера для перевода</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.phone }}">{{ manager.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <!-- Менеджер с мобильным -->
                             <div class="col-md-6" data-field="mobile_manager">
                                 <div class="form-group">
@@ -643,6 +663,13 @@
                 description: "Звонок на группу абонентов + мобильный = подняли трубку на внутреннем",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "18": {
+                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager", "transfer_to_manager"],
+                required: ["external_phone", "line", "internal_group_1", "answered_manager", "transfer_to_manager"],
+                description: "Звонок на группу абонентов - подняли трубку - Переадресация вызова с запросом - вызов принят другим оператором - разговор отклонен",
+                defaultDuration: 3,
+                defaultResult: "rejected"
             }
             // Добавим остальные типы поштучно
         };
@@ -661,7 +688,7 @@
                 "second_manager", "transfer_type", "follow_me_phone", 
                 "backup_line", "department", "greeting", "forbidden_direction",
                 "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager",
-                "mobile_manager", "mobile_outgoing_line"
+                "transfer_to_manager", "mobile_manager", "mobile_outgoing_line"
             ];
 
             // Скрываем поле duration всегда (оно управляется автоматически)
@@ -700,6 +727,7 @@
             setTimeout(updateInternalGroupAvailability, 50);
             setTimeout(updateMobileLineAvailability, 50);
             setTimeout(updateMobileManagerVisibility, 50);
+            setTimeout(updateTransferManagerAvailability, 50);
         }
 
         // Обработчик изменения типа звонка
@@ -869,6 +897,39 @@
             });
         }
 
+        // Функция для исключения одного и того же менеджера в полях "Кто ответил" и "На кого перевели"
+        function updateTransferManagerAvailability() {
+            const answeredManager = document.getElementById('answered_manager');
+            const transferToManager = document.getElementById('transfer_to_manager');
+            
+            if (!answeredManager || !transferToManager) return;
+            
+            const selectedAnsweredManager = answeredManager.value;
+            
+            // Включаем все опции в "На кого перевели"
+            Array.from(transferToManager.options).forEach(option => {
+                option.disabled = false;
+                option.style.color = '';
+                option.style.backgroundColor = '';
+            });
+            
+            // Отключаем того, кто уже ответил
+            if (selectedAnsweredManager) {
+                Array.from(transferToManager.options).forEach(option => {
+                    if (option.value === selectedAnsweredManager) {
+                        option.disabled = true;
+                        option.style.color = '#ccc';
+                        option.style.backgroundColor = '#f5f5f5';
+                    }
+                });
+                
+                // Если в "На кого перевели" выбран тот же менеджер, сбрасываем выбор
+                if (transferToManager.value === selectedAnsweredManager) {
+                    transferToManager.value = '';
+                }
+            }
+        }
+
         // Обработчики для обновления доступности менеджеров и линий
         document.addEventListener('DOMContentLoaded', function() {
             const firstManager = document.getElementById('internal_phone');
@@ -914,6 +975,17 @@
             if (mobileOutgoingLine) {
                 mobileOutgoingLine.addEventListener('change', updateMobileLineAvailability);
             }
+
+            // Обработчики для исключения одинаковых менеджеров в переадресации
+            const answeredManager = document.getElementById('answered_manager');
+            const transferToManager = document.getElementById('transfer_to_manager');
+            
+            if (answeredManager) {
+                answeredManager.addEventListener('change', updateTransferManagerAvailability);
+            }
+            if (transferToManager) {
+                transferToManager.addEventListener('change', updateTransferManagerAvailability);
+            }
         });
 
         // Инициализация при загрузке страницы
@@ -929,6 +1001,7 @@
             setTimeout(updateInternalGroupAvailability, 100);
             setTimeout(updateMobileLineAvailability, 100);
             setTimeout(updateMobileManagerVisibility, 100);
+            setTimeout(updateTransferManagerAvailability, 100);
         });
 
 
