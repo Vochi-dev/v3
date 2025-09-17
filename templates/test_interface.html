@@ -271,6 +271,97 @@
                         </div>
 
                         <div class="row">
+                            <!-- Группа внутренних номеров (2-1 и аналогичные) -->
+                            <div class="col-md-6" data-field="internal_group_1">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-users"></i> Внутренний номер 1 (группа)
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-phone"></i>
+                                        <select class="form-select" name="internal_group_1" id="internal_group_1">
+                                            <option value="">Выберите первый номер группы</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.internal_phone }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6" data-field="internal_group_2">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-users"></i> Внутренний номер 2 (группа)
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-phone"></i>
+                                        <select class="form-select" name="internal_group_2" id="internal_group_2">
+                                            <option value="">Выберите второй номер группы</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.internal_phone }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6" data-field="internal_group_3">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-users"></i> Внутренний номер 3 (группа)
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-phone"></i>
+                                        <select class="form-select" name="internal_group_3" id="internal_group_3">
+                                            <option value="">Выберите третий номер группы</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.internal_phone }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6" data-field="internal_group_4">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-users"></i> Внутренний номер 4 (группа)
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-phone"></i>
+                                        <select class="form-select" name="internal_group_4" id="internal_group_4">
+                                            <option value="">Выберите четвертый номер группы</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.internal_phone }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Менеджер, который ответил (из группы) -->
+                            <div class="col-md-6" data-field="answered_manager">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-user-check"></i> Менеджер, который ответил
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-phone-volume"></i>
+                                        <select class="form-select" name="answered_manager" id="answered_manager">
+                                            <option value="">Кто ответил из группы</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.internal_phone }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Запрещенное направление -->
                             <div class="col-md-6" data-field="forbidden_direction">
                                 <div class="form-group">
@@ -287,6 +378,29 @@
                                             <option value="+33">+33 (Франция)</option>
                                             <option value="+44">+44 (Великобритания)</option>
                                             <option value="+380">+380 (Украина)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Приветствие -->
+                            <div class="col-md-6" data-field="greeting">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-volume-up"></i> Приветствие
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-play-circle"></i>
+                                        <select class="form-select" name="greeting">
+                                            <option value="">Выберите приветствие</option>
+                                            <option value="main">Основное приветствие</option>
+                                            <option value="day">Дневное приветствие</option>
+                                            <option value="night">Ночное приветствие</option>
+                                            <option value="holiday">Праздничное приветствие</option>
+                                            <option value="custom1">Пользовательское 1</option>
+                                            <option value="custom2">Пользовательское 2</option>
                                         </select>
                                     </div>
                                 </div>
@@ -449,6 +563,13 @@
                 description: "151-й абонент пытается сделать вызов по направлению (+7), куда вызовы ему запрещены (ему разрешены только +375), и получает отказ в наборе номера +74957776644",
                 defaultDuration: 3,
                 defaultResult: "forbidden"
+            },
+            "12": {
+                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager"],
+                required: ["external_phone", "line", "internal_group_1", "answered_manager"],
+                description: "Прослушивание приветствия, набор внутренних номеров - ответ",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
@@ -465,7 +586,8 @@
             const allFields = [
                 "external_phone", "manager", "line", "duration",
                 "second_manager", "transfer_type", "follow_me_phone", 
-                "backup_line", "department", "greeting", "forbidden_direction"
+                "backup_line", "department", "greeting", "forbidden_direction",
+                "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager"
             ];
 
             // Скрываем поле duration всегда (оно управляется автоматически)
@@ -501,6 +623,7 @@
             // Обновляем доступность менеджеров и линий после изменения видимости полей
             setTimeout(updateManagerAvailability, 50);
             setTimeout(updateLineAvailability, 50);
+            setTimeout(updateInternalGroupAvailability, 50);
         }
 
         // Обработчик изменения типа звонка
@@ -575,6 +698,45 @@
             }
         }
 
+        // Функция для обновления доступности в группе внутренних номеров
+        function updateInternalGroupAvailability() {
+            const groupSelects = [
+                document.getElementById('internal_group_1'),
+                document.getElementById('internal_group_2'),
+                document.getElementById('internal_group_3'),
+                document.getElementById('internal_group_4'),
+                document.getElementById('answered_manager')
+            ];
+            
+            // Собираем все выбранные значения
+            const selectedValues = groupSelects
+                .filter(select => select && select.value)
+                .map(select => select.value);
+            
+            // Обновляем каждый dropdown
+            groupSelects.forEach(currentSelect => {
+                if (!currentSelect) return;
+                
+                const options = currentSelect.querySelectorAll('option');
+                options.forEach(option => {
+                    if (option.value === '') return; // Пропускаем пустой option
+                    
+                    const isSelected = selectedValues.includes(option.value);
+                    const isCurrentSelection = option.value === currentSelect.value;
+                    
+                    if (isSelected && !isCurrentSelection) {
+                        option.disabled = true;
+                        option.style.backgroundColor = '#f8f9fa';
+                        option.style.color = '#6c757d';
+                    } else {
+                        option.disabled = false;
+                        option.style.backgroundColor = '';
+                        option.style.color = '';
+                    }
+                });
+            });
+        }
+
         // Обработчики для обновления доступности менеджеров и линий
         document.addEventListener('DOMContentLoaded', function() {
             const firstManager = document.getElementById('internal_phone');
@@ -594,6 +756,21 @@
             if (backupLine) {
                 backupLine.addEventListener('change', updateLineAvailability);
             }
+
+            // Обработчики для группы внутренних номеров
+            const groupSelects = [
+                document.getElementById('internal_group_1'),
+                document.getElementById('internal_group_2'),
+                document.getElementById('internal_group_3'),
+                document.getElementById('internal_group_4'),
+                document.getElementById('answered_manager')
+            ];
+            
+            groupSelects.forEach(select => {
+                if (select) {
+                    select.addEventListener('change', updateInternalGroupAvailability);
+                }
+            });
         });
 
         // Инициализация при загрузке страницы
@@ -606,6 +783,7 @@
             // Обновляем доступность менеджеров и линий при загрузке
             setTimeout(updateManagerAvailability, 100);
             setTimeout(updateLineAvailability, 100);
+            setTimeout(updateInternalGroupAvailability, 100);
         });
 
 
