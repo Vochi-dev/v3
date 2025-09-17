@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>{{ enterprise_name }} тестирование</title>
     
     <!-- Favicon and App Icons -->
@@ -101,6 +104,11 @@
         .loading.show {
             display: inline-block;
         }
+        
+        /* Скрываем поле длительность всегда */
+        [data-field="duration"] {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -157,27 +165,11 @@
                                 </div>
                             </div>
 
-                            <!-- Результат -->
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="form-label fw-bold">
-                                        <i class="fas fa-check-circle"></i> Результат
-                                    </label>
-                                    <div class="icon-input">
-                                        <i class="fas fa-flag"></i>
-                                        <select class="form-select" name="call_status" required>
-                                            {% for cs in call_statuses %}
-                                            <option value="{{ cs.id }}">{{ cs.icon }} {{ cs.name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         <div class="row">
                             <!-- Внешний номер -->
-                            <div class="col-md-6">
+                            <div class="col-md-6" data-field="external_phone">
                                 <div class="form-group">
                                     <label class="form-label fw-bold">
                                         <i class="fas fa-mobile-alt"></i> Внешний номер
@@ -191,7 +183,7 @@
                             </div>
 
                             <!-- Длительность -->
-                            <div class="col-md-6">
+                            <div class="col-md-6" data-field="duration">
                                 <div class="form-group">
                                     <label class="form-label fw-bold">
                                         <i class="fas fa-clock"></i> Длительность (мин)
@@ -207,7 +199,7 @@
 
                         <div class="row">
                             <!-- Менеджер -->
-                            <div class="col-md-6">
+                            <div class="col-md-6" data-field="manager">
                                 <div class="form-group">
                                     <label class="form-label fw-bold">
                                         <i class="fas fa-user"></i> Менеджер
@@ -224,7 +216,7 @@
                             </div>
 
                             <!-- Линия -->
-                            <div class="col-md-6">
+                            <div class="col-md-6" data-field="line">
                                 <div class="form-group">
                                     <label class="form-label fw-bold">
                                         <i class="fas fa-signal"></i> Линия
@@ -240,6 +232,7 @@
                                 </div>
                             </div>
                         </div>
+
 
                         <!-- Кнопки -->
                         <div class="text-center mt-4">
@@ -319,16 +312,76 @@
             }
         }
         
+        // Маппинг полей для каждого типа звонка
+        const callTypeFieldMapping = {
+            "1": {
+                fields: ["external_phone", "manager", "line"],
+                required: ["external_phone", "manager", "line"],
+                description: "Прямой набор номера - абонент ответил",
+                defaultDuration: 3,
+                defaultResult: "answered"
+            }
+            // Добавим остальные типы поштучно
+        };
+
+        // Функция для показа/скрытия полей в зависимости от типа звонка
+        function updateFieldsVisibility(callTypeId) {
+            const mapping = callTypeFieldMapping[callTypeId];
+            if (!mapping) {
+                console.log("Маппинг для типа", callTypeId, "не найден");
+                return;
+            }
+
+            // Все возможные поля
+            const allFields = [
+                "external_phone", "manager", "line", "duration",
+                "second_manager", "transfer_type", "follow_me_phone", 
+                "backup_line", "department", "greeting"
+            ];
+
+            // Скрываем поле duration всегда (оно управляется автоматически)
+            const hiddenFields = ["duration"];
+
+            // Скрываем все поля
+            allFields.forEach(fieldName => {
+                const container = document.querySelector(`[data-field="${fieldName}"]`);
+                if (container) {
+                    // Всегда скрываем duration и result
+                    if (hiddenFields.includes(fieldName)) {
+                        container.style.display = 'none';
+                    } else {
+                        container.style.display = 'none';
+                    }
+                    const input = container.querySelector('input, select');
+                    if (input) input.required = false;
+                }
+            });
+
+            // Показываем нужные поля (кроме всегда скрытых)
+            mapping.fields.forEach(fieldName => {
+                const container = document.querySelector(`[data-field="${fieldName}"]`);
+                if (container && !hiddenFields.includes(fieldName)) {
+                    container.style.display = 'block';
+                    const input = container.querySelector('input, select');
+                    if (input && mapping.required.includes(fieldName)) {
+                        input.required = true;
+                    }
+                }
+            });
+        }
+
         // Обработчик изменения типа звонка
         document.getElementById('call_type').addEventListener('change', function() {
             updateCallTypeDescription(this.value);
+            updateFieldsVisibility(this.value);
         });
 
-        // Инициализация описания при загрузке страницы
+        // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
             const callTypeSelect = document.getElementById('call_type');
             if (callTypeSelect.value) {
                 updateCallTypeDescription(callTypeSelect.value);
+                updateFieldsVisibility(callTypeSelect.value);
             }
         });
 

@@ -465,18 +465,31 @@ async def test_call_api(
     external_phone: str = Form(...),
     internal_phone: str = Form(...),
     line_id: str = Form(...),
-    call_status: int = Form(...),
-    duration_minutes: int = Form(3),
+    call_status: int = Form(None),  # Опциональный, будет определен автоматически
+    duration_minutes: int = Form(None),  # Опциональный, будет определен автоматически
     enterprise: str = Form("0367")
 ):
     """API для запуска тестового звонка"""
     
     try:
+        # Маппинг дефолтных значений для типов звонков
+        call_type_defaults = {
+            1: {"duration": 3, "status": 2},  # 1-1: 3 мин, ответили (2)
+            # Добавим остальные типы по мере необходимости
+        }
+        
         # Проверяем предприятие
         if enterprise not in test_service.enterprises_cache:
             raise HTTPException(status_code=404, detail=f"Предприятие {enterprise} не найдено")
             
         enterprise_data = test_service.enterprises_cache[enterprise]
+        
+        # Устанавливаем дефолтные значения на основе типа звонка
+        defaults = call_type_defaults.get(call_type, {"duration": 3, "status": 2})
+        if duration_minutes is None:
+            duration_minutes = defaults["duration"]
+        if call_status is None:
+            call_status = defaults["status"]
         
         # Валидация
         if not external_phone.strip():
