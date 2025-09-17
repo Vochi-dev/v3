@@ -270,6 +270,29 @@
                             </div>
                         </div>
 
+                        <div class="row">
+                            <!-- Запрещенное направление -->
+                            <div class="col-md-6" data-field="forbidden_direction">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-ban"></i> Запрещенное направление
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <select class="form-select" name="forbidden_direction">
+                                            <option value="">Выберите запрещенное направление</option>
+                                            <option value="+7">+7 (Россия)</option>
+                                            <option value="+1">+1 (США/Канада)</option>
+                                            <option value="+49">+49 (Германия)</option>
+                                            <option value="+33">+33 (Франция)</option>
+                                            <option value="+44">+44 (Великобритания)</option>
+                                            <option value="+380">+380 (Украина)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Кнопки -->
                         <div class="text-center mt-4">
                             <button type="submit" class="btn btn-primary btn-lg me-3">
@@ -412,6 +435,20 @@
                 description: "Прямой набор номера - 151 звонит абоненту +375296254070, система сначала пытается согласно диалплану набрать номер с линии 0001363, но она оказалась занята другим разговором, и звонок согласно настройкам пошел с резервной линии 0001366, трубку подняли",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "10": {
+                fields: ["external_phone", "manager", "line"],
+                required: ["external_phone", "manager", "line"],
+                description: "Прямой набор номера - 151 звонит абоненту +375296254070, система пытается согласно диалплану сделать звонок с линии 0001363, но она занята другим разговором, а иных резервных линий для абонента 151 не предусмотрено, и звонок прервался",
+                defaultDuration: 3,
+                defaultResult: "cancelled"
+            },
+            "11": {
+                fields: ["external_phone", "manager", "forbidden_direction"],
+                required: ["external_phone", "manager", "forbidden_direction"],
+                description: "151-й абонент пытается сделать вызов по направлению (+7), куда вызовы ему запрещены (ему разрешены только +375), и получает отказ в наборе номера +74957776644",
+                defaultDuration: 3,
+                defaultResult: "forbidden"
             }
             // Добавим остальные типы поштучно
         };
@@ -428,7 +465,7 @@
             const allFields = [
                 "external_phone", "manager", "line", "duration",
                 "second_manager", "transfer_type", "follow_me_phone", 
-                "backup_line", "department", "greeting"
+                "backup_line", "department", "greeting", "forbidden_direction"
             ];
 
             // Скрываем поле duration всегда (оно управляется автоматически)
