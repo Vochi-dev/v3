@@ -204,8 +204,8 @@
                                     <div class="icon-input">
                                         <i class="fas fa-headset"></i>
                                         <select class="form-select" name="internal_phone" id="internal_phone" required>
-                                            {% for phone, manager in managers.items() %}
-                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.phone }}">{{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -221,8 +221,8 @@
                                     <div class="icon-input">
                                         <i class="fas fa-broadcast-tower"></i>
                                         <select class="form-select" name="line_id" id="line_id" required>
-                                            {% for line_id, line in lines.items() %}
-                                            <option value="{{ line_id }}">{{ line_id }} - {{ line.name }}</option>
+                                            {% for line in lines %}
+                                            <option value="{{ line.id }}">{{ line.id }} - {{ line.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -241,8 +241,8 @@
                                         <i class="fas fa-headset"></i>
                                         <select class="form-select" name="second_internal_phone">
                                             <option value="">Выберите второго менеджера</option>
-                                            {% for phone, manager in managers.items() %}
-                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.phone }}">{{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -261,8 +261,8 @@
                                         <i class="fas fa-broadcast-tower"></i>
                                         <select class="form-select" name="backup_line_id">
                                             <option value="">Выберите резервную линию</option>
-                                            {% for line_id, line in lines.items() %}
-                                            <option value="{{ line_id }}">{{ line_id }} - {{ line.name }}</option>
+                                            {% for line in lines %}
+                                            <option value="{{ line.id }}">{{ line.id }} - {{ line.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -281,8 +281,8 @@
                                         <i class="fas fa-phone"></i>
                                         <select class="form-select" name="internal_group_1" id="internal_group_1">
                                             <option value="">Выберите первый номер группы</option>
-                                            {% for phone, manager in managers.items() %}
-                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.phone }}">{{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -298,8 +298,8 @@
                                         <i class="fas fa-phone"></i>
                                         <select class="form-select" name="internal_group_2" id="internal_group_2">
                                             <option value="">Выберите второй номер группы</option>
-                                            {% for phone, manager in managers.items() %}
-                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.phone }}">{{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -317,8 +317,8 @@
                                         <i class="fas fa-phone"></i>
                                         <select class="form-select" name="internal_group_3" id="internal_group_3">
                                             <option value="">Выберите третий номер группы</option>
-                                            {% for phone, manager in managers.items() %}
-                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.phone }}">{{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -334,8 +334,8 @@
                                         <i class="fas fa-phone"></i>
                                         <select class="form-select" name="internal_group_4" id="internal_group_4">
                                             <option value="">Выберите четвертый номер группы</option>
-                                            {% for phone, manager in managers.items() %}
-                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.phone }}">{{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -354,8 +354,8 @@
                                         <i class="fas fa-phone-volume"></i>
                                         <select class="form-select" name="answered_manager" id="answered_manager">
                                             <option value="">Кто ответил из группы</option>
-                                            {% for phone, manager in managers.items() %}
-                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.phone }}">{{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -373,7 +373,7 @@
                                         <select class="form-select" name="mobile_manager" id="mobile_manager">
                                             <option value="">Выберите менеджера с мобильным</option>
                                             {% for manager in managers %}
-                                            <option value="{{ manager.internal_phone }}" data-mobile="{{ manager.personal_phone or '' }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}{% if manager.personal_phone %} ({{ manager.personal_phone }}){% endif %}</option>
+                                            <option value="{{ manager.phone }}" data-mobile="{{ manager.personal_phone or '' }}">{{ manager.clean_name }}{% if manager.personal_phone %} ({{ manager.personal_phone }}){% endif %}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -390,8 +390,8 @@
                                         <i class="fas fa-share-square"></i>
                                         <select class="form-select" name="mobile_outgoing_line" id="mobile_outgoing_line">
                                             <option value="">Выберите исходящую линию</option>
-                                            {% for line_id, line in lines.items() %}
-                                            <option value="{{ line_id }}">{{ line_id }} - {{ line.name }}</option>
+                                            {% for line in lines %}
+                                            <option value="{{ line.id }}">{{ line.id }} - {{ line.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -692,6 +692,7 @@
             setTimeout(updateLineAvailability, 50);
             setTimeout(updateInternalGroupAvailability, 50);
             setTimeout(updateMobileLineAvailability, 50);
+            setTimeout(updateMobileManagerVisibility, 50);
         }
 
         // Обработчик изменения типа звонка
@@ -839,6 +840,28 @@
             }
         }
 
+        // Функция для показа только менеджеров с мобильными номерами
+        function updateMobileManagerVisibility() {
+            const mobileManagerSelect = document.getElementById('mobile_manager');
+            if (!mobileManagerSelect) return;
+            
+            // Скрываем все опции без personal_phone и показываем только с personal_phone
+            const options = mobileManagerSelect.querySelectorAll('option');
+            options.forEach(option => {
+                const mobilePhone = option.getAttribute('data-mobile');
+                if (option.value === '') {
+                    // Оставляем пустую опцию
+                    option.style.display = 'block';
+                } else if (!mobilePhone || mobilePhone.trim() === '') {
+                    // Скрываем менеджеров без мобильного
+                    option.style.display = 'none';
+                } else {
+                    // Показываем менеджеров с мобильным
+                    option.style.display = 'block';
+                }
+            });
+        }
+
         // Обработчики для обновления доступности менеджеров и линий
         document.addEventListener('DOMContentLoaded', function() {
             const firstManager = document.getElementById('internal_phone');
@@ -898,6 +921,7 @@
             setTimeout(updateLineAvailability, 100);
             setTimeout(updateInternalGroupAvailability, 100);
             setTimeout(updateMobileLineAvailability, 100);
+            setTimeout(updateMobileManagerVisibility, 100);
         });
 
 

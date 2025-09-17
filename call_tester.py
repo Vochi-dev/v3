@@ -128,11 +128,15 @@ class CallTestService:
                     if mgr['first_name'] or mgr['last_name']:
                         full_name = " ".join(filter(None, [mgr['first_name'], mgr['last_name']]))
                         display_name = f"{mgr['internal_phone']} - {full_name}"
+                        # Для мобильных менеджеров - только ФИО без внутреннего номера
+                        clean_name = full_name
                     else:
                         display_name = mgr['internal_phone']
+                        clean_name = mgr['internal_phone']
                     
                     managers_data[mgr['internal_phone']] = {
                         'name': display_name,
+                        'clean_name': clean_name,  # Имя без внутреннего номера
                         'personal_phone': mgr['personal_phone'] or '',
                         'follow_me_number': None,
                         'follow_me_enabled': False
@@ -448,14 +452,35 @@ async def main_page(request: Request, enterprise: str = "0367"):
         {"id": 3, "name": "Не ответили", "icon": "❌"}
     ]
     
+    # Преобразуем словари в списки для шаблона
+    managers_list = []
+    for phone, manager_data in enterprise_data.get('managers', {}).items():
+        managers_list.append({
+            'phone': phone,
+            'name': manager_data['name'],
+            'clean_name': manager_data.get('clean_name', manager_data['name']),  # Имя без внутреннего номера
+            'personal_phone': manager_data.get('personal_phone', ''),
+            'follow_me_number': manager_data.get('follow_me_number'),
+            'follow_me_enabled': manager_data.get('follow_me_enabled', False)
+        })
+    
+    lines_list = []
+    for line_id, line_data in enterprise_data.get('lines', {}).items():
+        lines_list.append({
+            'id': line_id,
+            'name': line_data['name'],
+            'phone': line_data.get('phone', ''),
+            'operator': line_data.get('operator', '')
+        })
+    
     return templates.TemplateResponse("test_interface.html", {
         "request": request,
         "enterprise_number": enterprise,
         "enterprise_name": enterprise_data['name'],
         "call_types": call_types,
         "call_statuses": call_statuses,
-        "managers": enterprise_data.get('managers', {}),
-        "lines": enterprise_data.get('lines', {})
+        "managers": managers_list,
+        "lines": lines_list
     })
 
 @app.post("/api/test-call")
