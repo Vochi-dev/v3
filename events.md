@@ -1,5 +1,27 @@
 # Мануал по событиям Asterisk для интеграций
 
+## ⚠️ ВАЖНО! СТРУКТУРА БД ДЛЯ РАЗРАБОТЧИКОВ
+
+**ВСЕГДА ИЗУЧАЙ СТРУКТУРУ БД ПЕРЕД НАПИСАНИЕМ SQL!!!**
+
+### 🗃️ Основные таблицы:
+
+- **`users`** - менеджеры (first_name, last_name, patronymic, personal_phone, follow_me_number)
+- **`user_internal_phones`** - внутренние номера (phone_number, user_id, enterprise_number)
+- **`gsm_lines`** - GSM линии (line_id, line_name, phone_number, prefix, goip_id)
+- **`goip`** - GSM шлюзы (gateway_name, device_ip, enterprise_number)
+- **`sip_unit`** - SIP линии (line_name, prefix, provider_id, enterprise_number)
+- **`sip`** - SIP провайдеры (name, server_ip)
+
+### 🔗 Команды для изучения структуры:
+```bash
+PGPASSWORD='r/Yskqh/ZbZuvjb2b3ahfg==' psql -U postgres -d postgres -c '\d "users"'
+PGPASSWORD='r/Yskqh/ZbZuvjb2b3ahfg==' psql -U postgres -d postgres -c '\d "gsm_lines"'
+PGPASSWORD='r/Yskqh/ZbZuvjb2b3ahfg==' psql -U postgres -d postgres -c '\d "sip_unit"'
+```
+
+---
+
 ## 🧪 ТЕСТОВЫЙ СЕРВИС ЗВОНКОВ (PORT 8025)
 
 ### Описание

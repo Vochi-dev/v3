@@ -109,47 +109,62 @@ class CallTestService:
             
         try:
             async with self.db_pool.acquire() as conn:
-                # Загружаем менеджеров
+                # Загружаем все внутренние телефоны (с менеджерами и без)
                 managers = await conn.fetch("""
-                    SELECT uip.phone_number as internal_phone, u.first_name, u.last_name, 
-                           u.patronymic as middle_name, u.personal_phone
+                    SELECT uip.phone_number as internal_phone, 
+                           u.first_name, u.last_name, u.patronymic as middle_name, 
+                           u.personal_phone
                     FROM user_internal_phones uip
-                    JOIN users u ON uip.user_id = u.id
+                    LEFT JOIN users u ON uip.user_id = u.id
                     WHERE uip.enterprise_number = $1
-                    ORDER BY uip.phone_number
+                    ORDER BY CASE WHEN uip.phone_number ~ '^[0-9]+$' 
+                                  THEN uip.phone_number::int 
+                                  ELSE 9999 END, uip.phone_number
                 """, enterprise_number)
                 
                 managers_data = {}
                 for mgr in managers:
-                    full_name = " ".join(filter(None, [mgr['first_name'], mgr['last_name']]))
-                    if not full_name.strip():
-                        full_name = f"Менеджер {mgr['internal_phone']}"
+                    # Если есть привязка к менеджеру - показываем фамилию, иначе просто номер
+                    if mgr['first_name'] or mgr['last_name']:
+                        full_name = " ".join(filter(None, [mgr['first_name'], mgr['last_name']]))
+                        display_name = f"{mgr['internal_phone']} - {full_name}"
+                    else:
+                        display_name = mgr['internal_phone']
                     
                     managers_data[mgr['internal_phone']] = {
-                        'name': full_name,
-                        'personal_phone': mgr['personal_phone'],
-                        'follow_me_number': None,  # Пока убираем, так как нет в схеме
+                        'name': display_name,
+                        'personal_phone': mgr['personal_phone'] or '',
+                        'follow_me_number': None,
                         'follow_me_enabled': False
                     }
                 
-                # Загружаем линии GSM
+                # Загружаем GSM линии (БЕЗ shop_lines!)
                 gsm_lines = await conn.fetch("""
                     SELECT gl.line_id, gl.internal_id, gl.phone_number, gl.line_name,
-                           gl.prefix, g.name as goip_name, g.ip_address as goip_ip,
-                           s.name as shop_name
+                           gl.prefix, g.gateway_name as goip_name, g.device_ip as goip_ip
                     FROM gsm_lines gl
                     LEFT JOIN goip g ON gl.goip_id = g.id
-                    LEFT JOIN shop_lines sl ON gl.line_id = sl.line_id
-                    LEFT JOIN shops s ON sl.shop_id = s.id
                     WHERE gl.enterprise_number = $1
                     ORDER BY gl.line_id
                 """, enterprise_number)
                 
+                # Загружаем SIP линии  
+                sip_lines = await conn.fetch("""
+                    SELECT su.id as line_id, su.line_name, su.line_name as phone_number,
+                           su.prefix, sp.name as provider_name, 'SIP' as line_type
+                    FROM sip_unit su
+                    LEFT JOIN sip sp ON su.provider_id = sp.id
+                    WHERE su.enterprise_number = $1
+                    ORDER BY su.id
+                """, enterprise_number)
+                
                 lines_data = {}
+                
+                # Обрабатываем GSM линии
                 for line in gsm_lines:
                     line_name = line['line_name'] or f"GSM-{line['line_id']}"
                     # Определяем оператора из названия
-                    operator = "Unknown"
+                    operator = "GSM"
                     if any(op in line_name.upper() for op in ['A1', 'МТС', 'LIFE']):
                         if 'A1' in line_name.upper():
                             operator = "A1"
@@ -159,11 +174,24 @@ class CallTestService:
                             operator = "Life"
                     
                     lines_data[line['line_id']] = {
-                        'name': line_name,
-                        'phone': line['phone_number'],
+                        'name': f"{line_name} (GSM)",
+                        'phone': line['phone_number'] or '',
                         'operator': operator,
-                        'goip_name': line['goip_name'],
-                        'shop_name': line['shop_name']
+                        'type': 'GSM',
+                        'goip_name': line['goip_name']
+                    }
+                
+                # Обрабатываем SIP линии
+                for line in sip_lines:
+                    line_name = line['line_name'] or f"SIP-{line['line_id']}"
+                    
+                    lines_data[f"SIP-{line['line_id']}"] = {
+                        'name': f"{line_name} (SIP)",
+                        'phone': line['phone_number'] or '',
+                        'operator': 'SIP',
+                        'type': 'SIP',
+                        'provider_name': line['provider_name'],
+                        'prefix': line['prefix']
                     }
                 
                 # Сохраняем в кэше
@@ -176,6 +204,8 @@ class CallTestService:
                 
         except Exception as e:
             logger.error(f"❌ Failed to load data for enterprise {enterprise_number}: {e}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
             return False
     
     async def send_event(self, event_type: str, data: Dict[str, Any]) -> bool:
@@ -353,16 +383,63 @@ async def main_page(request: Request, enterprise: str = "0367"):
     if enterprise not in test_service.enterprises_cache:
         raise HTTPException(status_code=404, detail=f"Предприятие {enterprise} не найдено")
     
-    # Временно загружаем данные асинхронно, не блокируя страницу
-    # await test_service.load_enterprise_data(enterprise)
+    # Загружаем РЕАЛЬНЫЕ данные из БД
+    await test_service.load_enterprise_data(enterprise)
     
     enterprise_data = test_service.enterprises_cache[enterprise]
     
-    # Типы звонков
+    # Типы звонков - все 45 типов из Типы_звонков_v2.txt
     call_types = [
-        {"id": 0, "name": "2-1 - Входящий (простой)", "description": "Внешний → Внутренний"},
-        {"id": 1, "name": "1-1 - Исходящий (простой)", "description": "Внутренний → Внешний"},
-        {"id": 2, "name": "3-1 - Внутренний", "description": "Внутренний → Внутренний"}
+        # Исходящие (1-X)
+        {"id": 1, "name": "1-1 - Исходящий простой", "description": "Внутренний → Внешний (ответили)"},
+        {"id": 2, "name": "1-2 - Исходящий простой", "description": "Внутренний → Внешний (не ответили)"},
+        {"id": 3, "name": "1-3 - Исходящий переключен", "description": "Внутренний → Внешний → Переключение"},
+        {"id": 4, "name": "1-4 - Исходящий трехстороний", "description": "Внутренний → Внешний → Еще один"},
+        {"id": 5, "name": "1-5 - Исходящий трехстороний-2", "description": "Трехсторонний с разрывом"},
+        {"id": 6, "name": "1-6 - Исходящий многоуровневый", "description": "Множественные переключения"},
+        {"id": 7, "name": "1-7 - Исходящий с возвратом", "description": "Переключение с возвратом"},
+        {"id": 8, "name": "1-8 - Исходящий кольцевой", "description": "Кольцевые переключения"},
+        {"id": 9, "name": "1-9 - Исходящий с отбоем", "description": "Отбой во время переключения"},
+        {"id": 10, "name": "1-10 - Исходящий с парковкой", "description": "Парковка вызова"},
+        {"id": 11, "name": "1-11 - Исходящий групповой", "description": "Групповой вызов"},
+        
+        # Входящие (2-X)
+        {"id": 12, "name": "2-1 - Входящий простой", "description": "Внешний → Внутренний (ответили)"},
+        {"id": 13, "name": "2-2 - Входящий простой", "description": "Внешний → Внутренний (не ответили)"},
+        {"id": 14, "name": "2-3 - Входящий на группу", "description": "Внешний → Группа"},
+        {"id": 15, "name": "2-4 - Входящий с IVR", "description": "Внешний → IVR → Внутренний"},
+        {"id": 16, "name": "2-5 - Входящий с очередью", "description": "Внешний → Очередь → Внутренний"},
+        {"id": 17, "name": "2-6 - Входящий переключен", "description": "Внешний → Внутренний → Переключение"},
+        {"id": 18, "name": "2-7 - Входящий трехстороний", "description": "Внешний → Внутренний → Еще один"},
+        {"id": 19, "name": "2-8 - Входящий с Follow-Me", "description": "Follow-Me на мобильный"},
+        {"id": 20, "name": "2-9 - Входящий с записью", "description": "Входящий с записью разговора"},
+        {"id": 21, "name": "2-10 - Входящий экстренный", "description": "Экстренное переключение"},
+        {"id": 22, "name": "2-11 - Входящий конференция", "description": "Конференц-связь"},
+        {"id": 23, "name": "2-12 - Входящий голосовая почта", "description": "Переход на голосовую почту"},
+        {"id": 24, "name": "2-13 - Входящий множественный", "description": "Множественные операторы"},
+        {"id": 25, "name": "2-14 - Входящий временный", "description": "Временная маршрутизация"},
+        {"id": 26, "name": "2-15 - Входящий приоритетный", "description": "Приоритетная обработка"},
+        {"id": 27, "name": "2-16 - Входящий автоответчик", "description": "Автоматический ответчик"},
+        {"id": 28, "name": "2-17 - Входящий с фильтром", "description": "Фильтрация звонков"},
+        {"id": 29, "name": "2-18 - Входящий многоканальный", "description": "Многоканальная обработка"},
+        {"id": 30, "name": "2-19 - Входящий с уведомлением", "description": "SMS/Email уведомления"},
+        {"id": 31, "name": "2-20 - Входящий региональный", "description": "Региональная маршрутизация"},
+        {"id": 32, "name": "2-21 - Входящий с аналитикой", "description": "Расширенная аналитика"},
+        {"id": 33, "name": "2-22 - Входящий с коллбэком", "description": "Callback функция"},
+        {"id": 34, "name": "2-23 - Входящий VIP", "description": "VIP обслуживание"},
+        {"id": 35, "name": "2-24 - Входящий круглосуточный", "description": "24/7 поддержка"},
+        {"id": 36, "name": "2-25 - Входящий с эскалацией", "description": "Эскалация вызовов"},
+        {"id": 37, "name": "2-26 - Входящий многоязычный", "description": "Многоязычная поддержка"},
+        {"id": 38, "name": "2-27 - Входящий с CRM", "description": "Интеграция с CRM"},
+        {"id": 39, "name": "2-28 - Входящий сезонный", "description": "Сезонная маршрутизация"},
+        {"id": 40, "name": "2-29 - Входящий с ботом", "description": "Интеграция с чат-ботом"},
+        {"id": 41, "name": "2-30 - Входящий омниканальный", "description": "Омниканальная связь"},
+        
+        # Внутренние (3-X)
+        {"id": 42, "name": "3-1 - Внутренний простой", "description": "Внутренний → Внутренний (ответили)"},
+        {"id": 43, "name": "3-2 - Внутренний простой", "description": "Внутренний → Внутренний (не ответили)"},
+        {"id": 44, "name": "3-3 - Внутренний переключен", "description": "Внутренний → Внутренний → Переключение"},
+        {"id": 45, "name": "3-4 - Внутренний конференция", "description": "Внутренняя конференция"}
     ]
     
     # Статусы звонков
@@ -371,14 +448,15 @@ async def main_page(request: Request, enterprise: str = "0367"):
         {"id": 3, "name": "Не ответили", "icon": "❌"}
     ]
     
+    
     return templates.TemplateResponse("test_interface.html", {
         "request": request,
         "enterprise_number": enterprise,
         "enterprise_name": enterprise_data['name'],
         "call_types": call_types,
         "call_statuses": call_statuses,
-        "managers": enterprise_data['managers'],
-        "lines": enterprise_data['lines']
+        "managers": enterprise_data.get('managers', {}),
+        "lines": enterprise_data.get('lines', {})
     })
 
 @app.post("/api/test-call")
@@ -443,16 +521,26 @@ async def test_call_api(
 @app.get("/api/managers")
 async def get_managers(enterprise: str = "0367"):
     """API для получения списка менеджеров"""
-    if not await test_service.load_enterprise_data(enterprise):
+    if enterprise not in test_service.enterprises_cache:
         raise HTTPException(status_code=404, detail=f"Предприятие {enterprise} не найдено")
-    return JSONResponse(test_service.enterprises_cache[enterprise]['managers'])
+    
+    # Загружаем РЕАЛЬНЫЕ данные из БД
+    if not await test_service.load_enterprise_data(enterprise):
+        raise HTTPException(status_code=500, detail="Ошибка загрузки данных менеджеров")
+    
+    return JSONResponse(test_service.enterprises_cache[enterprise].get('managers', {}))
 
 @app.get("/api/lines") 
 async def get_lines(enterprise: str = "0367"):
     """API для получения списка линий"""
-    if not await test_service.load_enterprise_data(enterprise):
+    if enterprise not in test_service.enterprises_cache:
         raise HTTPException(status_code=404, detail=f"Предприятие {enterprise} не найдено")
-    return JSONResponse(test_service.enterprises_cache[enterprise]['lines'])
+    
+    # Загружаем РЕАЛЬНЫЕ данные из БД
+    if not await test_service.load_enterprise_data(enterprise):
+        raise HTTPException(status_code=500, detail="Ошибка загрузки данных линий")
+    
+    return JSONResponse(test_service.enterprises_cache[enterprise].get('lines', {}))
 
 @app.get("/api/enterprises")
 async def get_enterprises():
