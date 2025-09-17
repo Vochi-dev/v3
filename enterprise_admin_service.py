@@ -3104,6 +3104,7 @@ async def get_services_status():
             "integration_cache": {"port": 8020, "script": "integration_cache.sh", "app": "integration_cache"},
             "uon": {"port": 8022, "script": "uon.sh", "app": "uon"},
             "ms": {"port": 8023, "script": "ms.sh", "app": "ms"},
+            "test": {"port": 8025, "script": "test.sh", "app": "test"},
             "reboot": {"port": 8009, "script": "reboot.sh", "app": "reboot.py"},
             "ewelink": {"port": 8010, "script": "ewelink.sh", "app": "ewelink_api"}
         }

@@ -4242,6 +4242,13 @@
                   <a href="#" onclick="openBitrix24Admin(); return false;">Bitrix24</a>
                 </li>
               </ul>
+              <!-- Кнопка тестирования звонков -->
+              <div style="margin-top:16px; padding-top:12px; border-top:1px solid #eee;">
+                <button type="button" onclick="openCallTester(); return false;" 
+                        style="background:#28a745; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:14px; width:100%;">
+                  🧪 Тест звонков
+                </button>
+              </div>
             </div>
             <div style="min-width:0;">
               <div id="primaryBlock" style="display:none; border:1px solid #eee; border-radius:8px; padding:12px;">
@@ -4300,6 +4307,12 @@
       function openBitrix24Admin(){
         const enterpriseNumber = '{{ enterprise.number }}';
         const url = `/24-admin/${enterpriseNumber}`;
+        window.open(url, '_blank');
+        closeIntegrationsModal();
+      }
+      function openCallTester(){
+        const enterpriseNumber = '{{ enterprise.number }}';
+        const url = `/call-tester/?enterprise=${enterpriseNumber}`;
         window.open(url, '_blank');
         closeIntegrationsModal();
       }

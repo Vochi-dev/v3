@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Список всех сервисов в порядке зависимости
-SERVICES=("admin" "dial" "111" "plan" "smart" "sms" "sms_send" "send_user_sms" "auth" "telegram" "download" "goip" "desk" "call" "miniapp" "asterisk" "retailcrm" "integration_cache" "uon" "ms" "24")
+SERVICES=("admin" "dial" "111" "plan" "smart" "sms" "sms_send" "send_user_sms" "auth" "telegram" "download" "goip" "desk" "call" "miniapp" "asterisk" "retailcrm" "integration_cache" "uon" "ms" "24" "test")
 
 case "${1:-restart}" in
   start)
@@ -356,6 +356,7 @@ echo "  admin: 8004"
     echo "  uon: 8022" 
     echo "  ms: 8023"
     echo "  24 (bitrix24): 8024"
+    echo "  test: 8025"
     echo ""
     echo "Telegram-боты: динамическое количество (по числу предприятий)"
     exit 1

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ enterprise_name }} тестирование</title>
+    
+    <!-- Favicon and App Icons -->
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="/static/apple-touch-icon.png">
+    <link rel="manifest" href="/static/site.webmanifest">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="msapplication-TileColor" content="#2563eb">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            margin-top: 20px;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e0e6ed;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .btn {
+            border-radius: 10px;
+            padding: 12px 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .btn-success {
+            background: linear-gradient(45deg, #56ab2f, #a8e6cf);
+            border: none;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .result-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 5px solid #667eea;
+            display: none;
+        }
+        .result-panel.show {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .icon-input {
+            position: relative;
+        }
+        .icon-input i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+        }
+        .icon-input input, .icon-input select {
+            padding-left: 45px;
+        }
+        .manager-info, .line-info {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .loading {
+            display: none;
+        }
+        .loading.show {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="main-container">
+                    <!-- Заголовок -->
+                    <div class="header">
+                        <h1><i class="fas fa-phone-alt"></i> Тестер звонков</h1>
+                        <h3 class="text-muted">{{ enterprise_name }} ({{ enterprise_number }})</h3>
+                        <p class="text-muted">Эмуляция полного цикла звонка с обогащением метаданными</p>
+                    </div>
+
+                    <!-- Форма тестирования -->
+                    <form id="testForm">
+                        <!-- Скрытое поле для номера предприятия -->
+                        <input type="hidden" name="enterprise" id="enterpriseInput" value="{{ enterprise_number }}">
+                        
+                        <div class="row">
+                            <!-- Тип звонка -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-phone-volume"></i> Тип звонка
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-list"></i>
+                                        <select class="form-select" name="call_type" id="call_type" required>
+                                            {% for ct in call_types %}
+                                            <option value="{{ ct.id }}">{{ ct.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="call-type-info text-muted mt-2" id="callTypeInfo">
+                                        Внешний → Внутренний
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Результат -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-check-circle"></i> Результат
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-flag"></i>
+                                        <select class="form-select" name="call_status" required>
+                                            {% for cs in call_statuses %}
+                                            <option value="{{ cs.id }}">{{ cs.icon }} {{ cs.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Внешний номер -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-mobile-alt"></i> Внешний номер
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-phone"></i>
+                                        <input type="text" class="form-control" name="external_phone" 
+                                               value="+375296254070" placeholder="+375296254070" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Длительность -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-clock"></i> Длительность (мин)
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-hourglass-half"></i>
+                                        <input type="number" class="form-control" name="duration_minutes" 
+                                               value="3" min="1" max="60" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Менеджер -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-user"></i> Менеджер
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-headset"></i>
+                                        <select class="form-select" name="internal_phone" id="internal_phone" required>
+                                            {% for phone, manager in managers.items() %}
+                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="manager-info" id="managerInfo">
+                                        Выберите менеджера для отображения информации
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Линия -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-signal"></i> Линия
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-broadcast-tower"></i>
+                                        <select class="form-select" name="line_id" id="line_id" required>
+                                            {% for line_id, line in lines.items() %}
+                                            <option value="{{ line_id }}">{{ line_id }} - {{ line.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="line-info" id="lineInfo">
+                                        Выберите линию для отображения информации
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Кнопки -->
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg me-3">
+                                <i class="fas fa-rocket"></i> 
+                                <span class="loading">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                </span>
+                                <span class="btn-text">Эмулировать звонок</span>
+                            </button>
+                            <button type="button" class="btn btn-success btn-lg" onclick="previewTelegram()">
+                                <i class="fab fa-telegram"></i> Превью Telegram
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Панель результатов -->
+                    <div class="result-panel" id="resultPanel">
+                        <h5><i class="fas fa-chart-line"></i> Результат тестирования</h5>
+                        <div id="resultContent">
+                            <!-- Содержимое результата будет добавлено через JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно превью -->
+    <div class="modal fade" id="telegramModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fab fa-telegram"></i> Превью Telegram сообщения
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="telegram-preview" id="telegramPreview">
+                        <!-- Превью будет добавлено через JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Данные из шаблона
+        const managers = {{ managers|tojson }};
+        const lines = {{ lines|tojson }};
+        const callTypes = {{ call_types|tojson }};
+
+        // Обновление информации о менеджере
+        document.getElementById('internal_phone').addEventListener('change', function() {
+            const phone = this.value;
+            const manager = managers[phone];
+            const infoDiv = document.getElementById('managerInfo');
+            
+            if (manager) {
+                let info = `👤 ${manager.name}`;
+                if (manager.personal_phone) {
+                    info += ` | 📱 ${manager.personal_phone}`;
+                }
+                if (manager.follow_me_enabled && manager.follow_me_number) {
+                    info += ` | 🔄 Follow Me: ${manager.follow_me_number}`;
+                }
+                infoDiv.innerHTML = info;
+            }
+        });
+
+        // Обновление информации о линии
+        document.getElementById('line_id').addEventListener('change', function() {
+            const lineId = this.value;
+            const line = lines[lineId];
+            const infoDiv = document.getElementById('lineInfo');
+            
+            if (line) {
+                let info = `📡 ${line.name} (${line.operator})`;
+                if (line.phone) {
+                    info += ` | 📞 ${line.phone}`;
+                }
+                if (line.goip_name) {
+                    info += ` | 🏢 ${line.goip_name}`;
+                }
+                infoDiv.innerHTML = info;
+            }
+        });
+
+        // Обновление описания типа звонка
+        document.getElementById('call_type').addEventListener('change', function() {
+            const typeId = parseInt(this.value);
+            const callType = callTypes.find(ct => ct.id === typeId);
+            const infoDiv = document.getElementById('callTypeInfo');
+            
+            if (callType) {
+                infoDiv.innerHTML = callType.description;
+            }
+        });
+
+        // Инициализация информации
+        document.getElementById('internal_phone').dispatchEvent(new Event('change'));
+        document.getElementById('line_id').dispatchEvent(new Event('change'));
+
+        // Отправка формы
+        document.getElementById('testForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const loading = submitBtn.querySelector('.loading');
+            const btnText = submitBtn.querySelector('.btn-text');
+            
+            // Показываем загрузку
+            loading.classList.add('show');
+            btnText.textContent = 'Выполняется...';
+            submitBtn.disabled = true;
+            
+            try {
+                const formData = new FormData(this);
+                const response = await fetch('/api/test-call', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                // Показываем результат
+                showResult(result);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showResult({
+                    success: false,
+                    message: 'Ошибка выполнения запроса',
+                    details: { errors: [error.message] }
+                });
+            } finally {
+                // Скрываем загрузку
+                loading.classList.remove('show');
+                btnText.textContent = 'Эмулировать звонок';
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Показ результата
+        function showResult(result) {
+            const panel = document.getElementById('resultPanel');
+            const content = document.getElementById('resultContent');
+            
+            const successIcon = result.success ? '✅' : '❌';
+            const statusClass = result.success ? 'text-success' : 'text-danger';
+            
+            let html = `
+                <div class="row">
+                    <div class="col-md-8">
+                        <h6 class="${statusClass}">
+                            ${successIcon} ${result.message}
+                        </h6>
+                        <p><strong>Уникальный ID:</strong> ${result.details.unique_id}</p>
+                        <p><strong>События отправлено:</strong> ${result.details.events_sent}/4</p>
+                        <p><strong>Ошибок:</strong> ${result.details.events_failed}</p>
+            `;
+            
+            if (result.details.errors && result.details.errors.length > 0) {
+                html += `<p><strong>Ошибки:</strong></p><ul>`;
+                result.details.errors.forEach(error => {
+                    html += `<li class="text-danger">${error}</li>`;
+                });
+                html += `</ul>`;
+            }
+            
+            html += `</div></div>`;
+            
+            content.innerHTML = html;
+            panel.classList.add('show');
+            
+            // Автоскролл к результату
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Превью Telegram
+        function previewTelegram() {
+            const modal = new bootstrap.Modal(document.getElementById('telegramModal'));
+            const preview = document.getElementById('telegramPreview');
+            
+            // Получаем данные формы
+            const formData = new FormData(document.getElementById('testForm'));
+            const callType = parseInt(formData.get('call_type'));
+            const externalPhone = formData.get('external_phone');
+            const internalPhone = formData.get('internal_phone');
+            const lineId = formData.get('line_id');
+            const callStatus = parseInt(formData.get('call_status'));
+            
+            // Формируем превью
+            const manager = managers[internalPhone];
+            const line = lines[lineId];
+            const callTypeName = callTypes.find(ct => ct.id === callType)?.name || 'Неизвестный';
+            const statusText = callStatus === 2 ? 'Успешный' : 'Неудачный';
+            const statusIcon = callStatus === 2 ? '✅' : '❌';
+            const callDirection = callType === 0 ? 'входящий' : (callType === 1 ? 'исходящий' : 'внутренний');
+            
+            let telegramText = `${statusIcon} ${statusText} ${callDirection} звонок\\n`;
+            
+            if (callType === 0) { // Входящий
+                telegramText += `${externalPhone}\\n`;
+                telegramText += `${manager ? manager.name : `Доб.${internalPhone}`}\\n`;
+            } else if (callType === 1) { // Исходящий  
+                telegramText += `${externalPhone}\\n`;
+                telegramText += `${manager ? manager.name : `Доб.${internalPhone}`}\\n`;
+            } else { // Внутренний
+                telegramText += `${manager ? manager.name : `Доб.${internalPhone}`} → ${externalPhone}\\n`;
+            }
+            
+            telegramText += `📡${line ? line.name : `Линия ${lineId}`}\\n`;
+            telegramText += `⌛ Длительность: ${formData.get('duration_minutes')}:00\\n`;
+            
+            if (callStatus === 2) {
+                telegramText += `🔉Запись разговора`;
+            }
+            
+            preview.innerHTML = `
+                <div class="telegram-message" style="
+                    background: #0088cc;
+                    color: white;
+                    padding: 15px;
+                    border-radius: 15px;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                    max-width: 400px;
+                    margin: 0 auto;
+                    white-space: pre-line;
+                ">
+                    ${telegramText.replace(/\\n/g, '\\n')}
+                </div>
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        💡 Это превью финального сообщения с обогащением метаданными
+                    </small>
+                </div>
+            `;
+            
+            modal.show();
+        }
+    </script>
+</body>
+</html>
