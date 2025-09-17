@@ -95,16 +95,16 @@ class CallTestService:
         except Exception as e:
             logger.error(f"❌ Failed to load enterprises: {e}")
     
-    async def load_enterprise_data(self, enterprise_number: str):
+    async def load_enterprise_data(self, enterprise_number: str) -> bool:
         """Загрузка данных конкретного предприятия"""
-        logger.info(f"🔍 Loading data for enterprise {enterprise_number}")
-        logger.info(f"🔍 Cache keys: {list(self.enterprises_cache.keys())}")
+        logger.info(f"🔍 Trying to load enterprise {enterprise_number}")
         
         if enterprise_number not in self.enterprises_cache:
-            logger.error(f"❌ Enterprise {enterprise_number} not found in cache")
+            logger.error(f"❌ Enterprise {enterprise_number} not found in cache. Available: {list(self.enterprises_cache.keys())[:5]}...")
             return False
             
         if self.enterprises_cache[enterprise_number]['loaded']:
+            logger.info(f"✅ Enterprise {enterprise_number} already loaded")
             return True  # Уже загружено
             
         try:
@@ -349,9 +349,12 @@ async def startup():
 async def main_page(request: Request, enterprise: str = "0367"):
     """Главная страница с интерфейсом тестирования"""
     
-    # Загружаем данные предприятия
-    if not await test_service.load_enterprise_data(enterprise):
+    # Проверяем что предприятие существует в кэше
+    if enterprise not in test_service.enterprises_cache:
         raise HTTPException(status_code=404, detail=f"Предприятие {enterprise} не найдено")
+    
+    # Временно загружаем данные асинхронно, не блокируя страницу
+    # await test_service.load_enterprise_data(enterprise)
     
     enterprise_data = test_service.enterprises_cache[enterprise]
     
