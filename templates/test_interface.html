@@ -636,6 +636,13 @@
                 description: "Звонок на группу абонентов + мобильный = подняли трубку на мобильном",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "17": {
+                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager", "mobile_manager", "mobile_outgoing_line"],
+                required: ["external_phone", "line", "internal_group_1", "answered_manager", "mobile_manager", "mobile_outgoing_line"],
+                description: "Звонок на группу абонентов + мобильный = подняли трубку на внутреннем",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
