@@ -159,9 +159,6 @@
                                             {% endfor %}
                                         </select>
                                     </div>
-                                    <div class="call-type-info text-muted mt-2" id="callTypeInfo">
-                                        Внешний → Внутренний
-                                    </div>
                                 </div>
                             </div>
 
@@ -233,6 +230,25 @@
                             </div>
                         </div>
 
+                        <div class="row">
+                            <!-- Второй менеджер -->
+                            <div class="col-md-6" data-field="second_manager">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-user-plus"></i> Второй менеджер (кому)
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-headset"></i>
+                                        <select class="form-select" name="second_internal_phone">
+                                            <option value="">Выберите второго менеджера</option>
+                                            {% for phone, manager in managers.items() %}
+                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- Кнопки -->
                         <div class="text-center mt-4">
@@ -320,6 +336,20 @@
                 description: "Прямой набор номера - абонент ответил",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "2": {
+                fields: ["external_phone", "manager", "line"],
+                required: ["external_phone", "manager", "line"],
+                description: "Набор номера с внешней инициацией (из сторонней программы, CRM) - звонок отвечен",
+                defaultDuration: 3,
+                defaultResult: "answered"
+            },
+            "3": {
+                fields: ["external_phone", "manager", "line", "second_manager"],
+                required: ["external_phone", "manager", "line", "second_manager"],
+                description: "Переадресация вызова с запросом - вызов принят другим оператором - разговор отклонен",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
@@ -368,12 +398,61 @@
                     }
                 }
             });
+            
+            // Обновляем доступность менеджеров после изменения видимости полей
+            setTimeout(updateManagerAvailability, 50);
         }
 
         // Обработчик изменения типа звонка
         document.getElementById('call_type').addEventListener('change', function() {
             updateCallTypeDescription(this.value);
             updateFieldsVisibility(this.value);
+        });
+
+        // Функция для обновления доступности менеджеров
+        function updateManagerAvailability() {
+            const firstManager = document.getElementById('internal_phone');
+            const secondManager = document.querySelector('select[name="second_internal_phone"]');
+            
+            if (!firstManager || !secondManager) return;
+            
+            const selectedFirstManager = firstManager.value;
+            
+            // Включаем все опции во втором селекте
+            Array.from(secondManager.options).forEach(option => {
+                option.disabled = false;
+                option.style.color = '';
+                option.style.backgroundColor = '';
+            });
+            
+            // Отключаем выбранного в первом селекте
+            if (selectedFirstManager) {
+                Array.from(secondManager.options).forEach(option => {
+                    if (option.value === selectedFirstManager) {
+                        option.disabled = true;
+                        option.style.color = '#ccc';
+                        option.style.backgroundColor = '#f5f5f5';
+                    }
+                });
+                
+                // Если во втором селекте выбран тот же менеджер, сбрасываем выбор
+                if (secondManager.value === selectedFirstManager) {
+                    secondManager.value = '';
+                }
+            }
+        }
+
+        // Обработчики для обновления доступности менеджеров
+        document.addEventListener('DOMContentLoaded', function() {
+            const firstManager = document.getElementById('internal_phone');
+            const secondManager = document.querySelector('select[name="second_internal_phone"]');
+            
+            if (firstManager) {
+                firstManager.addEventListener('change', updateManagerAvailability);
+            }
+            if (secondManager) {
+                secondManager.addEventListener('change', updateManagerAvailability);
+            }
         });
 
         // Инициализация при загрузке страницы
@@ -383,6 +462,8 @@
                 updateCallTypeDescription(callTypeSelect.value);
                 updateFieldsVisibility(callTypeSelect.value);
             }
+            // Обновляем доступность менеджеров при загрузке
+            setTimeout(updateManagerAvailability, 100);
         });
 
 
