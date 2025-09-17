@@ -448,7 +448,6 @@ async def main_page(request: Request, enterprise: str = "0367"):
         {"id": 3, "name": "Не ответили", "icon": "❌"}
     ]
     
-    
     return templates.TemplateResponse("test_interface.html", {
         "request": request,
         "enterprise_number": enterprise,
@@ -488,6 +487,8 @@ async def test_call_api(
             12: {"duration": 3, "status": 2}, # 2-1: 3 мин, ответили (2)
             13: {"duration": 3, "status": 3}, # 2-2: 3 мин, НЕ ответили (3)
             14: {"duration": 3, "status": 2}, # 2-3: 3 мин, ответили (2)
+            15: {"duration": 3, "status": 3}, # 2-4: 3 мин, НЕ ответили (3)
+            16: {"duration": 3, "status": 2}, # 2-5: 3 мин, ответили на мобильном (2)
             # Добавим остальные типы по мере необходимости
         }
         
@@ -595,15 +596,4 @@ async def health_check():
     }
 
 if __name__ == "__main__":
-    print("🧪 Starting Universal Call Test Service")
-    print("📡 URL: http://localhost:8025") 
-    print("🎯 Supports: All enterprises")
-    print("🔗 Target: http://localhost:8000")
-    print("📋 Usage: http://localhost:8025/?enterprise=XXXX")
-    
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8025,
-        log_level="info"
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8025)

@@ -281,8 +281,8 @@
                                         <i class="fas fa-phone"></i>
                                         <select class="form-select" name="internal_group_1" id="internal_group_1">
                                             <option value="">Выберите первый номер группы</option>
-                                            {% for manager in managers %}
-                                            <option value="{{ manager.internal_phone }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}</option>
+                                            {% for phone, manager in managers.items() %}
+                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -298,8 +298,8 @@
                                         <i class="fas fa-phone"></i>
                                         <select class="form-select" name="internal_group_2" id="internal_group_2">
                                             <option value="">Выберите второй номер группы</option>
-                                            {% for manager in managers %}
-                                            <option value="{{ manager.internal_phone }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}</option>
+                                            {% for phone, manager in managers.items() %}
+                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -317,8 +317,8 @@
                                         <i class="fas fa-phone"></i>
                                         <select class="form-select" name="internal_group_3" id="internal_group_3">
                                             <option value="">Выберите третий номер группы</option>
-                                            {% for manager in managers %}
-                                            <option value="{{ manager.internal_phone }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}</option>
+                                            {% for phone, manager in managers.items() %}
+                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -334,8 +334,8 @@
                                         <i class="fas fa-phone"></i>
                                         <select class="form-select" name="internal_group_4" id="internal_group_4">
                                             <option value="">Выберите четвертый номер группы</option>
-                                            {% for manager in managers %}
-                                            <option value="{{ manager.internal_phone }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}</option>
+                                            {% for phone, manager in managers.items() %}
+                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -354,14 +354,52 @@
                                         <i class="fas fa-phone-volume"></i>
                                         <select class="form-select" name="answered_manager" id="answered_manager">
                                             <option value="">Кто ответил из группы</option>
-                                            {% for manager in managers %}
-                                            <option value="{{ manager.internal_phone }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}</option>
+                                            {% for phone, manager in managers.items() %}
+                                            <option value="{{ phone }}">{{ phone }} - {{ manager.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
                                 </div>
                             </div>
 
+                            <!-- Менеджер с мобильным -->
+                            <div class="col-md-6" data-field="mobile_manager">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-mobile-alt"></i> Менеджер с мобильным
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-phone-volume"></i>
+                                        <select class="form-select" name="mobile_manager" id="mobile_manager">
+                                            <option value="">Выберите менеджера с мобильным</option>
+                                            {% for manager in managers %}
+                                            <option value="{{ manager.internal_phone }}" data-mobile="{{ manager.personal_phone or '' }}">{{ manager.internal_phone }}{% if manager.last_name %} - {{ manager.last_name }}{% endif %}{% if manager.personal_phone %} ({{ manager.personal_phone }}){% endif %}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Исходящая линия для мобильного -->
+                            <div class="col-md-6" data-field="mobile_outgoing_line">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-phone-square"></i> Исходящая линия для мобильного
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-share-square"></i>
+                                        <select class="form-select" name="mobile_outgoing_line" id="mobile_outgoing_line">
+                                            <option value="">Выберите исходящую линию</option>
+                                            {% for line_id, line in lines.items() %}
+                                            <option value="{{ line_id }}">{{ line_id }} - {{ line.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <!-- Запрещенное направление -->
                             <div class="col-md-6" data-field="forbidden_direction">
                                 <div class="form-group">
@@ -584,6 +622,20 @@
                 description: "Звонок без приветствия - набор внутренних номеров - ответ",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "15": {
+                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4"],
+                required: ["external_phone", "line", "internal_group_1"],
+                description: "Звонок без приветствия - набор внутренних номеров - нет ответа",
+                defaultDuration: 3,
+                defaultResult: "noanswer"
+            },
+            "16": {
+                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "mobile_manager", "mobile_outgoing_line"],
+                required: ["external_phone", "line", "internal_group_1", "mobile_manager", "mobile_outgoing_line"],
+                description: "Звонок на группу абонентов + мобильный = подняли трубку на мобильном",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
@@ -601,7 +653,8 @@
                 "external_phone", "manager", "line", "duration",
                 "second_manager", "transfer_type", "follow_me_phone", 
                 "backup_line", "department", "greeting", "forbidden_direction",
-                "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager"
+                "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager",
+                "mobile_manager", "mobile_outgoing_line"
             ];
 
             // Скрываем поле duration всегда (оно управляется автоматически)
@@ -638,6 +691,7 @@
             setTimeout(updateManagerAvailability, 50);
             setTimeout(updateLineAvailability, 50);
             setTimeout(updateInternalGroupAvailability, 50);
+            setTimeout(updateMobileLineAvailability, 50);
         }
 
         // Обработчик изменения типа звонка
@@ -751,6 +805,40 @@
             });
         }
 
+        // Функция для обновления доступности исходящей линии для мобильного
+        function updateMobileLineAvailability() {
+            const incomingLine = document.getElementById('line_id');
+            const mobileOutgoingLine = document.getElementById('mobile_outgoing_line');
+            
+            if (!incomingLine || !mobileOutgoingLine) return;
+            
+            const selectedIncomingLine = incomingLine.value;
+            
+            // Обновляем опции в исходящей линии для мобильного
+            const options = mobileOutgoingLine.querySelectorAll('option');
+            options.forEach(option => {
+                if (option.value === '') return; // Пропускаем пустой option
+                
+                if (option.value === selectedIncomingLine) {
+                    option.disabled = true;
+                    option.style.backgroundColor = '#f8f9fa';
+                    option.style.color = '#6c757d';
+                    option.textContent = option.textContent.includes('(занята)') ? 
+                        option.textContent : option.textContent + ' (занята входящим)';
+                } else {
+                    option.disabled = false;
+                    option.style.backgroundColor = '';
+                    option.style.color = '';
+                    option.textContent = option.textContent.replace(' (занята входящим)', '');
+                }
+            });
+            
+            // Если в исходящей линии выбрана та же что и входящая, сбрасываем выбор
+            if (mobileOutgoingLine.value === selectedIncomingLine) {
+                mobileOutgoingLine.value = '';
+            }
+        }
+
         // Обработчики для обновления доступности менеджеров и линий
         document.addEventListener('DOMContentLoaded', function() {
             const firstManager = document.getElementById('internal_phone');
@@ -785,6 +873,17 @@
                     select.addEventListener('change', updateInternalGroupAvailability);
                 }
             });
+
+            // Обработчики для мобильных линий
+            const incomingLine = document.getElementById('line_id');
+            const mobileOutgoingLine = document.getElementById('mobile_outgoing_line');
+            
+            if (incomingLine) {
+                incomingLine.addEventListener('change', updateMobileLineAvailability);
+            }
+            if (mobileOutgoingLine) {
+                mobileOutgoingLine.addEventListener('change', updateMobileLineAvailability);
+            }
         });
 
         // Инициализация при загрузке страницы
@@ -798,6 +897,7 @@
             setTimeout(updateManagerAvailability, 100);
             setTimeout(updateLineAvailability, 100);
             setTimeout(updateInternalGroupAvailability, 100);
+            setTimeout(updateMobileLineAvailability, 100);
         });
 
 
