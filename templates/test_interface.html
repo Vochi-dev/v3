@@ -357,6 +357,13 @@
                 description: "Переадресация вызова с запросом - вызов принят другим оператором - он согласился поговорить",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "5": {
+                fields: ["external_phone", "manager", "line", "second_manager"],
+                required: ["external_phone", "manager", "line", "second_manager"],
+                description: "Переадресация вызова с запросом - вызов не принят другим оператором (нет на месте)",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
