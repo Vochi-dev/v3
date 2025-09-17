@@ -2,8 +2,8 @@
 
 # Call Tester Service Management Script
 APP_MODULE="call_tester:app"
-PID_FILE="/var/run/test_service.pid"
-LOG_FILE="/var/log/test_service.log"
+PID_FILE=".uvicorn_test.pid"
+LOG_FILE="logs/test.log"
 HOST="0.0.0.0"
 PORT="8025"
 
@@ -22,13 +22,14 @@ start() {
         return 1
     fi
 
+    mkdir -p logs
     echo "🚀 Starting Call Tester service..."
-    nohup python3 call_tester.py > $LOG_FILE 2>&1 &
+    nohup uvicorn call_tester:app --host $HOST --port $PORT > $LOG_FILE 2>&1 &
     PID=$!
     echo $PID > $PID_FILE
     sleep 2
     
-    if kill -0 $PID 2>/dev/null; then
+    if netstat -tlnp | grep -q ":$PORT"; then
         echo "✅ Call Tester service started successfully (PID: $PID)"
         echo "📡 URL: http://localhost:$PORT"
         echo "📋 Logs: tail -f $LOG_FILE"
