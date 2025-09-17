@@ -250,6 +250,26 @@
                             </div>
                         </div>
 
+                        <div class="row">
+                            <!-- Резервная линия -->
+                            <div class="col-md-6" data-field="backup_line">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-sync-alt"></i> Резервная линия
+                                    </label>
+                                    <div class="icon-input">
+                                        <i class="fas fa-broadcast-tower"></i>
+                                        <select class="form-select" name="backup_line_id">
+                                            <option value="">Выберите резервную линию</option>
+                                            {% for line_id, line in lines.items() %}
+                                            <option value="{{ line_id }}">{{ line_id }} - {{ line.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Кнопки -->
                         <div class="text-center mt-4">
                             <button type="submit" class="btn btn-primary btn-lg me-3">
@@ -371,6 +391,27 @@
                 description: "Переадресация без запроса - вызов принят другим оператором",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "7": {
+                fields: ["external_phone", "manager", "line", "second_manager"],
+                required: ["external_phone", "manager", "line", "second_manager"],
+                description: "Переадресация без запроса - вызов не принят другим оператором",
+                defaultDuration: 3,
+                defaultResult: "answered"
+            },
+            "8": {
+                fields: ["external_phone", "manager", "line"],
+                required: ["external_phone", "manager", "line"],
+                description: "Прямой набор номера - абонент не ответил",
+                defaultDuration: 3,
+                defaultResult: "noanswer"
+            },
+            "9": {
+                fields: ["external_phone", "manager", "line", "backup_line"],
+                required: ["external_phone", "manager", "line", "backup_line"],
+                description: "Прямой набор номера - 151 звонит абоненту +375296254070, система сначала пытается согласно диалплану набрать номер с линии 0001363, но она оказалась занята другим разговором, и звонок согласно настройкам пошел с резервной линии 0001366, трубку подняли",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
@@ -420,8 +461,9 @@
                 }
             });
             
-            // Обновляем доступность менеджеров после изменения видимости полей
+            // Обновляем доступность менеджеров и линий после изменения видимости полей
             setTimeout(updateManagerAvailability, 50);
+            setTimeout(updateLineAvailability, 50);
         }
 
         // Обработчик изменения типа звонка
@@ -463,16 +505,57 @@
             }
         }
 
-        // Обработчики для обновления доступности менеджеров
+        // Функция для обновления доступности линий
+        function updateLineAvailability() {
+            const firstLine = document.getElementById('line_id');
+            const backupLine = document.querySelector('select[name="backup_line_id"]');
+            
+            if (!firstLine || !backupLine) return;
+            
+            const selectedFirstLine = firstLine.value;
+            
+            // Включаем все опции в резервной линии
+            Array.from(backupLine.options).forEach(option => {
+                option.disabled = false;
+                option.style.color = '';
+                option.style.backgroundColor = '';
+            });
+            
+            // Отключаем выбранную в основной линии
+            if (selectedFirstLine) {
+                Array.from(backupLine.options).forEach(option => {
+                    if (option.value === selectedFirstLine) {
+                        option.disabled = true;
+                        option.style.color = '#ccc';
+                        option.style.backgroundColor = '#f5f5f5';
+                    }
+                });
+                
+                // Если в резервной линии выбрана та же, сбрасываем выбор
+                if (backupLine.value === selectedFirstLine) {
+                    backupLine.value = '';
+                }
+            }
+        }
+
+        // Обработчики для обновления доступности менеджеров и линий
         document.addEventListener('DOMContentLoaded', function() {
             const firstManager = document.getElementById('internal_phone');
             const secondManager = document.querySelector('select[name="second_internal_phone"]');
+            const firstLine = document.getElementById('line_id');
+            const backupLine = document.querySelector('select[name="backup_line_id"]');
             
             if (firstManager) {
                 firstManager.addEventListener('change', updateManagerAvailability);
             }
             if (secondManager) {
                 secondManager.addEventListener('change', updateManagerAvailability);
+            }
+            if (firstLine) {
+                firstLine.addEventListener('change', updateLineAvailability);
+            }
+            if (backupLine) {
+                backupLine.addEventListener('change', updateLineAvailability);
             }
         });
 
@@ -483,8 +566,9 @@
                 updateCallTypeDescription(callTypeSelect.value);
                 updateFieldsVisibility(callTypeSelect.value);
             }
-            // Обновляем доступность менеджеров при загрузке
+            // Обновляем доступность менеджеров и линий при загрузке
             setTimeout(updateManagerAvailability, 100);
+            setTimeout(updateLineAvailability, 100);
         });
 
 
