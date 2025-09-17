@@ -95,11 +95,6 @@
         .icon-input input, .icon-input select {
             padding-left: 45px;
         }
-        .manager-info, .line-info {
-            font-size: 0.9em;
-            color: #6c757d;
-            margin-top: 5px;
-        }
         .loading {
             display: none;
         }
@@ -109,10 +104,26 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container-fluid">
         <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <div class="main-container">
+            <div class="col-lg-10">
+                <div class="row">
+                    <!-- Поле описания типа звонка -->
+                    <div class="col-md-4">
+                        <div class="main-container" style="min-height: 500px;">
+                            <h5><i class="fas fa-info-circle"></i> Описание типа звонка</h5>
+                            <div id="call-type-description" style="background: #f8f9fa; border-radius: 10px; padding: 15px; min-height: 300px; border: 2px dashed #dee2e6;">
+                                <p class="text-muted text-center" style="margin-top: 100px;">
+                                    <i class="fas fa-arrow-right fa-2x"></i><br><br>
+                                    Выберите тип звонка для просмотра описания
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Основная форма -->
+                    <div class="col-md-8">
+                        <div class="main-container">
                     <!-- Заголовок -->
                     <div class="header">
                         <h1><i class="fas fa-phone-alt"></i> Тестер звонков</h1>
@@ -174,7 +185,7 @@
                                     <div class="icon-input">
                                         <i class="fas fa-phone"></i>
                                         <input type="text" class="form-control" name="external_phone" 
-                                               value="+375296254070" placeholder="+375296254070" required>
+                                               value="" placeholder="Введите внешний номер" required>
                                     </div>
                                 </div>
                             </div>
@@ -209,9 +220,6 @@
                                             {% endfor %}
                                         </select>
                                     </div>
-                                    <div class="manager-info" id="managerInfo">
-                                        Выберите менеджера для отображения информации
-                                    </div>
                                 </div>
                             </div>
 
@@ -228,9 +236,6 @@
                                             <option value="{{ line_id }}">{{ line_id }} - {{ line.name }}</option>
                                             {% endfor %}
                                         </select>
-                                    </div>
-                                    <div class="line-info" id="lineInfo">
-                                        Выберите линию для отображения информации
                                     </div>
                                 </div>
                             </div>
@@ -288,57 +293,46 @@
         const managers = {{ managers|tojson }};
         const lines = {{ lines|tojson }};
         const callTypes = {{ call_types|tojson }};
-
-        // Обновление информации о менеджере
-        document.getElementById('internal_phone').addEventListener('change', function() {
-            const phone = this.value;
-            const manager = managers[phone];
-            const infoDiv = document.getElementById('managerInfo');
-            
-            if (manager) {
-                let info = `👤 ${manager.name}`;
-                if (manager.personal_phone) {
-                    info += ` | 📱 ${manager.personal_phone}`;
-                }
-                if (manager.follow_me_enabled && manager.follow_me_number) {
-                    info += ` | 🔄 Follow Me: ${manager.follow_me_number}`;
-                }
-                infoDiv.innerHTML = info;
-            }
-        });
-
-        // Обновление информации о линии
-        document.getElementById('line_id').addEventListener('change', function() {
-            const lineId = this.value;
-            const line = lines[lineId];
-            const infoDiv = document.getElementById('lineInfo');
-            
-            if (line) {
-                let info = `📡 ${line.name} (${line.operator})`;
-                if (line.phone) {
-                    info += ` | 📞 ${line.phone}`;
-                }
-                if (line.goip_name) {
-                    info += ` | 🏢 ${line.goip_name}`;
-                }
-                infoDiv.innerHTML = info;
-            }
-        });
-
+        
         // Обновление описания типа звонка
-        document.getElementById('call_type').addEventListener('change', function() {
-            const typeId = parseInt(this.value);
-            const callType = callTypes.find(ct => ct.id === typeId);
-            const infoDiv = document.getElementById('callTypeInfo');
+        function updateCallTypeDescription(callTypeId) {
+            const descriptionDiv = document.getElementById('call-type-description');
+            const callType = callTypes.find(ct => ct.id == callTypeId);
             
             if (callType) {
-                infoDiv.innerHTML = callType.description;
+                const description = callType.description.replace(/\\n/g, '<br>');
+                descriptionDiv.innerHTML = `
+                    <h6 class="fw-bold text-primary">
+                        <i class="fas fa-phone"></i> ${callType.name}
+                    </h6>
+                    <div class="mt-3" style="line-height: 1.6; font-size: 0.95em;">
+                        ${description}
+                    </div>
+                `;
+            } else {
+                descriptionDiv.innerHTML = `
+                    <p class="text-muted text-center" style="margin-top: 100px;">
+                        <i class="fas fa-arrow-right fa-2x"></i><br><br>
+                        Выберите тип звонка для просмотра описания
+                    </p>
+                `;
+            }
+        }
+        
+        // Обработчик изменения типа звонка
+        document.getElementById('call_type').addEventListener('change', function() {
+            updateCallTypeDescription(this.value);
+        });
+
+        // Инициализация описания при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            const callTypeSelect = document.getElementById('call_type');
+            if (callTypeSelect.value) {
+                updateCallTypeDescription(callTypeSelect.value);
             }
         });
 
-        // Инициализация информации
-        document.getElementById('internal_phone').dispatchEvent(new Event('change'));
-        document.getElementById('line_id').dispatchEvent(new Event('change'));
+
 
         // Отправка формы
         document.getElementById('testForm').addEventListener('submit', async function(e) {
