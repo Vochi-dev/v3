@@ -350,6 +350,13 @@
                 description: "Переадресация вызова с запросом - вызов принят другим оператором - разговор отклонен",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "4": {
+                fields: ["external_phone", "manager", "line", "second_manager"],
+                required: ["external_phone", "manager", "line", "second_manager"],
+                description: "Переадресация вызова с запросом - вызов принят другим оператором - он согласился поговорить",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
