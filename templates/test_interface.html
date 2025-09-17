@@ -570,6 +570,20 @@
                 description: "Прослушивание приветствия, набор внутренних номеров - ответ",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "13": {
+                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4"],
+                required: ["external_phone", "line", "internal_group_1"],
+                description: "Прослушивание приветствия, набор внутренних номеров - нет ответа",
+                defaultDuration: 3,
+                defaultResult: "noanswer"
+            },
+            "14": {
+                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager"],
+                required: ["external_phone", "line", "internal_group_1", "answered_manager"],
+                description: "Звонок без приветствия - набор внутренних номеров - ответ",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
