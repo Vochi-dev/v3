@@ -500,6 +500,45 @@
                             </div>
                         </div>
 
+                        <!-- Простые поля для 2 внутренних номеров (типы 2-19 до 2-22) -->
+                        <div class="card mt-3" data-field="simple_internal_2_group">
+                            <div class="card-header bg-secondary text-white">
+                                <h6 class="mb-0"><i class="fas fa-users"></i> Внутренние номера (2 менеджера)</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6" data-field="simple_internal_2_1">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Внутренний номер 1 (кто принял)</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="simple_internal_2_1" id="simple_internal_2_1">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6" data-field="simple_internal_2_2">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Внутренний номер 2 (куда перевели)</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="simple_internal_2_2" id="simple_internal_2_2">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Поэтапные шаги для типа 2-12 -->
                         <div class="card mt-3" data-field="step1_group">
                             <div class="card-header bg-primary text-white">
@@ -1070,6 +1109,34 @@
                 description: "Внешний звонок → отвечает 151-й 2. 151 переводит на 152-го (с запросом) 3. 152 принимает, но переводит дальше на 150-го 4. 150 разговаривает с клиентом",
                 defaultDuration: 4,
                 defaultResult: "answered"
+            },
+            "30": {
+                fields: ["external_phone", "line", "simple_internal_2_group", "simple_internal_2_1", "simple_internal_2_2"],
+                required: ["external_phone", "line", "simple_internal_2_1", "simple_internal_2_2"],
+                description: "Поступил звонок - 151-й поднял трубку, отправил звонок с безусловной переадресацией 152-му, но 152-й в этот момент сам разговаривал (был занят) (телефонный аппарат менеджера умеет принимать второй вызов во время первого)",
+                defaultDuration: 3,
+                defaultResult: "answered"
+            },
+            "31": {
+                fields: ["external_phone", "line", "simple_internal_2_group", "simple_internal_2_1", "simple_internal_2_2"],
+                required: ["external_phone", "line", "simple_internal_2_1", "simple_internal_2_2"],
+                description: "Поступил звонок - 151-й поднял трубку, отправил звонок с условной переадресацией 152-му, но 152-й в этот момент сам разговаривал (был занят) (телефонный аппарат менеджера умеет принимать второй вызов во время первого)",
+                defaultDuration: 3,
+                defaultResult: "answered"
+            },
+            "32": {
+                fields: ["external_phone", "line", "simple_internal_2_group", "simple_internal_2_1", "simple_internal_2_2"],
+                required: ["external_phone", "line", "simple_internal_2_1", "simple_internal_2_2"],
+                description: "Поступил звонок - 151-й поднял трубку, отправил звонок с безусловной переадресацией 152-му, но 152-й в этот момент сам разговаривал (был занят) (телефонный аппарат менеджера не умеет принимать второй вызов во время первого)",
+                defaultDuration: 2,
+                defaultResult: "no_answer"
+            },
+            "33": {
+                fields: ["external_phone", "line", "simple_internal_2_group", "simple_internal_2_1", "simple_internal_2_2"],
+                required: ["external_phone", "line", "simple_internal_2_1", "simple_internal_2_2"],
+                description: "Поступил звонок - 151-й поднял трубку, отправил звонок с условной переадресацией 152-му, но 152-й в этот момент сам разговаривал (был занят) (телефонный аппарат менеджера не умеет принимать второй вызов во время первого)",
+                defaultDuration: 2,
+                defaultResult: "no_answer"
             }
             // Добавим остальные типы поштучно
         };
@@ -1095,7 +1162,8 @@
                 "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4",
                 "step3_mobile_section", "step3_mobile_manager", "step3_mobile_line",
                 "answered_manager_final", "answered_manager_final_mobile",
-                "simple_internal_group", "simple_internal_1", "simple_internal_2", "simple_internal_3"
+                "simple_internal_group", "simple_internal_1", "simple_internal_2", "simple_internal_3",
+                "simple_internal_2_group", "simple_internal_2_1", "simple_internal_2_2"
             ];
 
             // Скрываем поле duration всегда (оно управляется автоматически)
@@ -1136,6 +1204,7 @@
             setTimeout(updateMobileManagerVisibility, 50);
             setTimeout(updateTransferManagerAvailability, 50);
             setTimeout(updateSimpleInternalAvailability, 50);
+            setTimeout(updateSimpleInternal2Availability, 50);
         }
 
         // Обработчик изменения типа звонка
@@ -1359,6 +1428,43 @@
             });
         }
 
+        // Функция для обновления доступности простых внутренних номеров (2 поля для типов 2-19 до 2-22)
+        function updateSimpleInternal2Availability() {
+            const selects = [
+                document.getElementById('simple_internal_2_1'),
+                document.getElementById('simple_internal_2_2')
+            ];
+            
+            // Собираем выбранные значения
+            const selectedValues = selects.map(select => select ? select.value : '').filter(val => val !== '');
+            
+            // Обновляем доступность опций в каждом селекте
+            selects.forEach((select, selectIndex) => {
+                if (!select) return;
+                
+                const options = select.querySelectorAll('option');
+                options.forEach(option => {
+                    if (option.value === '') return; // Пропускаем пустую опцию
+                    
+                    // Проверяем, выбрано ли это значение в других селектах
+                    const isSelectedElsewhere = selectedValues.includes(option.value) && select.value !== option.value;
+                    
+                    if (isSelectedElsewhere) {
+                        option.disabled = true;
+                        option.style.backgroundColor = '#f8f9fa';
+                        option.style.color = '#6c757d';
+                        option.textContent = option.textContent.includes('(занят)') ? 
+                            option.textContent : option.textContent + ' (занят)';
+                    } else {
+                        option.disabled = false;
+                        option.style.backgroundColor = '';
+                        option.style.color = '';
+                        option.textContent = option.textContent.replace(' (занят)', '');
+                    }
+                });
+            });
+        }
+
         // Функция для автоматического обновления результата мобильного звонка
         function updateMobileAnswerDisplay() {
             const step3MobileManager = document.getElementById('step3_mobile_manager');
@@ -1494,6 +1600,15 @@
                     select.addEventListener('change', updateSimpleInternalAvailability);
                 }
             });
+
+            // Обработчики для простых внутренних номеров (типы 2-19 до 2-22)
+            const simpleInternal2Selects = ['simple_internal_2_1', 'simple_internal_2_2'];
+            simpleInternal2Selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.addEventListener('change', updateSimpleInternal2Availability);
+                }
+            });
         });
 
         // Инициализация при загрузке страницы
@@ -1511,6 +1626,7 @@
             setTimeout(updateMobileManagerVisibility, 100);
             setTimeout(updateTransferManagerAvailability, 100);
             setTimeout(updateSimpleInternalAvailability, 100);
+            setTimeout(updateSimpleInternal2Availability, 100);
         });
 
 
