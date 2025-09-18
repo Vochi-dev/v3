@@ -483,6 +483,31 @@ async def main_page(request: Request, enterprise: str = "0367"):
         "lines": lines_list
     })
 
+@app.post("/api/webhook-event")
+async def webhook_event(request: Request):
+    """
+    Endpoint для получения событий от эмулятора
+    """
+    try:
+        # Получаем JSON данные
+        event_data = await request.json()
+        
+        logger.info(f"📡 Получено событие: {event_data.get('event', 'UNKNOWN')} для звонка {event_data.get('call_id', 'unknown')}")
+        
+        # Здесь будет логика обработки события
+        # Пока просто логируем и возвращаем успех
+        
+        return {
+            "success": True,
+            "message": "Событие успешно обработано",
+            "event_id": event_data.get('call_id'),
+            "timestamp": event_data.get('timestamp')
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка обработки события: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Ошибка обработки события: {str(e)}")
+
 @app.post("/api/test-call")
 async def test_call_api(
     call_type: int = Form(...),
