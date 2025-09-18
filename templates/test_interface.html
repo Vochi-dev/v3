@@ -539,6 +539,194 @@
                             </div>
                         </div>
 
+                        <!-- Follow Me структура (типы 2-23, 2-24) -->
+                        <div class="card mt-3" data-field="follow_me_group">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0"><i class="fas fa-phone-alt"></i> Follow Me переадресация</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6" data-field="follow_me_internal">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Внутренний телефон (кто принял)</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="follow_me_internal" id="follow_me_internal">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6" data-field="follow_me_manager">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Менеджер с внешним номером</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-mobile-alt"></i>
+                                                <select class="form-select" name="follow_me_manager" id="follow_me_manager" data-mobile="true">
+                                                    <option value="">Выберите менеджера с мобильным</option>
+                                                    {% for manager in managers %}
+                                                    {% if manager.personal_phone %}
+                                                    <option value="{{ manager.phone }}" data-mobile="{{ manager.personal_phone }}">{{ manager.phone }} - {{ manager.name }} ({{ manager.personal_phone }})</option>
+                                                    {% endif %}
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-md-6" data-field="follow_me_external_line">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Внешняя линия (для звонка на мобильный)</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-phone"></i>
+                                                <select class="form-select" name="follow_me_external_line" id="follow_me_external_line">
+                                                    <option value="">Выберите внешнюю линию</option>
+                                                    {% for line in lines %}
+                                                    <option value="{{ line.phone }}">{{ line.phone }} - {{ line.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Внутренние звонки (типы 3-1, 3-2) -->
+                        <div class="card mt-3" data-field="internal_call_group">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="fas fa-phone-alt"></i> Внутренний звонок</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6" data-field="internal_caller">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Кто звонит (внутренний номер)</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="internal_caller" id="internal_caller">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6" data-field="internal_callee">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Кому звонят (внутренний номер)</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="internal_callee" id="internal_callee">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Звонки на отдел (типы 3-3, 3-4) -->
+                        <div class="card mt-3" data-field="department_call_group">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="fas fa-users"></i> Звонок на отдел</h6>
+                            </div>
+                            <div class="card-body">
+                                <!-- Инициатор звонка -->
+                                <div class="row">
+                                    <div class="col-md-6" data-field="department_caller">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Кто звонит (инициатор)</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="department_caller" id="department_caller">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Отдел (4 внутренние линии) -->
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <hr>
+                                        <h6 class="text-primary"><i class="fas fa-building"></i> Отдел (внутренние линии)</h6>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-3" data-field="department_member_1">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Член отдела 1</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="department_member_1" id="department_member_1">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="department_member_2">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Член отдела 2</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="department_member_2" id="department_member_2">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="department_member_3">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Член отдела 3</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="department_member_3" id="department_member_3">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="department_member_4">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">Член отдела 4</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="department_member_4" id="department_member_4">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Поэтапные шаги для типа 2-12 -->
                         <div class="card mt-3" data-field="step1_group">
                             <div class="card-header bg-primary text-white">
@@ -1137,6 +1325,90 @@
                 description: "Поступил звонок - 151-й поднял трубку, отправил звонок с условной переадресацией 152-му, но 152-й в этот момент сам разговаривал (был занят) (телефонный аппарат менеджера не умеет принимать второй вызов во время первого)",
                 defaultDuration: 2,
                 defaultResult: "no_answer"
+            },
+            "34": {
+                fields: ["external_phone", "line", "follow_me_group", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                required: ["external_phone", "line", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                description: "Поступил звонок - поднял 151, и сделал переадресацию с запросом на номер 300 (FollowMe номер менеджера) - звонок пошел сначала на 150, потом на 150 и +375296254070, подняли на +375296254070 и согласились поговорить",
+                defaultDuration: 4,
+                defaultResult: "answered"
+            },
+            "35": {
+                fields: ["external_phone", "line", "follow_me_group", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                required: ["external_phone", "line", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                description: "Поступил звонок - поднял 151, и сделал переадресацию с запросом на номер 300 (FollowMe номер менеджера) - звонок пошел сначала на 150, потом на 150 и +375296254070, подняли на +375296254070 и не согласились поговорить",
+                defaultDuration: 3,
+                defaultResult: "no_answer"
+            },
+            "36": {
+                fields: ["external_phone", "line", "follow_me_group", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                required: ["external_phone", "line", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                description: "Поступил звонок - поднял 151, и сделал переадресацию с запросом на номер 300 (FollowMe номер менеджера) - звонок пошел сначала на 150, потом на 150 и +375296254070, подняли на 150 и согласились поговорить",
+                defaultDuration: 4,
+                defaultResult: "answered"
+            },
+            "37": {
+                fields: ["external_phone", "line", "follow_me_group", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                required: ["external_phone", "line", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                description: "Поступил звонок - поднял 151, и сделал переадресацию с запросом на номер 300 (FollowMe номер менеджера) - звонок пошел сначала на 150, потом на 150 и +375296254070, подняли на 150 и не согласились поговорить",
+                defaultDuration: 3,
+                defaultResult: "no_answer"
+            },
+            "38": {
+                fields: ["external_phone", "line", "follow_me_group", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                required: ["external_phone", "line", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                description: "Поступил звонок - поднял 151, и сделал переадресацию без запроса на номер 300 (FollowMe номер менеджера) - звонок пошел сначала на 150, потом на 150 и +375296254070, подняли на 150 и поговорили",
+                defaultDuration: 3,
+                defaultResult: "answered"
+            },
+            "39": {
+                fields: ["external_phone", "line", "follow_me_group", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                required: ["external_phone", "line", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                description: "Поступил звонок - поднял 151, и сделал переадресацию без запроса на номер 300 (FollowMe номер менеджера) - звонок пошел сначала на 150, потом на 150 и +375296254070, подняли на +375296254070 и поговорили",
+                defaultDuration: 3,
+                defaultResult: "answered"
+            },
+            "40": {
+                fields: ["external_phone", "line", "follow_me_group", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                required: ["external_phone", "line", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                description: "Поступил звонок - поднял 151, и сделал переадресацию без запроса на номер 300 (FollowMe номер менеджера) - звонок пошел сначала на 150, потом на 150 и +375296254070, нигде трубку не подняли",
+                defaultDuration: 2,
+                defaultResult: "no_answer"
+            },
+            "41": {
+                fields: ["external_phone", "line", "follow_me_group", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                required: ["external_phone", "line", "follow_me_internal", "follow_me_manager", "follow_me_external_line"],
+                description: "Поступил звонок - поднял 151, и сделал переадресацию с запросом на номер 300 (FollowMe номер менеджера) - звонок пошел сначала на 150, потом на 150 и +375296254070, нигде трубку не подняли",
+                defaultDuration: 2,
+                defaultResult: "no_answer"
+            },
+            "42": {
+                fields: ["internal_call_group", "internal_caller", "internal_callee"],
+                required: ["internal_caller", "internal_callee"],
+                description: "Звонок на абонента - поднял трубку",
+                defaultDuration: 2,
+                defaultResult: "answered"
+            },
+            "43": {
+                fields: ["internal_call_group", "internal_caller", "internal_callee"],
+                required: ["internal_caller", "internal_callee"],
+                description: "Звонок на абонента - не поднял трубку",
+                defaultDuration: 1,
+                defaultResult: "no_answer"
+            },
+            "44": {
+                fields: ["department_call_group", "department_caller", "department_member_1", "department_member_2", "department_member_3", "department_member_4"],
+                required: ["department_caller", "department_member_1"],
+                description: "Звонок на отдел - подняли трубку",
+                defaultDuration: 3,
+                defaultResult: "answered"
+            },
+            "45": {
+                fields: ["department_call_group", "department_caller", "department_member_1", "department_member_2", "department_member_3", "department_member_4"],
+                required: ["department_caller", "department_member_1"],
+                description: "Звонок на отдел - не подняли трубку",
+                defaultDuration: 2,
+                defaultResult: "no_answer"
             }
             // Добавим остальные типы поштучно
         };
@@ -1163,7 +1435,10 @@
                 "step3_mobile_section", "step3_mobile_manager", "step3_mobile_line",
                 "answered_manager_final", "answered_manager_final_mobile",
                 "simple_internal_group", "simple_internal_1", "simple_internal_2", "simple_internal_3",
-                "simple_internal_2_group", "simple_internal_2_1", "simple_internal_2_2"
+                "simple_internal_2_group", "simple_internal_2_1", "simple_internal_2_2",
+                "follow_me_group", "follow_me_internal", "follow_me_manager", "follow_me_external_line",
+                "internal_call_group", "internal_caller", "internal_callee",
+                "department_call_group", "department_caller", "department_member_1", "department_member_2", "department_member_3", "department_member_4"
             ];
 
             // Скрываем поле duration всегда (оно управляется автоматически)
@@ -1205,6 +1480,9 @@
             setTimeout(updateTransferManagerAvailability, 50);
             setTimeout(updateSimpleInternalAvailability, 50);
             setTimeout(updateSimpleInternal2Availability, 50);
+            setTimeout(updateFollowMeExternalLineAvailability, 50);
+            setTimeout(updateInternalCallAvailability, 50);
+            setTimeout(updateDepartmentMembersAvailability, 50);
         }
 
         // Обработчик изменения типа звонка
@@ -1465,6 +1743,137 @@
             });
         }
 
+        // Функция для обновления доступности внешней линии Follow Me (не должна пересекаться с входящей)
+        function updateFollowMeExternalLineAvailability() {
+            const incomingLine = document.getElementById('line');
+            const followMeExternalLine = document.getElementById('follow_me_external_line');
+            
+            if (!incomingLine || !followMeExternalLine) return;
+            
+            const incomingLineValue = incomingLine.value;
+            
+            // Обновляем доступность опций в селекте внешней линии
+            const options = followMeExternalLine.querySelectorAll('option');
+            options.forEach(option => {
+                if (option.value === '') return; // Пропускаем пустую опцию
+                
+                if (option.value === incomingLineValue && incomingLineValue !== '') {
+                    option.disabled = true;
+                    option.style.backgroundColor = '#f8f9fa';
+                    option.style.color = '#6c757d';
+                    option.textContent = option.textContent.includes('(используется)') ? 
+                        option.textContent : option.textContent + ' (используется как входящая)';
+                } else {
+                    option.disabled = false;
+                    option.style.backgroundColor = '';
+                    option.style.color = '';
+                    option.textContent = option.textContent.replace(' (используется как входящая)', '');
+                }
+            });
+            
+            // Если текущий выбор конфликтует, очищаем
+            if (followMeExternalLine.value === incomingLineValue && incomingLineValue !== '') {
+                followMeExternalLine.value = '';
+            }
+        }
+
+        // Функция для обновления доступности внутренних звонков (нельзя звонить самому себе)
+        function updateInternalCallAvailability() {
+            const caller = document.getElementById('internal_caller');
+            const callee = document.getElementById('internal_callee');
+            
+            if (!caller || !callee) return;
+            
+            const callerValue = caller.value;
+            const calleeValue = callee.value;
+            
+            // Обновляем доступность опций в селекте "кому звонят"
+            const calleeOptions = callee.querySelectorAll('option');
+            calleeOptions.forEach(option => {
+                if (option.value === '') return; // Пропускаем пустую опцию
+                
+                if (option.value === callerValue && callerValue !== '') {
+                    option.disabled = true;
+                    option.style.backgroundColor = '#f8f9fa';
+                    option.style.color = '#6c757d';
+                    option.textContent = option.textContent.includes('(себя)') ? 
+                        option.textContent : option.textContent + ' (нельзя звонить себе)';
+                } else {
+                    option.disabled = false;
+                    option.style.backgroundColor = '';
+                    option.style.color = '';
+                    option.textContent = option.textContent.replace(' (нельзя звонить себе)', '');
+                }
+            });
+            
+            // Обновляем доступность опций в селекте "кто звонит"
+            const callerOptions = caller.querySelectorAll('option');
+            callerOptions.forEach(option => {
+                if (option.value === '') return; // Пропускаем пустую опцию
+                
+                if (option.value === calleeValue && calleeValue !== '') {
+                    option.disabled = true;
+                    option.style.backgroundColor = '#f8f9fa';
+                    option.style.color = '#6c757d';
+                    option.textContent = option.textContent.includes('(себя)') ? 
+                        option.textContent : option.textContent + ' (нельзя звонить себе)';
+                } else {
+                    option.disabled = false;
+                    option.style.backgroundColor = '';
+                    option.style.color = '';
+                    option.textContent = option.textContent.replace(' (нельзя звонить себе)', '');
+                }
+            });
+            
+            // Если текущий выбор конфликтует, очищаем
+            if (callerValue === calleeValue && callerValue !== '') {
+                if (caller === document.activeElement) {
+                    callee.value = '';
+                } else {
+                    caller.value = '';
+                }
+            }
+        }
+
+        // Функция для обновления доступности членов отдела (нельзя выбирать одинаковых)
+        function updateDepartmentMembersAvailability() {
+            const memberSelects = [
+                document.getElementById('department_member_1'),
+                document.getElementById('department_member_2'),
+                document.getElementById('department_member_3'),
+                document.getElementById('department_member_4')
+            ];
+            
+            // Собираем выбранные значения
+            const selectedValues = memberSelects.map(select => select ? select.value : '').filter(val => val !== '');
+            
+            // Обновляем доступность опций в каждом селекте
+            memberSelects.forEach((select, selectIndex) => {
+                if (!select) return;
+                
+                const options = select.querySelectorAll('option');
+                options.forEach(option => {
+                    if (option.value === '') return; // Пропускаем пустую опцию
+                    
+                    // Проверяем, выбрано ли это значение в других селектах
+                    const isSelectedElsewhere = selectedValues.includes(option.value) && select.value !== option.value;
+                    
+                    if (isSelectedElsewhere) {
+                        option.disabled = true;
+                        option.style.backgroundColor = '#f8f9fa';
+                        option.style.color = '#6c757d';
+                        option.textContent = option.textContent.includes('(занят)') ? 
+                            option.textContent : option.textContent + ' (уже в отделе)';
+                    } else {
+                        option.disabled = false;
+                        option.style.backgroundColor = '';
+                        option.style.color = '';
+                        option.textContent = option.textContent.replace(' (уже в отделе)', '');
+                    }
+                });
+            });
+        }
+
         // Функция для автоматического обновления результата мобильного звонка
         function updateMobileAnswerDisplay() {
             const step3MobileManager = document.getElementById('step3_mobile_manager');
@@ -1609,6 +2018,41 @@
                     select.addEventListener('change', updateSimpleInternal2Availability);
                 }
             });
+
+            // Обработчики для Follow Me (типы 2-23, 2-24)
+            const lineSelect = document.getElementById('line');
+            const followMeExternalLine = document.getElementById('follow_me_external_line');
+            const followMeManager = document.getElementById('follow_me_manager');
+            
+            if (lineSelect) {
+                lineSelect.addEventListener('change', updateFollowMeExternalLineAvailability);
+            }
+            if (followMeExternalLine) {
+                followMeExternalLine.addEventListener('change', updateFollowMeExternalLineAvailability);
+            }
+            if (followMeManager) {
+                followMeManager.addEventListener('change', updateMobileManagerVisibility);
+            }
+
+            // Обработчики для внутренних звонков (типы 3-1, 3-2)
+            const internalCaller = document.getElementById('internal_caller');
+            const internalCallee = document.getElementById('internal_callee');
+            
+            if (internalCaller) {
+                internalCaller.addEventListener('change', updateInternalCallAvailability);
+            }
+            if (internalCallee) {
+                internalCallee.addEventListener('change', updateInternalCallAvailability);
+            }
+
+            // Обработчики для членов отдела (типы 3-3, 3-4)
+            const departmentMemberSelects = ['department_member_1', 'department_member_2', 'department_member_3', 'department_member_4'];
+            departmentMemberSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.addEventListener('change', updateDepartmentMembersAvailability);
+                }
+            });
         });
 
         // Инициализация при загрузке страницы
@@ -1627,6 +2071,9 @@
             setTimeout(updateTransferManagerAvailability, 100);
             setTimeout(updateSimpleInternalAvailability, 100);
             setTimeout(updateSimpleInternal2Availability, 100);
+            setTimeout(updateFollowMeExternalLineAvailability, 100);
+            setTimeout(updateInternalCallAvailability, 100);
+            setTimeout(updateDepartmentMembersAvailability, 100);
         });
 
 
