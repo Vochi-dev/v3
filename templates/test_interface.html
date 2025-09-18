@@ -19,6 +19,7 @@
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/css/intlTelInput.css">
     <style>
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -166,15 +167,39 @@
 
                         <div class="row">
                             <!-- Внешний номер -->
-                            <div class="col-md-6" data-field="external_phone">
+                            <div class="col-md-12" data-field="external_phone">
                                 <div class="form-group">
                                     <label class="form-label fw-bold">
                                         <i class="fas fa-mobile-alt"></i> Внешний номер
                                     </label>
-                                    <div class="icon-input">
-                                        <i class="fas fa-phone"></i>
-                                        <input type="text" class="form-control" name="external_phone" 
-                                               value="" placeholder="Введите внешний номер" required>
+                                    <div class="icon-input" style="width: 100%;">
+                                        <input type="tel" id="external_phone_input" class="form-control" name="external_phone" 
+                                               value="" placeholder="Введите внешний номер" required 
+                                               title="Введите номер в международном формате E.164 (например: +375296254070)"
+                                               style="font-size: 18px; padding: 12px 15px; height: 50px; width: 100%; max-width: none; min-width: 500px; box-sizing: border-box;">
+                                    </div>
+                                    
+                                    <!-- Быстрые флаги стран -->
+                                    <div class="mt-3">
+                                        <small class="text-muted">Быстрое заполнение номеров:</small>
+                                        <div class="d-flex flex-wrap gap-2 mt-2" id="countryFlags">
+                                            <button type="button" class="country-flag" data-country="by" title="Беларусь" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇧🇾</button>
+                                            <button type="button" class="country-flag" data-country="ru" title="Россия" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇷🇺</button>
+                                            <button type="button" class="country-flag" data-country="pl" title="Польша" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇵🇱</button>
+                                            <button type="button" class="country-flag" data-country="lt" title="Литва" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇱🇹</button>
+                                            <button type="button" class="country-flag" data-country="lv" title="Латвия" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇱🇻</button>
+                                            <button type="button" class="country-flag" data-country="us" title="США" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇺🇸</button>
+                                            <button type="button" class="country-flag" data-country="ee" title="Эстония" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇪🇪</button>
+                                            <button type="button" class="country-flag" data-country="jp" title="Япония" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇯🇵</button>
+                                            <button type="button" class="country-flag" data-country="fr" title="Франция" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇫🇷</button>
+                                            <button type="button" class="country-flag" data-country="it" title="Италия" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇮🇹</button>
+                                            <button type="button" class="country-flag" data-country="es" title="Испания" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇪🇸</button>
+                                            <button type="button" class="country-flag" data-country="md" title="Молдова" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇲🇩</button>
+                                            <button type="button" class="country-flag" data-country="kz" title="Казахстан" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇰🇿</button>
+                                            <button type="button" class="country-flag" data-country="ar" title="Аргентина" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇦🇷</button>
+                                            <button type="button" class="country-flag" data-country="am" title="Армения" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇦🇲</button>
+                                            <button type="button" class="country-flag" data-country="ge" title="Грузия" style="border: none; background: transparent; padding: 2px; font-size: 32px; cursor: pointer; border-radius: 4px;">🇬🇪</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1041,16 +1066,17 @@
                         </div>
                     </form>
 
-                </div>
-            </div>
-        </div>
-    </div>
+                    <!-- Область событий эмулятора - под формой -->
+                    <div id="eventsPanel" style="display: none; margin-top: 20px;">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-list"></i> События эмуляции</h5>
+                                <div id="eventsLog" style="background: #ffffff; color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; font-size: 16px; padding: 20px; min-height: 400px; border: 1px solid #e9ecef; border-radius: 8px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-    <!-- ОТДЕЛЬНАЯ ОБЛАСТЬ СОБЫТИЙ НА ВСЮ ШИРИНУ ЭКРАНА -->
-    <div class="container-fluid" id="eventsPanel" style="display: none; margin-top: 30px;">
-        <div class="row">
-            <div class="col-12">
-                <div id="eventsLog" style="background: #ffffff; color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; font-size: 16px; padding: 30px; width: 100%; min-height: 400px; border: 1px solid #ddd;">
                 </div>
             </div>
         </div>
@@ -2100,6 +2126,9 @@
             setTimeout(updateFollowMeExternalLineAvailability, 100);
             setTimeout(updateInternalCallAvailability, 100);
             setTimeout(updateDepartmentMembersAvailability, 100);
+            
+            // Инициализация флагов стран
+            initCountryFlags();
         });
 
 
@@ -2153,7 +2182,7 @@
 
             switch(parseInt(callTypeId)) {
                 case 1: // 1-1: Исходящий звонок - ответили
-                    const phone = formData.get('external_phone') || '375296254070';
+                    const phone = formData.get('external_phone') || '';
                     const managerRaw = formData.get('manager');
                     const lineRaw = formData.get('line');
                     const manager = managerRaw ? managerRaw.split(' - ')[0] : '150';
@@ -2373,8 +2402,10 @@ ${JSON.stringify(event.data, null, 2)}
                 </div>
             `;
             
-            eventsLog.appendChild(eventDiv);
-            eventsLog.scrollTop = eventsLog.scrollHeight;
+            // Добавляем новое событие в начало (вверх)
+            eventsLog.insertBefore(eventDiv, eventsLog.firstChild);
+            // Прокручиваем наверх к новому событию
+            eventsLog.scrollTop = 0;
         }
 
         // Отправка события на сервер
@@ -2492,15 +2523,170 @@ ${JSON.stringify(event.data, null, 2)}
             resetEmulation();
         });
 
+        // Инициализация intl-tel-input
+        let phoneInputWidget = null;
+        
+        // Валидация номера телефона с libphonenumber
+        function validatePhoneNumber(number) {
+            try {
+                if (!number.startsWith('+')) return true; // Проверяем только международные номера
+                const phoneNumber = libphonenumber.parsePhoneNumberFromString(number);
+                return phoneNumber ? phoneNumber.isValid() : false;
+            } catch (error) {
+                console.error(`Ошибка валидации номера ${number}:`, error);
+                return false; // Считаем невалидным при ошибке
+            }
+        }
+
+        // ГЕНЕРАЦИЯ случайных валидных номеров с использованием libphonenumber
+        function generateRandomPhone(countryCode) {
+            if (!window.libphonenumber) return '';
+
+            const countryCodeUpper = countryCode.toUpperCase();
+            const maxAttempts = 50; // Максимум попыток генерации
+            
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                try {
+                    // Генерируем случайный номер
+                    let nationalNumber = '';
+                    
+                    // Разные длины номеров для разных стран
+                    const numberLength = {
+                        'BY': 9,   // Беларусь: 9 цифр
+                        'RU': 10,  // Россия: 10 цифр 
+                        'PL': 9,   // Польша: 9 цифр
+                        'LT': 8,   // Литва: 8 цифр
+                        'LV': 8,   // Латвия: 8 цифр
+                        'US': 10,  // США: 10 цифр
+                        'EE': 7,   // Эстония: 7 цифр
+                        'JP': 10,  // Япония: 10 цифр
+                        'FR': 9,   // Франция: 9 цифр
+                        'IT': 9,   // Италия: 9 цифр
+                        'ES': 9,   // Испания: 9 цифр
+                        'MD': 8,   // Молдова: 8 цифр
+                        'KZ': 10,  // Казахстан: 10 цифр
+                        'AR': 10,  // Аргентина: 10 цифр
+                        'AM': 8,   // Армения: 8 цифр
+                        'GE': 9    // Грузия: 9 цифр
+                    };
+
+                    const length = numberLength[countryCodeUpper] || 9;
+                    
+                    // Первая цифра не может быть 0 для большинства стран
+                    nationalNumber = (Math.floor(Math.random() * 9) + 1).toString();
+                    
+                    // Добавляем остальные цифры
+                    for (let i = 1; i < length; i++) {
+                        nationalNumber += Math.floor(Math.random() * 10).toString();
+                    }
+
+                    // Создаем номер через libphonenumber
+                    const phoneNumber = libphonenumber.parsePhoneNumberFromString(nationalNumber, countryCodeUpper);
+                    
+                    if (phoneNumber && phoneNumber.isValid()) {
+                        return phoneNumber.format('E.164');
+                    }
+                } catch (error) {
+                    // Продолжаем попытки
+                    continue;
+                }
+            }
+            
+            // Если не удалось сгенерировать, возвращаем пустую строку
+            return '';
+        }
+
+        // Обработчики кликов на флаги
+        function initCountryFlags() {
+            const flagButtons = document.querySelectorAll('.country-flag');
+            flagButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const countryCode = this.getAttribute('data-country');
+                    const randomPhone = generateRandomPhone(countryCode);
+                    
+                    if (randomPhone && phoneInputWidget) {
+                        // Устанавливаем номер в виджет
+                        phoneInputWidget.setNumber(randomPhone);
+                        
+                        // Триггерим событие input для валидации
+                        const phoneInput = document.getElementById('external_phone_input');
+                        phoneInput.dispatchEvent(new Event('input'));
+                        
+                        // Визуальная обратная связь
+                        this.style.background = '#28a745';
+                        this.style.transform = 'scale(1.1)';
+                        setTimeout(() => {
+                            this.style.background = 'transparent';
+                            this.style.transform = 'scale(1)';
+                        }, 300);
+                    }
+                });
+            });
+        }
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            const phoneInput = document.getElementById('external_phone_input');
+            if (phoneInput && window.intlTelInput) {
+                phoneInputWidget = window.intlTelInput(phoneInput, {
+                    utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/js/utils.js",
+                    nationalMode: false,      // Номер всегда в международном формате
+                    separateDialCode: true,   // Код страны будет отдельно от номера
+                    // Без автоопределения - пользователь сам выбирает страну
+                });
+
+                // Валидация в реальном времени
+                phoneInput.addEventListener('input', function() {
+                    const phone = phoneInputWidget.getNumber();
+                    if (phone === '') {
+                        this.classList.remove('is-valid', 'is-invalid');
+                        return;
+                    }
+                    
+                    if (validatePhoneNumber(phone)) {
+                        this.classList.remove('is-invalid');
+                        this.classList.add('is-valid');
+                    } else {
+                        this.classList.remove('is-valid');
+                        this.classList.add('is-invalid');
+                    }
+                });
+            }
+        });
+
         // Запуск эмуляции
         function startEmulation(mode) {
             const form = document.getElementById('testForm');
             const formData = new FormData(form);
             const callTypeId = formData.get('call_type');
+            const externalPhone = formData.get('external_phone');
             
             if (!callTypeId) {
                 alert('Выберите тип звонка');
                 return;
+            }
+            
+            // Проверяем внешний номер для типов звонков где он нужен
+            const needsExternalPhone = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41];
+            
+            if (needsExternalPhone.includes(parseInt(callTypeId))) {
+                // Получаем номер из intl-tel-input виджета
+                const phoneNumber = phoneInputWidget ? phoneInputWidget.getNumber() : externalPhone;
+                
+                if (!phoneNumber || phoneNumber.trim() === '') {
+                    alert('Введите внешний номер телефона');
+                    document.getElementById('external_phone_input').focus();
+                    return;
+                }
+                
+                if (!validatePhoneNumber(phoneNumber.trim())) {
+                    alert('Ошибка: Внешний номер телефона введен некорректно.\nПожалуйста, проверьте формат номера.');
+                    document.getElementById('external_phone_input').focus();
+                    return;
+                }
+                
+                // Обновляем formData с правильным номером
+                formData.set('external_phone', phoneNumber.trim());
             }
             
             // Генерируем события для паттерна
@@ -2659,5 +2845,10 @@ ${JSON.stringify(event.data, null, 2)}
             modal.show();
         }
     </script>
+    
+    <!-- International Telephone Input -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/20.3.0/js/intlTelInput.min.js"></script>
+    <!-- libphonenumber for validation -->
+    <script src="https://unpkg.com/libphonenumber-js@1.11.1/bundle/libphonenumber-js.min.js"></script>
 </body>
 </html>
