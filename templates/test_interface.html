@@ -684,6 +684,13 @@
                 description: "Звонок на группу абонентов - подняли трубку - Переадресация вызова с запросом - вызов не принят другим оператором (нет на месте)",
                 defaultDuration: 2,
                 defaultResult: "no_answer"
+            },
+            "21": {
+                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager", "transfer_to_manager"],
+                required: ["external_phone", "line", "internal_group_1", "answered_manager", "transfer_to_manager"],
+                description: "Звонок на группу абонентов - подняли трубку - Переадресация без запроса - вызов принят другим оператором",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
