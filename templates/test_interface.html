@@ -643,6 +643,44 @@
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <!-- Дополнительные поля для типа 2-13: мобильный менеджер -->
+                                <div class="row mt-3" data-field="step3_mobile_section">
+                                    <div class="col-12">
+                                        <hr>
+                                        <h6 class="text-success"><i class="fas fa-mobile-alt"></i> Дополнительно: Мобильный менеджер</h6>
+                                    </div>
+                                </div>
+                                <div class="row" data-field="step3_mobile_section">
+                                    <div class="col-md-6" data-field="step3_mobile_manager">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер с мобильным</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-mobile-alt"></i>
+                                                <select class="form-select" name="step3_mobile_manager" id="step3_mobile_manager">
+                                                    <option value="">Выберите менеджера с мобильным</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}" data-mobile="{{ manager.personal_phone or '' }}">{{ manager.clean_name }}{% if manager.personal_phone %} ({{ manager.personal_phone }}){% endif %}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6" data-field="step3_mobile_line">
+                                        <div class="form-group">
+                                            <label class="form-label">Линия для мобильного</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-phone-square"></i>
+                                                <select class="form-select" name="step3_mobile_line" id="step3_mobile_line">
+                                                    <option value="">Выберите линию для мобильного</option>
+                                                    {% for line in lines %}
+                                                    <option value="{{ line.id }}">{{ line.id }} - {{ line.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -913,6 +951,13 @@
                 description: "Звонок на одного абонента, потом добавился еще один абонент - трубку подняли",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "24": {
+                fields: ["external_phone", "line", "step1_group", "step2_group", "step3_group", "step1_manager_1", "step1_manager_2", "step1_manager_3", "step1_manager_4", "step2_manager_1", "step2_manager_2", "step2_manager_3", "step2_manager_4", "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4", "step3_mobile_section", "step3_mobile_manager", "step3_mobile_line", "answered_manager_final", "answered_manager"],
+                required: ["external_phone", "line", "step1_manager_1", "answered_manager"],
+                description: "Звонок на одного абонента, потом добавился еще один абонент, потом добавился мобильник менеджера - трубку подняли на внутреннем",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
@@ -936,6 +981,7 @@
                 "step1_manager_1", "step1_manager_2", "step1_manager_3", "step1_manager_4",
                 "step2_manager_1", "step2_manager_2", "step2_manager_3", "step2_manager_4",
                 "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4",
+                "step3_mobile_section", "step3_mobile_manager", "step3_mobile_line",
                 "answered_manager_final"
             ];
 
@@ -1092,56 +1138,72 @@
         // Функция для обновления доступности исходящей линии для мобильного
         function updateMobileLineAvailability() {
             const incomingLine = document.getElementById('line_id');
-            const mobileOutgoingLine = document.getElementById('mobile_outgoing_line');
             
-            if (!incomingLine || !mobileOutgoingLine) return;
+            // Обрабатываем все поля с исходящими линиями для мобильного
+            const mobileOutgoingLines = [
+                document.getElementById('mobile_outgoing_line'),
+                document.getElementById('step3_mobile_line')
+            ];
+            
+            if (!incomingLine) return;
             
             const selectedIncomingLine = incomingLine.value;
             
-            // Обновляем опции в исходящей линии для мобильного
-            const options = mobileOutgoingLine.querySelectorAll('option');
-            options.forEach(option => {
-                if (option.value === '') return; // Пропускаем пустой option
+            mobileOutgoingLines.forEach(mobileOutgoingLine => {
+                if (!mobileOutgoingLine) return;
                 
-                if (option.value === selectedIncomingLine) {
-                    option.disabled = true;
-                    option.style.backgroundColor = '#f8f9fa';
-                    option.style.color = '#6c757d';
-                    option.textContent = option.textContent.includes('(занята)') ? 
-                        option.textContent : option.textContent + ' (занята входящим)';
-                } else {
-                    option.disabled = false;
-                    option.style.backgroundColor = '';
-                    option.style.color = '';
-                    option.textContent = option.textContent.replace(' (занята входящим)', '');
+                // Обновляем опции в исходящей линии для мобильного
+                const options = mobileOutgoingLine.querySelectorAll('option');
+                options.forEach(option => {
+                    if (option.value === '') return; // Пропускаем пустой option
+                    
+                    if (option.value === selectedIncomingLine) {
+                        option.disabled = true;
+                        option.style.backgroundColor = '#f8f9fa';
+                        option.style.color = '#6c757d';
+                        option.textContent = option.textContent.includes('(занята)') ? 
+                            option.textContent : option.textContent + ' (занята входящим)';
+                    } else {
+                        option.disabled = false;
+                        option.style.backgroundColor = '';
+                        option.style.color = '';
+                        option.textContent = option.textContent.replace(' (занята входящим)', '');
+                    }
+                });
+                
+                // Если в исходящей линии выбрана та же что и входящая, сбрасываем выбор
+                if (mobileOutgoingLine.value === selectedIncomingLine) {
+                    mobileOutgoingLine.value = '';
                 }
             });
-            
-            // Если в исходящей линии выбрана та же что и входящая, сбрасываем выбор
-            if (mobileOutgoingLine.value === selectedIncomingLine) {
-                mobileOutgoingLine.value = '';
-            }
         }
 
         // Функция для показа только менеджеров с мобильными номерами
         function updateMobileManagerVisibility() {
-            const mobileManagerSelect = document.getElementById('mobile_manager');
-            if (!mobileManagerSelect) return;
+            // Обрабатываем все поля с мобильными менеджерами
+            const mobileManagerSelects = [
+                document.getElementById('mobile_manager'),
+                document.getElementById('step3_mobile_manager')
+            ];
             
-            // Скрываем все опции без personal_phone и показываем только с personal_phone
-            const options = mobileManagerSelect.querySelectorAll('option');
-            options.forEach(option => {
-                const mobilePhone = option.getAttribute('data-mobile');
-                if (option.value === '') {
-                    // Оставляем пустую опцию
-                    option.style.display = 'block';
-                } else if (!mobilePhone || mobilePhone.trim() === '') {
-                    // Скрываем менеджеров без мобильного
-                    option.style.display = 'none';
-                } else {
-                    // Показываем менеджеров с мобильным
-                    option.style.display = 'block';
-                }
+            mobileManagerSelects.forEach(mobileManagerSelect => {
+                if (!mobileManagerSelect) return;
+                
+                // Скрываем все опции без personal_phone и показываем только с personal_phone
+                const options = mobileManagerSelect.querySelectorAll('option');
+                options.forEach(option => {
+                    const mobilePhone = option.getAttribute('data-mobile');
+                    if (option.value === '') {
+                        // Оставляем пустую опцию
+                        option.style.display = 'block';
+                    } else if (!mobilePhone || mobilePhone.trim() === '') {
+                        // Скрываем менеджеров без мобильного
+                        option.style.display = 'none';
+                    } else {
+                        // Показываем менеджеров с мобильным
+                        option.style.display = 'block';
+                    }
+                });
             });
         }
 
@@ -1216,12 +1278,16 @@
             // Обработчики для мобильных линий
             const incomingLine = document.getElementById('line_id');
             const mobileOutgoingLine = document.getElementById('mobile_outgoing_line');
+            const step3MobileLine = document.getElementById('step3_mobile_line');
             
             if (incomingLine) {
                 incomingLine.addEventListener('change', updateMobileLineAvailability);
             }
             if (mobileOutgoingLine) {
                 mobileOutgoingLine.addEventListener('change', updateMobileLineAvailability);
+            }
+            if (step3MobileLine) {
+                step3MobileLine.addEventListener('change', updateMobileLineAvailability);
             }
 
             // Обработчики для исключения одинаковых менеджеров в переадресации
