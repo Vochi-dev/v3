@@ -1041,42 +1041,20 @@
                         </div>
                     </form>
 
-                    <!-- Окно событий эмулятора -->
-                    <div class="card mt-4" id="eventsPanel" style="display: none;">
-                        <div class="card-header bg-dark text-white">
-                            <h6 class="mb-0">
-                                <i class="fas fa-terminal"></i> События эмулятора
-                                <span class="badge bg-light text-dark ms-2" id="eventCounter">0</span>
-                                <button type="button" class="btn btn-sm btn-outline-light float-end" onclick="clearEvents()">
-                                    <i class="fas fa-trash"></i> Очистить
-                                </button>
-                            </h6>
-                        </div>
-                        <div class="card-body p-0">
-                            <div id="eventsLog" class="border-0" style="height: 300px; overflow-y: auto; background: #1e1e1e; color: #fff; font-family: 'Courier New', monospace; font-size: 12px;">
-                                <div class="p-3 text-muted">
-                                    <i class="fas fa-info-circle"></i> Нажмите "Авто" или "Ручная" для начала эмуляции событий...
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-footer bg-light">
-                            <div class="row align-items-center">
-                                <div class="col-md-8">
-                                    <small class="text-muted">
-                                        <i class="fas fa-clock"></i> Автоматический интервал: <strong>2 секунды</strong>
-                                        <span class="ms-3">
-                                            <i class="fas fa-step-forward"></i> Ручной режим: <strong>по нажатию</strong>
-                                        </span>
-                                    </small>
-                                </div>
-                                <div class="col-md-4 text-end">
-                                    <small class="text-muted">
-                                        Статус: <span id="emulatorCurrentStatus" class="badge bg-secondary">Ожидание</span>
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ОТДЕЛЬНАЯ ОБЛАСТЬ СОБЫТИЙ НА ВСЮ ШИРИНУ ЭКРАНА -->
+    <div class="container-fluid" id="eventsPanel" style="display: none; margin-top: 30px;">
+        <div class="row">
+            <div class="col-12">
+                <div id="eventsLog" style="background: #ffffff; color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; font-size: 16px; padding: 30px; width: 100%; min-height: 400px; border: 1px solid #ddd;">
+                </div>
+            </div>
+        </div>
+    </div>
 
                     <!-- Панель результатов -->
                     <div class="result-panel" id="resultPanel">
@@ -1465,7 +1443,7 @@
         function updateFieldsVisibility(callTypeId) {
             const mapping = callTypeFieldMapping[callTypeId];
             if (!mapping) {
-                console.log("Маппинг для типа", callTypeId, "не найден");
+                // console.log("Маппинг для типа", callTypeId, "не найден");
                 return;
             }
 
@@ -2136,95 +2114,236 @@
             callData: null
         };
 
+        // Генерация UniqueId согласно правилам
+        function generateUniqueId(baseExample = "1757765248.0") {
+            const currentUnixTime = Math.floor(Date.now() / 1000);
+            const first6Digits = currentUnixTime.toString().substring(0, 6);
+            const remainingPart = baseExample.substring(6); // ".0" или другое окончание
+            return first6Digits + remainingPart;
+        }
+
+        // Генерация Bridge UUID
+        function generateBridgeUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Генерация Channel ID (8 цифр)
+        function generateChannelId() {
+            return Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+        }
+
         // Генерация событий для паттерна
         function generateEventsForPattern(callTypeId, formData) {
             const events = [];
-            const timestamp = new Date().toISOString();
-            const callId = 'call_' + Date.now();
+            const enterprise = formData.get('enterprise') || '0367';
             
-            // Базовые данные звонка
-            const baseEventData = {
-                call_id: callId,
-                timestamp: timestamp,
-                enterprise: formData.get('enterprise') || '0367'
-            };
+            // Получаем токен для предприятия (пока захардкодим для 0367)
+            const token = enterprise === '0367' ? '375293332255' : '375293332255';
+            
+            // Генерируем базовые ID
+            const baseUniqueId = generateUniqueId("1757765248.0");
+            const secondaryUniqueId = generateUniqueId("1757765249.1");
+            const bridgeId = generateBridgeUUID();
+            const externalChannelId = generateChannelId();
+            const internalChannelId = generateChannelId();
 
-            // Простой пример генерации событий для разных типов
-            // В реальности здесь будет более сложная логика для каждого паттерна
             switch(parseInt(callTypeId)) {
-                case 42: // 3-1: Внутренний звонок - ответили
-                    events.push({
-                        step: 1,
-                        event: 'CALL_START',
-                        description: 'Начало внутреннего звонка',
-                        data: { ...baseEventData, from: formData.get('internal_caller'), to: formData.get('internal_callee') }
-                    });
-                    events.push({
-                        step: 2,
-                        event: 'CALL_RINGING',
-                        description: 'Звонок поступил',
-                        data: { ...baseEventData, status: 'ringing' }
-                    });
-                    events.push({
-                        step: 3,
-                        event: 'CALL_ANSWERED',
-                        description: 'Звонок принят',
-                        data: { ...baseEventData, status: 'answered', answered_by: formData.get('internal_callee') }
-                    });
-                    events.push({
-                        step: 4,
-                        event: 'CALL_END',
-                        description: 'Звонок завершен',
-                        data: { ...baseEventData, status: 'completed', duration: 120 }
-                    });
-                    break;
+                case 1: // 1-1: Исходящий звонок - ответили
+                    const phone = formData.get('external_phone') || '375296254070';
+                    const managerRaw = formData.get('manager');
+                    const lineRaw = formData.get('line');
+                    const manager = managerRaw ? managerRaw.split(' - ')[0] : '150';
+                    const trunk = lineRaw ? lineRaw.split(' - ')[0] : '0001363';
                     
-                case 43: // 3-2: Внутренний звонок - не ответили
+                    // Отладочная информация
+                    console.log('Form data:', {
+                        phone: phone,
+                        managerRaw: managerRaw,
+                        manager: manager,
+                        lineRaw: lineRaw,
+                        trunk: trunk
+                    });
+
+                    // 1. dial - Инициация исходящего звонка
                     events.push({
                         step: 1,
-                        event: 'CALL_START',
-                        description: 'Начало внутреннего звонка',
-                        data: { ...baseEventData, from: formData.get('internal_caller'), to: formData.get('internal_callee') }
+                        event: 'dial',
+                        description: 'Инициация исходящего звонка',
+                        data: {
+                            Phone: phone,
+                            ExtTrunk: "",
+                            ExtPhone: "",
+                            Extensions: [manager],
+                            UniqueId: baseUniqueId,
+                            Token: token,
+                            Trunk: trunk,
+                            CallType: 1
+                        }
                     });
+
+                    // 2. new_callerid - Установка CallerID
                     events.push({
                         step: 2,
-                        event: 'CALL_RINGING',
-                        description: 'Звонок поступил',
-                        data: { ...baseEventData, status: 'ringing' }
+                        event: 'new_callerid',
+                        description: 'Установка CallerID',
+                        data: {
+                            CallerIDNum: phone,
+                            Channel: `SIP/${trunk}-${externalChannelId}`,
+                            CallerIDName: "<unknown>",
+                            Context: "from-out-office",
+                            UniqueId: secondaryUniqueId,
+                            ConnectedLineNum: manager,
+                            Token: token,
+                            ConnectedLineName: manager,
+                            Exten: phone
+                        }
                     });
+
+                    // 3. bridge_create - Создание моста
                     events.push({
                         step: 3,
-                        event: 'CALL_TIMEOUT',
-                        description: 'Звонок не принят - тайм-аут',
-                        data: { ...baseEventData, status: 'no_answer', duration: 60 }
+                        event: 'bridge_create',
+                        description: 'Создание моста',
+                        data: {
+                            BridgeType: "",
+                            BridgeUniqueid: bridgeId,
+                            UniqueId: "",
+                            BridgeCreator: "<unknown>",
+                            Token: token,
+                            BridgeName: "<unknown>",
+                            BridgeNumChannels: "0",
+                            BridgeTechnology: "simple_bridge"
+                        }
                     });
+
+                    // 4. bridge - Подключение внешнего канала
                     events.push({
                         step: 4,
-                        event: 'CALL_END',
-                        description: 'Звонок завершен без ответа',
-                        data: { ...baseEventData, status: 'failed' }
+                        event: 'bridge',
+                        description: 'Подключение внешнего канала',
+                        data: {
+                            CallerIDNum: phone,
+                            Channel: `SIP/${trunk}-${externalChannelId}`,
+                            CallerIDName: "",
+                            BridgeUniqueid: bridgeId,
+                            UniqueId: secondaryUniqueId,
+                            Exten: "",
+                            ConnectedLineNum: manager,
+                            Token: token,
+                            ConnectedLineName: manager
+                        }
+                    });
+
+                    // 5. bridge - Подключение внутреннего канала
+                    events.push({
+                        step: 5,
+                        event: 'bridge',
+                        description: 'Подключение внутреннего канала',
+                        data: {
+                            CallerIDNum: manager,
+                            Channel: `SIP/${manager}-${internalChannelId}`,
+                            CallerIDName: manager,
+                            BridgeUniqueid: bridgeId,
+                            UniqueId: baseUniqueId,
+                            Exten: phone,
+                            ConnectedLineNum: "<unknown>",
+                            Token: token,
+                            ConnectedLineName: "<unknown>"
+                        }
+                    });
+
+                    // 6. bridge_leave - Выход внешнего канала
+                    events.push({
+                        step: 6,
+                        event: 'bridge_leave',
+                        description: 'Выход внешнего канала',
+                        data: {
+                            CallerIDNum: phone,
+                            Channel: `SIP/${trunk}-${externalChannelId}`,
+                            CallerIDName: "<unknown>",
+                            BridgeUniqueid: bridgeId,
+                            UniqueId: secondaryUniqueId,
+                            ConnectedLineNum: manager,
+                            Token: token,
+                            ConnectedLineName: manager,
+                            BridgeNumChannels: "1"
+                        }
+                    });
+
+                    // 7. bridge_leave - Выход внутреннего канала
+                    events.push({
+                        step: 7,
+                        event: 'bridge_leave',
+                        description: 'Выход внутреннего канала',
+                        data: {
+                            CallerIDNum: manager,
+                            Channel: `SIP/${manager}-${internalChannelId}`,
+                            CallerIDName: manager,
+                            BridgeUniqueid: bridgeId,
+                            UniqueId: baseUniqueId,
+                            ConnectedLineNum: "<unknown>",
+                            Token: token,
+                            ConnectedLineName: "<unknown>",
+                            BridgeNumChannels: "0"
+                        }
+                    });
+
+                    // 8. bridge_destroy - Удаление моста
+                    events.push({
+                        step: 8,
+                        event: 'bridge_destroy',
+                        description: 'Удаление моста',
+                        data: {
+                            BridgeType: "",
+                            BridgeUniqueid: bridgeId,
+                            UniqueId: "",
+                            BridgeCreator: "<unknown>",
+                            Token: token,
+                            BridgeName: "<unknown>",
+                            BridgeNumChannels: "0",
+                            BridgeTechnology: "simple_bridge"
+                        }
+                    });
+
+                    // 9. hangup - Завершение звонка
+                    const now = new Date();
+                    const startTime = new Date(now.getTime() - 18000); // 18 секунд назад
+                    const receivedTime = new Date(now.getTime() - 19000); // 19 секунд назад
+                    
+                    events.push({
+                        step: 9,
+                        event: 'hangup',
+                        description: 'Завершение звонка',
+                        data: {
+                            Phone: phone,
+                            StartTime: startTime.toISOString().replace('T', ' ').substring(0, 19),
+                            Extensions: [manager],
+                            UniqueId: baseUniqueId,
+                            DateReceived: receivedTime.toISOString().replace('T', ' ').substring(0, 19),
+                            Token: token,
+                            EndTime: now.toISOString().replace('T', ' ').substring(0, 19),
+                            CallType: 1,
+                            CallStatus: "2",
+                            Trunk: trunk
+                        }
                     });
                     break;
                     
                 default:
-                    // Общий паттерн для всех остальных типов
+                    // Общий паттерн для остальных типов (временно)
                     events.push({
                         step: 1,
                         event: 'CALL_START',
-                        description: `Начало звонка типа ${callTypeId}`,
-                        data: { ...baseEventData, call_type: callTypeId }
-                    });
-                    events.push({
-                        step: 2,
-                        event: 'CALL_PROCESSING',
-                        description: 'Обработка звонка',
-                        data: { ...baseEventData, status: 'processing' }
-                    });
-                    events.push({
-                        step: 3,
-                        event: 'CALL_RESULT',
-                        description: 'Результат звонка',
-                        data: { ...baseEventData, status: 'completed' }
+                        description: `Начало звонка типа ${callTypeId} (паттерн не реализован)`,
+                        data: { 
+                            call_type: callTypeId,
+                            token: token,
+                            note: "Паттерн генерации событий еще не реализован для этого типа звонка"
+                        }
                     });
                     break;
             }
@@ -2235,39 +2354,27 @@
         // Отображение события в логе
         function addEventToLog(event) {
             const eventsLog = document.getElementById('eventsLog');
-            const eventCounter = document.getElementById('eventCounter');
             
             const timestamp = new Date().toLocaleTimeString();
             const eventDiv = document.createElement('div');
-            eventDiv.className = 'p-2 border-bottom border-secondary';
+            eventDiv.style.marginBottom = '20px';
+            eventDiv.style.paddingBottom = '20px';
+            eventDiv.style.borderBottom = '2px solid #e9ecef';
             
             eventDiv.innerHTML = `
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <span class="badge bg-primary me-2">Шаг ${event.step}</span>
-                        <span class="text-warning fw-bold">${event.event}</span>
-                        <div class="text-light mt-1">${event.description}</div>
-                        <details class="mt-1">
-                            <summary class="text-info" style="cursor: pointer;">Данные события</summary>
-                            <pre class="text-muted mt-1" style="font-size: 10px;">${JSON.stringify(event.data, null, 2)}</pre>
-                        </details>
+                <div style="font-size: 20px; color: #000; line-height: 1.2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 500;">
+                    <div>[${timestamp}] Шаг ${event.step}: ${event.event}</div>
+                    <div style="margin-top: 8px; font-size: 20px; color: #666; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 500;">
+                        ${event.description}
                     </div>
-                    <small class="text-muted">${timestamp}</small>
+                    <div style="margin-top: 12px; font-size: 20px; color: #333; background: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 500; white-space: pre-wrap; overflow-x: auto;">
+${JSON.stringify(event.data, null, 2)}
+                    </div>
                 </div>
             `;
             
-            // Удаляем заглушку если есть
-            const placeholder = eventsLog.querySelector('.text-muted');
-            if (placeholder && placeholder.textContent.includes('Нажмите')) {
-                placeholder.remove();
-            }
-            
             eventsLog.appendChild(eventDiv);
             eventsLog.scrollTop = eventsLog.scrollHeight;
-            
-            // Обновляем счетчик
-            const currentCount = parseInt(eventCounter.textContent) + 1;
-            eventCounter.textContent = currentCount;
         }
 
         // Отправка события на сервер
@@ -2288,7 +2395,8 @@
                 return await response.json();
             } catch (error) {
                 console.error('Ошибка отправки события:', error);
-                throw error;
+                // Не останавливаем эмуляцию из-за ошибки отправки
+                return { success: false, error: error.message };
             }
         }
 
@@ -2301,27 +2409,26 @@
             
             const event = emulatorState.events[emulatorState.currentStep];
             
+            // Показываем событие в логе
+            addEventToLog(event);
+            
+            // Отправляем на сервер (не прерываем эмуляцию при ошибке)
             try {
-                // Показываем событие в логе
-                addEventToLog(event);
-                
-                // Отправляем на сервер
                 await sendEventToServer(event);
-                
-                emulatorState.currentStep++;
-                
-                // Обновляем статус
-                updateEmulatorStatus(`Шаг ${emulatorState.currentStep}/${emulatorState.events.length}`, 'info');
-                
-                // Если авто-режим и есть еще шаги
-                if (emulatorState.mode === 'auto' && emulatorState.currentStep < emulatorState.events.length) {
-                    emulatorState.autoInterval = setTimeout(executeEmulationStep, 2000);
-                }
-                
             } catch (error) {
-                console.error('Ошибка выполнения шага:', error);
-                updateEmulatorStatus('Ошибка: ' + error.message, 'danger');
-                stopEmulation('error');
+                console.error('Ошибка отправки события:', error);
+            }
+            
+            emulatorState.currentStep++;
+            
+            // Обновляем статус
+            updateEmulatorStatus(`Шаг ${emulatorState.currentStep}/${emulatorState.events.length}`, 'info');
+            
+            // Если авто-режим и есть еще шаги
+            if (emulatorState.mode === 'auto' && emulatorState.currentStep < emulatorState.events.length) {
+                emulatorState.autoInterval = setTimeout(executeEmulationStep, 2000);
+            } else if (emulatorState.currentStep >= emulatorState.events.length) {
+                stopEmulation('completed');
             }
         }
 
@@ -2450,14 +2557,7 @@
         // Очистка событий
         function clearEvents() {
             const eventsLog = document.getElementById('eventsLog');
-            const eventCounter = document.getElementById('eventCounter');
-            
-            eventsLog.innerHTML = `
-                <div class="p-3 text-muted">
-                    <i class="fas fa-info-circle"></i> Нажмите "Авто" или "Ручная" для начала эмуляции событий...
-                </div>
-            `;
-            eventCounter.textContent = '0';
+            eventsLog.innerHTML = '';
         }
 
         // Показ результата

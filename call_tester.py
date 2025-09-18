@@ -492,7 +492,7 @@ async def webhook_event(request: Request):
         # Получаем JSON данные
         event_data = await request.json()
         
-        logger.info(f"📡 Получено событие: {event_data.get('event', 'UNKNOWN')} для звонка {event_data.get('call_id', 'unknown')}")
+        # logger.info(f"📡 Получено событие: {event_data.get('event', 'UNKNOWN')} для звонка {event_data.get('call_id', 'unknown')}")
         
         # Здесь будет логика обработки события
         # Пока просто логируем и возвращаем успех
