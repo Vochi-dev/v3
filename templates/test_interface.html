@@ -677,6 +677,13 @@
                 description: "Звонок на группу абонентов - подняли трубку - Переадресация вызова с запросом - вызов принят другим оператором - разговор состоялся",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "20": {
+                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager", "transfer_to_manager"],
+                required: ["external_phone", "line", "internal_group_1", "answered_manager", "transfer_to_manager"],
+                description: "Звонок на группу абонентов - подняли трубку - Переадресация вызова с запросом - вызов не принят другим оператором (нет на месте)",
+                defaultDuration: 2,
+                defaultResult: "no_answer"
             }
             // Добавим остальные типы поштучно
         };
