@@ -711,6 +711,30 @@
                             </div>
                         </div>
 
+                        <!-- Финальный результат для мобильного - автоматическое определение -->
+                        <div class="card mt-4" data-field="answered_manager_final_mobile">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="fas fa-mobile-alt"></i> Результат звонка - мобильный</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">
+                                                <i class="fas fa-user-check"></i> Кто ответил на мобильном
+                                            </label>
+                                            <div class="alert alert-success mt-2" id="mobile_answer_display">
+                                                <i class="fas fa-mobile-alt me-2"></i>
+                                                <span id="mobile_answer_text">Сначала выберите мобильного менеджера в Шаге 3</span>
+                                            </div>
+                                            <!-- Скрытое поле для отправки данных -->
+                                            <input type="hidden" name="answered_manager" id="answered_manager_mobile" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Кнопки -->
                         <div class="text-center mt-4">
                             <button type="submit" class="btn btn-primary btn-lg me-3">
@@ -958,6 +982,13 @@
                 description: "Звонок на одного абонента, потом добавился еще один абонент, потом добавился мобильник менеджера - трубку подняли на внутреннем",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "25": {
+                fields: ["external_phone", "line", "step1_group", "step2_group", "step3_group", "step1_manager_1", "step1_manager_2", "step1_manager_3", "step1_manager_4", "step2_manager_1", "step2_manager_2", "step2_manager_3", "step2_manager_4", "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4", "step3_mobile_section", "step3_mobile_manager", "step3_mobile_line", "answered_manager_final_mobile"],
+                required: ["external_phone", "line", "step1_manager_1", "step3_mobile_manager"],
+                description: "Звонок на одного абонента, потом добавился еще один абонент, потом добавился мобильник менеджера - трубку подняли на мобильном",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
@@ -982,7 +1013,7 @@
                 "step2_manager_1", "step2_manager_2", "step2_manager_3", "step2_manager_4",
                 "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4",
                 "step3_mobile_section", "step3_mobile_manager", "step3_mobile_line",
-                "answered_manager_final"
+                "answered_manager_final", "answered_manager_final_mobile"
             ];
 
             // Скрываем поле duration всегда (оно управляется автоматически)
@@ -1207,6 +1238,33 @@
             });
         }
 
+        // Функция для автоматического обновления результата мобильного звонка
+        function updateMobileAnswerDisplay() {
+            const step3MobileManager = document.getElementById('step3_mobile_manager');
+            const mobileAnswerText = document.getElementById('mobile_answer_text');
+            const answeredManagerMobile = document.getElementById('answered_manager_mobile');
+            
+            if (!step3MobileManager || !mobileAnswerText || !answeredManagerMobile) return;
+            
+            const selectedOption = step3MobileManager.options[step3MobileManager.selectedIndex];
+            
+            if (selectedOption && selectedOption.value) {
+                const managerName = selectedOption.text;
+                const mobilePhone = selectedOption.getAttribute('data-mobile');
+                
+                if (mobilePhone) {
+                    mobileAnswerText.innerHTML = `<strong>${managerName}</strong> ответил на мобильном номере: <strong>${mobilePhone}</strong>`;
+                    answeredManagerMobile.value = selectedOption.value;
+                } else {
+                    mobileAnswerText.textContent = 'Выбранный менеджер не имеет мобильного номера';
+                    answeredManagerMobile.value = '';
+                }
+            } else {
+                mobileAnswerText.textContent = 'Сначала выберите мобильного менеджера в Шаге 3';
+                answeredManagerMobile.value = '';
+            }
+        }
+
         // Функция для исключения одного и того же менеджера в полях "Кто ответил" и "На кого перевели"
         function updateTransferManagerAvailability() {
             const answeredManager = document.getElementById('answered_manager');
@@ -1299,6 +1357,12 @@
             }
             if (transferToManager) {
                 transferToManager.addEventListener('change', updateTransferManagerAvailability);
+            }
+
+            // Обработчик для автоматического обновления мобильного результата
+            const step3MobileManager = document.getElementById('step3_mobile_manager');
+            if (step3MobileManager) {
+                step3MobileManager.addEventListener('change', updateMobileAnswerDisplay);
             }
         });
 
