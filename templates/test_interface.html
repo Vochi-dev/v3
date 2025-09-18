@@ -989,6 +989,27 @@
                 description: "Звонок на одного абонента, потом добавился еще один абонент, потом добавился мобильник менеджера - трубку подняли на мобильном",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "26": {
+                fields: ["external_phone", "line", "step1_group", "step2_group", "step3_group", "step1_manager_1", "step1_manager_2", "step1_manager_3", "step1_manager_4", "step2_manager_1", "step2_manager_2", "step2_manager_3", "step2_manager_4", "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4", "step3_mobile_section", "step3_mobile_manager", "step3_mobile_line"],
+                required: ["external_phone", "line", "step1_manager_1"],
+                description: "Звонок на одного абонента, потом добавился еще один абонент, потом добавился мобильник менеджера - трубку не подняли нигде",
+                defaultDuration: 2,
+                defaultResult: "no_answer"
+            },
+            "27": {
+                fields: ["external_phone", "line", "step1_group", "step2_group", "step3_group", "step1_manager_1", "step1_manager_2", "step1_manager_3", "step1_manager_4", "step2_manager_1", "step2_manager_2", "step2_manager_3", "step2_manager_4", "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4", "step3_mobile_section", "step3_mobile_manager", "step3_mobile_line", "answered_manager_final", "answered_manager"],
+                required: ["external_phone", "line", "step1_manager_1", "answered_manager"],
+                description: "Звонок - приветствие - звонок на одного - приветствие - звонок на двух - приветствие - звонок на 2-х + мобильный - ответ на внутреннем",
+                defaultDuration: 3,
+                defaultResult: "answered"
+            },
+            "28": {
+                fields: ["external_phone", "line", "step1_group", "step2_group", "step3_group", "step1_manager_1", "step1_manager_2", "step1_manager_3", "step1_manager_4", "step2_manager_1", "step2_manager_2", "step2_manager_3", "step2_manager_4", "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4", "step3_mobile_section", "step3_mobile_manager", "step3_mobile_line", "answered_manager_final_mobile"],
+                required: ["external_phone", "line", "step1_manager_1", "step3_mobile_manager"],
+                description: "Звонок - приветствие - звонок на одного - приветствие - звонок на двух - приветствие - звонок на 2-х + мобильный - ответ на мобильном",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
