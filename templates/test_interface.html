@@ -344,24 +344,6 @@
                         </div>
 
                         <div class="row">
-                            <!-- Менеджер, который ответил (из группы) -->
-                            <div class="col-md-6" data-field="answered_manager">
-                                <div class="form-group">
-                                    <label class="form-label fw-bold">
-                                        <i class="fas fa-user-check"></i> Менеджер, который ответил
-                                    </label>
-                                    <div class="icon-input">
-                                        <i class="fas fa-phone-volume"></i>
-                                        <select class="form-select" name="answered_manager" id="answered_manager">
-                                            <option value="">Кто ответил из группы</option>
-                                            {% for manager in managers %}
-                                            <option value="{{ manager.phone }}">{{ manager.name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- На кого перевели -->
                             <div class="col-md-6" data-field="transfer_to_manager">
                                 <div class="form-group">
@@ -460,6 +442,232 @@
                                             <option value="custom1">Пользовательское 1</option>
                                             <option value="custom2">Пользовательское 2</option>
                                         </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Поэтапные шаги для типа 2-12 -->
+                        <div class="card mt-3" data-field="step1_group">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="fas fa-step-forward"></i> Шаг 1: Первый звонок</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3" data-field="step1_manager_1">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 1</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step1_manager_1" id="step1_manager_1">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="step1_manager_2">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 2</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step1_manager_2" id="step1_manager_2">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="step1_manager_3">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 3</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step1_manager_3" id="step1_manager_3">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="step1_manager_4">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 4</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step1_manager_4" id="step1_manager_4">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mt-3" data-field="step2_group">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0"><i class="fas fa-step-forward"></i> Шаг 2: Добавили еще абонентов</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3" data-field="step2_manager_1">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 1</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step2_manager_1" id="step2_manager_1">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="step2_manager_2">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 2</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step2_manager_2" id="step2_manager_2">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="step2_manager_3">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 3</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step2_manager_3" id="step2_manager_3">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="step2_manager_4">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 4</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step2_manager_4" id="step2_manager_4">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mt-3" data-field="step3_group">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="fas fa-step-forward"></i> Шаг 3: Финальная группа</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3" data-field="step3_manager_1">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 1</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step3_manager_1" id="step3_manager_1">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="step3_manager_2">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 2</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step3_manager_2" id="step3_manager_2">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="step3_manager_3">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 3</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step3_manager_3" id="step3_manager_3">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" data-field="step3_manager_4">
+                                        <div class="form-group">
+                                            <label class="form-label">Менеджер 4</label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-user"></i>
+                                                <select class="form-select" name="step3_manager_4" id="step3_manager_4">
+                                                    <option value="">Выберите менеджера</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Финальный результат - кто ответил -->
+                        <div class="card mt-4" data-field="answered_manager_final">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0"><i class="fas fa-phone-volume"></i> Результат звонка</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6" data-field="answered_manager">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">
+                                                <i class="fas fa-user-check"></i> Кто ответил в итоге
+                                            </label>
+                                            <div class="icon-input">
+                                                <i class="fas fa-phone-volume"></i>
+                                                <select class="form-select" name="answered_manager" id="answered_manager">
+                                                    <option value="">Выберите кто ответил в итоге</option>
+                                                    {% for manager in managers %}
+                                                    <option value="{{ manager.phone }}">{{ manager.phone }} - {{ manager.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -691,6 +899,20 @@
                 description: "Звонок на группу абонентов - подняли трубку - Переадресация без запроса - вызов принят другим оператором",
                 defaultDuration: 3,
                 defaultResult: "answered"
+            },
+            "22": {
+                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager", "transfer_to_manager"],
+                required: ["external_phone", "line", "internal_group_1", "answered_manager", "transfer_to_manager"],
+                description: "Звонок на группу абонентов - подняли трубку - Переадресация без запроса - вызов не принят другим оператором",
+                defaultDuration: 2,
+                defaultResult: "no_answer"
+            },
+            "23": {
+                fields: ["external_phone", "line", "step1_group", "step2_group", "step3_group", "step1_manager_1", "step1_manager_2", "step1_manager_3", "step1_manager_4", "step2_manager_1", "step2_manager_2", "step2_manager_3", "step2_manager_4", "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4", "answered_manager_final", "answered_manager"],
+                required: ["external_phone", "line", "step1_manager_1", "answered_manager"],
+                description: "Звонок на одного абонента, потом добавился еще один абонент - трубку подняли",
+                defaultDuration: 3,
+                defaultResult: "answered"
             }
             // Добавим остальные типы поштучно
         };
@@ -709,7 +931,12 @@
                 "second_manager", "transfer_type", "follow_me_phone", 
                 "backup_line", "department", "greeting", "forbidden_direction",
                 "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager",
-                "transfer_to_manager", "mobile_manager", "mobile_outgoing_line"
+                "transfer_to_manager", "mobile_manager", "mobile_outgoing_line",
+                "step1_group", "step2_group", "step3_group",
+                "step1_manager_1", "step1_manager_2", "step1_manager_3", "step1_manager_4",
+                "step2_manager_1", "step2_manager_2", "step2_manager_3", "step2_manager_4",
+                "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4",
+                "answered_manager_final"
             ];
 
             // Скрываем поле duration всегда (оно управляется автоматически)
