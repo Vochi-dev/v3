@@ -1,12 +1,26 @@
 # app/routers/webhooks.py
 from fastapi import APIRouter, Request
 from telegram import Bot
+import asyncio
+import logging
 
 from app.services.events import save_asterisk_event
 from app.services.calls import process_start, process_dial, process_bridge, process_hangup
 from app.services.calls.internal import process_internal_start, process_internal_bridge, process_internal_hangup
 from app.services.calls.utils import is_internal_number
 from app.services.postgres import get_pool
+
+logger = logging.getLogger(__name__)
+
+async def run_handler_safe(handler, bot, tg_id, data, event_type):
+    """
+    Безопасно запускает обработчик в фоне с логированием ошибок
+    """
+    try:
+        await handler(bot, tg_id, data)
+        logger.info(f"Handler {event_type} completed for tg_id {tg_id}")
+    except Exception as e:
+        logger.error(f"Handler {event_type} failed for tg_id {tg_id}: {e}")
 
 router = APIRouter()
 
@@ -56,6 +70,18 @@ async def handle_event(event_type: str, request: Request):
     else:
         return {"status": "ignored"}
 
+    # Для dial, bridge и hangup запускаем в фоне, чтобы не блокировать ответ Asterisk'у
+    if et in ["dial", "bridge", "hangup"]:
+        # Создаем фоновые задачи для каждого пользователя
+        for row in user_rows:
+            tg = int(row["tg_id"])
+            # Запускаем в фоне без ожидания
+            asyncio.create_task(run_handler_safe(handler, bot, tg, data, et))
+        
+        # Немедленно возвращаем 200 OK Asterisk'у
+        return {"status": "processing_async", "users_count": len(user_rows)}
+    
+    # Для остальных событий (start) выполняем синхронно как раньше
     results = []
     for row in user_rows:
         tg = int(row["tg_id"])

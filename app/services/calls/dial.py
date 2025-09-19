@@ -100,33 +100,15 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             if is_internal_number(caller_id):
                 internal_phone = caller_id
     
-    # Обогащаем метаданными параллельно
+    # Обогащение метаданными отключено для устранения блокировок
     enriched_data = {}
-    try:
-        enriched_data = await metadata_client.enrich_message_data(
-            enterprise_number=enterprise_number,
-            line_id=line_id,
-            internal_phone=internal_phone,
-            external_phone=external_phone,
-            short_names=True  # Используем краткие ФИО для dial сообщений
-        )
-        logging.info(f"[process_dial] Enriched data: {enriched_data}")
-    except Exception as e:
-        logging.error(f"[process_dial] Error enriching metadata: {e}")
     
     # ───────── Шаг 3. Формируем текст согласно Пояснению ─────────
     if is_int:
         # Внутренний звонок с обогащением ФИО
         callee_display = callee
         
-        # Обогащаем ФИО получателя звонка
-        try:
-            if is_internal_number(callee):
-                callee_name = await metadata_client.get_manager_name(enterprise_number, callee, short=True)
-                if not callee_name.startswith("Доб."):
-                    callee_display = f"{callee_name} ({callee})"
-        except Exception as e:
-            logging.error(f"[process_dial] Error enriching internal callee: {e}")
+        # ФИО получателя звонка отключено для устранения блокировок
         
         text = f"🛎️ Внутренний звонок\n ➡️ {callee_display}"
     else:

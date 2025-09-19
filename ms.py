@@ -3323,10 +3323,8 @@ async def ms_customer_name(phone: str, enterprise_number: Optional[str] = None):
             # Получаем конфигурацию МойСклад через cache service с fallback к БД
             config = await get_ms_config_from_cache(enterprise_number)
         else:
-            # Пока оставляем старую логику для поиска любого предприятия
-            config = await get_ms_config_legacy_fallback("0367")  # TODO: улучшить логику поиска
-            if config:
-                enterprise_number = "0367"
+            # Если номер предприятия не указан, возвращаем пустой результат
+            return {"name": None}
         
         if not config or not config.get("enabled"):
             return {"name": None}
@@ -3398,7 +3396,7 @@ async def ms_enrich_customer(phone: str, enterprise_number: Optional[str] = None
     """
     try:
         if not enterprise_number:
-            enterprise_number = "0367"  # Дефолтное предприятие для тестов
+            return {"error": "enterprise_number is required"}
             
         result = await enrich_customer_data_from_moysklad(enterprise_number, phone)
         return result
@@ -3417,9 +3415,7 @@ async def ms_customer_debug(phone: str, enterprise_number: Optional[str] = None)
         if enterprise_number:
             config = await get_ms_config_from_cache(enterprise_number)
         else:
-            config = await get_ms_config_legacy_fallback("0367")
-            if config:
-                enterprise_number = "0367"
+            return {"error": "enterprise_number is required"}
         
         if not config or not config.get("enabled"):
             return {"error": "МойСклад integration not enabled"}

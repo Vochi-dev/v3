@@ -187,12 +187,19 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         token = data.get("Token", "")
         trunk_info = data.get("Trunk", "")
         
-        # Получаем номер предприятия для метаданных
-        # Временное решение для токена "375293332255" -> "0367"
-        if token == "375293332255":
-            enterprise_number = "0367"
-        else:
-            enterprise_number = token[:4] if token else "0000"  # fallback логика
+        # Получаем номер предприятия для метаданных из БД по токену
+        enterprise_number = "0000"  # fallback логика
+        if token:
+            try:
+                pool = await get_pool()
+                if pool:
+                    async with pool.acquire() as conn:
+                        ent_row = await conn.fetchrow("SELECT number FROM enterprises WHERE name2 = $1", token)
+                        if ent_row:
+                            enterprise_number = ent_row["number"]
+            except Exception as e:
+                logging.warning(f"[process_hangup] Failed to get enterprise_number for token {token}: {e}")
+                enterprise_number = token[:4] if len(token) >= 4 else "0000"
 
         logging.info(f"[process_hangup] RAW DATA = {data!r}")
         logging.info(f"[process_hangup] Phone for grouping: {phone_for_grouping}")
@@ -268,46 +275,13 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                         break
         elif call_direction == "outgoing":
             internal_phone = caller if is_internal_number(caller) else None
-            # СПЕЦИАЛЬНАЯ ОБРАБОТКА для тестового предприятия 0367
-            if token == "375293332255":
-                # Для 0367 берем external_phone из поля Phone
-                external_phone = data.get("Phone", "")
-            else:
-                external_phone = connected if not is_internal_number(connected) else None
+            external_phone = connected if not is_internal_number(connected) else None
         elif call_direction == "internal":
             # Для внутренних звонков оба номера внутренние
             internal_phone = caller if is_internal_number(caller) else None
         
-        # Обогащаем метаданными параллельно
+        # Обогащение метаданными отключено для устранения блокировок
         enriched_data = {}
-        try:
-            # Отладочное логирование только для тестового предприятия 0367
-            if token == "375293332255":
-                with open("/tmp/hangup_debug.log", "a") as f:
-                    f.write(f"🔍 [0367] Calling enrich_message_data with:\n")
-                    f.write(f"  enterprise_number: {enterprise_number}\n")
-                    f.write(f"  line_id: {line_id}\n")
-                    f.write(f"  internal_phone: {internal_phone}\n")
-                    f.write(f"  external_phone: {external_phone}\n")
-            
-            enriched_data = await metadata_client.enrich_message_data(
-                enterprise_number=enterprise_number,
-                line_id=line_id,
-                internal_phone=internal_phone,
-                external_phone=external_phone,
-                short_names=False  # Используем полные ФИО
-            )
-            # Отладочное логирование только для тестового предприятия 0367
-            if token == "375293332255":
-                with open("/tmp/hangup_debug.log", "a") as f:
-                    f.write(f"🔍 [0367] Enriched data: {enriched_data}\n")
-            logging.info(f"[process_hangup] Enriched data: {enriched_data}")
-        except Exception as e:
-            # Отладочное логирование только для тестового предприятия 0367
-            if token == "375293332255":
-                with open("/tmp/hangup_debug.log", "a") as f:
-                    f.write(f"💥 [0367] Error enriching metadata: {e}\n")
-            logging.error(f"[process_hangup] Error enriching metadata: {e}")
         
         # ───────── Шаг 6. Формируем текст согласно Пояснению ─────────
         
@@ -319,18 +293,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 caller_display = caller
                 connected_display = connected
                 
-                try:
-                    if is_internal_number(caller):
-                        caller_name = await metadata_client.get_manager_name(enterprise_number, caller, short=True)
-                        if not caller_name.startswith("Доб."):
-                            caller_display = f"{caller_name} ({caller})"
-                    
-                    if is_internal_number(connected):
-                        connected_name = await metadata_client.get_manager_name(enterprise_number, connected, short=True)
-                        if not connected_name.startswith("Доб."):
-                            connected_display = f"{connected_name} ({connected})"
-                except Exception as e:
-                    logging.error(f"[process_hangup] Error enriching internal phones: {e}")
+                # ФИО для внутренних номеров отключено для устранения блокировок
                 
                 text = (f"✅Успешный внутренний звонок\n"
                        f"☎️{caller_display}➡️\n"
@@ -447,15 +410,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     mobile_exts = [ext for ext in exts if not is_internal_number(ext)]
                     
                     for ext in internal_exts:
-                        # Попытаемся получить ФИО для каждого внутреннего номера
-                        try:
-                            manager_name = await metadata_client.get_manager_name(enterprise_number, ext, short=True)
-                            if not manager_name.startswith("Доб."):
-                                text += f"\n☎️{manager_name} ({ext})"
-                            else:
-                                text += f"\n☎️{ext}"
-                        except:
-                            text += f"\n☎️{ext}"
+                        # ФИО для внутренних номеров отключено для устранения блокировок
+                        text += f"\n☎️{ext}"
                     for ext in mobile_exts:
                         text += f"\n📱{format_phone_number(ext)}"
                 

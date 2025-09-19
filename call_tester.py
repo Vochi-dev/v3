@@ -380,7 +380,7 @@ async def startup():
     await test_service.init_db()
 
 @app.get("/", response_class=HTMLResponse)
-async def main_page(request: Request, enterprise: str = "0367"):
+async def main_page(request: Request, enterprise: str):
     """Главная страница с интерфейсом тестирования"""
     
     # Проверяем что предприятие существует в кэше
@@ -516,7 +516,7 @@ async def test_call_api(
     line_id: str = Form(...),
     call_status: int = Form(None),  # Опциональный, будет определен автоматически
     duration_minutes: int = Form(None),  # Опциональный, будет определен автоматически
-    enterprise: str = Form("0367")
+    enterprise: str = Form(...)
 ):
     """API для запуска тестового звонка"""
     
@@ -625,7 +625,7 @@ async def test_call_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/managers")
-async def get_managers(enterprise: str = "0367"):
+async def get_managers(enterprise: str):
     """API для получения списка менеджеров"""
     if enterprise not in test_service.enterprises_cache:
         raise HTTPException(status_code=404, detail=f"Предприятие {enterprise} не найдено")
@@ -637,7 +637,7 @@ async def get_managers(enterprise: str = "0367"):
     return JSONResponse(test_service.enterprises_cache[enterprise].get('managers', {}))
 
 @app.get("/api/lines") 
-async def get_lines(enterprise: str = "0367"):
+async def get_lines(enterprise: str):
     """API для получения списка линий"""
     if enterprise not in test_service.enterprises_cache:
         raise HTTPException(status_code=404, detail=f"Предприятие {enterprise} не найдено")

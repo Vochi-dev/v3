@@ -362,19 +362,8 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     token = data.get("Token", "")
     enterprise_number = token[:4] if token else "0000"
     
-    # Обогащаем метаданными
+    # Обогащение метаданными отключено для устранения блокировок
     enriched_data = {}
-    try:
-        enriched_data = await metadata_client.enrich_message_data(
-            enterprise_number=enterprise_number,
-            line_id=None,  # Для bridge не всегда есть line_id
-            internal_phone=internal_ext if internal_ext and is_internal_number(internal_ext) else None,
-            external_phone=external_phone,
-            short_names=True  # Используем краткие ФИО для bridge сообщений
-        )
-        logging.info(f"[send_bridge_to_single_chat] Enriched data: {enriched_data}")
-    except Exception as e:
-        logging.error(f"[send_bridge_to_single_chat] Error enriching metadata: {e}")
 
     # ───────── Шаг 4. Формируем текст согласно Пояснению ─────────
     if call_direction == "internal":
@@ -382,19 +371,7 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
         caller_display = caller
         connected_display = connected
         
-        # Обогащаем ФИО участников
-        try:
-            if is_internal_number(caller):
-                caller_name = await metadata_client.get_manager_name(enterprise_number, caller, short=True)
-                if not caller_name.startswith("Доб."):
-                    caller_display = f"{caller_name}"
-            
-            if is_internal_number(connected):
-                connected_name = await metadata_client.get_manager_name(enterprise_number, connected, short=True)
-                if not connected_name.startswith("Доб."):
-                    connected_display = f"{connected_name}"
-        except Exception as e:
-            logging.error(f"[send_bridge_to_single_chat] Error enriching internal names: {e}")
+        # ФИО участников отключено для устранения блокировок
         
         text = f"☎️{caller_display} 📞➡️ ☎️{connected_display}📞"
     
