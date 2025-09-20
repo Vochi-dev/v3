@@ -35,12 +35,14 @@ async def process_internal_start(bot: Bot, chat_id: int, data: dict):
     
     try:
         if caller:
-            caller_name = await metadata_client.get_manager_name(enterprise_number, caller, short=True)
+            # ФИО отключено для устранения блокировок
+            caller_name = f"Доб.{caller}"
             if not caller_name.startswith("Доб."):
                 caller_display = f"{caller_name} ({caller})"
         
         if callee:
-            callee_name = await metadata_client.get_manager_name(enterprise_number, callee, short=True)
+            # ФИО отключено для устранения блокировок
+            callee_name = f"Доб.{callee}"
             if not callee_name.startswith("Доб."):
                 callee_display = f"{callee_name} ({callee})"
     except Exception as e:
@@ -99,12 +101,14 @@ async def process_internal_bridge(bot: Bot, chat_id: int, data: dict):
     
     try:
         if caller:
-            caller_name = await metadata_client.get_manager_name(enterprise_number, caller, short=True)
+            # ФИО отключено для устранения блокировок
+            caller_name = f"Доб.{caller}"
             if not caller_name.startswith("Доб."):
                 caller_display = caller_name
         
         if connected:
-            connected_name = await metadata_client.get_manager_name(enterprise_number, connected, short=True)
+            # ФИО отключено для устранения блокировок
+            connected_name = f"Доб.{connected}"
             if not connected_name.startswith("Доб."):
                 connected_display = connected_name
     except Exception as e:
@@ -174,12 +178,14 @@ async def process_internal_hangup(bot: Bot, chat_id: int, data: dict):
     
     try:
         if caller:
-            caller_name = await metadata_client.get_manager_name(enterprise_number, caller, short=True)
+            # ФИО отключено для устранения блокировок
+            caller_name = f"Доб.{caller}"
             if not caller_name.startswith("Доб."):
                 caller_display = caller_name
         
         if callee:
-            callee_name = await metadata_client.get_manager_name(enterprise_number, callee, short=True)
+            # ФИО отключено для устранения блокировок
+            callee_name = f"Доб.{callee}"
             if not callee_name.startswith("Доб."):
                 callee_display = callee_name
     except Exception as e:

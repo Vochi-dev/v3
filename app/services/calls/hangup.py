@@ -643,9 +643,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 "phone": caller,
                 "extension": ext_for_notify,
             }
-            timeout2 = aiohttp.ClientTimeout(total=2)
-            async with aiohttp.ClientSession(timeout=timeout2) as session:
-                await session.post("http://localhost:8020/notify/incoming", json=notify_payload)
+            # Уведомления отключены для устранения блокировок
+            pass
         except Exception as e:
             logging.warning(f"[process_hangup] notify incoming failed: {e}")
 
@@ -688,35 +687,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 else:
                     phone_e164 = phone
 
-                # 📡 УНИВЕРСАЛЬНЫЙ ЗАПРОС К СЕРВИСУ 8020
-                import httpx
-                try:
-                    async with httpx.AsyncClient(timeout=2.5) as client:
-                        # Запрос на обновление профиля клиента со всеми связями
-                        r = await client.post(f"http://127.0.0.1:8020/enrich-customer/{current_enterprise_number}/{phone_e164}")
-                        if r.status_code == 200:
-                            result = r.json() or {}
-                            logging.info(f"[hangup] Customer enrichment result: {result}")
-                            
-                            # Получаем обновленные данные для UI
-                            full_name = result.get("full_name")
-                            if full_name and sent and sent.message_id:
-                                updated_text = f"{text}\n👤 {full_name}"
-                                try:
-                                    await bot.edit_message_text(
-                                        text=updated_text,
-                                        chat_id=chat_id,
-                                        message_id=sent.message_id,
-                                        parse_mode="HTML"
-                                    )
-                                    logging.info(f"[hangup] Updated message {sent.message_id} with FIO: {full_name}")
-                                except Exception as e:
-                                    logging.warning(f"[hangup] Failed to update message with FIO: {e}")
-                        else:
-                            logging.warning(f"[hangup] Customer enrichment failed: {r.status_code}")
-                            
-                except Exception as e:
-                    logging.warning(f"[hangup] Error calling customer enrichment service: {e}")
+                # Обогащение клиентских данных отключено для устранения блокировок
+                pass
 
             except Exception as e:
                 logging.error(f"[hangup] Error in _enrich_and_edit: {e}")
@@ -734,30 +706,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             event_type_for_gateway = "hangup"
             record_url_for_gateway = (call_record_info or {}).get("call_url")
 
-            async def _dispatch_to_gateway():
-                try:
-                    payload = {
-                        "token": token_for_gateway,
-                        "uniqueId": unique_id_for_gateway,
-                        "event_type": event_type_for_gateway,
-                        "raw": data,
-                        "record_url": record_url_for_gateway,
-                    }
-                    timeout = aiohttp.ClientTimeout(total=2)
-                    async with aiohttp.ClientSession(timeout=timeout) as session:
-                        logging.info(f"[process_hangup] gateway dispatch start: uid={unique_id_for_gateway} type={event_type_for_gateway}")
-                        resp = await session.post(
-                            "http://localhost:8020/dispatch/call-event",
-                            json=payload,
-                        )
-                        try:
-                            logging.info(f"[process_hangup] gateway dispatch done: uid={unique_id_for_gateway} status={resp.status}")
-                        except Exception:
-                            pass
-                except Exception as e:
-                    logging.warning(f"[process_hangup] gateway dispatch error: {e}")
-
-            asyncio.create_task(_dispatch_to_gateway())
+            # Gateway dispatch отключен для устранения блокировок
+            pass
         except Exception as e:
             logging.warning(f"[process_hangup] failed to schedule gateway dispatch: {e}")
         # Уведомления U‑ON и прочих провайдеров перенесены в 8020; здесь не рассылаем напрямую.
