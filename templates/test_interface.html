@@ -6,6 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <meta name="version" content="v2.1.{{ timestamp }}">
     <title>{{ enterprise_name }} тестирование</title>
     
     <!-- Favicon and App Icons -->
@@ -2173,20 +2174,26 @@
             // Получаем токен для предприятия (пока захардкодим для 0367)
             const token = enterprise === '0367' ? '375293332255' : '375293332255';
             
-            // Генерируем базовые ID
-            const baseUniqueId = generateUniqueId("1757765248.0");
-            const secondaryUniqueId = generateUniqueId("1757765249.1");
+                    // Генерируем базовые ID с текущим временем
+                    const currentUnixTime = Math.floor(Date.now() / 1000);
+                    const baseUniqueId = `${currentUnixTime}.0`;
+                    const secondaryUniqueId = `${currentUnixTime + 1}.1`;
             const bridgeId = generateBridgeUUID();
             const externalChannelId = generateChannelId();
             const internalChannelId = generateChannelId();
 
             switch(parseInt(callTypeId)) {
                 case 1: // 1-1: Исходящий звонок - ответили
-                    const phone = formData.get('external_phone') || '';
+                    const phone = (formData.get('external_phone') || '').replace(/^\+/, ''); // Убираем + как в реальном Asterisk
                     const managerRaw = formData.get('internal_phone');
                     const lineRaw = formData.get('line_id');
                     const manager = managerRaw || '150';
                     const trunk = lineRaw ? lineRaw.split(' - ')[0] : '0001363';
+                    
+                    // Определяем тип линии (SIP или GSM)
+                    const isSipLine = lineRaw && lineRaw.includes('(SIP)');
+                    // Для SIP линий в Extensions должен быть SIP trunk ID, для GSM - внутренний номер
+                    const extensionsForHangup = isSipLine ? [trunk] : [manager];
                     
                     // Отладочная информация
                     console.log('Form data:', {
@@ -2350,7 +2357,7 @@
                         data: {
                             Phone: phone,
                             StartTime: startTime.toISOString().replace('T', ' ').substring(0, 19),
-                            Extensions: [manager],
+                            Extensions: extensionsForHangup,
                             UniqueId: baseUniqueId,
                             DateReceived: receivedTime.toISOString().replace('T', ' ').substring(0, 19),
                             Token: token,
@@ -2408,24 +2415,76 @@ ${JSON.stringify(event.data, null, 2)}
             eventsLog.scrollTop = 0;
         }
 
+        // Добавление ответа сервера в журнал
+        function addServerResponseToLog(status, responseData, eventType) {
+            const eventsLog = document.getElementById('eventsLog');
+            const responseDiv = document.createElement('div');
+            responseDiv.style.cssText = `
+                margin: 15px 0;
+                padding: 15px;
+                border-left: 4px solid ${status === 200 || status === 'OK' ? '#28a745' : status === 'ERROR' ? '#dc3545' : '#ffc107'};
+                background-color: #f8f9fa;
+                font-family: sans-serif;
+                font-size: 20px;
+                font-weight: 500;
+                color: #333;
+            `;
+            
+            const timestamp = new Date().toLocaleTimeString('ru-RU');
+            const statusText = status === 'ERROR' ? 'ОШИБКА' : `HTTP ${status}`;
+            const statusColor = status === 200 || status === 'OK' ? '#28a745' : status === 'ERROR' ? '#dc3545' : '#ffc107';
+            
+            responseDiv.innerHTML = `
+                <div style="font-family: sans-serif; font-size: 20px; font-weight: 500; color: #666; margin-bottom: 10px;">
+                    [${timestamp}] Ответ сервера на ${eventType}: 
+                    <span style="color: ${statusColor}; font-weight: 500;">${statusText}</span>
+                </div>
+                <div style="font-family: sans-serif; font-size: 20px; font-weight: 500; color: #333; margin: 5px 0; white-space: pre-wrap; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">${JSON.stringify(responseData, null, 2)}</div>
+            `;
+            
+            // Вставляем в начало журнала (самые новые ответы сверху)
+            eventsLog.insertBefore(responseDiv, eventsLog.firstChild);
+            
+            // Прокручиваем наверх к новому ответу
+            eventsLog.scrollTop = 0;
+        }
+
         // Отправка события на сервер
         async function sendEventToServer(event) {
             try {
-                const response = await fetch('/api/webhook-event', {
+                // Отправляем напрямую на bot.vochi.by
+                const eventType = event.event.toLowerCase();
+                const url = `https://bot.vochi.by/${eventType}`;
+                
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Token': event.data.Token
                     },
                     body: JSON.stringify(event.data)
                 });
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                const responseText = await response.text();
+                let responseData;
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch {
+                    responseData = { raw_response: responseText };
                 }
                 
-                return await response.json();
+                // Добавляем информацию об ответе сервера в журнал
+                addServerResponseToLog(response.status, responseData, eventType);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${responseText}`);
+                }
+                
+                return { success: true, status: response.status, data: responseData };
             } catch (error) {
                 console.error('Ошибка отправки события:', error);
+                // Добавляем информацию об ошибке в журнал  
+                addServerResponseToLog('ERROR', { error: error.message }, event.event);
                 // Не останавливаем эмуляцию из-за ошибки отправки
                 return { success: false, error: error.message };
             }

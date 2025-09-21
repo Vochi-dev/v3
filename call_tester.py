@@ -511,6 +511,74 @@ async def webhook_event(request: Request):
         logger.error(f"❌ Ошибка обработки события: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Ошибка обработки события: {str(e)}")
 
+async def proxy_webhook_handler(event_type: str, request: Request):
+    """Прокси для отправки событий на внешний webhook bot.vochi.by"""
+    import httpx
+    
+    # Получаем данные события
+    event_data = await request.json()
+    
+    # Получаем заголовки из оригинального запроса
+    headers = dict(request.headers)
+    
+    # Формируем заголовки для внешнего запроса
+    proxy_headers = {
+        'Content-Type': 'application/json',
+    }
+    
+    # Добавляем Token если есть
+    if 'Token' in headers:
+        proxy_headers['Token'] = headers['Token']
+    elif 'token' in headers:
+        proxy_headers['Token'] = headers['token']
+    elif event_data.get('Token'):
+        proxy_headers['Token'] = event_data['Token']
+    
+    try:
+        # Отправляем на внешний webhook
+        external_url = f"https://bot.vochi.by/{event_type.lower()}"
+        logger.info(f"📡 Проксируем {event_type} на {external_url}")
+        logger.info(f"📋 Отправляемые данные: {event_data}")
+        logger.info(f"📋 Заголовки: {proxy_headers}")
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                external_url,
+                json=event_data,
+                headers=proxy_headers
+            )
+            
+            # Получаем ответ
+            response_content = response.content
+            
+            # Пытаемся распарсить JSON
+            try:
+                response_data = response.json()
+            except:
+                response_data = {"raw_response": response_content.decode('utf-8', errors='ignore')}
+            
+            logger.info(f"✅ Ответ от {external_url}: HTTP {response.status_code}")
+            logger.info(f"📋 ПОЛНЫЙ ОТВЕТ: {response_data}")
+            
+            # Возвращаем ответ с теми же данными что пришли от внешнего сервиса
+            return JSONResponse(
+                content=response_data,
+                status_code=response.status_code,
+                headers={"X-Proxy-Status": str(response.status_code)}
+            )
+            
+    except Exception as e:
+        logger.error(f"❌ Ошибка прокси webhook: {e}")
+        return JSONResponse(
+            content={"error": str(e), "proxy_error": True},
+            status_code=500
+        )
+
+# Создаем прокси endpoint для каждого типа события
+@app.post("/api/proxy-webhook/{event_type}")
+async def proxy_webhook(event_type: str, request: Request):
+    return await proxy_webhook_handler(event_type, request)
+
 @app.post("/api/test-call")
 async def test_call_api(
     call_type: int = Form(...),
