@@ -187,15 +187,18 @@ class CallTestService:
                 
                 # Обрабатываем SIP линии
                 for line in sip_lines:
-                    line_name = line['line_name'] or f"SIP-{line['line_id']}"
+                    # Используем line_name как идентификатор (это номер SIP транка)
+                    sip_line_name = line['line_name'] or f"SIP-{line['line_id']}"
+                    provider_display = f" - {line['provider_name']}" if line['provider_name'] else ""
                     
-                    lines_data[f"SIP-{line['line_id']}"] = {
-                        'name': f"{line_name} (SIP)",
+                    lines_data[sip_line_name] = {
+                        'name': f"{sip_line_name}{provider_display} (SIP)",
                         'phone': line['phone_number'] or '',
                         'operator': 'SIP',
                         'type': 'SIP',
                         'provider_name': line['provider_name'],
-                        'prefix': line['prefix']
+                        'prefix': line['prefix'],
+                        'sip_trunk_id': sip_line_name  # Добавляем явно номер транка
                     }
                 
                 # Сохраняем в кэше

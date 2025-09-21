@@ -2183,9 +2183,9 @@
             switch(parseInt(callTypeId)) {
                 case 1: // 1-1: Исходящий звонок - ответили
                     const phone = formData.get('external_phone') || '';
-                    const managerRaw = formData.get('manager');
-                    const lineRaw = formData.get('line');
-                    const manager = managerRaw ? managerRaw.split(' - ')[0] : '150';
+                    const managerRaw = formData.get('internal_phone');
+                    const lineRaw = formData.get('line_id');
+                    const manager = managerRaw || '150';
                     const trunk = lineRaw ? lineRaw.split(' - ')[0] : '0001363';
                     
                     // Отладочная информация
