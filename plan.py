@@ -893,6 +893,7 @@ def generate_external_lines_context(schema_id, node, nodes, edges, gsm_lines_inf
                         offset = 12 - offset_val
                         
                         lines.append(f"same => n,Macro(outcall_dial,{line_name},${{EXTEN}})")
+                        lines.append(f"same => n,Set(ORIG_CALLERID=${{CALLERID(num)}})")
                         lines.append(f"same => n,Set(CALLERID(num)={line_name})")
                         lines.append(f"same => n,Dial(SIP/{line_name}/{prefix_part}${{EXTEN:{offset}}},,tTkK)")
                 # Сценарий Б: префикс отсутствует или простой
