@@ -2229,7 +2229,7 @@
                         data: {
                             CallerIDNum: phone,
                             Channel: `SIP/${trunk}-${externalChannelId}`,
-                            CallerIDName: "<unknown>",
+                            CallerIDName: "<ХРЕН>",
                             Context: "from-out-office",
                             UniqueId: secondaryUniqueId,
                             ConnectedLineNum: manager,
@@ -2248,9 +2248,9 @@
                             BridgeType: "",
                             BridgeUniqueid: bridgeId,
                             UniqueId: "",
-                            BridgeCreator: "<unknown>",
+                            BridgeCreator: "<ХРЕН>",
                             Token: token,
-                            BridgeName: "<unknown>",
+                            BridgeName: "<ХРЕН>",
                             BridgeNumChannels: "0",
                             BridgeTechnology: "simple_bridge"
                         }
@@ -2286,9 +2286,9 @@
                             BridgeUniqueid: bridgeId,
                             UniqueId: baseUniqueId,
                             Exten: phone,
-                            ConnectedLineNum: "<unknown>",
+                            ConnectedLineNum: "<ХРЕН>",
                             Token: token,
-                            ConnectedLineName: "<unknown>"
+                            ConnectedLineName: "<ХРЕН>"
                         }
                     });
 
@@ -2300,7 +2300,7 @@
                         data: {
                             CallerIDNum: phone,
                             Channel: `SIP/${trunk}-${externalChannelId}`,
-                            CallerIDName: "<unknown>",
+                            CallerIDName: "<ХРЕН>",
                             BridgeUniqueid: bridgeId,
                             UniqueId: secondaryUniqueId,
                             ConnectedLineNum: manager,
@@ -2321,9 +2321,9 @@
                             CallerIDName: manager,
                             BridgeUniqueid: bridgeId,
                             UniqueId: baseUniqueId,
-                            ConnectedLineNum: "<unknown>",
+                            ConnectedLineNum: "<ХРЕН>",
                             Token: token,
-                            ConnectedLineName: "<unknown>",
+                            ConnectedLineName: "<ХРЕН>",
                             BridgeNumChannels: "0"
                         }
                     });
@@ -2337,9 +2337,9 @@
                             BridgeType: "",
                             BridgeUniqueid: bridgeId,
                             UniqueId: "",
-                            BridgeCreator: "<unknown>",
+                            BridgeCreator: "<ХРЕН>",
                             Token: token,
-                            BridgeName: "<unknown>",
+                            BridgeName: "<ХРЕН>",
                             BridgeNumChannels: "0",
                             BridgeTechnology: "simple_bridge"
                         }
@@ -2462,13 +2462,19 @@ ${JSON.stringify(event.data, null, 2)}
                 const eventType = event.event.toLowerCase();
                 const url = `https://bot.vochi.by/${eventType}`;
                 
+                // Заменяем <ХРЕН> на <unknown> для отправки на сервер
+                const dataToSend = JSON.parse(JSON.stringify(event.data).replace(/<ХРЕН>/g, '<unknown>'));
+                
+                // Логируем что отправляем
+                console.log('🚀 ОТПРАВЛЯЕМ НА СЕРВЕР:', JSON.stringify(dataToSend, null, 2));
+                
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Token': event.data.Token
                     },
-                    body: JSON.stringify(event.data)
+                    body: JSON.stringify(dataToSend)
                 });
                 
                 const responseText = await response.text();
@@ -2504,6 +2510,9 @@ ${JSON.stringify(event.data, null, 2)}
             }
             
             const event = emulatorState.events[emulatorState.currentStep];
+            
+            // Логируем что генерируется
+            console.log('📝 СГЕНЕРИРОВАНО ДЛЯ БРАУЗЕРА:', JSON.stringify(event, null, 2));
             
             // Показываем событие в логе
             addEventToLog(event);
