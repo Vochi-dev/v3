@@ -1550,7 +1550,7 @@ async def format_telegram_message(event_data: dict, enterprise_number: str) -> s
 }
 ```
 
-### **📱 Методы для работы с линиями**
+### **📱 Методы для работы с линиями** 11
 
 #### `GET /metadata/{enterprise_number}/lines`
 Получает все линии предприятия (GSM + SIP).
