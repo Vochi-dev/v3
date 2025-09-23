@@ -272,97 +272,14 @@ class CallTestService:
                 'success': False
             }
             
-            # 1. START событие
-            start_data = {
-                "Event": "start",
-                "UniqueId": unique_id,
-                "Token": enterprise_token,
-                "CallerIDNum": external_phone if call_type == 0 else internal_phone,
-                "Extensions": [internal_phone],
-                "CallType": call_type,
-                "Exten": line_id,
-                "StartTime": start_time.isoformat(),
-                "Channel": f"SIP/{line_id}-00000001" if call_type == 0 else f"SIP/{internal_phone}-00000001"
-            }
-            
-            if await self.send_event("start", start_data):
-                result['events_sent'] += 1
+            # Проверяем тип звонка для выбора паттерна
+            if call_type == 2:  # Паттерн 1-2 (id=2 в интерфейсе)
+                return await self.simulate_call_1_2(call_params, result, unique_id, start_time, end_time, duration_seconds)
+            elif call_type == 1:  # Паттерн 1-1 (id=1 в интерфейсе)
+                return await self.simulate_call_1_1(call_params, result, unique_id, start_time, end_time, duration_seconds)
             else:
-                result['events_failed'] += 1
-                result['errors'].append("Failed to send start event")
-            
-            await asyncio.sleep(2)  # Задержка между событиями
-            
-            # 2. DIAL событие
-            dial_data = {
-                "Event": "dial", 
-                "UniqueId": unique_id,
-                "Token": enterprise_token,
-                "CallerIDNum": external_phone if call_type == 0 else internal_phone,
-                "Phone": external_phone,
-                "Extensions": [internal_phone],
-                "CallType": call_type,
-                "Trunk": line_id,
-                "Channel": f"SIP/{line_id}-00000001" if call_type == 0 else f"SIP/{internal_phone}-00000001"
-            }
-            
-            if await self.send_event("dial", dial_data):
-                result['events_sent'] += 1
-            else:
-                result['events_failed'] += 1
-                result['errors'].append("Failed to send dial event")
-                
-            await asyncio.sleep(3)
-            
-            # 3. BRIDGE событие (только если ответили)
-            if call_status == 2:  # Ответили
-                bridge_data = {
-                    "Event": "bridge",
-                    "UniqueId": unique_id,
-                    "Token": enterprise_token,
-                    "CallerIDNum": external_phone if call_type == 0 else internal_phone,
-                    "ConnectedLineNum": internal_phone if call_type == 0 else external_phone,
-                    "CallType": call_type,
-                    "Channel": f"SIP/{internal_phone}-00000002",
-                    "DestChannel": f"SIP/{line_id}-00000001"
-                }
-                
-                if await self.send_event("bridge", bridge_data):
-                    result['events_sent'] += 1
-                else:
-                    result['events_failed'] += 1
-                    result['errors'].append("Failed to send bridge event")
-                    
-                await asyncio.sleep(duration_seconds)  # Разговор
-            else:
-                await asyncio.sleep(10)  # Короткая задержка если не ответили
-            
-            # 4. HANGUP событие
-            hangup_data = {
-                "Event": "hangup",
-                "UniqueId": unique_id,
-                "Token": enterprise_token,
-                "CallerIDNum": external_phone if call_type == 0 else internal_phone,
-                "Phone": external_phone,
-                "Extensions": [internal_phone],
-                "CallType": call_type,
-                "CallStatus": call_status,
-                "StartTime": start_time.isoformat(),
-                "EndTime": end_time.isoformat(),
-                "Trunk": line_id,
-                "Channel": f"SIP/{internal_phone}-00000002" if call_status == 2 else f"SIP/{line_id}-00000001",
-                "Cause": "16" if call_status == 2 else "19",
-                "CauseTxt": "Normal Clearing" if call_status == 2 else "No Answer"
-            }
-            
-            if await self.send_event("hangup", hangup_data):
-                result['events_sent'] += 1
-            else:
-                result['events_failed'] += 1
-                result['errors'].append("Failed to send hangup event")
-            
-            result['success'] = result['events_failed'] == 0
-            return result
+                # Для остальных паттернов пока используем 1-1
+                return await self.simulate_call_1_1(call_params, result, unique_id, start_time, end_time, duration_seconds)
             
         except Exception as e:
             logger.error(f"❌ Call simulation failed: {e}")
@@ -373,6 +290,708 @@ class CallTestService:
                 'errors': [str(e)],
                 'success': False
             }
+    
+    async def simulate_call_1_1(self, call_params: Dict[str, Any], result: Dict[str, Any], 
+                                unique_id: str, start_time: datetime, end_time: datetime, 
+                                duration_seconds: int) -> Dict[str, Any]:
+        """Эмуляция паттерна 1-1 (простой исходящий звонок) - 9 событий"""
+        
+        call_type = call_params['call_type']
+        external_phone = call_params['external_phone']
+        internal_phone = call_params['internal_phone']
+        line_id = call_params['line_id']
+        call_status = call_params['call_status']
+        enterprise_token = call_params['enterprise_token']
+        
+        # 1. DIAL событие
+        dial_data = {
+            "Phone": external_phone,
+            "ExtTrunk": "",
+            "ExtPhone": "",
+            "Extensions": [internal_phone],
+            "UniqueId": unique_id,
+            "Token": enterprise_token,
+            "Trunk": line_id,
+            "CallType": call_type
+        }
+        
+        if await self.send_event("dial", dial_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send dial event")
+            
+        await asyncio.sleep(2)
+        
+        # 2. NEW_CALLERID событие
+        new_callerid_data = {
+            "CallerIDNum": external_phone,
+            "Channel": f"SIP/{line_id}-55353474",
+            "CallerIDName": "",
+            "BridgeUniqueid": f"{uuid.uuid4()}",
+            "UniqueId": f"{unique_id}.1",
+            "ConnectedLineNum": internal_phone,
+            "Token": enterprise_token,
+            "ConnectedLineName": internal_phone,
+            "Exten": external_phone,
+            "Context": "from-out-office"
+        }
+        
+        if await self.send_event("new_callerid", new_callerid_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send new_callerid event")
+            
+        await asyncio.sleep(2)
+        
+        # 3. BRIDGE_CREATE событие
+        bridge_id = str(uuid.uuid4())
+        bridge_create_data = {
+            "BridgeType": "",
+            "BridgeUniqueid": bridge_id,
+            "UniqueId": "",
+            "BridgeCreator": "",
+            "Token": enterprise_token,
+            "BridgeName": "",
+            "BridgeNumChannels": "0",
+            "BridgeTechnology": "simple_bridge"
+        }
+        
+        if await self.send_event("bridge_create", bridge_create_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge_create event")
+            
+        await asyncio.sleep(2)
+        
+        # 4. BRIDGE событие (внешний канал)
+        bridge_external_data = {
+            "CallerIDNum": external_phone,
+            "Channel": f"SIP/{line_id}-55353474",
+            "CallerIDName": "",
+            "BridgeUniqueid": bridge_id,
+            "UniqueId": f"{unique_id}.1",
+            "Exten": "",
+            "ConnectedLineNum": internal_phone,
+            "Token": enterprise_token,
+            "ConnectedLineName": internal_phone
+        }
+        
+        if await self.send_event("bridge", bridge_external_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge external event")
+            
+        await asyncio.sleep(2)
+        
+        # 5. BRIDGE событие (внутренний канал)
+        bridge_internal_data = {
+            "CallerIDNum": internal_phone,
+            "Channel": f"SIP/{internal_phone}-31291763",
+            "CallerIDName": internal_phone,
+            "BridgeUniqueid": bridge_id,
+            "UniqueId": unique_id,
+            "Exten": external_phone,
+            "ConnectedLineNum": "",
+            "Token": enterprise_token,
+            "ConnectedLineName": ""
+        }
+        
+        if await self.send_event("bridge", bridge_internal_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge internal event")
+            
+        await asyncio.sleep(duration_seconds if call_status == 2 else 10)
+        
+        # 6. BRIDGE_LEAVE событие (внешний канал)
+        bridge_leave_external_data = {
+            "CallerIDNum": external_phone,
+            "Channel": f"SIP/{line_id}-55353474",
+            "CallerIDName": "",
+            "BridgeUniqueid": bridge_id,
+            "UniqueId": f"{unique_id}.1",
+            "ConnectedLineNum": internal_phone,
+            "Token": enterprise_token,
+            "ConnectedLineName": internal_phone,
+            "BridgeNumChannels": "1"
+        }
+        
+        if await self.send_event("bridge_leave", bridge_leave_external_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge_leave external event")
+            
+        await asyncio.sleep(1)
+        
+        # 7. BRIDGE_LEAVE событие (внутренний канал)
+        bridge_leave_internal_data = {
+            "CallerIDNum": internal_phone,
+            "Channel": f"SIP/{internal_phone}-31291763",
+            "CallerIDName": internal_phone,
+            "BridgeUniqueid": bridge_id,
+            "UniqueId": unique_id,
+            "ConnectedLineNum": "",
+            "Token": enterprise_token,
+            "ConnectedLineName": "",
+            "BridgeNumChannels": "0"
+        }
+        
+        if await self.send_event("bridge_leave", bridge_leave_internal_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge_leave internal event")
+            
+        await asyncio.sleep(1)
+        
+        # 8. BRIDGE_DESTROY событие
+        bridge_destroy_data = {
+            "BridgeType": "",
+            "BridgeUniqueid": bridge_id,
+            "UniqueId": "",
+            "BridgeCreator": "",
+            "Token": enterprise_token,
+            "BridgeName": "",
+            "BridgeNumChannels": "0",
+            "BridgeTechnology": "simple_bridge"
+        }
+        
+        if await self.send_event("bridge_destroy", bridge_destroy_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge_destroy event")
+            
+        await asyncio.sleep(1)
+        
+        # 9. HANGUP событие
+        hangup_data = {
+            "Phone": external_phone,
+            "StartTime": start_time.strftime('%Y-%m-%d %H:%M:%S'),
+            "Extensions": [internal_phone],
+            "UniqueId": unique_id,
+            "DateReceived": start_time.strftime('%Y-%m-%d %H:%M:%S'),
+            "Token": enterprise_token,
+            "EndTime": end_time.strftime('%Y-%m-%d %H:%M:%S'),
+            "CallType": call_type,
+            "CallStatus": str(call_status),
+            "Trunk": line_id
+        }
+        
+        if await self.send_event("hangup", hangup_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send hangup event")
+        
+        result['success'] = result['events_failed'] == 0
+        return result
+    
+    async def simulate_call_1_2(self, call_params: Dict[str, Any], result: Dict[str, Any], 
+                                unique_id: str, start_time: datetime, end_time: datetime, 
+                                duration_seconds: int) -> Dict[str, Any]:
+        """Эмуляция паттерна 1-2 (инициация из сторонней системы) - 27 событий"""
+        
+        call_type = call_params['call_type']
+        external_phone = call_params['external_phone']
+        internal_phone = call_params['internal_phone']
+        line_id = call_params['line_id']
+        call_status = call_params['call_status']
+        enterprise_token = call_params['enterprise_token']
+        
+        # Генерируем уникальные ID каналов как в реальном звонке
+        unique_id_377 = f"{unique_id}.377"  # Основной канал
+        unique_id_376 = f"{unique_id}.376"  # Локальный канал 1
+        unique_id_379 = f"{unique_id}.379"  # Локальный канал 2
+        unique_id_380 = f"{unique_id}.380"  # Главный канал звонка (dial/hangup)
+        unique_id_381 = f"{unique_id}.381"  # Внешний SIP канал
+        
+        # Генерируем уникальные ID мостов
+        bridge_id_1 = str(uuid.uuid4())  # Первый мост
+        bridge_id_2 = str(uuid.uuid4())  # Второй мост  
+        bridge_id_3 = str(uuid.uuid4())  # Третий мост
+        
+        # 1. NEW_CALLERID событие (UniqueId: 377)
+        new_callerid_1_data = {
+            "Exten": internal_phone,
+            "ConnectedLineNum": "<unknown>",
+            "CallerIDName": "<unknown>",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_377,
+            "Channel": f"Local/{internal_phone}@web-originate-00000017;2",
+            "Context": "set-extcall-callerid",
+            "CallerIDNum": external_phone
+        }
+        
+        if await self.send_event("new_callerid", new_callerid_1_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send new_callerid 1 event")
+        
+        await asyncio.sleep(1)
+        
+        # 2. NEW_CALLERID событие с CallerIDName (UniqueId: 377)
+        new_callerid_2_data = {
+            "Exten": internal_phone,
+            "ConnectedLineNum": "<unknown>",
+            "CallerIDName": "Тестовый..покупатель..(Первое..Контактное..лицо)",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_377,
+            "Channel": f"Local/{internal_phone}@web-originate-00000017;2",
+            "Context": "set-extcall-callerid",
+            "CallerIDNum": external_phone
+        }
+        
+        if await self.send_event("new_callerid", new_callerid_2_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send new_callerid 2 event")
+        
+        await asyncio.sleep(2)
+        
+        # 3. NEW_CALLERID событие (UniqueId: 376)
+        new_callerid_3_data = {
+            "Exten": internal_phone,
+            "ConnectedLineNum": "<unknown>",
+            "CallerIDName": "<unknown>",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_376,
+            "Channel": f"Local/{internal_phone}@web-originate-00000017;1",
+            "Context": "web-originate",
+            "CallerIDNum": internal_phone
+        }
+        
+        if await self.send_event("new_callerid", new_callerid_3_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send new_callerid 3 event")
+        
+        await asyncio.sleep(2)
+        
+        # 4. BRIDGE_CREATE событие (Мост 1)
+        bridge_create_1_data = {
+            "BridgeUniqueid": bridge_id_1,
+            "BridgeType": "",
+            "BridgeName": "<unknown>",
+            "BridgeTechnology": "simple_bridge",
+            "Token": enterprise_token,
+            "UniqueId": "",
+            "BridgeCreator": "<unknown>",
+            "BridgeNumChannels": "0"
+        }
+        
+        if await self.send_event("bridge_create", bridge_create_1_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge_create 1 event")
+        
+        await asyncio.sleep(1)
+        
+        # 5. BRIDGE событие (UniqueId: 377)
+        bridge_1_data = {
+            "BridgeUniqueid": bridge_id_1,
+            "Exten": internal_phone,
+            "ConnectedLineNum": internal_phone,
+            "CallerIDName": "Тестовый..покупатель..(Первое..Контактное..лицо)",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_377,
+            "Channel": f"Local/{internal_phone}@web-originate-00000017;2",
+            "CallerIDNum": external_phone
+        }
+        
+        if await self.send_event("bridge", bridge_1_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge 1 event")
+        
+        await asyncio.sleep(1)
+        
+        # 6. NEW_CALLERID событие (UniqueId: 379)
+        new_callerid_4_data = {
+            "Exten": internal_phone,
+            "ConnectedLineNum": internal_phone,
+            "CallerIDName": "<unknown>",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_379,
+            "Channel": f"Local/{external_phone}@inoffice-00000018;1",
+            "Context": "inoffice",
+            "CallerIDNum": internal_phone
+        }
+        
+        if await self.send_event("new_callerid", new_callerid_4_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send new_callerid 4 event")
+        
+        await asyncio.sleep(1)
+        
+        # 7. BRIDGE событие (UniqueId: 378)
+        unique_id_378 = f"{unique_id}.378"
+        bridge_2_data = {
+            "BridgeUniqueid": bridge_id_1,
+            "Exten": "",
+            "ConnectedLineNum": external_phone,
+            "CallerIDName": "",
+            "ConnectedLineName": "Тестовый..покупатель..(Первое..Контактное..лицо)",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_378,
+            "Channel": f"SIP/{internal_phone}-000000a4",
+            "CallerIDNum": internal_phone
+        }
+        
+        if await self.send_event("bridge", bridge_2_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge 2 event")
+        
+        await asyncio.sleep(1)
+        
+        # 8. NEW_CALLERID событие (UniqueId: 380)
+        new_callerid_5_data = {
+            "Exten": external_phone,
+            "ConnectedLineNum": internal_phone,
+            "CallerIDName": "<unknown>",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_380,
+            "Channel": f"Local/{external_phone}@inoffice-00000018;2",
+            "Context": "inoffice",
+            "CallerIDNum": internal_phone
+        }
+        
+        if await self.send_event("new_callerid", new_callerid_5_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send new_callerid 5 event")
+        
+        await asyncio.sleep(1)
+        
+        # 9. DIAL событие (ГЛАВНОЕ - UniqueId: 380)
+        dial_data = {
+            "Phone": external_phone.replace('+', ''),
+            "Trunk": line_id,
+            "Extensions": [internal_phone],
+            "ExtPhone": "",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_380,
+            "CallType": call_type,
+            "ExtTrunk": ""
+        }
+        
+        if await self.send_event("dial", dial_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send dial event")
+        
+        await asyncio.sleep(1)
+        
+        # 10. NEW_CALLERID событие (UniqueId: 381)
+        new_callerid_6_data = {
+            "Exten": external_phone.replace('+', ''),
+            "ConnectedLineNum": internal_phone,
+            "CallerIDName": "<unknown>",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_381,
+            "Channel": f"SIP/{line_id}-000000a5",
+            "Context": "from-out-office",
+            "CallerIDNum": external_phone.replace('+', '')
+        }
+        
+        if await self.send_event("new_callerid", new_callerid_6_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send new_callerid 6 event")
+        
+        await asyncio.sleep(7)  # Время до ответа
+        
+        # 11. BRIDGE_CREATE событие (Мост 2)
+        bridge_create_2_data = {
+            "BridgeUniqueid": bridge_id_2,
+            "BridgeType": "",
+            "BridgeName": "<unknown>",
+            "BridgeTechnology": "simple_bridge",
+            "Token": enterprise_token,
+            "UniqueId": "",
+            "BridgeCreator": "<unknown>",
+            "BridgeNumChannels": "0"
+        }
+        
+        if await self.send_event("bridge_create", bridge_create_2_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge_create 2 event")
+        
+        await asyncio.sleep(1)
+        
+        # 12. BRIDGE_CREATE событие (Мост 3)
+        bridge_create_3_data = {
+            "BridgeUniqueid": bridge_id_3,
+            "BridgeType": "",
+            "BridgeName": "<unknown>",
+            "BridgeTechnology": "simple_bridge",
+            "Token": enterprise_token,
+            "UniqueId": "",
+            "BridgeCreator": "<unknown>",
+            "BridgeNumChannels": "0"
+        }
+        
+        if await self.send_event("bridge_create", bridge_create_3_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge_create 3 event")
+        
+        await asyncio.sleep(1)
+        
+        # 13. BRIDGE событие (UniqueId: 381)
+        bridge_3_data = {
+            "BridgeUniqueid": bridge_id_2,
+            "Exten": "",
+            "ConnectedLineNum": internal_phone,
+            "CallerIDName": "",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_381,
+            "Channel": f"SIP/{line_id}-000000a5",
+            "CallerIDNum": external_phone.replace('+', '')
+        }
+        
+        if await self.send_event("bridge", bridge_3_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge 3 event")
+        
+        await asyncio.sleep(1)
+        
+        # 14. BRIDGE событие (UniqueId: 376)
+        bridge_4_data = {
+            "BridgeUniqueid": bridge_id_3,
+            "Exten": internal_phone,
+            "ConnectedLineNum": "<unknown>",
+            "CallerIDName": "",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_376,
+            "Channel": f"Local/{internal_phone}@web-originate-00000017;1",
+            "CallerIDNum": internal_phone
+        }
+        
+        if await self.send_event("bridge", bridge_4_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge 4 event")
+        
+        await asyncio.sleep(1)
+        
+        # 15. BRIDGE событие (UniqueId: 380)
+        bridge_5_data = {
+            "BridgeUniqueid": bridge_id_2,
+            "Exten": external_phone.replace('+', ''),
+            "ConnectedLineNum": internal_phone,
+            "CallerIDName": "",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_380,
+            "Channel": f"Local/{external_phone}@inoffice-00000018;2",
+            "CallerIDNum": internal_phone
+        }
+        
+        if await self.send_event("bridge", bridge_5_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge 5 event")
+        
+        await asyncio.sleep(1)
+        
+        # 16. BRIDGE событие (UniqueId: 379)
+        bridge_6_data = {
+            "BridgeUniqueid": bridge_id_3,
+            "Exten": "",
+            "ConnectedLineNum": internal_phone,
+            "CallerIDName": "",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_379,
+            "Channel": f"Local/{external_phone}@inoffice-00000018;1",
+            "CallerIDNum": internal_phone
+        }
+        
+        if await self.send_event("bridge", bridge_6_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge 6 event")
+        
+        await asyncio.sleep(duration_seconds if call_status == 2 else 5)
+        
+        # 17. BRIDGE_LEAVE событие (UniqueId: 381)
+        bridge_leave_1_data = {
+            "BridgeUniqueid": bridge_id_2,
+            "ConnectedLineNum": internal_phone,
+            "BridgeNumChannels": "1",
+            "CallerIDName": "<unknown>",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_381,
+            "Channel": f"SIP/{line_id}-000000a5",
+            "CallerIDNum": external_phone.replace('+', '')
+        }
+        
+        if await self.send_event("bridge_leave", bridge_leave_1_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge_leave 1 event")
+        
+        await asyncio.sleep(1)
+        
+        # 18. BRIDGE_LEAVE событие (UniqueId: 380)
+        bridge_leave_2_data = {
+            "BridgeUniqueid": bridge_id_2,
+            "ConnectedLineNum": internal_phone,
+            "BridgeNumChannels": "0",
+            "CallerIDName": "<unknown>",
+            "ConnectedLineName": "<unknown>",
+            "Token": enterprise_token,
+            "UniqueId": unique_id_380,
+            "Channel": f"Local/{external_phone}@inoffice-00000018;2",
+            "CallerIDNum": internal_phone
+        }
+        
+        if await self.send_event("bridge_leave", bridge_leave_2_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge_leave 2 event")
+        
+        await asyncio.sleep(1)
+        
+        # 19. BRIDGE_DESTROY событие (Мост 2)
+        bridge_destroy_1_data = {
+            "BridgeUniqueid": bridge_id_2,
+            "BridgeType": "",
+            "BridgeName": "<unknown>",
+            "BridgeTechnology": "simple_bridge",
+            "Token": enterprise_token,
+            "UniqueId": "",
+            "BridgeCreator": "<unknown>",
+            "BridgeNumChannels": "0"
+        }
+        
+        if await self.send_event("bridge_destroy", bridge_destroy_1_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send bridge_destroy 1 event")
+        
+        await asyncio.sleep(3)
+        
+        # 20. HANGUP событие (ГЛАВНОЕ - UniqueId: 380)
+        hangup_data = {
+            "EndTime": end_time.strftime('%Y-%m-%d %H:%M:%S'),
+            "Trunk": line_id,
+            "Phone": external_phone.replace('+', ''),
+            "DateReceived": (start_time + timedelta(seconds=4)).strftime('%Y-%m-%d %H:%M:%S'),
+            "Extensions": [internal_phone],
+            "Token": enterprise_token,
+            "UniqueId": unique_id_380,
+            "CallStatus": str(call_status),
+            "CallType": call_type,
+            "StartTime": (start_time + timedelta(seconds=5)).strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        if await self.send_event("hangup", hangup_data):
+            result['events_sent'] += 1
+        else:
+            result['events_failed'] += 1
+            result['errors'].append("Failed to send hangup event")
+        
+        await asyncio.sleep(1)
+        
+        # 21-27. Остальные BRIDGE_LEAVE и BRIDGE_DESTROY события
+        remaining_events = [
+            ("bridge_leave", unique_id_379, bridge_id_3),
+            ("bridge_leave", unique_id_376, bridge_id_3),
+            ("bridge_destroy", "", bridge_id_3),
+            ("bridge_leave", unique_id_377, bridge_id_1),
+            ("bridge_leave", unique_id_378, bridge_id_1),
+            ("bridge_destroy", "", bridge_id_1),
+            ("hangup", unique_id_377, "")
+        ]
+        
+        for i, (event_type, uid, bridge_id) in enumerate(remaining_events, 21):
+            if event_type == "bridge_leave":
+                event_data = {
+                    "BridgeUniqueid": bridge_id,
+                    "ConnectedLineNum": internal_phone if i % 2 == 1 else external_phone,
+                    "BridgeNumChannels": "1" if i % 2 == 1 else "0",
+                    "CallerIDName": "<unknown>",
+                    "ConnectedLineName": "<unknown>",
+                    "Token": enterprise_token,
+                    "UniqueId": uid,
+                    "Channel": f"Local/{internal_phone}@web-originate-00000017;{1 if i % 2 == 0 else 2}" if "377" in uid or "376" in uid else f"SIP/{internal_phone}-000000a4",
+                    "CallerIDNum": internal_phone
+                }
+            elif event_type == "bridge_destroy":
+                event_data = {
+                    "BridgeUniqueid": bridge_id,
+                    "BridgeType": "",
+                    "BridgeName": "<unknown>",
+                    "BridgeTechnology": "simple_bridge",
+                    "Token": enterprise_token,
+                    "UniqueId": "",
+                    "BridgeCreator": "<unknown>",
+                    "BridgeNumChannels": "0"
+                }
+            else:  # hangup для 377
+                event_data = {
+                    "EndTime": (end_time - timedelta(seconds=15)).strftime('%Y-%m-%d %H:%M:%S'),
+                    "Phone": external_phone,
+                    "DateReceived": start_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    "Extensions": [internal_phone],
+                    "Token": enterprise_token,
+                    "UniqueId": uid,
+                    "CallStatus": str(call_status),
+                    "CallType": call_type,
+                    "StartTime": ""
+                }
+            
+            if await self.send_event(event_type, event_data):
+                result['events_sent'] += 1
+            else:
+                result['events_failed'] += 1
+                result['errors'].append(f"Failed to send {event_type} {i} event")
+            
+            await asyncio.sleep(1)
+        
+        result['success'] = result['events_failed'] == 0
+        return result
 
 # Глобальный экземпляр сервиса
 test_service = CallTestService()

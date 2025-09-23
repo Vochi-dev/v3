@@ -2368,6 +2368,12 @@
                         }
                     });
                     break;
+
+                case 2: // 1-2: Исходящий звонок с внешней инициацией - ОСОБЫЙ СЛУЧАЙ!
+                    // Для паттерна 1-2 НЕ генерируем события здесь!
+                    // Отправляем напрямую на /api/test-call и он сам сгенерирует все 27 событий
+                    return []; // Пустой массив - события будут сгенерированы на сервере
+                    break;
                     
                 default:
                     // Общий паттерн для остальных типов (временно)
@@ -2748,7 +2754,23 @@ ${JSON.stringify(event.data, null, 2)}
                 formData.set('external_phone', phoneNumber.trim());
             }
             
-            // Генерируем события для паттерна
+            // Проверяем тип звонка - для паттерна 1-2 особая логика
+            if (parseInt(callTypeId) === 2) {
+                // Паттерн 1-2: отправляем сразу на API
+                document.getElementById('eventsPanel').style.display = 'block';
+                document.getElementById('emulatorStatus').style.display = 'block';
+                updateEmulatorStatus('Отправляка паттерн 1-2 (27 событий)...', 'primary');
+                
+                // Отключаем кнопки
+                document.getElementById('autoEmulateBtn').disabled = true;
+                document.getElementById('manualEmulateBtn').disabled = true;
+                
+                // Отправляем напрямую на API
+                executePattern1_2(formData);
+                return;
+            }
+            
+            // Генерируем события для остальных паттернов
             emulatorState.events = generateEventsForPattern(callTypeId, formData);
             emulatorState.mode = mode;
             emulatorState.currentStep = 0;
@@ -2771,6 +2793,54 @@ ${JSON.stringify(event.data, null, 2)}
                 document.getElementById('autoEmulateBtn').disabled = true;
                 document.getElementById('manualEmulateBtn').innerHTML = '<i class="fas fa-step-forward"></i> Следующий шаг';
                 updateEmulatorStatus('Ручной режим - нажмите для выполнения шага', 'warning');
+            }
+        }
+
+        // Выполнение паттерна 1-2
+        async function executePattern1_2(formData) {
+            try {
+                addEventToLog({
+                    step: 1,
+                    event: 'PATTERN_1_2_START',
+                    description: 'Запуск паттерна 1-2 (27 событий)',
+                    data: { note: 'Отправка запроса на сервер для генерации всех событий...' }
+                });
+
+                const response = await fetch('/api/test-call', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    addEventToLog({
+                        step: 2,
+                        event: 'PATTERN_1_2_SUCCESS',
+                        description: `Паттерн 1-2 выполнен успешно!`,
+                        data: {
+                            events_sent: result.details.events_sent,
+                            unique_id: result.details.unique_id,
+                            message: result.message
+                        }
+                    });
+                    updateEmulatorStatus(`✅ Завершено! Отправлено ${result.details.events_sent} событий`, 'success');
+                } else {
+                    throw new Error(result.message || 'Ошибка выполнения паттерна 1-2');
+                }
+            } catch (error) {
+                addEventToLog({
+                    step: 2,
+                    event: 'PATTERN_1_2_ERROR',
+                    description: 'Ошибка выполнения паттерна 1-2',
+                    data: { error: error.message }
+                });
+                updateEmulatorStatus(`❌ Ошибка: ${error.message}`, 'danger');
+            } finally {
+                // Возвращаем кнопки в исходное состояние
+                document.getElementById('autoEmulateBtn').disabled = false;
+                document.getElementById('manualEmulateBtn').disabled = false;
+                document.getElementById('manualEmulateBtn').innerHTML = '<i class="fas fa-cogs"></i> Ручная';
             }
         }
 
