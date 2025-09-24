@@ -4752,9 +4752,9 @@ ${JSON.stringify(event.data, null, 2)}
         // Отправка события на сервер
         async function sendEventToServer(event) {
             try {
-                // Отправляем напрямую на bot.vochi.by
+                // Отправляем через наш прокси для детального логирования
                 const eventType = event.event.toLowerCase();
-                const url = `https://bot.vochi.by/${eventType}`;
+                const url = `http://localhost:8025/api/proxy-webhook/${eventType}`;
                 
                 // Заменяем <ХРЕН> на <unknown> для отправки на сервер
                 const dataToSend = JSON.parse(JSON.stringify(event.data).replace(/<ХРЕН>/g, '<unknown>'));

@@ -31,7 +31,21 @@ from fastapi.templating import Jinja2Templates
 import uvicorn
 
 # Настройка логирования
-logging.basicConfig(level=logging.INFO)
+import os
+from datetime import datetime
+
+# Создаем директорию для логов если её нет
+os.makedirs("logs", exist_ok=True)
+
+# Настройка логирования с записью в файл и консоль
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[
+        logging.FileHandler('logs/call_tester_events.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Call Tester Service", description="Тестирование звонков для предприятий")
@@ -1156,9 +1170,16 @@ async def proxy_webhook_handler(event_type: str, request: Request):
     try:
         # Отправляем на внешний webhook
         external_url = f"https://bot.vochi.by/{event_type.lower()}"
-        logger.info(f"📡 Проксируем {event_type} на {external_url}")
-        logger.info(f"📋 Отправляемые данные: {event_data}")
-        logger.info(f"📋 Заголовки: {proxy_headers}")
+        
+        # Подробное логирование события
+        logger.info("=" * 80)
+        logger.info(f"🚀 ЭМУЛИРОВАННОЕ СОБЫТИЕ: {event_type.upper()}")
+        logger.info(f"📡 URL назначения: {external_url}")
+        logger.info(f"📋 Полные данные события:")
+        logger.info(f"{json.dumps(event_data, ensure_ascii=False, indent=2)}")
+        logger.info(f"📋 Заголовки запроса:")
+        logger.info(f"{json.dumps(proxy_headers, ensure_ascii=False, indent=2)}")
+        logger.info("=" * 80)
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
@@ -1176,8 +1197,15 @@ async def proxy_webhook_handler(event_type: str, request: Request):
             except:
                 response_data = {"raw_response": response_content.decode('utf-8', errors='ignore')}
             
-            logger.info(f"✅ Ответ от {external_url}: HTTP {response.status_code}")
-            logger.info(f"📋 ПОЛНЫЙ ОТВЕТ: {response_data}")
+            # Подробное логирование ответа
+            logger.info("-" * 80)
+            logger.info(f"✅ ОТВЕТ ОТ СЕРВЕРА: {event_type.upper()}")
+            logger.info(f"📡 HTTP статус: {response.status_code}")
+            logger.info(f"📋 Полное тело ответа:")
+            logger.info(f"{json.dumps(response_data, ensure_ascii=False, indent=2)}")
+            logger.info(f"📋 Заголовки ответа:")
+            logger.info(f"{dict(response.headers)}")
+            logger.info("-" * 80)
             
             # Возвращаем ответ с теми же данными что пришли от внешнего сервиса
             return JSONResponse(
