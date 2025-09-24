@@ -4360,6 +4360,84 @@
                     });
                     
                     break;
+
+                case 8: // 1-8: Простой неуспешный звонок (никто не отвечает)
+                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-8
+                    const uniqueIds_1_8 = {
+                        step1: generateUniqueId("1757769384.52"), // dial
+                        step2: generateUniqueId("1757769385.53"), // new_callerid (внешний канал)
+                        step3: generateUniqueId("1757769384.52")  // hangup (неуспешное завершение)
+                    };
+                    
+                    const phone_1_8 = (formData.get('external_phone') || '').replace(/^\+/, '');
+                    const managerRaw_1_8 = formData.get('internal_phone');
+                    const lineRaw_1_8 = formData.get('line_id');
+                    const manager_1_8 = managerRaw_1_8 || '151'; // Менеджер из формы
+                    const trunk_1_8 = lineRaw_1_8 ? lineRaw_1_8.split(' - ')[0] : '0001363'; // Транк из формы
+                    
+                    // НЕТ МОСТОВ в этом паттерне! Только создание каналов и неуспешное завершение
+                    
+                    // Временные метки
+                    const now_1_8 = new Date();
+                    const startTime_1_8 = new Date(now_1_8.getTime() - 25000); // 25 секунд назад
+                    const receivedTime_1_8 = new Date(startTime_1_8.getTime() - 1000); // 1 секунда до старта
+                    const endTime_1_8 = new Date(startTime_1_8.getTime() + 24000); // 24 секунды после старта
+                    
+                    // 1. dial - Инициация исходящего звонка
+                    events.push({
+                        step: 1,
+                        event: 'dial',
+                        description: 'Инициация исходящего звонка',
+                        data: {
+                            ExtPhone: "",
+                            CallType: 1,
+                            Token: token,
+                            Phone: phone_1_8,
+                            UniqueId: uniqueIds_1_8.step1,
+                            Extensions: [manager_1_8],
+                            Trunk: trunk_1_8,
+                            ExtTrunk: ""
+                        }
+                    });
+                    
+                    // 2. new_callerid - Внешний канал создается
+                    events.push({
+                        step: 2,
+                        event: 'new_callerid',
+                        description: 'Создание внешнего канала',
+                        data: {
+                            ConnectedLineName: manager_1_8,
+                            ConnectedLineNum: manager_1_8,
+                            CallerIDName: "<ХРЕН>",
+                            Token: token,
+                            Context: "from-out-office",
+                            UniqueId: uniqueIds_1_8.step2,
+                            CallerIDNum: phone_1_8,
+                            Exten: phone_1_8,
+                            Channel: `SIP/${trunk_1_8}-00000018`
+                        }
+                    });
+                    
+                    // 3. hangup - Неуспешное завершение звонка (никто не отвечает)
+                    events.push({
+                        step: 3,
+                        event: 'hangup',
+                        description: 'Неуспешное завершение звонка (никто не отвечает)',
+                        data: {
+                            CallStatus: "0", // НЕ ОТВЕЧЕН!
+                            CallType: 1,
+                            Token: token,
+                            Phone: phone_1_8,
+                            DateReceived: receivedTime_1_8.toISOString().slice(0, 19).replace('T', ' '),
+                            UniqueId: uniqueIds_1_8.step3,
+                            Extensions: [manager_1_8],
+                            EndTime: endTime_1_8.toISOString().slice(0, 19).replace('T', ' '),
+                            StartTime: startTime_1_8.toISOString().slice(0, 19).replace('T', ' '),
+                            Trunk: trunk_1_8
+                        }
+                    });
+                    
+                    break;
                     
                 default:
                     // Общий паттерн для остальных типов (временно)
