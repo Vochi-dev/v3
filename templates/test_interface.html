@@ -4438,6 +4438,236 @@
                     });
                     
                     break;
+
+                case 9: // 1-9: Переключение между линиями с успешным звонком
+                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-9
+                    const uniqueIds_1_9 = {
+                        step1: generateUniqueId("1758723701.11"), // dial (первая линия)
+                        step2: generateUniqueId("1758723702.12"), // new_callerid (первая линия)
+                        step3: generateUniqueId("1758723701.11"), // dial (вторая линия - тот же UniqueId!)
+                        step4: generateUniqueId("1758723702.13"), // new_callerid (вторая линия)
+                        step5: "", // bridge_create (единственный мост) - пустой
+                        step6: generateUniqueId("1758723702.13"), // bridge (вторая линия к мосту)
+                        step7: generateUniqueId("1758723701.11"), // bridge (менеджер к мосту)
+                        step8: generateUniqueId("1758723702.13"), // bridge_leave (вторая линия покидает мост)
+                        step9: generateUniqueId("1758723701.11"), // bridge_leave (менеджер покидает мост)
+                        step10: "", // bridge_destroy (единственный мост) - пустой
+                        step11: generateUniqueId("1758723701.11")  // hangup (успешное завершение)
+                    };
+                    
+                    const phone_1_9 = (formData.get('external_phone') || '').replace(/^\+/, '');
+                    const managerRaw_1_9 = formData.get('internal_phone');
+                    const lineRaw_1_9 = formData.get('line_id'); // ОСНОВНАЯ линия
+                    const reserveLineRaw_1_9 = formData.get('backup_line_id'); // РЕЗЕРВНАЯ линия
+                    const manager_1_9 = managerRaw_1_9 || '151'; // Менеджер из формы
+                    const trunk1_1_9 = lineRaw_1_9 ? lineRaw_1_9.split(' - ')[0] : '0001363'; // Первая попытка - ОСНОВНАЯ линия
+                    const trunk2_1_9 = reserveLineRaw_1_9 ? reserveLineRaw_1_9.split(' - ')[0] : '0001366'; // Переключение на РЕЗЕРВНУЮ линию
+                    
+                    // ОДИН МОСТ как в реальных данных (только для второй линии)
+                    const bridgeId_1_9 = generateBridgeUUID(); // Единственный мост (шаги 5,6,7,8,9,10)
+                    
+                    // Временные метки
+                    const now_1_9 = new Date();
+                    const startTime_1_9 = new Date(now_1_9.getTime() - 14000); // 14 секунд назад
+                    const receivedTime_1_9 = startTime_1_9; // Одновременно
+                    const endTime_1_9 = now_1_9; // Сейчас
+                    
+                    // 1. dial - Инициация на первой линии
+                    events.push({
+                        step: 1,
+                        event: 'dial',
+                        description: 'Инициация на первой линии',
+                        data: {
+                            UniqueId: uniqueIds_1_9.step1,
+                            ExtPhone: "",
+                            Token: token,
+                            CallType: 1,
+                            ExtTrunk: "",
+                            Trunk: trunk1_1_9,
+                            Extensions: [manager_1_9],
+                            Phone: phone_1_9
+                        }
+                    });
+                    
+                    // 2. new_callerid - Первая линия создается
+                    events.push({
+                        step: 2,
+                        event: 'new_callerid',
+                        description: 'Создание первой линии',
+                        data: {
+                            UniqueId: uniqueIds_1_9.step2,
+                            Token: token,
+                            CallerIDNum: phone_1_9,
+                            Context: "from-out-office",
+                            ConnectedLineName: manager_1_9,
+                            ConnectedLineNum: manager_1_9,
+                            Exten: phone_1_9,
+                            Channel: `SIP/${trunk1_1_9}-00000004`,
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // 3. dial - ПОВТОРНАЯ инициация на второй линии (тот же UniqueId!)
+                    events.push({
+                        step: 3,
+                        event: 'dial',
+                        description: 'Переключение на вторую линию',
+                        data: {
+                            UniqueId: uniqueIds_1_9.step3,
+                            ExtPhone: "",
+                            Token: token,
+                            CallType: 1,
+                            ExtTrunk: "",
+                            Trunk: trunk2_1_9, // Это должно быть 0001366!
+                            Extensions: [manager_1_9],
+                            Phone: phone_1_9
+                        }
+                    });
+                    
+                    // 4. new_callerid - Вторая линия создается
+                    events.push({
+                        step: 4,
+                        event: 'new_callerid',
+                        description: 'Создание второй линии',
+                        data: {
+                            UniqueId: uniqueIds_1_9.step4,
+                            Token: token,
+                            CallerIDNum: phone_1_9,
+                            Context: "from-out-office",
+                            ConnectedLineName: manager_1_9,
+                            ConnectedLineNum: manager_1_9,
+                            Exten: phone_1_9,
+                            Channel: `SIP/${trunk2_1_9}-00000005`, // Это должно быть SIP/0001366-00000005!
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // 5. bridge_create - Создание единственного моста
+                    events.push({
+                        step: 5,
+                        event: 'bridge_create',
+                        description: 'Создание единственного моста',
+                        data: {
+                            UniqueId: "",
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeTechnology: "simple_bridge",
+                            Token: token,
+                            BridgeUniqueid: bridgeId_1_9,
+                            BridgeType: "",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // 6. bridge - Вторая линия подключается к мосту
+                    events.push({
+                        step: 6,
+                        event: 'bridge',
+                        description: 'Подключение второй линии к мосту',
+                        data: {
+                            UniqueId: uniqueIds_1_9.step6,
+                            Token: token,
+                            CallerIDNum: phone_1_9,
+                            ConnectedLineName: manager_1_9,
+                            ConnectedLineNum: manager_1_9,
+                            BridgeUniqueid: bridgeId_1_9,
+                            Exten: "",
+                            Channel: `SIP/${trunk2_1_9}-00000005`, // Это должно быть SIP/0001366-00000005!
+                            CallerIDName: ""
+                        }
+                    });
+                    
+                    // 7. bridge - Менеджер подключается к мосту
+                    events.push({
+                        step: 7,
+                        event: 'bridge',
+                        description: 'Подключение менеджера к мосту',
+                        data: {
+                            UniqueId: uniqueIds_1_9.step7,
+                            Token: token,
+                            CallerIDNum: manager_1_9,
+                            ConnectedLineName: "<ХРЕН>",
+                            ConnectedLineNum: "<ХРЕН>",
+                            BridgeUniqueid: bridgeId_1_9,
+                            Exten: phone_1_9,
+                            Channel: `SIP/${manager_1_9}-00000003`,
+                            CallerIDName: manager_1_9
+                        }
+                    });
+                    
+                    // 8. bridge_leave - Вторая линия покидает мост
+                    events.push({
+                        step: 8,
+                        event: 'bridge_leave',
+                        description: 'Вторая линия покидает мост',
+                        data: {
+                            UniqueId: uniqueIds_1_9.step8,
+                            BridgeNumChannels: "1",
+                            Token: token,
+                            CallerIDNum: phone_1_9,
+                            ConnectedLineName: manager_1_9,
+                            ConnectedLineNum: manager_1_9,
+                            BridgeUniqueid: bridgeId_1_9,
+                            Channel: `SIP/${trunk2_1_9}-00000005`, // Это должно быть SIP/0001366-00000005!
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // 9. bridge_leave - Менеджер покидает мост
+                    events.push({
+                        step: 9,
+                        event: 'bridge_leave',
+                        description: 'Менеджер покидает мост',
+                        data: {
+                            UniqueId: uniqueIds_1_9.step9,
+                            BridgeNumChannels: "0",
+                            Token: token,
+                            CallerIDNum: manager_1_9,
+                            ConnectedLineName: "<ХРЕН>",
+                            ConnectedLineNum: "<ХРЕН>",
+                            BridgeUniqueid: bridgeId_1_9,
+                            Channel: `SIP/${manager_1_9}-00000003`,
+                            CallerIDName: manager_1_9
+                        }
+                    });
+                    
+                    // 10. bridge_destroy - Удаление единственного моста
+                    events.push({
+                        step: 10,
+                        event: 'bridge_destroy',
+                        description: 'Удаление единственного моста',
+                        data: {
+                            UniqueId: "",
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeTechnology: "simple_bridge",
+                            Token: token,
+                            BridgeUniqueid: bridgeId_1_9,
+                            BridgeType: "",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // 11. hangup - Успешное завершение звонка
+                    events.push({
+                        step: 11,
+                        event: 'hangup',
+                        description: 'Успешное завершение звонка',
+                        data: {
+                            StartTime: startTime_1_9.toISOString().slice(0, 19).replace('T', ' '),
+                            UniqueId: uniqueIds_1_9.step11,
+                            DateReceived: receivedTime_1_9.toISOString().slice(0, 19).replace('T', ' '),
+                            Token: token,
+                            CallType: 1,
+                            CallStatus: "2", // УСПЕШНЫЙ ЗВОНОК!
+                            Extensions: [""], // Пустой массив как в DB!
+                            Phone: phone_1_9,
+                            Trunk: trunk2_1_9,
+                            EndTime: endTime_1_9.toISOString().slice(0, 19).replace('T', ' ')
+                        }
+                    });
+                    
+                    break;
                     
                 default:
                     // Общий паттерн для остальных типов (временно)
