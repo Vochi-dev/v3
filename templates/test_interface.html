@@ -3783,6 +3783,351 @@
                     });
                     
                     break;
+
+                case 6: // 1-6: Прямая переадресация без переспроса
+                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-6
+                    const uniqueIds_1_6 = {
+                        step1: generateUniqueId("1757766483.42"), // dial
+                        step2: generateUniqueId("1757766484.43"), // new_callerid (внешний канал)
+                        step3: "", // bridge_create (мост A) - пустой
+                        step4: generateUniqueId("1757766484.43"), // bridge (внешний к мосту A)
+                        step5: generateUniqueId("1757766483.42"), // bridge (менеджер 1 к мосту A)
+                        step6: generateUniqueId("1757766483.42"), // bridge_leave (менеджер 1 покидает мост A)
+                        step7: generateUniqueId("1757766484.43"), // bridge_leave (внешний покидает мост A)
+                        step8: "", // bridge_destroy (мост A) - пустой
+                        step9: generateUniqueId("1757766502.44"), // new_callerid (менеджер 2 вызывается)
+                        step10: generateUniqueId("1757766483.42"), // hangup (завершение первого звонка)
+                        step11: "", // bridge_create (мост B) - пустой
+                        step12: generateUniqueId("1757766502.44"), // bridge (менеджер 2 к мосту B)
+                        step13: generateUniqueId("1757766484.43"), // bridge (внешний к мосту B)
+                        step14: generateUniqueId("1757766502.44"), // bridge_leave (менеджер 2 покидает мост B)
+                        step15: generateUniqueId("1757766484.43"), // bridge_leave (внешний покидает мост B)
+                        step16: "", // bridge_destroy (мост B) - пустой
+                        step17: generateUniqueId("1757766484.43")  // hangup (завершение второго звонка)
+                    };
+                    
+                    const phone_1_6 = (formData.get('external_phone') || '').replace(/^\+/, '');
+                    const manager1Raw_1_6 = formData.get('internal_phone');
+                    const manager2Raw_1_6 = formData.get('second_manager');
+                    const lineRaw_1_6 = formData.get('line_id');
+                    const manager1_1_6 = manager1Raw_1_6 || '151'; // Первый менеджер из формы
+                    const manager2_1_6 = manager2Raw_1_6 || '152'; // Второй менеджер из формы
+                    const trunk_1_6 = lineRaw_1_6 ? lineRaw_1_6.split(' - ')[0] : '0001363'; // Транк из формы
+                    
+                    // ДВА ПОСЛЕДОВАТЕЛЬНЫХ МОСТА как в реальных данных
+                    const bridgeId_A_1_6 = generateBridgeUUID(); // Первичный мост (шаги 3,4,5,6,7,8)
+                    const bridgeId_B_1_6 = generateBridgeUUID(); // Вторичный мост (шаги 11,12,13,14,15,16)
+                    
+                    // Временные метки
+                    const now_1_6 = new Date();
+                    const startTime_1_6 = new Date(now_1_6.getTime() - 26000); // 26 секунд назад
+                    const firstCallEnd_1_6 = new Date(now_1_6.getTime() - 8000); // 8 секунд назад
+                    const receivedTime_1_6 = new Date(firstCallEnd_1_6.getTime() - 1000); // 1 секунда до первого завершения
+                    const endTime_1_6 = new Date(now_1_6.getTime() - 2000); // 2 секунды назад
+                    
+                    // 1. dial - Инициация исходящего звонка
+                    events.push({
+                        step: 1,
+                        event: 'dial',
+                        description: 'Инициация исходящего звонка',
+                        data: {
+                            ExtPhone: "",
+                            Trunk: trunk_1_6,
+                            Token: token,
+                            Phone: phone_1_6,
+                            ExtTrunk: "",
+                            CallType: 1,
+                            Extensions: [manager1_1_6],
+                            UniqueId: uniqueIds_1_6.step1
+                        }
+                    });
+                    
+                    // 2. new_callerid - Внешний канал
+                    events.push({
+                        step: 2,
+                        event: 'new_callerid',
+                        description: 'Установка CallerID внешнего канала',
+                        data: {
+                            ConnectedLineNum: manager1_1_6,
+                            CallerIDName: "<ХРЕН>",
+                            CallerIDNum: phone_1_6,
+                            Token: token,
+                            ConnectedLineName: manager1_1_6,
+                            Exten: phone_1_6,
+                            Context: "from-out-office",
+                            Channel: `SIP/${trunk_1_6}-00000012`,
+                            UniqueId: uniqueIds_1_6.step2
+                        }
+                    });
+                    
+                    // 3. bridge_create - Создание первичного моста A
+                    events.push({
+                        step: 3,
+                        event: 'bridge_create',
+                        description: 'Создание первичного моста A',
+                        data: {
+                            BridgeUniqueid: bridgeId_A_1_6,
+                            BridgeNumChannels: "0",
+                            BridgeTechnology: "simple_bridge",
+                            Token: token,
+                            BridgeName: "<ХРЕН>",
+                            BridgeType: "",
+                            BridgeCreator: "<ХРЕН>",
+                            UniqueId: ""
+                        }
+                    });
+                    
+                    // 4. bridge - Внешний канал подключается к мосту A
+                    events.push({
+                        step: 4,
+                        event: 'bridge',
+                        description: 'Подключение внешнего канала к первичному мосту',
+                        data: {
+                            BridgeUniqueid: bridgeId_A_1_6,
+                            ConnectedLineNum: manager1_1_6,
+                            CallerIDName: "",
+                            CallerIDNum: phone_1_6,
+                            Token: token,
+                            ConnectedLineName: manager1_1_6,
+                            Exten: "",
+                            Channel: `SIP/${trunk_1_6}-00000012`,
+                            UniqueId: uniqueIds_1_6.step4
+                        }
+                    });
+                    
+                    // 5. bridge - Менеджер 1 подключается к мосту A
+                    events.push({
+                        step: 5,
+                        event: 'bridge',
+                        description: 'Подключение менеджера 1 к первичному мосту',
+                        data: {
+                            BridgeUniqueid: bridgeId_A_1_6,
+                            ConnectedLineNum: "<ХРЕН>",
+                            CallerIDName: manager1_1_6,
+                            CallerIDNum: manager1_1_6,
+                            Token: token,
+                            ConnectedLineName: "<ХРЕН>",
+                            Exten: phone_1_6,
+                            Channel: `SIP/${manager1_1_6}-00000011`,
+                            UniqueId: uniqueIds_1_6.step5
+                        }
+                    });
+                    
+                    // 6. bridge_leave - Менеджер 1 покидает мост A
+                    events.push({
+                        step: 6,
+                        event: 'bridge_leave',
+                        description: 'Менеджер 1 покидает первичный мост A',
+                        data: {
+                            BridgeUniqueid: bridgeId_A_1_6,
+                            ConnectedLineNum: "<ХРЕН>",
+                            CallerIDName: manager1_1_6,
+                            CallerIDNum: manager1_1_6,
+                            Token: token,
+                            ConnectedLineName: "<ХРЕН>",
+                            BridgeNumChannels: "1",
+                            Channel: `SIP/${manager1_1_6}-00000011`,
+                            UniqueId: uniqueIds_1_6.step6
+                        }
+                    });
+                    
+                    // 7. bridge_leave - Внешний канал покидает мост A
+                    events.push({
+                        step: 7,
+                        event: 'bridge_leave',
+                        description: 'Внешний канал покидает первичный мост A',
+                        data: {
+                            BridgeUniqueid: bridgeId_A_1_6,
+                            ConnectedLineNum: manager1_1_6,
+                            CallerIDName: "<ХРЕН>",
+                            CallerIDNum: phone_1_6,
+                            Token: token,
+                            ConnectedLineName: manager1_1_6,
+                            BridgeNumChannels: "0",
+                            Channel: `SIP/${trunk_1_6}-00000012`,
+                            UniqueId: uniqueIds_1_6.step7
+                        }
+                    });
+                    
+                    // 8. bridge_destroy - Удаление первичного моста A
+                    events.push({
+                        step: 8,
+                        event: 'bridge_destroy',
+                        description: 'Удаление первичного моста A',
+                        data: {
+                            BridgeUniqueid: bridgeId_A_1_6,
+                            BridgeNumChannels: "0",
+                            BridgeTechnology: "simple_bridge",
+                            Token: token,
+                            BridgeName: "<ХРЕН>",
+                            BridgeType: "",
+                            BridgeCreator: "<ХРЕН>",
+                            UniqueId: ""
+                        }
+                    });
+                    
+                    // 9. new_callerid - Вызов менеджера 2
+                    events.push({
+                        step: 9,
+                        event: 'new_callerid',
+                        description: 'Вызов менеджера 2',
+                        data: {
+                            ConnectedLineNum: phone_1_6,
+                            CallerIDName: manager1_1_6,
+                            CallerIDNum: manager2_1_6,
+                            Token: token,
+                            ConnectedLineName: "<ХРЕН>",
+                            Exten: manager2_1_6,
+                            Context: "inoffice",
+                            Channel: `SIP/${manager2_1_6}-00000013`,
+                            UniqueId: uniqueIds_1_6.step9
+                        }
+                    });
+                    
+                    // 10. hangup - Завершение первого звонка
+                    events.push({
+                        step: 10,
+                        event: 'hangup',
+                        description: 'Завершение первого звонка',
+                        data: {
+                            StartTime: startTime_1_6.toISOString().slice(0, 19).replace('T', ' '),
+                            CallStatus: "2",
+                            Trunk: trunk_1_6,
+                            Token: token,
+                            Phone: phone_1_6,
+                            EndTime: firstCallEnd_1_6.toISOString().slice(0, 19).replace('T', ' '),
+                            CallType: 1,
+                            Extensions: [manager1_1_6],
+                            DateReceived: receivedTime_1_6.toISOString().slice(0, 19).replace('T', ' '),
+                            UniqueId: uniqueIds_1_6.step10
+                        }
+                    });
+                    
+                    // 11. bridge_create - Создание вторичного моста B
+                    events.push({
+                        step: 11,
+                        event: 'bridge_create',
+                        description: 'Создание вторичного моста B',
+                        data: {
+                            BridgeUniqueid: bridgeId_B_1_6,
+                            BridgeNumChannels: "0",
+                            BridgeTechnology: "simple_bridge",
+                            Token: token,
+                            BridgeName: "<ХРЕН>",
+                            BridgeType: "",
+                            BridgeCreator: "<ХРЕН>",
+                            UniqueId: ""
+                        }
+                    });
+                    
+                    // 12. bridge - Менеджер 2 подключается к мосту B
+                    events.push({
+                        step: 12,
+                        event: 'bridge',
+                        description: 'Подключение менеджера 2 к вторичному мосту',
+                        data: {
+                            BridgeUniqueid: bridgeId_B_1_6,
+                            ConnectedLineNum: phone_1_6,
+                            CallerIDName: manager1_1_6,
+                            CallerIDNum: manager2_1_6,
+                            Token: token,
+                            ConnectedLineName: "<ХРЕН>",
+                            Exten: "",
+                            Channel: `SIP/${manager2_1_6}-00000013`,
+                            UniqueId: uniqueIds_1_6.step12
+                        }
+                    });
+                    
+                    // 13. bridge - Внешний канал подключается к мосту B
+                    events.push({
+                        step: 13,
+                        event: 'bridge',
+                        description: 'Подключение внешнего канала к вторичному мосту',
+                        data: {
+                            BridgeUniqueid: bridgeId_B_1_6,
+                            ConnectedLineNum: manager2_1_6,
+                            CallerIDName: "",
+                            CallerIDNum: phone_1_6,
+                            Token: token,
+                            ConnectedLineName: manager1_1_6,
+                            Exten: manager2_1_6,
+                            Channel: `SIP/${trunk_1_6}-00000012`,
+                            UniqueId: uniqueIds_1_6.step13
+                        }
+                    });
+                    
+                    // 14. bridge_leave - Менеджер 2 покидает мост B
+                    events.push({
+                        step: 14,
+                        event: 'bridge_leave',
+                        description: 'Менеджер 2 покидает вторичный мост B',
+                        data: {
+                            BridgeUniqueid: bridgeId_B_1_6,
+                            ConnectedLineNum: phone_1_6,
+                            CallerIDName: manager1_1_6,
+                            CallerIDNum: manager2_1_6,
+                            Token: token,
+                            ConnectedLineName: "<ХРЕН>",
+                            BridgeNumChannels: "1",
+                            Channel: `SIP/${manager2_1_6}-00000013`,
+                            UniqueId: uniqueIds_1_6.step14
+                        }
+                    });
+                    
+                    // 15. bridge_leave - Внешний канал покидает мост B
+                    events.push({
+                        step: 15,
+                        event: 'bridge_leave',
+                        description: 'Внешний канал покидает вторичный мост B',
+                        data: {
+                            BridgeUniqueid: bridgeId_B_1_6,
+                            ConnectedLineNum: manager2_1_6,
+                            CallerIDName: "<ХРЕН>",
+                            CallerIDNum: phone_1_6,
+                            Token: token,
+                            ConnectedLineName: manager1_1_6,
+                            BridgeNumChannels: "0",
+                            Channel: `SIP/${trunk_1_6}-00000012`,
+                            UniqueId: uniqueIds_1_6.step15
+                        }
+                    });
+                    
+                    // 16. bridge_destroy - Удаление вторичного моста B
+                    events.push({
+                        step: 16,
+                        event: 'bridge_destroy',
+                        description: 'Удаление вторичного моста B',
+                        data: {
+                            BridgeUniqueid: bridgeId_B_1_6,
+                            BridgeNumChannels: "0",
+                            BridgeTechnology: "simple_bridge",
+                            Token: token,
+                            BridgeName: "<ХРЕН>",
+                            BridgeType: "",
+                            BridgeCreator: "<ХРЕН>",
+                            UniqueId: ""
+                        }
+                    });
+                    
+                    // 17. hangup - Завершение второго звонка
+                    events.push({
+                        step: 17,
+                        event: 'hangup',
+                        description: 'Завершение второго звонка',
+                        data: {
+                            StartTime: "",
+                            CallStatus: "2",
+                            Token: token,
+                            Phone: phone_1_6,
+                            EndTime: endTime_1_6.toISOString().slice(0, 19).replace('T', ' '),
+                            CallType: 2,
+                            Extensions: [manager2_1_6],
+                            DateReceived: firstCallEnd_1_6.toISOString().slice(0, 19).replace('T', ' '),
+                            UniqueId: uniqueIds_1_6.step17
+                        }
+                    });
+                    
+                    break;
                     
                 default:
                     // Общий паттерн для остальных типов (временно)
