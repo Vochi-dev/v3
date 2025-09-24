@@ -2174,10 +2174,9 @@
             // Получаем токен для предприятия (пока захардкодим для 0367)
             const token = enterprise === '0367' ? '375293332255' : '375293332255';
             
-            const bridgeId = generateBridgeUUID();
-
             switch(parseInt(callTypeId)) {
                 case 1: // 1-1: Исходящий звонок - ответили
+                    const bridgeId = generateBridgeUUID();
                     // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-1
                     const uniqueIds_1_1 = {
                         step1: generateUniqueId("1757765248.0"), // dial
@@ -2375,10 +2374,207 @@
                     });
                     break;
 
-                case 2: // 1-2: Исходящий звонок с внешней инициацией - ОСОБЫЙ СЛУЧАЙ!
-                    // Для паттерна 1-2 НЕ генерируем события здесь!
-                    // Отправляем напрямую на /api/test-call и он сам сгенерирует все 27 событий
-                    return []; // Пустой массив - события будут сгенерированы на сервере
+                case 2: // 1-2: Исходящий звонок с внешней инициацией
+                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-2
+                    const uniqueIds_1_2 = {
+                        step1: "", // bridge_create - пустой
+                        step2: generateUniqueId("1758619319.101"), // bridge
+                        step3: generateUniqueId("1758619324.103"), // dial  
+                        step4: generateUniqueId("1758619324.104"), // new_callerid
+                        step5: generateUniqueId("1758619324.104"), // bridge
+                        step6: generateUniqueId("1758619324.104"), // bridge_leave
+                        step7: "", // bridge_destroy - пустой
+                        step8: generateUniqueId("1758619324.103"), // hangup
+                        step9: generateUniqueId("1758619319.101")  // bridge_leave
+                    };
+                    
+                    const phone_1_2 = (formData.get('external_phone') || '').replace(/^\+/, '');
+                    const managerRaw_1_2 = formData.get('internal_phone');
+                    const lineRaw_1_2 = formData.get('line_id');
+                    const manager_1_2 = managerRaw_1_2 || '150'; // Из формы
+                    const trunk_1_2 = lineRaw_1_2 ? lineRaw_1_2.split(' - ')[0] : '0001363'; // Из формы
+                    
+                    // ДВА РАЗНЫХ МОСТА как в реальных данных
+                    const bridgeId_A = generateBridgeUUID(); // Для шагов 1, 2, 9
+                    const bridgeId_B = generateBridgeUUID(); // Для шагов 5, 6, 7
+                    
+                    // Определяем тип линии (SIP или GSM)
+                    const isSipLine_1_2 = lineRaw_1_2 && lineRaw_1_2.includes('(SIP)');
+                    const extensionsForHangup_1_2 = isSipLine_1_2 ? [trunk_1_2] : [manager_1_2];
+                    
+                    // Временные метки
+                    const now_1_2 = new Date();
+                    const startTime_1_2 = new Date(now_1_2.getTime() - 20000); // 20 секунд назад
+                    const receivedTime_1_2 = new Date(startTime_1_2.getTime() - 1000); // 1 секунда до startTime
+                    
+                    // 1. bridge_create - Создание моста (НАЧИНАЕМ С МОСТА!)
+                    events.push({
+                        step: 1,
+                        event: 'bridge_create',
+                        description: 'Создание моста для внешней инициации',
+                        data: {
+                            BridgeType: "",
+                            BridgeUniqueid: bridgeId_A,
+                            UniqueId: uniqueIds_1_2.step1,
+                            BridgeCreator: "<ХРЕН>",
+                            Token: token,
+                            BridgeName: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            BridgeTechnology: "simple_bridge",
+                            ExternalInitiated: true
+                        }
+                    });
+
+                    // 2. bridge - Подключение внутреннего канала к мосту A
+                    events.push({
+                        step: 2,
+                        event: 'bridge',
+                        description: 'Подключение внутреннего канала',
+                        data: {
+                            CallerIDNum: manager_1_2,
+                            Channel: `SIP/${manager_1_2}-00000018`,
+                            CallerIDName: "",
+                            BridgeUniqueid: bridgeId_A,
+                            UniqueId: uniqueIds_1_2.step2,
+                            Exten: "",
+                            ConnectedLineNum: `+${phone_1_2}`,
+                            Token: token,
+                            ConnectedLineName: "<ХРЕН>",
+                            ExternalInitiated: true
+                        }
+                    });
+
+                    // 3. dial - Инициация исходящего звонка
+                    events.push({
+                        step: 3,
+                        event: 'dial',
+                        description: 'Инициация исходящего звонка',
+                        data: {
+                            Phone: phone_1_2,
+                            ExtTrunk: "",
+                            ExtPhone: "",
+                            Extensions: [manager_1_2],
+                            UniqueId: uniqueIds_1_2.step3,
+                            Token: token,
+                            Trunk: trunk_1_2,
+                            CallType: 1,
+                            ExternalInitiated: true
+                        }
+                    });
+
+                    // 4. new_callerid - Установка CallerID
+                    events.push({
+                        step: 4,
+                        event: 'new_callerid',
+                        description: 'Установка CallerID',
+                        data: {
+                            CallerIDNum: phone_1_2,
+                            Channel: `SIP/${trunk_1_2}-00000019`,
+                            CallerIDName: "<ХРЕН>",
+                            Context: "from-out-office",
+                            UniqueId: uniqueIds_1_2.step4,
+                            ConnectedLineNum: manager_1_2,
+                            Token: token,
+                            ConnectedLineName: "<ХРЕН>",
+                            Exten: phone_1_2,
+                            ExternalInitiated: true
+                        }
+                    });
+
+                    // 5. bridge - Подключение внешнего канала к мосту B
+                    events.push({
+                        step: 5,
+                        event: 'bridge',
+                        description: 'Подключение внешнего канала к новому мосту',
+                        data: {
+                            CallerIDNum: phone_1_2,
+                            Channel: `SIP/${trunk_1_2}-00000019`,
+                            CallerIDName: "",
+                            BridgeUniqueid: bridgeId_B,
+                            UniqueId: uniqueIds_1_2.step5,
+                            Exten: "",
+                            ConnectedLineNum: manager_1_2,
+                            Token: token,
+                            ConnectedLineName: "<ХРЕН>",
+                            ExternalInitiated: true
+                        }
+                    });
+
+                    // 6. bridge_leave - Выход внешнего канала из моста B
+                    events.push({
+                        step: 6,
+                        event: 'bridge_leave',
+                        description: 'Выход внешнего канала из моста B',
+                        data: {
+                            CallerIDNum: phone_1_2,
+                            Channel: `SIP/${trunk_1_2}-00000019`,
+                            CallerIDName: "<ХРЕН>",
+                            BridgeUniqueid: bridgeId_B,
+                            UniqueId: uniqueIds_1_2.step6,
+                            ConnectedLineNum: manager_1_2,
+                            Token: token,
+                            ConnectedLineName: "<ХРЕН>",
+                            BridgeNumChannels: "1",
+                            ExternalInitiated: true
+                        }
+                    });
+
+                    // 7. bridge_destroy - Удаление моста B
+                    events.push({
+                        step: 7,
+                        event: 'bridge_destroy',
+                        description: 'Удаление моста B',
+                        data: {
+                            BridgeType: "",
+                            BridgeUniqueid: bridgeId_B,
+                            UniqueId: uniqueIds_1_2.step7,
+                            BridgeCreator: "<ХРЕН>",
+                            Token: token,
+                            BridgeName: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            BridgeTechnology: "simple_bridge",
+                            ExternalInitiated: true
+                        }
+                    });
+
+                    // 8. hangup - Завершение звонка
+                    events.push({
+                        step: 8,
+                        event: 'hangup',
+                        description: 'Завершение звонка',
+                        data: {
+                            Phone: phone_1_2,
+                            StartTime: startTime_1_2.toISOString().replace('T', ' ').substring(0, 19),
+                            Extensions: [""],
+                            UniqueId: uniqueIds_1_2.step8,
+                            DateReceived: receivedTime_1_2.toISOString().replace('T', ' ').substring(0, 19),
+                            Token: token,
+                            EndTime: now_1_2.toISOString().replace('T', ' ').substring(0, 19),
+                            CallType: 1,
+                            CallStatus: "2",
+                            Trunk: trunk_1_2,
+                            ExternalInitiated: true
+                        }
+                    });
+
+                    // 9. bridge_leave - Выход внутреннего канала из моста A (последний)
+                    events.push({
+                        step: 9,
+                        event: 'bridge_leave',
+                        description: 'Выход внутреннего канала из моста A',
+                        data: {
+                            CallerIDNum: manager_1_2,
+                            Channel: `SIP/${manager_1_2}-00000018`,
+                            CallerIDName: "<ХРЕН>",
+                            BridgeUniqueid: bridgeId_A,
+                            UniqueId: uniqueIds_1_2.step9,
+                            ConnectedLineNum: `+${phone_1_2}`,
+                            Token: token,
+                            ConnectedLineName: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            ExternalInitiated: true
+                        }
+                    });
                     break;
                     
                 default:
@@ -2769,21 +2965,6 @@ ${JSON.stringify(event.data, null, 2)}
                 formData.set('external_phone', phoneNumber.trim());
             }
             
-            // Проверяем тип звонка - для паттерна 1-2 особая логика
-            if (parseInt(callTypeId) === 2) {
-                // Паттерн 1-2: отправляем сразу на API
-                document.getElementById('eventsPanel').style.display = 'block';
-                document.getElementById('emulatorStatus').style.display = 'block';
-                updateEmulatorStatus('Отправляка паттерн 1-2 (27 событий)...', 'primary');
-                
-                // Отключаем кнопки
-                document.getElementById('autoEmulateBtn').disabled = true;
-                document.getElementById('manualEmulateBtn').disabled = true;
-                
-                // Отправляем напрямую на API
-                executePattern1_2(formData);
-                return;
-            }
             
             // Генерируем события для остальных паттернов
             emulatorState.events = generateEventsForPattern(callTypeId, formData);
@@ -2811,53 +2992,6 @@ ${JSON.stringify(event.data, null, 2)}
             }
         }
 
-        // Выполнение паттерна 1-2
-        async function executePattern1_2(formData) {
-            try {
-                addEventToLog({
-                    step: 1,
-                    event: 'PATTERN_1_2_START',
-                    description: 'Запуск паттерна 1-2 (27 событий)',
-                    data: { note: 'Отправка запроса на сервер для генерации всех событий...' }
-                });
-
-                const response = await fetch('/api/test-call', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    addEventToLog({
-                        step: 2,
-                        event: 'PATTERN_1_2_SUCCESS',
-                        description: `Паттерн 1-2 выполнен успешно!`,
-                        data: {
-                            events_sent: result.details.events_sent,
-                            unique_id: result.details.unique_id,
-                            message: result.message
-                        }
-                    });
-                    updateEmulatorStatus(`✅ Завершено! Отправлено ${result.details.events_sent} событий`, 'success');
-                } else {
-                    throw new Error(result.message || 'Ошибка выполнения паттерна 1-2');
-                }
-            } catch (error) {
-                addEventToLog({
-                    step: 2,
-                    event: 'PATTERN_1_2_ERROR',
-                    description: 'Ошибка выполнения паттерна 1-2',
-                    data: { error: error.message }
-                });
-                updateEmulatorStatus(`❌ Ошибка: ${error.message}`, 'danger');
-            } finally {
-                // Возвращаем кнопки в исходное состояние
-                document.getElementById('autoEmulateBtn').disabled = false;
-                document.getElementById('manualEmulateBtn').disabled = false;
-                document.getElementById('manualEmulateBtn').innerHTML = '<i class="fas fa-cogs"></i> Ручная';
-            }
-        }
 
         // Сброс эмуляции
         function resetEmulation() {
