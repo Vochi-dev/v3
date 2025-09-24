@@ -1546,7 +1546,7 @@ async def format_telegram_message(event_data: dict, enterprise_number: str) -> s
         "0100": "2025-09-15T10:58:08.195301",
         ...
     },
-    "memory_enterprises": ["0100", "0367", "0387", ...]
+    "memory_enterprises": ["0100", "0367", "0387", ...] 1111
 }
 ```
 
