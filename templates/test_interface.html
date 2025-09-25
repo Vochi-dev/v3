@@ -4669,6 +4669,73 @@
                     
                     break;
                     
+                case 10:
+                    // ======= ПАТТЕРН 1-10: ПРОСТОЙ НЕУСПЕШНЫЙ ЗВОНОК (3 события) =======
+                    const uniqueIds_1_10 = {
+                        step1: generateUniqueId("1758786622.0"), // dial
+                        step2: generateUniqueId("1758786623.1"), // new_callerid
+                        step3: generateUniqueId("1758786622.0")  // hangup
+                    };
+                    const phone_1_10 = (formData.get('external_phone') || 'UNKNOWN_PHONE').replace(/^\+/, '');
+                    const manager_1_10 = formData.get('internal_phone') || 'UNKNOWN_MANAGER';
+                    const trunk_1_10 = formData.get('line_id') || 'UNKNOWN_LINE';
+                    
+                    // Шаг 1: DIAL - начало исходящего звонка
+                    events.push({
+                        step: 1,
+                        event: 'DIAL',
+                        description: 'Начало исходящего звонка (неуспешный)',
+                        data: {
+                            "Token": token,
+                            "ExtPhone": "",
+                            "Extensions": [manager_1_10],
+                            "CallType": 1,
+                            "ExtTrunk": "",
+                            "Phone": phone_1_10,
+                            "UniqueId": uniqueIds_1_10.step1,
+                            "Trunk": trunk_1_10
+                        }
+                    });
+                    
+                    // Шаг 2: NEW_CALLERID - установка канала
+                    events.push({
+                        step: 2,
+                        event: 'NEW_CALLERID', 
+                        description: 'Создание SIP канала для исходящего звонка',
+                        data: {
+                            "Token": token,
+                            "UniqueId": uniqueIds_1_10.step2,
+                            "Exten": phone_1_10,
+                            "Context": "from-out-office",
+                            "CallerIDName": "ХРЕН",
+                            "Channel": `SIP/${trunk_1_10}-00000001`,
+                            "ConnectedLineNum": manager_1_10,
+                            "CallerIDNum": phone_1_10,
+                            "ConnectedLineName": manager_1_10
+                        }
+                    });
+                    
+                    // Шаг 3: HANGUP - завершение неуспешного звонка
+                    events.push({
+                        step: 3,
+                        event: 'HANGUP',
+                        description: 'Завершение неуспешного звонка (нет ответа)',
+                        data: {
+                            "Token": token,
+                            "Trunk": trunk_1_10,
+                            "UniqueId": uniqueIds_1_10.step3,
+                            "Phone": phone_1_10,
+                            "CallStatus": "0",
+                            "EndTime": new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            "Extensions": [""],  // Пустые Extensions при неудаче
+                            "DateReceived": new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            "CallType": 1,
+                            "StartTime": new Date().toISOString().slice(0, 19).replace('T', ' ')
+                        }
+                    });
+                    
+                    break;
+                    
                 default:
                     // Общий паттерн для остальных типов (временно)
                     events.push({
@@ -4752,9 +4819,8 @@ ${JSON.stringify(event.data, null, 2)}
         // Отправка события на сервер
         async function sendEventToServer(event) {
             try {
-                // Отправляем через наш прокси для детального логирования
                 const eventType = event.event.toLowerCase();
-                const url = `http://localhost:8025/api/proxy-webhook/${eventType}`;
+                const url = `https://bot.vochi.by/${eventType}`;
                 
                 // Заменяем <ХРЕН> на <unknown> для отправки на сервер
                 const dataToSend = JSON.parse(JSON.stringify(event.data).replace(/<ХРЕН>/g, '<unknown>'));
