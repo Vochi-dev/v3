@@ -1,6 +1,11 @@
 # Мануал по событиям Asterisk для интеграций
 
-## 🔍 **СИСТЕМА ДЕТАЛЬНОГО ЛОГИРОВАНИЯ ЭМУЛЯЦИИ (2025-09-24)**
+# 🚨🚨🚨 **ЛОГИ СЕРВИСА 8025 ЧИТАТЬ ЗДЕСЬ:** 🚨🚨🚨
+# 📍 `/root/asterisk-webhook/logs/call_tester_events.log`
+# 📍 `/root/asterisk-webhook/logs/call_tester_events.log`
+# 📍 `/root/asterisk-webhook/logs/call_tester_events.log`
+
+## 🔍 **СИСТЕМА ДЕТАЛЬНОГО ЛОГИРОВАНИЯ ЭМУЛЯЦИИ (2025-09-25)**
 
 ### **📍 РАСПОЛОЖЕНИЕ ЛОГОВ:**
 - **Файл:** `/root/asterisk-webhook/logs/call_tester_events.log`

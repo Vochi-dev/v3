@@ -28,6 +28,7 @@ from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Настройка логирования
@@ -49,6 +50,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Call Tester Service", description="Тестирование звонков для предприятий")
+
+# Добавляем CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Разрешаем все домены
+    allow_credentials=True,
+    allow_methods=["*"],  # Разрешаем все методы
+    allow_headers=["*"],  # Разрешаем все заголовки
+)
 
 # Настройка шаблонов
 templates = Jinja2Templates(directory="templates")
@@ -1225,6 +1235,42 @@ async def proxy_webhook_handler(event_type: str, request: Request):
 @app.post("/api/proxy-webhook/{event_type}")
 async def proxy_webhook(event_type: str, request: Request):
     return await proxy_webhook_handler(event_type, request)
+
+@app.post("/api/log-event")
+async def log_event(request: Request):
+    """Эндпоинт для логирования событий эмуляции в файл"""
+    try:
+        log_data = await request.json()
+        
+        # Формируем лог в том же формате что и в прокси-функции
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
+        
+        if log_data.get('type') == 'emulation_request':
+            logger.info(f"🚀 EMULATION REQUEST to {log_data.get('url', 'unknown')}")
+            logger.info(f"📤 Event Type: {log_data.get('event_type', 'unknown')}")
+            logger.info(f"📊 Event Data: {json.dumps(log_data.get('data', {}), ensure_ascii=False, indent=2)}")
+            
+        elif log_data.get('type') == 'emulation_response':
+            logger.info(f"📥 EMULATION RESPONSE for {log_data.get('event_type', 'unknown')}")
+            logger.info(f"📊 Response Status: {log_data.get('status', 'unknown')}")
+            logger.info(f"📊 Response Data: {json.dumps(log_data.get('response_data', {}), ensure_ascii=False, indent=2)}")
+            
+        elif log_data.get('type') == 'emulation_error':
+            logger.error(f"❌ EMULATION ERROR for {log_data.get('event_type', 'unknown')}")
+            logger.error(f"❌ Error: {log_data.get('error', 'unknown')}")
+        
+        # Явно добавляем CORS заголовки к ответу
+        response = JSONResponse({"status": "logged"})
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return response
+        
+    except Exception as e:
+        logger.error(f"Failed to log event: {e}")
+        error_response = JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+        return error_response
 
 @app.post("/api/test-call")
 async def test_call_api(
