@@ -5014,6 +5014,79 @@
                     
                     break;
                     
+                case 13:
+                    // ======= ПАТТЕРН 2-2: НЕУСПЕШНЫЙ ВХОДЯЩИЙ ЗВОНОК НА ГРУППУ (3 события) =======
+                    const uniqueIds_2_2 = {
+                        step1: generateUniqueId("1757772834.67"), // start
+                        step2: generateUniqueId("1757772834.67"), // dial  
+                        step3: generateUniqueId("1757772834.67")  // hangup
+                    };
+                    
+                    const phone_2_2 = (formData.get('external_phone') || 'UNKNOWN_PHONE').replace(/^\+/, '');
+                    const trunk_2_2 = formData.get('line_id') || 'UNKNOWN_LINE';
+                    
+                    // Формируем группу менеджеров из полей internal_group_1-4
+                    const groupExtensions_2_2 = [
+                        formData.get('internal_group_1'),
+                        formData.get('internal_group_2'),
+                        formData.get('internal_group_3'),
+                        formData.get('internal_group_4')
+                    ].filter(value => value); // убираем пустые значения
+                    
+                    // ШАГИ ПАТТЕРНА 2-2 (3 события):
+                    
+                    // Шаг 1: START
+                    events.push({
+                        step: 1,
+                        event: 'start',
+                        description: '[ПАТТЕРН 2-2] Шаг 1: START - Начало входящего звонка',
+                        data: {
+                            CallType: 0,
+                            Token: "375293332255",
+                            Trunk: trunk_2_2,
+                            Phone: phone_2_2,
+                            UniqueId: uniqueIds_2_2.step1
+                        }
+                    });
+                    
+                    // Шаг 2: DIAL (звонок на всю группу)
+                    events.push({
+                        step: 2,
+                        event: 'dial',
+                        description: '[ПАТТЕРН 2-2] Шаг 2: DIAL - Звонок на группу менеджеров',
+                        data: {
+                            CallType: 0,
+                            Trunk: trunk_2_2,
+                            ExtPhone: phone_2_2,
+                            Phone: phone_2_2,
+                            UniqueId: uniqueIds_2_2.step2,
+                            Extensions: groupExtensions_2_2, // вся группа
+                            Token: "375293332255",
+                            ExtTrunk: ""
+                        }
+                    });
+                    
+                    // Шаг 3: HANGUP (никто не ответил)
+                    events.push({
+                        step: 3,
+                        event: 'hangup',
+                        description: '[ПАТТЕРН 2-2] Шаг 3: HANGUP - Завершение звонка (никто не ответил)',
+                        data: {
+                            CallType: 0,
+                            DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            CallStatus: "0", // неуспешный
+                            Phone: phone_2_2,
+                            UniqueId: uniqueIds_2_2.step3,
+                            StartTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            Extensions: [""], // никто не ответил
+                            Token: "375293332255",
+                            EndTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            Trunk: trunk_2_2
+                        }
+                    });
+                    
+                    break;
+                    
                 default:
                     // Общий паттерн для остальных типов (временно)
                     events.push({
