@@ -9287,6 +9287,20 @@
                     
                     break;
                     
+                case 24:
+                    // TODO: Паттерн 2-13 будет добавлен позже
+                    events.push({
+                        step: 1,
+                        event: 'CALL_START',
+                        description: `Паттерн 2-13 (в разработке)`,
+                        data: { 
+                            call_type: callTypeId,
+                            token: token,
+                            note: "Паттерн 2-13 временно недоступен"
+                        }
+                    });
+                    break;
+                    
                 default:
                     // Общий паттерн для остальных типов (временно)
                     events.push({
