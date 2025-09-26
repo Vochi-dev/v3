@@ -9322,6 +9322,11 @@
                     // DIAL #3: первый из step1 + мобильный менеджер + первый из step2 - ВСЕ ОБЯЗАТЕЛЬНЫ
                     const dial3Extensions_2_13 = [step1Extensions_2_13[0], mobileManager_2_13, step2Extensions_2_13[0]];
                     
+                    // Генерируем UniqueId для каждого события на основе DB образца
+                    const uniqueIds_2_13 = {
+                        start: generateUniqueId("1757774605.260")
+                    };
+                    
                     // ВРЕМЕННАЯ ЗАГЛУШКА - показываем сформированные Extensions
                     events.push({
                         step: 1,
