@@ -9326,20 +9326,29 @@
                         formData.get('step2_manager_4')
                     ].filter(value => value && value !== '');
                     
-                    // ВРЕМЕННАЯ ЗАГЛУШКА - пока только выводим что данные собраны
+                    // ФИКСИРОВАННЫЕ 3 DIAL события согласно DB файлу:
+                    // DIAL #1: только первый менеджер из step1 - ОБЯЗАТЕЛЬНО должен быть заполнен
+                    const dial1Extensions_2_13 = [step1Extensions_2_13[0]];
+                    
+                    // DIAL #2: первый из step1 + первый из step2 - ОБА ОБЯЗАТЕЛЬНЫ  
+                    const dial2Extensions_2_13 = [step1Extensions_2_13[0], step2Extensions_2_13[0]];
+                    
+                    // DIAL #3: первый из step1 + мобильный менеджер + первый из step2 - ВСЕ ОБЯЗАТЕЛЬНЫ
+                    const dial3Extensions_2_13 = [step1Extensions_2_13[0], mobileManager_2_13, step2Extensions_2_13[0]];
+                    
+                    // ВРЕМЕННАЯ ЗАГЛУШКА - показываем сформированные Extensions
                     events.push({
                         step: 1,
                         event: 'start',
-                        description: `Паттерн 2-13: Данные собраны из формы`,
+                        description: `Паттерн 2-13: Extensions сформированы`,
                         data: { 
                             phone: phone_2_13,
                             trunk: trunk_2_13,
                             answered_manager: answeredManager_2_13,
-                            mobile_manager: mobileManager_2_13,
-                            mobile_line: mobileLine_2_13,
-                            step1_count: step1Extensions_2_13.length,
-                            step2_count: step2Extensions_2_13.length,
-                            note: "Данные из формы получены успешно"
+                            dial1_extensions: dial1Extensions_2_13,
+                            dial2_extensions: dial2Extensions_2_13,
+                            dial3_extensions: dial3Extensions_2_13,
+                            note: "Extensions для 3 DIAL событий готовы"
                         }
                     });
                     break;
