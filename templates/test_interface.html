@@ -1283,8 +1283,8 @@
                 defaultResult: "answered"
             },
             "18": {
-                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager", "transfer_to_manager"],
-                required: ["external_phone", "line", "internal_group_1", "answered_manager", "transfer_to_manager"],
+                fields: ["external_phone", "line", "internal_group_1", "internal_group_2", "internal_group_3", "internal_group_4", "answered_manager", "transfer_to_manager", "mobile_manager", "mobile_outgoing_line"],
+                required: ["external_phone", "line", "internal_group_1", "answered_manager", "transfer_to_manager", "mobile_manager", "mobile_outgoing_line"],
                 description: "Звонок на группу абонентов - подняли трубку - Переадресация вызова с запросом - вызов принят другим оператором - разговор отклонен",
                 defaultDuration: 3,
                 defaultResult: "rejected"
@@ -6184,6 +6184,627 @@
                             Token: "375293332255",
                             Trunk: trunk_2_6,
                             Phone: phone_2_6,
+                            StartTime: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                        }
+                    });
+                    
+                    break;
+                    
+                case 18:
+                    // ======= ПАТТЕРН 2-7: ПЕРЕВОД С ЗАПРОСОМ И ВОЗВРАТ (31 событие) =======
+                    const uniqueIds_2_7 = {
+                        step1: generateUniqueId("1757773671.123"),  // start
+                        step2: generateUniqueId("1757773671.123"),  // new_callerid (исходный)
+                        step3: generateUniqueId("1757773671.123"),  // dial (на группу)
+                        step4: generateUniqueId("1757773672.125"),  // new_callerid (Local ;1)
+                        step5: generateUniqueId("1757773672.126"),  // new_callerid (Local ;2)
+                        step6: generateUniqueId("1757773672.126"),  // dial (переадресация)
+                        step7: generateUniqueId("1757773672.129"),  // new_callerid (trunk1)
+                        step8: generateUniqueId("1757773672.126"),  // dial (trunk2)
+                        step9: generateUniqueId("1757773672.130"),  // new_callerid (trunk2)
+                        step10: generateUniqueId(""),               // bridge_create (мост #1)
+                        step11: generateUniqueId("1757773671.123"), // bridge (исходный → мост #1)
+                        step12: generateUniqueId("1757773672.127"), // bridge (151 → мост #1)
+                        step13: generateUniqueId("1757773672.126"), // hangup (мобильная переадресация)
+                        step14: generateUniqueId(""),               // bridge_create (мост #2)
+                        step15: generateUniqueId("1757773688.134"), // new_callerid (Local ;2 dialexecute)
+                        step16: generateUniqueId("1757773688.133"), // new_callerid (Local ;1 dialexecute)
+                        step17: generateUniqueId(""),               // bridge_create (мост #3)
+                        step18: generateUniqueId("1757773688.135"), // bridge (152 → мост #3)
+                        step19: generateUniqueId("1757773688.134"), // bridge (Local;2 → мост #3)
+                        step20: generateUniqueId("1757773688.135"), // bridge_leave (152 из мост #3)
+                        step21: generateUniqueId("1757773688.134"), // bridge_leave (Local;2 из мост #3)
+                        step22: generateUniqueId(""),               // bridge_destroy (мост #3)
+                        step23: generateUniqueId("1757773688.134"), // hangup (консультация)
+                        step24: generateUniqueId("1757773688.133"), // bridge_leave (Local;1 из мост #2)
+                        step25: generateUniqueId("1757773672.127"), // bridge_leave (151 из мост #2)
+                        step26: generateUniqueId("1757773672.127"), // bridge (151 возврат в мост #1)
+                        step27: generateUniqueId(""),               // bridge_destroy (мост #2)
+                        step28: generateUniqueId("1757773672.127"), // bridge_leave (151 из мост #1)
+                        step29: generateUniqueId("1757773671.123"), // bridge_leave (исходный из мост #1)
+                        step30: generateUniqueId(""),               // bridge_destroy (мост #1)
+                        step31: generateUniqueId("1757773671.123")  // hangup (финальный)
+                    };
+                    
+                    const phone_2_7 = (formData.get('external_phone') || 'UNKNOWN_PHONE').replace(/^\+/, '');
+                    const trunk_2_7 = formData.get('line_id') || 'UNKNOWN_LINE';
+                    const backupTrunk_2_7 = formData.get('mobile_outgoing_line') || 'UNKNOWN_BACKUP_LINE';
+                    
+                    // Получаем мобильный номер выбранного менеджера для переадресации
+                    const mobileManagerSelect_2_7 = document.querySelector('select[name="mobile_manager"]');
+                    const selectedOption_2_7 = mobileManagerSelect_2_7 ? mobileManagerSelect_2_7.querySelector(`option[value="${formData.get('mobile_manager')}"]`) : null;
+                    const mobileNumber_2_7 = (selectedOption_2_7 && selectedOption_2_7.getAttribute('data-mobile')) ? selectedOption_2_7.getAttribute('data-mobile').replace(/^\+/, '') : 'UNKNOWN_MOBILE';
+                    
+                    // Получаем менеджеров: кто ответил первым и кому переводили
+                    const firstManager_2_7 = formData.get('answered_manager') || '151';
+                    const secondManager_2_7 = formData.get('transfer_to_manager') || '152';
+                    
+                    
+                    // Формируем группу менеджеров
+                    const groupExtensions_2_7 = [
+                        formData.get('internal_group_1'),
+                        mobileNumber_2_7,
+                        formData.get('internal_group_2'),
+                        formData.get('internal_group_3'),
+                        formData.get('internal_group_4')
+                    ].filter(value => value);
+                    
+                    // UUIDs для трех мостов
+                    const bridgeId1_2_7 = generateBridgeUUID(); // основной мост
+                    const bridgeId2_2_7 = generateBridgeUUID(); // консультационный мост
+                    const bridgeId3_2_7 = generateBridgeUUID(); // мост для разговора менеджеров
+                    
+                    // ШАГИ ПАТТЕРНА 2-7 (31 событие):
+                    
+                    // ФАЗА 1: ВХОДЯЩИЙ ЗВОНОК (шаги 1-13)
+                    
+                    // Шаг 1: START
+                    events.push({
+                        step: 1,
+                        event: 'start',
+                        description: '[ПАТТЕРН 2-7] Шаг 1: START - Входящий звонок',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step1,
+                            Token: "375293332255",
+                            Phone: phone_2_7,
+                            CallType: 0,
+                            Trunk: trunk_2_7
+                        }
+                    });
+                    
+                    // Шаг 2: NEW_CALLERID (исходный канал)
+                    events.push({
+                        step: 2,
+                        event: 'new_callerid',
+                        description: '[ПАТТЕРН 2-7] Шаг 2: NEW_CALLERID - Создание исходного канала',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step2,
+                            Channel: `SIP/${trunk_2_7}-0000003c`,
+                            Exten: trunk_2_7,
+                            Context: "from-out-office",
+                            CallerIDNum: phone_2_7,
+                            ConnectedLineNum: "<ХРЕН>",
+                            Token: "375293332255",
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDName: `-${phone_2_7}`
+                        }
+                    });
+                    
+                    // Шаг 3: DIAL (на группу)
+                    events.push({
+                        step: 3,
+                        event: 'dial',
+                        description: '[ПАТТЕРН 2-7] Шаг 3: DIAL - Звонок на группу менеджеров',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step3,
+                            ExtPhone: phone_2_7,
+                            CallType: 0,
+                            Extensions: groupExtensions_2_7,
+                            Token: "375293332255",
+                            ExtTrunk: "",
+                            Phone: phone_2_7,
+                            Trunk: trunk_2_7
+                        }
+                    });
+                    
+                    // Шаг 4: NEW_CALLERID (Local ;1)
+                    events.push({
+                        step: 4,
+                        event: 'new_callerid',
+                        description: '[ПАТТЕРН 2-7] Шаг 4: NEW_CALLERID - Local канал ;1',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step4,
+                            Channel: `Local/${mobileNumber_2_7}@179e93af-00000005;1`,
+                            Exten: trunk_2_7,
+                            Context: "179e93af",
+                            CallerIDNum: trunk_2_7,
+                            ConnectedLineNum: phone_2_7,
+                            Token: "375293332255",
+                            ConnectedLineName: `-${phone_2_7}`,
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // Шаг 5: NEW_CALLERID (Local ;2)
+                    events.push({
+                        step: 5,
+                        event: 'new_callerid',
+                        description: '[ПАТТЕРН 2-7] Шаг 5: NEW_CALLERID - Local канал ;2',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step5,
+                            Channel: `Local/${mobileNumber_2_7}@179e93af-00000005;2`,
+                            Exten: mobileNumber_2_7,
+                            Context: "179e93af",
+                            CallerIDNum: phone_2_7,
+                            ConnectedLineNum: trunk_2_7,
+                            Token: "375293332255",
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDName: `-${phone_2_7}`
+                        }
+                    });
+                    
+                    // Шаг 6: DIAL (переадресация)
+                    events.push({
+                        step: 6,
+                        event: 'dial',
+                        description: '[ПАТТЕРН 2-7] Шаг 6: DIAL - Переадресация на мобильный',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step6,
+                            ExtPhone: "",
+                            CallType: 1,
+                            Extensions: [phone_2_7],
+                            Token: "375293332255",
+                            ExtTrunk: "",
+                            Phone: mobileNumber_2_7,
+                            Trunk: trunk_2_7
+                        }
+                    });
+                    
+                    // Шаг 7: NEW_CALLERID (первый trunk)
+                    events.push({
+                        step: 7,
+                        event: 'new_callerid',
+                        description: '[ПАТТЕРН 2-7] Шаг 7: NEW_CALLERID - Первый trunk переадресации',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step7,
+                            Channel: `SIP/${trunk_2_7}-00000040`,
+                            Exten: mobileNumber_2_7,
+                            Context: "from-out-office",
+                            CallerIDNum: mobileNumber_2_7,
+                            ConnectedLineNum: phone_2_7,
+                            Token: "375293332255",
+                            ConnectedLineName: `-${phone_2_7}`,
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // Шаг 8: DIAL (второй trunk)
+                    events.push({
+                        step: 8,
+                        event: 'dial',
+                        description: '[ПАТТЕРН 2-7] Шаг 8: DIAL - Второй trunk переадресации',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step8,
+                            ExtPhone: "",
+                            CallType: 1,
+                            Extensions: [phone_2_7],
+                            Token: "375293332255",
+                            ExtTrunk: "",
+                            Phone: mobileNumber_2_7,
+                            Trunk: backupTrunk_2_7
+                        }
+                    });
+                    
+                    // Шаг 9: NEW_CALLERID (второй trunk)
+                    events.push({
+                        step: 9,
+                        event: 'new_callerid',
+                        description: '[ПАТТЕРН 2-7] Шаг 9: NEW_CALLERID - Второй trunk переадресации',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step9,
+                            Channel: `SIP/${backupTrunk_2_7}-00000041`,
+                            Exten: mobileNumber_2_7,
+                            Context: "from-out-office",
+                            CallerIDNum: mobileNumber_2_7,
+                            ConnectedLineNum: phone_2_7,
+                            Token: "375293332255",
+                            ConnectedLineName: `-${phone_2_7}`,
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // Шаг 10: BRIDGE_CREATE (основной мост)
+                    events.push({
+                        step: 10,
+                        event: 'bridge_create',
+                        description: '[ПАТТЕРН 2-7] Шаг 10: BRIDGE_CREATE - Создание основного моста',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step10,
+                            BridgeUniqueid: bridgeId1_2_7,
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<ХРЕН>",
+                            BridgeType: "",
+                            Token: "375293332255",
+                            BridgeTechnology: "simple_bridge"
+                        }
+                    });
+                    
+                    // Шаг 11: BRIDGE (исходный канал в основной мост)
+                    events.push({
+                        step: 11,
+                        event: 'bridge',
+                        description: '[ПАТТЕРН 2-7] Шаг 11: BRIDGE - Исходный канал в основной мост',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step11,
+                            BridgeUniqueid: bridgeId1_2_7,
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDNum: phone_2_7,
+                            Exten: trunk_2_7,
+                            Token: "375293332255",
+                            Channel: `SIP/${trunk_2_7}-0000003c`,
+                            ConnectedLineNum: firstManager_2_7,
+                            CallerIDName: `-${phone_2_7}`
+                        }
+                    });
+                    
+                    // Шаг 12: BRIDGE (первый менеджер в основной мост)
+                    events.push({
+                        step: 12,
+                        event: 'bridge',
+                        description: '[ПАТТЕРН 2-7] Шаг 12: BRIDGE - Первый менеджер в основной мост',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step12,
+                            BridgeUniqueid: bridgeId1_2_7,
+                            ConnectedLineName: `-${phone_2_7}`,
+                            CallerIDNum: firstManager_2_7,
+                            Exten: "",
+                            Token: "375293332255",
+                            Channel: `SIP/${firstManager_2_7}-0000003e`,
+                            ConnectedLineNum: phone_2_7,
+                            CallerIDName: ""
+                        }
+                    });
+                    
+                    // Шаг 13: HANGUP (мобильная переадресация)
+                    events.push({
+                        step: 13,
+                        event: 'hangup',
+                        description: '[ПАТТЕРН 2-7] Шаг 13: HANGUP - Мобильная переадресация завершена',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step13,
+                            DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            CallStatus: "0",
+                            CallType: 1,
+                            Extensions: [phone_2_7],
+                            EndTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            Token: "375293332255",
+                            Trunk: backupTrunk_2_7,
+                            Phone: mobileNumber_2_7,
+                            StartTime: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                        }
+                    });
+                    
+                    // ФАЗА 2: ПЕРЕВОД С ЗАПРОСОМ (шаги 14-27)
+                    
+                    // Шаг 14: BRIDGE_CREATE (консультационный мост)
+                    events.push({
+                        step: 14,
+                        event: 'bridge_create',
+                        description: '[ПАТТЕРН 2-7] Шаг 14: BRIDGE_CREATE - Консультационный мост',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step14,
+                            BridgeUniqueid: bridgeId2_2_7,
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<ХРЕН>",
+                            BridgeType: "",
+                            Token: "375293332255",
+                            BridgeTechnology: "simple_bridge"
+                        }
+                    });
+                    
+                    // Шаг 15: NEW_CALLERID (Local dialexecute ;2)
+                    events.push({
+                        step: 15,
+                        event: 'new_callerid',
+                        description: '[ПАТТЕРН 2-7] Шаг 15: NEW_CALLERID - Local dialexecute ;2',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step15,
+                            Channel: `Local/${secondManager_2_7}@dialexecute-00000006;2`,
+                            Exten: secondManager_2_7,
+                            Context: "dialexecute",
+                            CallerIDNum: firstManager_2_7,
+                            ConnectedLineNum: "<ХРЕН>",
+                            Token: "375293332255",
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // Шаг 16: NEW_CALLERID (Local dialexecute ;1)
+                    events.push({
+                        step: 16,
+                        event: 'new_callerid',
+                        description: '[ПАТТЕРН 2-7] Шаг 16: NEW_CALLERID - Local dialexecute ;1',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step16,
+                            Channel: `Local/${secondManager_2_7}@dialexecute-00000006;1`,
+                            Exten: secondManager_2_7,
+                            Context: "dialexecute",
+                            CallerIDNum: secondManager_2_7,
+                            ConnectedLineNum: firstManager_2_7,
+                            Token: "375293332255",
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // Шаг 17: BRIDGE_CREATE (мост для разговора менеджеров)
+                    events.push({
+                        step: 17,
+                        event: 'bridge_create',
+                        description: '[ПАТТЕРН 2-7] Шаг 17: BRIDGE_CREATE - Мост для разговора менеджеров',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step17,
+                            BridgeUniqueid: bridgeId3_2_7,
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<ХРЕН>",
+                            BridgeType: "",
+                            Token: "375293332255",
+                            BridgeTechnology: "simple_bridge"
+                        }
+                    });
+                    
+                    // Шаг 18: BRIDGE (второй менеджер в мост #3)
+                    events.push({
+                        step: 18,
+                        event: 'bridge',
+                        description: '[ПАТТЕРН 2-7] Шаг 18: BRIDGE - Второй менеджер в мост для разговора',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step18,
+                            BridgeUniqueid: bridgeId3_2_7,
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDNum: secondManager_2_7,
+                            Exten: "",
+                            Token: "375293332255",
+                            Channel: `SIP/${secondManager_2_7}-00000042`,
+                            ConnectedLineNum: firstManager_2_7,
+                            CallerIDName: ""
+                        }
+                    });
+                    
+                    // Шаг 19: BRIDGE (Local ;2 в мост #3)
+                    events.push({
+                        step: 19,
+                        event: 'bridge',
+                        description: '[ПАТТЕРН 2-7] Шаг 19: BRIDGE - Local ;2 в мост для разговора',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step19,
+                            BridgeUniqueid: bridgeId3_2_7,
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDNum: firstManager_2_7,
+                            Exten: secondManager_2_7,
+                            Token: "375293332255",
+                            Channel: `Local/${secondManager_2_7}@dialexecute-00000006;2`,
+                            ConnectedLineNum: secondManager_2_7,
+                            CallerIDName: ""
+                        }
+                    });
+                    
+                    // Шаг 20: BRIDGE_LEAVE (второй менеджер покидает мост #3)
+                    events.push({
+                        step: 20,
+                        event: 'bridge_leave',
+                        description: '[ПАТТЕРН 2-7] Шаг 20: BRIDGE_LEAVE - Второй менеджер отказывается',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step20,
+                            BridgeUniqueid: bridgeId3_2_7,
+                            CallerIDNum: secondManager_2_7,
+                            ConnectedLineNum: firstManager_2_7,
+                            Token: "375293332255",
+                            BridgeNumChannels: "1",
+                            Channel: `SIP/${secondManager_2_7}-00000042`,
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // Шаг 21: BRIDGE_LEAVE (Local ;2 покидает мост #3)
+                    events.push({
+                        step: 21,
+                        event: 'bridge_leave',
+                        description: '[ПАТТЕРН 2-7] Шаг 21: BRIDGE_LEAVE - Local ;2 покидает мост',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step21,
+                            BridgeUniqueid: bridgeId3_2_7,
+                            CallerIDNum: firstManager_2_7,
+                            ConnectedLineNum: secondManager_2_7,
+                            Token: "375293332255",
+                            BridgeNumChannels: "0",
+                            Channel: `Local/${secondManager_2_7}@dialexecute-00000006;2`,
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // Шаг 22: BRIDGE_DESTROY (уничтожение моста #3)
+                    events.push({
+                        step: 22,
+                        event: 'bridge_destroy',
+                        description: '[ПАТТЕРН 2-7] Шаг 22: BRIDGE_DESTROY - Уничтожение моста для разговора',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step22,
+                            BridgeUniqueid: bridgeId3_2_7,
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<ХРЕН>",
+                            BridgeType: "",
+                            Token: "375293332255",
+                            BridgeTechnology: "simple_bridge"
+                        }
+                    });
+                    
+                    // Шаг 23: HANGUP (завершение консультации)
+                    events.push({
+                        step: 23,
+                        event: 'hangup',
+                        description: '[ПАТТЕРН 2-7] Шаг 23: HANGUP - Завершение консультации',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step23,
+                            DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            CallStatus: "2",
+                            CallType: 2,
+                            Extensions: [secondManager_2_7],
+                            EndTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            Token: "375293332255",
+                            Phone: firstManager_2_7,
+                            StartTime: ""
+                        }
+                    });
+                    
+                    // Шаг 24: BRIDGE_LEAVE (Local ;1 покидает мост #2)
+                    events.push({
+                        step: 24,
+                        event: 'bridge_leave',
+                        description: '[ПАТТЕРН 2-7] Шаг 24: BRIDGE_LEAVE - Local ;1 покидает консультационный мост',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step24,
+                            BridgeUniqueid: bridgeId2_2_7,
+                            CallerIDNum: secondManager_2_7,
+                            ConnectedLineNum: firstManager_2_7,
+                            Token: "375293332255",
+                            BridgeNumChannels: "1",
+                            Channel: `Local/${secondManager_2_7}@dialexecute-00000006;1`,
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // Шаг 25: BRIDGE_LEAVE (первый менеджер покидает мост #2)
+                    events.push({
+                        step: 25,
+                        event: 'bridge_leave',
+                        description: '[ПАТТЕРН 2-7] Шаг 25: BRIDGE_LEAVE - Первый менеджер покидает консультационный мост',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step25,
+                            BridgeUniqueid: bridgeId2_2_7,
+                            CallerIDNum: firstManager_2_7,
+                            ConnectedLineNum: secondManager_2_7,
+                            Token: "375293332255",
+                            BridgeNumChannels: "0",
+                            Channel: `SIP/${firstManager_2_7}-0000003e`,
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDName: ""
+                        }
+                    });
+                    
+                    // Шаг 26: BRIDGE (первый менеджер возвращается в основной мост)
+                    events.push({
+                        step: 26,
+                        event: 'bridge',
+                        description: '[ПАТТЕРН 2-7] Шаг 26: BRIDGE - Первый менеджер возвращается к клиенту',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step26,
+                            BridgeUniqueid: bridgeId1_2_7,
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDNum: firstManager_2_7,
+                            Exten: "",
+                            Token: "375293332255",
+                            Channel: `SIP/${firstManager_2_7}-0000003e`,
+                            ConnectedLineNum: secondManager_2_7,
+                            CallerIDName: ""
+                        }
+                    });
+                    
+                    // Шаг 27: BRIDGE_DESTROY (уничтожение консультационного моста)
+                    events.push({
+                        step: 27,
+                        event: 'bridge_destroy',
+                        description: '[ПАТТЕРН 2-7] Шаг 27: BRIDGE_DESTROY - Уничтожение консультационного моста',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step27,
+                            BridgeUniqueid: bridgeId2_2_7,
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<ХРЕН>",
+                            BridgeType: "",
+                            Token: "375293332255",
+                            BridgeTechnology: "simple_bridge"
+                        }
+                    });
+                    
+                    // ФАЗА 3: ЗАВЕРШЕНИЕ (шаги 28-31)
+                    
+                    // Шаг 28: BRIDGE_LEAVE (первый менеджер покидает основной мост)
+                    events.push({
+                        step: 28,
+                        event: 'bridge_leave',
+                        description: '[ПАТТЕРН 2-7] Шаг 28: BRIDGE_LEAVE - Первый менеджер покидает основной мост',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step28,
+                            BridgeUniqueid: bridgeId1_2_7,
+                            CallerIDNum: firstManager_2_7,
+                            ConnectedLineNum: phone_2_7,
+                            Token: "375293332255",
+                            BridgeNumChannels: "1",
+                            Channel: `SIP/${firstManager_2_7}-0000003e`,
+                            ConnectedLineName: `-${phone_2_7}`,
+                            CallerIDName: "<ХРЕН>"
+                        }
+                    });
+                    
+                    // Шаг 29: BRIDGE_LEAVE (исходный канал покидает основной мост)
+                    events.push({
+                        step: 29,
+                        event: 'bridge_leave',
+                        description: '[ПАТТЕРН 2-7] Шаг 29: BRIDGE_LEAVE - Исходный канал покидает основной мост',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step29,
+                            BridgeUniqueid: bridgeId1_2_7,
+                            CallerIDNum: phone_2_7,
+                            ConnectedLineNum: firstManager_2_7,
+                            Token: "375293332255",
+                            BridgeNumChannels: "0",
+                            Channel: `SIP/${trunk_2_7}-0000003c`,
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDName: `-${phone_2_7}`
+                        }
+                    });
+                    
+                    // Шаг 30: BRIDGE_DESTROY (уничтожение основного моста)
+                    events.push({
+                        step: 30,
+                        event: 'bridge_destroy',
+                        description: '[ПАТТЕРН 2-7] Шаг 30: BRIDGE_DESTROY - Уничтожение основного моста',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step30,
+                            BridgeUniqueid: bridgeId1_2_7,
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<ХРЕН>",
+                            BridgeType: "",
+                            Token: "375293332255",
+                            BridgeTechnology: "simple_bridge"
+                        }
+                    });
+                    
+                    // Шаг 31: HANGUP (финальное завершение)
+                    events.push({
+                        step: 31,
+                        event: 'hangup',
+                        description: '[ПАТТЕРН 2-7] Шаг 31: HANGUP - Успешное завершение звонка',
+                        data: {
+                            UniqueId: uniqueIds_2_7.step31,
+                            DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            CallStatus: "2",
+                            CallType: 0,
+                            Extensions: [firstManager_2_7],
+                            EndTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            Token: "375293332255",
+                            Trunk: trunk_2_7,
+                            Phone: phone_2_7,
                             StartTime: new Date().toISOString().slice(0, 19).replace('T', ' ')
                         }
                     });
