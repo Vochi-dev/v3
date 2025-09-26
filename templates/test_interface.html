@@ -1318,8 +1318,8 @@
                 defaultResult: "no_answer"
             },
             "23": {
-                fields: ["external_phone", "line", "step1_group", "step2_group", "step3_group", "step1_manager_1", "step1_manager_2", "step1_manager_3", "step1_manager_4", "step2_manager_1", "step2_manager_2", "step2_manager_3", "step2_manager_4", "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4", "answered_manager_final", "answered_manager"],
-                required: ["external_phone", "line", "step1_manager_1", "answered_manager"],
+                fields: ["external_phone", "line", "step1_group", "step2_group", "step3_group", "step1_manager_1", "step1_manager_2", "step1_manager_3", "step1_manager_4", "step2_manager_1", "step2_manager_2", "step2_manager_3", "step2_manager_4", "step3_manager_1", "step3_manager_2", "step3_manager_3", "step3_manager_4", "answered_manager_final"],
+                required: ["external_phone", "line", "step1_manager_1", "answered_manager_final"],
                 description: "Звонок на одного абонента, потом добавился еще один абонент - трубку подняли",
                 defaultDuration: 3,
                 defaultResult: "answered"
@@ -1995,6 +1995,121 @@
             });
         }
 
+        // Функции для обновления доступности менеджеров в шагах паттерна 2-12
+        function updateStep1ManagersAvailability() {
+            const step1Selects = [
+                document.getElementById('step1_manager_1'),
+                document.getElementById('step1_manager_2'),
+                document.getElementById('step1_manager_3'),
+                document.getElementById('step1_manager_4')
+            ];
+            
+            // Собираем выбранные значения в шаге 1
+            const selectedValues = step1Selects.map(select => select ? select.value : '').filter(val => val !== '');
+            
+            // Обновляем доступность опций в каждом селекте шага 1
+            step1Selects.forEach((select, selectIndex) => {
+                if (!select) return;
+                
+                const options = select.querySelectorAll('option');
+                options.forEach(option => {
+                    if (option.value === '') return; // Пропускаем пустую опцию
+                    
+                    // Проверяем, выбрано ли это значение в других селектах этого же шага
+                    const isSelectedElsewhere = selectedValues.includes(option.value) && select.value !== option.value;
+                    
+                    if (isSelectedElsewhere) {
+                        option.disabled = true;
+                        option.style.backgroundColor = '#f8f9fa';
+                        option.style.color = '#6c757d';
+                        option.textContent = option.textContent.includes('(занят)') ? 
+                            option.textContent : option.textContent + ' (занят в шаге)';
+                    } else {
+                        option.disabled = false;
+                        option.style.backgroundColor = '';
+                        option.style.color = '';
+                        option.textContent = option.textContent.replace(' (занят в шаге)', '');
+                    }
+                });
+            });
+        }
+
+        function updateStep2ManagersAvailability() {
+            const step2Selects = [
+                document.getElementById('step2_manager_1'),
+                document.getElementById('step2_manager_2'),
+                document.getElementById('step2_manager_3'),
+                document.getElementById('step2_manager_4')
+            ];
+            
+            // Собираем выбранные значения в шаге 2
+            const selectedValues = step2Selects.map(select => select ? select.value : '').filter(val => val !== '');
+            
+            // Обновляем доступность опций в каждом селекте шага 2
+            step2Selects.forEach((select, selectIndex) => {
+                if (!select) return;
+                
+                const options = select.querySelectorAll('option');
+                options.forEach(option => {
+                    if (option.value === '') return; // Пропускаем пустую опцию
+                    
+                    // Проверяем, выбрано ли это значение в других селектах этого же шага
+                    const isSelectedElsewhere = selectedValues.includes(option.value) && select.value !== option.value;
+                    
+                    if (isSelectedElsewhere) {
+                        option.disabled = true;
+                        option.style.backgroundColor = '#f8f9fa';
+                        option.style.color = '#6c757d';
+                        option.textContent = option.textContent.includes('(занят)') ? 
+                            option.textContent : option.textContent + ' (занят в шаге)';
+                    } else {
+                        option.disabled = false;
+                        option.style.backgroundColor = '';
+                        option.style.color = '';
+                        option.textContent = option.textContent.replace(' (занят в шаге)', '');
+                    }
+                });
+            });
+        }
+
+        function updateStep3ManagersAvailability() {
+            const step3Selects = [
+                document.getElementById('step3_manager_1'),
+                document.getElementById('step3_manager_2'),
+                document.getElementById('step3_manager_3'),
+                document.getElementById('step3_manager_4')
+            ];
+            
+            // Собираем выбранные значения в шаге 3
+            const selectedValues = step3Selects.map(select => select ? select.value : '').filter(val => val !== '');
+            
+            // Обновляем доступность опций в каждом селекте шага 3
+            step3Selects.forEach((select, selectIndex) => {
+                if (!select) return;
+                
+                const options = select.querySelectorAll('option');
+                options.forEach(option => {
+                    if (option.value === '') return; // Пропускаем пустую опцию
+                    
+                    // Проверяем, выбрано ли это значение в других селектах этого же шага
+                    const isSelectedElsewhere = selectedValues.includes(option.value) && select.value !== option.value;
+                    
+                    if (isSelectedElsewhere) {
+                        option.disabled = true;
+                        option.style.backgroundColor = '#f8f9fa';
+                        option.style.color = '#6c757d';
+                        option.textContent = option.textContent.includes('(занят)') ? 
+                            option.textContent : option.textContent + ' (занят в шаге)';
+                    } else {
+                        option.disabled = false;
+                        option.style.backgroundColor = '';
+                        option.style.color = '';
+                        option.textContent = option.textContent.replace(' (занят в шаге)', '');
+                    }
+                });
+            });
+        }
+
         // Функция для автоматического обновления результата мобильного звонка
         function updateMobileAnswerDisplay() {
             const step3MobileManager = document.getElementById('step3_mobile_manager');
@@ -2174,6 +2289,31 @@
                     select.addEventListener('change', updateDepartmentMembersAvailability);
                 }
             });
+
+            // Обработчики для шагов паттерна 2-12
+            const step1ManagerSelects = ['step1_manager_1', 'step1_manager_2', 'step1_manager_3', 'step1_manager_4'];
+            step1ManagerSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.addEventListener('change', updateStep1ManagersAvailability);
+                }
+            });
+
+            const step2ManagerSelects = ['step2_manager_1', 'step2_manager_2', 'step2_manager_3', 'step2_manager_4'];
+            step2ManagerSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.addEventListener('change', updateStep2ManagersAvailability);
+                }
+            });
+
+            const step3ManagerSelects = ['step3_manager_1', 'step3_manager_2', 'step3_manager_3', 'step3_manager_4'];
+            step3ManagerSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.addEventListener('change', updateStep3ManagersAvailability);
+                }
+            });
         });
 
         // Инициализация при загрузке страницы
@@ -2195,6 +2335,9 @@
             setTimeout(updateFollowMeExternalLineAvailability, 100);
             setTimeout(updateInternalCallAvailability, 100);
             setTimeout(updateDepartmentMembersAvailability, 100);
+            setTimeout(updateStep1ManagersAvailability, 100);
+            setTimeout(updateStep2ManagersAvailability, 100);
+            setTimeout(updateStep3ManagersAvailability, 100);
             
             // Инициализация флагов стран
             initCountryFlags();
@@ -8881,6 +9024,263 @@
                             EndTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
                             Token: "375293332255",
                             Phone: phone_2_11,
+                            StartTime: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                        }
+                    });
+                    
+                    break;
+                    
+                case 23:
+                    // ======= ПАТТЕРН 2-12: ДИНАМИЧЕСКИЕ СОБЫТИЯ DIAL В ЗАВИСИМОСТИ ОТ ЗАПОЛНЕННЫХ ШАГОВ =======
+                    
+                    // Получаем базовую информацию
+                    const phone_2_12 = (formData.get('external_phone') || 'UNKNOWN_PHONE').replace(/^\+/, '');
+                    const trunk_2_12 = formData.get('line_id') || 'UNKNOWN_LINE';
+                    const answeredManager_2_12 = formData.get('answered_manager_final') || '150';
+                    
+                    // Собираем группы менеджеров для каждого шага
+                    const step1Extensions_2_12 = [
+                        formData.get('step1_manager_1'),
+                        formData.get('step1_manager_2'),
+                        formData.get('step1_manager_3'),
+                        formData.get('step1_manager_4')
+                    ].filter(value => value && value !== '');
+                    
+                    const step2Extensions_2_12 = [
+                        formData.get('step2_manager_1'),
+                        formData.get('step2_manager_2'),
+                        formData.get('step2_manager_3'),
+                        formData.get('step2_manager_4')
+                    ].filter(value => value && value !== '');
+                    
+                    const step3Extensions_2_12 = [
+                        formData.get('step3_manager_1'),
+                        formData.get('step3_manager_2'),
+                        formData.get('step3_manager_3'),
+                        formData.get('step3_manager_4')
+                    ].filter(value => value && value !== '');
+                    
+                    // Определяем активные шаги на основе заполненных данных
+                    const activeSteps_2_12 = [];
+                    if (step1Extensions_2_12.length > 0) activeSteps_2_12.push({step: 1, extensions: step1Extensions_2_12});
+                    if (step2Extensions_2_12.length > 0) activeSteps_2_12.push({step: 2, extensions: step2Extensions_2_12});
+                    if (step3Extensions_2_12.length > 0) activeSteps_2_12.push({step: 3, extensions: step3Extensions_2_12});
+                    
+                    // Проверяем что хотя бы один шаг заполнен
+                    if (activeSteps_2_12.length === 0) {
+                        console.warn('Паттерн 2-12: Не заполнен ни один шаг с менеджерами');
+                        // Добавляем дефолтный шаг
+                        activeSteps_2_12.push({step: 1, extensions: ['150']});
+                    }
+                    
+                    // Генерируем UniqueId для каждого события
+                    const uniqueIds_2_12 = {
+                        start: generateUniqueId("1757774467.253"),
+                        new_callerid: generateUniqueId("1757774467.253"),
+                        bridge_create: generateUniqueId(""),
+                        bridge_external: generateUniqueId("1757774467.253"),
+                        bridge_manager: generateUniqueId("1757774482.256"),
+                        bridge_leave_manager: generateUniqueId("1757774482.256"),
+                        bridge_leave_external: generateUniqueId("1757774467.253"),
+                        bridge_destroy: generateUniqueId(""),
+                        hangup: generateUniqueId("1757774467.253")
+                    };
+                    
+                    // Генерируем уникальные ID для каждого dial события
+                    const dialUniqueIds_2_12 = activeSteps_2_12.map((_, index) => 
+                        generateUniqueId("1757774467.253")
+                    );
+                    
+                    // UUID для моста
+                    const bridgeId_2_12 = generateBridgeUUID();
+                    
+                    let currentDelay = 0;
+                    
+                    // ШАГ 1: START
+                    events.push({
+                        step: 1,
+                        event: "start",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_12.start,
+                            Token: "375293332255",
+                            Phone: phone_2_12,
+                            CallType: 0,
+                            Trunk: trunk_2_12
+                        }
+                    });
+                    currentDelay += 1000;
+                    
+                    // ШАГ 2: NEW_CALLERID (исходный канал)
+                    events.push({
+                        step: 2,
+                        event: "new_callerid",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_12.new_callerid,
+                            Channel: `SIP/${trunk_2_12}-0000006c`,
+                            Exten: trunk_2_12,
+                            Context: "from-out-office",
+                            CallerIDNum: phone_2_12,
+                            ConnectedLineNum: "<unknown>",
+                            Token: "375293332255",
+                            ConnectedLineName: "<unknown>",
+                            CallerIDName: `-${phone_2_12}`
+                        }
+                    });
+                    currentDelay += 1000;
+                    
+                    // ДИНАМИЧЕСКИЕ DIAL СОБЫТИЯ - генерируем столько, сколько шагов заполнено
+                    activeSteps_2_12.forEach((stepData, index) => {
+                        events.push({
+                            step: 3 + index,
+                            event: "dial",
+                            delay: currentDelay,
+                            data: {
+                                UniqueId: dialUniqueIds_2_12[index],
+                                Extensions: stepData.extensions,
+                                Phone: phone_2_12,
+                                ExtTrunk: "",
+                                Trunk: trunk_2_12,
+                                Token: "375293332255",
+                                ExtPhone: phone_2_12,
+                                CallType: 0
+                            }
+                        });
+                        // Между dial событиями делаем паузу 14 секунд (как в DB файле)
+                        currentDelay += (index < activeSteps_2_12.length - 1) ? 14000 : 8000;
+                    });
+                    
+                    // ОСТАВШИЕСЯ СОБЫТИЯ после всех dial'ов
+                    const nextStepNumber = 3 + activeSteps_2_12.length;
+                    
+                    // BRIDGE_CREATE
+                    events.push({
+                        step: nextStepNumber,
+                        event: "bridge_create",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_12.bridge_create,
+                            BridgeUniqueid: bridgeId_2_12,
+                            BridgeCreator: "<unknown>",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<unknown>",
+                            BridgeType: "",
+                            Token: "375293332255",
+                            BridgeTechnology: "simple_bridge"
+                        }
+                    });
+                    currentDelay += 1000;
+                    
+                    // BRIDGE (внешний канал)
+                    events.push({
+                        step: nextStepNumber + 1,
+                        event: "bridge",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_12.bridge_external,
+                            BridgeUniqueid: bridgeId_2_12,
+                            ConnectedLineName: "<unknown>",
+                            CallerIDNum: phone_2_12,
+                            Exten: trunk_2_12,
+                            Token: "375293332255",
+                            Channel: `SIP/${trunk_2_12}-0000006c`,
+                            ConnectedLineNum: answeredManager_2_12,
+                            CallerIDName: `-${phone_2_12}`
+                        }
+                    });
+                    currentDelay += 2000;
+                    
+                    // BRIDGE (менеджер)
+                    events.push({
+                        step: nextStepNumber + 2,
+                        event: "bridge",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_12.bridge_manager,
+                            BridgeUniqueid: bridgeId_2_12,
+                            ConnectedLineName: `-${phone_2_12}`,
+                            CallerIDNum: answeredManager_2_12,
+                            Exten: "",
+                            Token: "375293332255",
+                            Channel: `SIP/${answeredManager_2_12}-0000006f`,
+                            ConnectedLineNum: phone_2_12,
+                            CallerIDName: ""
+                        }
+                    });
+                    currentDelay += 1000;
+                    
+                    // BRIDGE_LEAVE (менеджер)
+                    events.push({
+                        step: nextStepNumber + 3,
+                        event: "bridge_leave",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_12.bridge_leave_manager,
+                            BridgeUniqueid: bridgeId_2_12,
+                            CallerIDNum: answeredManager_2_12,
+                            ConnectedLineNum: phone_2_12,
+                            Token: "375293332255",
+                            BridgeNumChannels: "1",
+                            Channel: `SIP/${answeredManager_2_12}-0000006f`,
+                            ConnectedLineName: `-${phone_2_12}`,
+                            CallerIDName: "<unknown>"
+                        }
+                    });
+                    currentDelay += 500;
+                    
+                    // BRIDGE_LEAVE (внешний)
+                    events.push({
+                        step: nextStepNumber + 4,
+                        event: "bridge_leave",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_12.bridge_leave_external,
+                            BridgeUniqueid: bridgeId_2_12,
+                            CallerIDNum: phone_2_12,
+                            ConnectedLineNum: answeredManager_2_12,
+                            Token: "375293332255",
+                            BridgeNumChannels: "0",
+                            Channel: `SIP/${trunk_2_12}-0000006c`,
+                            ConnectedLineName: "<unknown>",
+                            CallerIDName: `-${phone_2_12}`
+                        }
+                    });
+                    currentDelay += 500;
+                    
+                    // BRIDGE_DESTROY
+                    events.push({
+                        step: nextStepNumber + 5,
+                        event: "bridge_destroy",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_12.bridge_destroy,
+                            BridgeUniqueid: bridgeId_2_12,
+                            BridgeCreator: "<unknown>",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<unknown>",
+                            BridgeType: "",
+                            Token: "375293332255",
+                            BridgeTechnology: "simple_bridge"
+                        }
+                    });
+                    currentDelay += 3000;
+                    
+                    // HANGUP (успешное завершение)
+                    events.push({
+                        step: nextStepNumber + 6,
+                        event: "hangup",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_12.hangup,
+                            DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            CallStatus: "2", // успешно
+                            CallType: 0,
+                            Extensions: [answeredManager_2_12],
+                            EndTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            Token: "375293332255",
+                            Trunk: trunk_2_12,
+                            Phone: phone_2_12,
                             StartTime: new Date().toISOString().slice(0, 19).replace('T', ' ')
                         }
                     });
