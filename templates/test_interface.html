@@ -9302,15 +9302,44 @@
                     break;
                     
                 case 24:
-                    // TODO: Паттерн 2-13 будет добавлен позже
+                    // ======= ПАТТЕРН 2-13: РЕГЛАМЕНТИРОВАННЫЕ 3 DIAL + МОБИЛЬНЫЕ СОБЫТИЯ (19 событий) =======
+                    
+                    // БЕРЕМ ВСЕ ДАННЫЕ ИЗ ФОРМЫ (как в 2-12)
+                    const phone_2_13 = (formData.get('external_phone') || '375447034448').replace(/^\+/, '');
+                    const trunk_2_13 = formData.get('line_id') || '0001363';
+                    const answeredManager_2_13 = formData.get('answered_manager_final') || '151';
+                    const mobileManager_2_13 = formData.get('step3_mobile_manager') || '375296254070';
+                    const mobileLine_2_13 = formData.get('step3_mobile_line') || '0001366';
+                    
+                    // Собираем группы менеджеров для каждого шага ИЗ ФОРМЫ (как в 2-12)
+                    const step1Extensions_2_13 = [
+                        formData.get('step1_manager_1'),
+                        formData.get('step1_manager_2'),
+                        formData.get('step1_manager_3'),
+                        formData.get('step1_manager_4')
+                    ].filter(value => value && value !== '');
+                    
+                    const step2Extensions_2_13 = [
+                        formData.get('step2_manager_1'),
+                        formData.get('step2_manager_2'),
+                        formData.get('step2_manager_3'),
+                        formData.get('step2_manager_4')
+                    ].filter(value => value && value !== '');
+                    
+                    // ВРЕМЕННАЯ ЗАГЛУШКА - пока только выводим что данные собраны
                     events.push({
                         step: 1,
                         event: 'start',
-                        description: `Паттерн 2-13 (в разработке)`,
+                        description: `Паттерн 2-13: Данные собраны из формы`,
                         data: { 
-                            call_type: callTypeId,
-                            token: token,
-                            note: "Паттерн 2-13 временно недоступен"
+                            phone: phone_2_13,
+                            trunk: trunk_2_13,
+                            answered_manager: answeredManager_2_13,
+                            mobile_manager: mobileManager_2_13,
+                            mobile_line: mobileLine_2_13,
+                            step1_count: step1Extensions_2_13.length,
+                            step2_count: step2Extensions_2_13.length,
+                            note: "Данные из формы получены успешно"
                         }
                     });
                     break;
