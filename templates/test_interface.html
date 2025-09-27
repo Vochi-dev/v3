@@ -10484,6 +10484,802 @@
                     });
 
                     break;
+
+                case 29: // Паттерн 2-18: Call Transfer Chain (151 → 152 → 150)
+                    console.log('🎯 Эмуляция паттерна 2-18: Call Transfer Chain');
+                    
+                    // Получаем данные из формы
+                    const phone_2_18 = formData.get('external_phone').replace(/^\+/, '');
+                    const trunk_2_18 = formData.get('line_id');
+                    const manager1_2_18 = formData.get('simple_internal_1'); // 151
+                    const manager2_2_18 = formData.get('simple_internal_2'); // 152  
+                    const manager3_2_18 = formData.get('simple_internal_3'); // 150
+                    
+                    // Генерируем UniqueId на основе DB образца 2-18
+                    const uniqueIds_2_18 = {
+                        start: generateUniqueId("1757840723.6"),
+                        dial1: generateUniqueId("1757840723.8"),
+                        transfer1_1: generateUniqueId("1757840735.10"), 
+                        transfer1_2: generateUniqueId("1757840735.11"),
+                        transfer1_sip: generateUniqueId("1757840735.12"),
+                        transfer2_1: generateUniqueId("1757840756.16"),
+                        transfer2_2: generateUniqueId("1757840756.17"), 
+                        transfer2_sip: generateUniqueId("1757840757.18")
+                    };
+                    
+                    // Генерируем Bridge UUID для всех мостов
+                    const bridgeIds_2_18 = {
+                        main: generateBridgeUUID(),
+                        transfer1_temp: generateBridgeUUID(),
+                        transfer1_bridge: generateBridgeUUID(),
+                        transfer2_temp: generateBridgeUUID(),  
+                        transfer2_bridge: generateBridgeUUID(),
+                        final: generateBridgeUUID()
+                    };
+                    
+                    // Создаем события для паттерна 2-18 (45 событий)
+                    events.push(
+                        // 1. START
+                        {
+                            step: 1,
+                            event: 'start',
+                            description: 'Начало звонка',
+                            data: {
+                                "UniqueId": uniqueIds_2_18.start,
+                                "Token": "375293332255",
+                                "Phone": phone_2_18,
+                                "CallType": 0,
+                                "Trunk": trunk_2_18
+                            }
+                        },
+                        // 2. NEW_CALLERID (входящий)
+                        {
+                            step: 2,
+                            event: 'new_callerid',
+                            description: 'Идентификация внешнего номера',
+                            data: {
+                                "UniqueId": uniqueIds_2_18.start,
+                                "Channel": `SIP/${trunk_2_18}-00000004`,
+                                "Exten": trunk_2_18,
+                                "Context": "from-out-office",
+                                "CallerIDNum": phone_2_18,
+                                "ConnectedLineNum": "<ХРЕН>",
+                                "Token": "375293332255",
+                                "ConnectedLineName": "<ХРЕН>",
+                                "CallerIDName": `-${phone_2_18}`
+                            }
+                        },
+                        // 3. DIAL (ко всем менеджерам)
+                        {
+                            step: 3,
+                            event: 'dial',
+                            description: 'Звонок ко всем менеджерам',
+                            data: {
+                                "UniqueId": uniqueIds_2_18.start,
+                                "Extensions": [manager1_2_18, manager2_2_18, manager3_2_18],
+                                "Phone": phone_2_18,
+                                "ExtTrunk": "",
+                                "Trunk": trunk_2_18,
+                                "Token": "375293332255",
+                                "ExtPhone": phone_2_18,
+                                "CallType": 0
+                            }
+                        },
+                        // 4. BRIDGE_CREATE (основной мост)
+                        {
+                            step: 4,
+                            event: 'bridge_create',
+                            description: 'Создание основного моста',
+                            data: {
+                                "BridgeCreator": "<ХРЕН>",
+                                "UniqueId": "",
+                                "BridgeName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.main,
+                                "BridgeType": "",
+                                "BridgeTechnology": "simple_bridge",
+                                "Token": "375293332255",
+                                "BridgeNumChannels": "0"
+                            }
+                        },
+                        // 5. BRIDGE (внешний канал в основной мост)
+                        {
+                            step: 5,
+                            event: 'bridge',
+                            description: 'Внешний канал в основной мост',
+                            data: {
+                                "Exten": trunk_2_18,
+                                "CallerIDName": `-${phone_2_18}`,
+                                "UniqueId": uniqueIds_2_18.start,
+                                "Channel": `SIP/${trunk_2_18}-00000004`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.main,
+                                "CallerIDNum": phone_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager1_2_18
+                            }
+                        },
+                        // 6. BRIDGE (151-й отвечает)
+                        {
+                            step: 6,
+                            event: 'bridge',
+                            description: '151-й отвечает на звонок',
+                            data: {
+                                "Exten": "",
+                                "CallerIDName": "",
+                                "UniqueId": uniqueIds_2_18.dial1,
+                                "Channel": `SIP/${manager1_2_18}-00000006`,
+                                "ConnectedLineName": `-${phone_2_18}`,
+                                "BridgeUniqueid": bridgeIds_2_18.main,
+                                "CallerIDNum": manager1_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": phone_2_18
+                            }
+                        },
+                        // 7. BRIDGE_CREATE (временный мост для перевода на 152)
+                        {
+                            step: 7,
+                            event: 'bridge_create',
+                            description: 'Создание временного моста для перевода на 152',
+                            data: {
+                                "BridgeCreator": "<ХРЕН>",
+                                "UniqueId": "",
+                                "BridgeName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_temp,
+                                "BridgeType": "",
+                                "BridgeTechnology": "simple_bridge",
+                                "Token": "375293332255",
+                                "BridgeNumChannels": "0"
+                            }
+                        },
+                        // 8. BRIDGE (151 в временный мост)
+                        {
+                            step: 8,
+                            event: 'bridge',
+                            description: '151 переходит в временный мост',
+                            data: {
+                                "Exten": "",
+                                "CallerIDName": "",
+                                "UniqueId": uniqueIds_2_18.dial1,
+                                "Channel": `SIP/${manager1_2_18}-00000006`,
+                                "ConnectedLineName": `-${phone_2_18}`,
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_temp,
+                                "CallerIDNum": manager1_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": phone_2_18
+                            }
+                        },
+                        // 9. NEW_CALLERID (Local канал 2 для перевода на 152)
+                        {
+                            step: 9,
+                            event: 'new_callerid',
+                            description: 'Local канал 2 для перевода на 152',
+                            data: {
+                                "Exten": manager2_2_18,
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer1_2,
+                                "Channel": `Local/${manager2_2_18}@dialexecute-00000000;2`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "CallerIDNum": manager1_2_18,
+                                "Context": "dialexecute",
+                                "Token": "375293332255",
+                                "ConnectedLineNum": "<ХРЕН>"
+                            }
+                        },
+                        // 10. NEW_CALLERID (Local канал 1 для перевода на 152)
+                        {
+                            step: 10,
+                            event: 'new_callerid',
+                            description: 'Local канал 1 для перевода на 152',
+                            data: {
+                                "Exten": manager2_2_18,
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer1_1,
+                                "Channel": `Local/${manager2_2_18}@dialexecute-00000000;1`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "CallerIDNum": manager2_2_18,
+                                "Context": "dialexecute",
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager1_2_18
+                            }
+                        },
+                        // 11. BRIDGE_CREATE (мост для 152)
+                        {
+                            step: 11,
+                            event: 'bridge_create',
+                            description: 'Создание моста для 152',
+                            data: {
+                                "BridgeCreator": "<ХРЕН>",
+                                "UniqueId": "",
+                                "BridgeName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_bridge,
+                                "BridgeType": "",
+                                "BridgeTechnology": "simple_bridge",
+                                "Token": "375293332255",
+                                "BridgeNumChannels": "0"
+                            }
+                        },
+                        // 12. BRIDGE (Local канал 2 в мост 152)
+                        {
+                            step: 12,
+                            event: 'bridge',
+                            description: 'Local канал 2 в мост 152',
+                            data: {
+                                "Exten": manager2_2_18,
+                                "CallerIDName": "",
+                                "UniqueId": uniqueIds_2_18.transfer1_2,
+                                "Channel": `Local/${manager2_2_18}@dialexecute-00000000;2`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_bridge,
+                                "CallerIDNum": manager1_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager2_2_18
+                            }
+                        },
+                        // 13. BRIDGE (SIP/152 отвечает)
+                        {
+                            step: 13,
+                            event: 'bridge',
+                            description: 'SIP/152 отвечает на перевод',
+                            data: {
+                                "Exten": "",
+                                "CallerIDName": "",
+                                "UniqueId": uniqueIds_2_18.transfer1_sip,
+                                "Channel": `SIP/${manager2_2_18}-00000008`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_bridge,
+                                "CallerIDNum": manager2_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager1_2_18
+                            }
+                        },
+                        // 14. BRIDGE_LEAVE (151 покидает временный мост)
+                        {
+                            step: 14,
+                            event: 'bridge_leave',
+                            description: '151 покидает временный мост',
+                            data: {
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.dial1,
+                                "Channel": `SIP/${manager1_2_18}-00000006`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_temp,
+                                "BridgeNumChannels": "1",
+                                "CallerIDNum": manager1_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager2_2_18
+                            }
+                        },
+                        // 15. BRIDGE_LEAVE (Local канал 1 покидает временный мост)
+                        {
+                            step: 15,
+                            event: 'bridge_leave',
+                            description: 'Local канал 1 покидает временный мост',
+                            data: {
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer1_1,
+                                "Channel": `Local/${manager2_2_18}@dialexecute-00000000;1`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_temp,
+                                "BridgeNumChannels": "0",
+                                "CallerIDNum": manager2_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager1_2_18
+                            }
+                        },
+                        // 16. BRIDGE (Local канал 1 в основной мост)
+                        {
+                            step: 16,
+                            event: 'bridge',
+                            description: 'Local канал 1 в основной мост',
+                            data: {
+                                "Exten": manager2_2_18,
+                                "CallerIDName": "",
+                                "UniqueId": uniqueIds_2_18.transfer1_1,
+                                "Channel": `Local/${manager2_2_18}@dialexecute-00000000;1`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.main,
+                                "CallerIDNum": manager2_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager1_2_18
+                            }
+                        },
+                        // 17. BRIDGE_DESTROY (уничтожение временного моста)
+                        {
+                            step: 17,
+                            event: 'bridge_destroy',
+                            description: 'Уничтожение временного моста',
+                            data: {
+                                "BridgeCreator": "<ХРЕН>",
+                                "UniqueId": "",
+                                "BridgeName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_temp,
+                                "BridgeType": "",
+                                "BridgeTechnology": "simple_bridge",
+                                "Token": "375293332255",
+                                "BridgeNumChannels": "0"
+                            }
+                        },
+                        // 18. BRIDGE_LEAVE (внешний канал покидает основной мост)
+                        {
+                            step: 18,
+                            event: 'bridge_leave',
+                            description: 'Внешний канал покидает основной мост',
+                            data: {
+                                "CallerIDName": `-${phone_2_18}`,
+                                "UniqueId": uniqueIds_2_18.start,
+                                "Channel": `SIP/${trunk_2_18}-00000004`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.main,
+                                "BridgeNumChannels": "1",
+                                "CallerIDNum": phone_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager1_2_18
+                            }
+                        },
+                        // 19. BRIDGE (внешний канал в мост 152)
+                        {
+                            step: 19,
+                            event: 'bridge',
+                            description: 'Внешний канал в мост 152',
+                            data: {
+                                "Exten": trunk_2_18,
+                                "CallerIDName": `-${phone_2_18}`,
+                                "UniqueId": uniqueIds_2_18.start,
+                                "Channel": `SIP/${trunk_2_18}-00000004`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_bridge,
+                                "CallerIDNum": phone_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager2_2_18
+                            }
+                        },
+                        // 20. BRIDGE_LEAVE (Local канал 2 покидает мост 152)
+                        {
+                            step: 20,
+                            event: 'bridge_leave',
+                            description: 'Local канал 2 покидает мост 152',
+                            data: {
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer1_2,
+                                "Channel": `Local/${manager2_2_18}@dialexecute-00000000;2`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_bridge,
+                                "BridgeNumChannels": "2",
+                                "CallerIDNum": manager1_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager2_2_18
+                            }
+                        },
+                        // 21. NEW_CALLERID (Local канал 2 обновление с клиентским номером)
+                        {
+                            step: 21,
+                            event: 'new_callerid',
+                            description: 'Local канал 2 обновление с клиентским номером',
+                            data: {
+                                "Exten": manager2_2_18,
+                                "CallerIDName": `-${phone_2_18}`,
+                                "UniqueId": uniqueIds_2_18.transfer1_2,
+                                "Channel": `Local/${manager2_2_18}@dialexecute-00000000;2`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "CallerIDNum": phone_2_18,
+                                "Context": "dialexecute",
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager2_2_18
+                            }
+                        },
+                        // 22. HANGUP (Local канал 2 - 152 завершает первую часть)
+                        {
+                            step: 22,
+                            event: 'hangup',
+                            description: 'Local канал 2 - 152 завершает первую часть',
+                            data: {
+                                "CallStatus": "2",
+                                "EndTime": "2025-09-14 12:05:46",
+                                "DateReceived": "2025-09-14 12:05:35",
+                                "UniqueId": uniqueIds_2_18.transfer1_2,
+                                "Phone": phone_2_18,
+                                "StartTime": "",
+                                "CallType": 2,
+                                "Token": "375293332255",
+                                "Extensions": [manager2_2_18]
+                            }
+                        },
+                        // 23. BRIDGE_LEAVE (Local канал 1 покидает основной мост)
+                        {
+                            step: 23,
+                            event: 'bridge_leave',
+                            description: 'Local канал 1 покидает основной мост',
+                            data: {
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer1_1,
+                                "Channel": `Local/${manager2_2_18}@dialexecute-00000000;1`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.main,
+                                "BridgeNumChannels": "0",
+                                "CallerIDNum": manager2_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager1_2_18
+                            }
+                        },
+                        // 24. BRIDGE_DESTROY (уничтожение основного моста)
+                        {
+                            step: 24,
+                            event: 'bridge_destroy',
+                            description: 'Уничтожение основного моста',
+                            data: {
+                                "BridgeCreator": "<ХРЕН>",
+                                "UniqueId": "",
+                                "BridgeName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.main,
+                                "BridgeType": "",
+                                "BridgeTechnology": "simple_bridge",
+                                "Token": "375293332255",
+                                "BridgeNumChannels": "0"
+                            }
+                        },
+                        // 25. BRIDGE_CREATE (новый мост для 152)
+                        {
+                            step: 25,
+                            event: 'bridge_create',
+                            description: 'Создание нового моста для 152',
+                            data: {
+                                "BridgeCreator": "<ХРЕН>",
+                                "UniqueId": "",
+                                "BridgeName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer2_temp,
+                                "BridgeType": "",
+                                "BridgeTechnology": "simple_bridge",
+                                "Token": "375293332255",
+                                "BridgeNumChannels": "0"
+                            }
+                        },
+                        // 26. BRIDGE (SIP/152 в новый мост)
+                        {
+                            step: 26,
+                            event: 'bridge',
+                            description: 'SIP/152 в новый мост',
+                            data: {
+                                "Exten": "",
+                                "CallerIDName": "",
+                                "UniqueId": uniqueIds_2_18.transfer1_sip,
+                                "Channel": `SIP/${manager2_2_18}-00000008`,
+                                "ConnectedLineName": `-${phone_2_18}`,
+                                "BridgeUniqueid": bridgeIds_2_18.transfer2_temp,
+                                "CallerIDNum": manager2_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": phone_2_18
+                            }
+                        },
+                        // 27. NEW_CALLERID (Local канал 1 для перевода на 150)
+                        {
+                            step: 27,
+                            event: 'new_callerid',
+                            description: 'Local канал 1 для перевода на 150',
+                            data: {
+                                "Exten": manager3_2_18,
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer2_1,
+                                "Channel": `Local/${manager3_2_18}@dialexecute-00000001;1`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "CallerIDNum": manager3_2_18,
+                                "Context": "dialexecute",
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager2_2_18
+                            }
+                        },
+                        // 28. BRIDGE_CREATE (мост для 150)
+                        {
+                            step: 28,
+                            event: 'bridge_create',
+                            description: 'Создание моста для 150',
+                            data: {
+                                "BridgeCreator": "<ХРЕН>",
+                                "UniqueId": "",
+                                "BridgeName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer2_bridge,
+                                "BridgeType": "",
+                                "BridgeTechnology": "simple_bridge",
+                                "Token": "375293332255",
+                                "BridgeNumChannels": "0"
+                            }
+                        },
+                        // 29. BRIDGE (Local канал 2 для 150)
+                        {
+                            step: 29,
+                            event: 'bridge',
+                            description: 'Local канал 2 для 150',
+                            data: {
+                                "Exten": manager3_2_18,
+                                "CallerIDName": "",
+                                "UniqueId": uniqueIds_2_18.transfer2_2,
+                                "Channel": `Local/${manager3_2_18}@dialexecute-00000001;2`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer2_bridge,
+                                "CallerIDNum": manager2_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager3_2_18
+                            }
+                        },
+                        // 30. BRIDGE (SIP/150 отвечает)
+                        {
+                            step: 30,
+                            event: 'bridge',
+                            description: 'SIP/150 отвечает на перевод',
+                            data: {
+                                "Exten": "",
+                                "CallerIDName": "",
+                                "UniqueId": uniqueIds_2_18.transfer2_sip,
+                                "Channel": `SIP/${manager3_2_18}-00000009`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer2_bridge,
+                                "CallerIDNum": manager3_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager2_2_18
+                            }
+                        },
+                        // 31. BRIDGE_LEAVE (SIP/152 покидает временный мост)
+                        {
+                            step: 31,
+                            event: 'bridge_leave',
+                            description: 'SIP/152 покидает временный мост',
+                            data: {
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer1_sip,
+                                "Channel": `SIP/${manager2_2_18}-00000008`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer2_temp,
+                                "BridgeNumChannels": "1",
+                                "CallerIDNum": manager2_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager3_2_18
+                            }
+                        },
+                        // 32. BRIDGE_LEAVE (Local канал 1 покидает временный мост)
+                        {
+                            step: 32,
+                            event: 'bridge_leave',
+                            description: 'Local канал 1 покидает временный мост',
+                            data: {
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer2_1,
+                                "Channel": `Local/${manager3_2_18}@dialexecute-00000001;1`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer2_temp,
+                                "BridgeNumChannels": "0",
+                                "CallerIDNum": manager3_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager2_2_18
+                            }
+                        },
+                        // 33. BRIDGE (Local канал 1 в мост 152)
+                        {
+                            step: 33,
+                            event: 'bridge',
+                            description: 'Local канал 1 в мост 152',
+                            data: {
+                                "Exten": manager3_2_18,
+                                "CallerIDName": "",
+                                "UniqueId": uniqueIds_2_18.transfer2_1,
+                                "Channel": `Local/${manager3_2_18}@dialexecute-00000001;1`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_bridge,
+                                "CallerIDNum": manager3_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager2_2_18
+                            }
+                        },
+                        // 34. BRIDGE_DESTROY (уничтожение временного моста для 150)
+                        {
+                            step: 34,
+                            event: 'bridge_destroy',
+                            description: 'Уничтожение временного моста для 150',
+                            data: {
+                                "BridgeCreator": "<ХРЕН>",
+                                "UniqueId": "",
+                                "BridgeName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer2_temp,
+                                "BridgeType": "",
+                                "BridgeTechnology": "simple_bridge",
+                                "Token": "375293332255",
+                                "BridgeNumChannels": "0"
+                            }
+                        },
+                        // 35. BRIDGE_LEAVE (SIP/150 покидает мост 150)
+                        {
+                            step: 35,
+                            event: 'bridge_leave',
+                            description: 'SIP/150 покидает мост 150',
+                            data: {
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer2_sip,
+                                "Channel": `SIP/${manager3_2_18}-00000009`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer2_bridge,
+                                "BridgeNumChannels": "1",
+                                "CallerIDNum": manager3_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager2_2_18
+                            }
+                        },
+                        // 36. BRIDGE (SIP/150 в мост 152 - финальное подключение к клиенту)
+                        {
+                            step: 36,
+                            event: 'bridge',
+                            description: 'SIP/150 финальное подключение к клиенту',
+                            data: {
+                                "Exten": "",
+                                "CallerIDName": "",
+                                "UniqueId": uniqueIds_2_18.transfer2_sip,
+                                "Channel": `SIP/${manager3_2_18}-00000009`,
+                                "ConnectedLineName": `-${phone_2_18}`,
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_bridge,
+                                "CallerIDNum": manager3_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": phone_2_18
+                            }
+                        },
+                        // 37. BRIDGE_LEAVE (Local канал 1 покидает мост 152)
+                        {
+                            step: 37,
+                            event: 'bridge_leave',
+                            description: 'Local канал 1 покидает мост 152',
+                            data: {
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer2_1,
+                                "Channel": `Local/${manager3_2_18}@dialexecute-00000001;1`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_bridge,
+                                "BridgeNumChannels": "2",
+                                "CallerIDNum": manager3_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager2_2_18
+                            }
+                        },
+                        // 38. BRIDGE_LEAVE (Local канал 2 покидает мост 150)
+                        {
+                            step: 38,
+                            event: 'bridge_leave',
+                            description: 'Local канал 2 покидает мост 150',
+                            data: {
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer2_2,
+                                "Channel": `Local/${manager3_2_18}@dialexecute-00000001;2`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer2_bridge,
+                                "BridgeNumChannels": "0",
+                                "CallerIDNum": manager2_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager3_2_18
+                            }
+                        },
+                        // 39. NEW_CALLERID (Local канал 2 для 150 с клиентом)
+                        {
+                            step: 39,
+                            event: 'new_callerid',
+                            description: 'Local канал 2 для 150 с клиентом',
+                            data: {
+                                "Exten": manager3_2_18,
+                                "CallerIDName": `-${phone_2_18}`,
+                                "UniqueId": uniqueIds_2_18.transfer2_2,
+                                "Channel": `Local/${manager3_2_18}@dialexecute-00000001;2`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "CallerIDNum": phone_2_18,
+                                "Context": "dialexecute",
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager3_2_18
+                            }
+                        },
+                        // 40. BRIDGE_DESTROY (уничтожение моста для 150)
+                        {
+                            step: 40,
+                            event: 'bridge_destroy',
+                            description: 'Уничтожение моста для 150',
+                            data: {
+                                "BridgeCreator": "<ХРЕН>",
+                                "UniqueId": "",
+                                "BridgeName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer2_bridge,
+                                "BridgeType": "",
+                                "BridgeTechnology": "simple_bridge",
+                                "Token": "375293332255",
+                                "BridgeNumChannels": "0"
+                            }
+                        },
+                        // 41. HANGUP (Local канал 2 для 150)
+                        {
+                            step: 41,
+                            event: 'hangup',
+                            description: 'Local канал 2 для 150 завершается',
+                            data: {
+                                "CallStatus": "2",
+                                "EndTime": "2025-09-14 12:06:09",
+                                "DateReceived": "2025-09-14 12:05:56",
+                                "UniqueId": uniqueIds_2_18.transfer2_2,
+                                "Phone": phone_2_18,
+                                "StartTime": "",
+                                "CallType": 2,
+                                "Token": "375293332255",
+                                "Extensions": [manager3_2_18]
+                            }
+                        },
+                        // 42. BRIDGE_LEAVE (SIP/150 покидает финальный мост)
+                        {
+                            step: 42,
+                            event: 'bridge_leave',
+                            description: 'SIP/150 покидает финальный мост',
+                            data: {
+                                "CallerIDName": "<ХРЕН>",
+                                "UniqueId": uniqueIds_2_18.transfer2_sip,
+                                "Channel": `SIP/${manager3_2_18}-00000009`,
+                                "ConnectedLineName": `-${phone_2_18}`,
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_bridge,
+                                "BridgeNumChannels": "1",
+                                "CallerIDNum": manager3_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": phone_2_18
+                            }
+                        },
+                        // 43. BRIDGE_LEAVE (внешний канал покидает финальный мост)
+                        {
+                            step: 43,
+                            event: 'bridge_leave',
+                            description: 'Внешний канал покидает финальный мост',
+                            data: {
+                                "CallerIDName": `-${phone_2_18}`,
+                                "UniqueId": uniqueIds_2_18.start,
+                                "Channel": `SIP/${trunk_2_18}-00000004`,
+                                "ConnectedLineName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_bridge,
+                                "BridgeNumChannels": "0",
+                                "CallerIDNum": phone_2_18,
+                                "Token": "375293332255",
+                                "ConnectedLineNum": manager3_2_18
+                            }
+                        },
+                        // 44. BRIDGE_DESTROY (уничтожение финального моста)
+                        {
+                            step: 44,
+                            event: 'bridge_destroy',
+                            description: 'Уничтожение финального моста',
+                            data: {
+                                "BridgeCreator": "<ХРЕН>",
+                                "UniqueId": "",
+                                "BridgeName": "<ХРЕН>",
+                                "BridgeUniqueid": bridgeIds_2_18.transfer1_bridge,
+                                "BridgeType": "",
+                                "BridgeTechnology": "simple_bridge",
+                                "Token": "375293332255",
+                                "BridgeNumChannels": "0"
+                            }
+                        },
+                        // 45. HANGUP (основной звонок завершается)
+                        {
+                            step: 45,
+                            event: 'hangup',
+                            description: 'Основной звонок завершается',
+                            data: {
+                                "CallStatus": "2",
+                                "EndTime": "2025-09-14 12:06:13",
+                                "DateReceived": "2025-09-14 12:05:46",
+                                "UniqueId": uniqueIds_2_18.start,
+                                "Phone": phone_2_18,
+                                "Trunk": trunk_2_18,
+                                "StartTime": "2025-09-14 12:05:23",
+                                "CallType": 0,
+                                "Token": "375293332255",
+                                "Extensions": [manager1_2_18]
+                            }
+                        }
+                    );
+                    
+                    // Запускаем эмуляцию
+                    emulatorState.events = events;
+                    emulatorState.currentStep = 0;
+                    emulatorState.isRunning = true;
+                    
+                    updateEmulatorStatus('Готов к эмуляции', 'success');
+                    
+                    break;
                     
                 default:
                     // Общий паттерн для остальных типов (временно)
