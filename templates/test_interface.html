@@ -10185,6 +10185,306 @@
 
                     break;
                     
+                case 26:
+                    // ======= ПАТТЕРН 2-15: ФИКСИРОВАННЫЕ 3 DIAL + МОБИЛЬНЫЕ СОБЫТИЯ - НЕТ ОТВЕТА (13 событий) =======
+                    
+                    // Получаем базовую информацию
+                    const phone_2_15 = formData.get('external_phone').replace(/^\+/, '');
+                    const trunk_2_15 = formData.get('line_id');
+                    
+                    // Получаем мобильный номер выбранного менеджера через data-mobile
+                    const mobileManagerSelect_2_15 = document.querySelector('select[name="step3_mobile_manager"]');
+                    const selectedOption_2_15 = mobileManagerSelect_2_15 ? mobileManagerSelect_2_15.querySelector(`option[value="${formData.get('step3_mobile_manager')}"]`) : null;
+                    const mobileNumber_2_15 = (selectedOption_2_15 && selectedOption_2_15.getAttribute('data-mobile')) ? selectedOption_2_15.getAttribute('data-mobile').replace(/^\+/, '') : 'UNKNOWN_MOBILE';
+                    const mobileManager_2_15 = formData.get('step3_mobile_manager');
+                    
+                    // Собираем группы менеджеров для каждого шага
+                    const step1Extensions_2_15 = [
+                        formData.get('step1_manager_1'),
+                        formData.get('step1_manager_2'),
+                        formData.get('step1_manager_3'),
+                        formData.get('step1_manager_4')
+                    ].filter(value => value && value !== '');
+
+                    const step2Extensions_2_15 = [
+                        formData.get('step2_manager_1'),
+                        formData.get('step2_manager_2'),
+                        formData.get('step2_manager_3'),
+                        formData.get('step2_manager_4')
+                    ].filter(value => value && value !== '');
+
+                    const step3Extensions_2_15 = [
+                        formData.get('step3_manager_1'),
+                        formData.get('step3_manager_2'),
+                        formData.get('step3_manager_3'),
+                        formData.get('step3_manager_4')
+                    ].filter(value => value && value !== '');
+
+                    // 3 DIAL Extensions - КАЖДЫЙ ШАГ ТОЛЬКО СВОИ НОМЕРА ИЗ ФОРМЫ
+                    const dial1Extensions_2_15 = [...step1Extensions_2_15]; // ТОЛЬКО step1 ИЗ ФОРМЫ
+                    const dial2Extensions_2_15 = [...step2Extensions_2_15]; // ТОЛЬКО step2 ИЗ ФОРМЫ
+                    const dial3Extensions_2_15 = [...step3Extensions_2_15, mobileNumber_2_15].filter(ext => ext); // ТОЛЬКО step3 + мобильный ИЗ ФОРМЫ
+
+                    // Генерируем UniqueId на основе DB образца 2-15
+                    const uniqueIds_2_15 = {
+                        start: generateUniqueId("1757774843.296"),
+                        new_callerid: generateUniqueId("1757774843.296"),
+                        dial1: generateUniqueId("1757774843.296"),
+                        dial2: generateUniqueId("1757774843.296"),
+                        dial3: generateUniqueId("1757774843.296"),
+                        mobile_local_1: generateUniqueId("1757774873.301"),
+                        mobile_local_2: generateUniqueId("1757774873.302"),
+                        mobile_dial_1: generateUniqueId("1757774873.302"),
+                        mobile_sip_1: generateUniqueId("1757774873.304"),
+                        mobile_dial_2: generateUniqueId("1757774873.302"),
+                        mobile_sip_2: generateUniqueId("1757774873.305"),
+                        hangup_mobile: generateUniqueId("1757774873.302"),
+                        hangup_main: generateUniqueId("1757774843.296")
+                    };
+
+                    currentDelay = 0;
+
+                    // 1. START
+                    events.push({
+                        step: 1,
+                        event: "start",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.start,
+                            Token: "375293332255",
+                            Phone: phone_2_15,
+                            CallType: 0,
+                            Trunk: trunk_2_15
+                        }
+                    });
+                    currentDelay += 1000;
+
+                    // 2. NEW_CALLERID
+                    events.push({
+                        step: 2,
+                        event: "new_callerid",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.new_callerid,
+                            Channel: `SIP/${trunk_2_15}-00000080`,
+                            Exten: trunk_2_15,
+                            Context: "from-out-office",
+                            CallerIDNum: phone_2_15,
+                            ConnectedLineNum: "<ХРЕН>",
+                            Token: "375293332255",
+                            ConnectedLineName: "<ХРЕН>",
+                            CallerIDName: `-${phone_2_15}`
+                        }
+                    });
+                    currentDelay += 1000;
+
+                    // 3. DIAL #1
+                    events.push({
+                        step: 3,
+                        event: "dial",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.dial1,
+                            Extensions: dial1Extensions_2_15,
+                            Phone: phone_2_15,
+                            ExtTrunk: "",
+                            Trunk: trunk_2_15,
+                            Token: "375293332255",
+                            ExtPhone: phone_2_15,
+                            CallType: 0
+                        }
+                    });
+                    currentDelay += 8000;
+
+                    // 4. DIAL #2
+                    events.push({
+                        step: 4,
+                        event: "dial",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.dial2,
+                            Extensions: dial2Extensions_2_15,
+                            Phone: phone_2_15,
+                            ExtTrunk: "",
+                            Trunk: trunk_2_15,
+                            Token: "375293332255",
+                            ExtPhone: phone_2_15,
+                            CallType: 0
+                        }
+                    });
+                    currentDelay += 8000;
+
+                    // 5. DIAL #3
+                    events.push({
+                        step: 5,
+                        event: "dial",
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.dial3,
+                            Extensions: dial3Extensions_2_15,
+                            Phone: phone_2_15,
+                            ExtTrunk: "",
+                            Trunk: trunk_2_15,
+                            Token: "375293332255",
+                            ExtPhone: phone_2_15,
+                            CallType: 0
+                        }
+                    });
+                    currentDelay += 8000;
+
+                    // 6. NEW_CALLERID (Local ;1 для мобильного)
+                    events.push({
+                        step: 6,
+                        event: 'new_callerid',
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.mobile_local_1,
+                            CallerIDName: "<ХРЕН>",
+                            CallerIDNum: trunk_2_15,
+                            Exten: trunk_2_15,
+                            ConnectedLineName: `-${phone_2_15}`,
+                            Channel: `Local/${mobileNumber_2_15}@179e93af-00000012;1`,
+                            ConnectedLineNum: phone_2_15,
+                            Context: "179e93af",
+                            Token: "375293332255"
+                        }
+                    });
+                    currentDelay += 1000;
+
+                    // 7. NEW_CALLERID (Local ;2 для мобильного)
+                    events.push({
+                        step: 7,
+                        event: 'new_callerid',
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.mobile_local_2,
+                            CallerIDName: `-${phone_2_15}`,
+                            CallerIDNum: phone_2_15,
+                            Exten: mobileNumber_2_15,
+                            ConnectedLineName: "<ХРЕН>",
+                            Channel: `Local/${mobileNumber_2_15}@179e93af-00000012;2`,
+                            ConnectedLineNum: trunk_2_15,
+                            Context: "179e93af",
+                            Token: "375293332255"
+                        }
+                    });
+                    currentDelay += 1000;
+
+                    // 8. DIAL (мобильный 1)
+                    events.push({
+                        step: 8,
+                        event: 'dial',
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.mobile_dial_1,
+                            Trunk: trunk_2_15,
+                            CallType: 1,
+                            Phone: mobileNumber_2_15,
+                            ExtPhone: "",
+                            Extensions: [phone_2_15],
+                            ExtTrunk: "",
+                            Token: "375293332255"
+                        }
+                    });
+                    currentDelay += 1000;
+
+                    // 9. NEW_CALLERID (SIP мобильный 1)
+                    events.push({
+                        step: 9,
+                        event: 'new_callerid',
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.mobile_sip_1,
+                            CallerIDName: "<ХРЕН>",
+                            CallerIDNum: mobileNumber_2_15,
+                            Exten: mobileNumber_2_15,
+                            ConnectedLineName: `-${phone_2_15}`,
+                            Channel: `SIP/${trunk_2_15}-00000086`,
+                            ConnectedLineNum: phone_2_15,
+                            Context: "from-out-office",
+                            Token: "375293332255"
+                        }
+                    });
+                    currentDelay += 1000;
+
+                    // 10. DIAL (мобильный 2)
+                    events.push({
+                        step: 10,
+                        event: 'dial',
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.mobile_dial_2,
+                            Trunk: formData.get('step3_mobile_line'),
+                            CallType: 1,
+                            Phone: mobileNumber_2_15,
+                            ExtPhone: "",
+                            Extensions: [phone_2_15],
+                            ExtTrunk: "",
+                            Token: "375293332255"
+                        }
+                    });
+                    currentDelay += 1000;
+
+                    // 11. NEW_CALLERID (SIP мобильный 2)
+                    events.push({
+                        step: 11,
+                        event: 'new_callerid',
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.mobile_sip_2,
+                            CallerIDName: "<ХРЕН>",
+                            CallerIDNum: mobileNumber_2_15,
+                            Exten: mobileNumber_2_15,
+                            ConnectedLineName: `-${phone_2_15}`,
+                            Channel: `SIP/${formData.get('step3_mobile_line')}-00000087`,
+                            ConnectedLineNum: phone_2_15,
+                            Context: "from-out-office",
+                            Token: "375293332255"
+                        }
+                    });
+                    currentDelay += 15000; // увеличиваем задержку до hangup
+
+                    // 12. HANGUP (мобильный звонок - НЕ ОТВЕЧЕН)
+                    events.push({
+                        step: 12,
+                        event: 'hangup',
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.hangup_mobile,
+                            EndTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            Trunk: formData.get('step3_mobile_line'),
+                            CallType: 1,
+                            Phone: mobileNumber_2_15,
+                            StartTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            Extensions: [phone_2_15],
+                            CallStatus: "0", // НЕ ОТВЕЧЕН
+                            Token: "375293332255"
+                        }
+                    });
+                    currentDelay += 1000;
+
+                    // 13. HANGUP (основной звонок - НЕ ОТВЕЧЕН)
+                    events.push({
+                        step: 13,
+                        event: 'hangup',
+                        delay: currentDelay,
+                        data: {
+                            UniqueId: uniqueIds_2_15.hangup_main,
+                            EndTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            Trunk: trunk_2_15,
+                            CallType: 0,
+                            Phone: phone_2_15,
+                            StartTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                            Extensions: [""],
+                            CallStatus: "0", // НЕ ОТВЕЧЕН
+                            Token: "375293332255"
+                        }
+                    });
+
+                    break;
+                    
                 default:
                     // Общий паттерн для остальных типов (временно)
                     events.push({
