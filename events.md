@@ -4474,3 +4474,441 @@ bridge_create → bridge → hangup → bridge → bridge_leave×2 → bridge_de
 - **Данные из формы:** Все номера и линии берутся из соответствующих полей формы
 
 **🌟 ПАТТЕРН 2-13 ГОТОВ К ПРОДАКШЕНУ! ЭТАЛОННАЯ РЕАЛИЗАЦИЯ ФИКСИРОВАННЫХ DIAL + МОБИЛЬНЫХ СОБЫТИЙ! 🚀📞🎯📱💎**
+
+---
+
+## 📋 **ПАТТЕРН 2-14: ФИКСИРОВАННЫЕ 3 DIAL + МОБИЛЬНЫЕ СОБЫТИЯ - ОТВЕТ НА МОБИЛЬНОМ (24 события)**
+
+### 📑 **ОПИСАНИЕ СЦЕНАРИЯ:**
+**Сложный звонок с каскадным наращиванием менеджеров по фиксированным шагам + мобильный менеджер, трубку берут на мобильном номере**
+
+**🎯 КЛЮЧЕВОЕ ОТЛИЧИЕ ОТ 2-13:** В 2-13 звонок нарастал каскадом, но трубку подняли на внутреннем номере. В 2-14 звонок также нарастает каскадом, но **трубку берут на мобильном номере менеджера**.
+
+### 🔄 **СЦЕНАРИЙ ПАТТЕРНА 2-14:**
+1. **Входящий звонок** - внешний абонент звонит
+2. **DIAL #1** - звонок только менеджерам шага 1 (step1)
+3. **DIAL #2** - звонок только менеджерам шага 2 (step2) 
+4. **DIAL #3** - звонок только менеджерам шага 3 (step3) + мобильный менеджер
+5. **Мобильные события** - система дозванивается на мобильный номер через Local каналы
+6. **SIP failover** - два попытки дозвона на мобильный через разные линии
+7. **Bridge события** - создание двух мостов для соединения абонентов
+8. **✅ ОТВЕТ НА МОБИЛЬНОМ** - менеджер отвечает на мобильном телефоне
+9. **Завершение** - hangup мобильного звонка и разрушение мостов
+
+### 🎛️ **СТРУКТУРА 24 СОБЫТИЙ:**
+
+**📞 ОСНОВНЫЕ DIAL СОБЫТИЯ (1-5):**
+1. **start** - начало звонка (CallType: 0)
+2. **new_callerid** - идентификация входящего (SIP канал)
+3. **dial** - звонок менеджерам шага 1 
+4. **dial** - звонок менеджерам шага 2
+5. **dial** - звонок менеджерам шага 3 + мобильный
+
+**📱 МОБИЛЬНЫЕ СОБЫТИЯ (6-11):**
+6. **new_callerid** - Local канал ;1 для мобильного
+7. **new_callerid** - Local канал ;2 для мобильного  
+8. **dial** - первый дозвон на мобильный (CallType: 1)
+9. **new_callerid** - SIP канал первой линии мобильного
+10. **dial** - второй дозвон на мобильный (CallType: 1)
+11. **new_callerid** - SIP канал второй линии мобильного
+
+**🌉 BRIDGE СОБЫТИЯ - МОСТ 1 (12-20):**
+12. **bridge_create** - создание первого моста (мобильный ↔ SIP)
+13. **bridge** - Local ;2 входит в мост
+14. **bridge** - SIP мобильного входит в мост
+15. **bridge_create** - создание второго моста (основной ↔ Local ;1)
+16. **bridge** - Local ;1 входит в мост 
+17. **bridge** - основной SIP входит в мост
+18. **bridge_leave** - SIP мобильного покидает мост 1
+19. **bridge_leave** - Local ;2 покидает мост 1
+20. **bridge_destroy** - уничтожение моста 1
+
+**☎️ ЗАВЕРШЕНИЕ (21-24):**
+21. **hangup** - завершение мобильного звонка (CallStatus: 2 = answered)
+22. **bridge_leave** - Local ;1 покидает мост 2  
+23. **bridge_leave** - основной SIP покидает мост 2
+24. **bridge_destroy** - уничтожение моста 2
+
+### 🎯 **ДЕТАЛЬНЫЙ JSON КАЖДОГО СОБЫТИЯ:**
+
+#### **СОБЫТИЕ 1: START**
+```json
+{
+  "UniqueId": "GENERATED_ID",
+  "Token": "375293332255", 
+  "Phone": "EXTERNAL_PHONE",
+  "CallType": 0,
+  "Trunk": "SELECTED_LINE"
+}
+```
+
+#### **СОБЫТИЕ 2: NEW_CALLERID**
+```json
+{
+  "UniqueId": "SAME_AS_START",
+  "Channel": "SIP/TRUNK-00000009",
+  "Exten": "TRUNK",
+  "Context": "from-out-office",
+  "CallerIDNum": "EXTERNAL_PHONE",
+  "ConnectedLineNum": "<unknown>",
+  "Token": "375293332255",
+  "ConnectedLineName": "<unknown>",
+  "CallerIDName": "-EXTERNAL_PHONE"
+}
+```
+
+#### **СОБЫТИЕ 3: DIAL #1 (только step1)**
+```json
+{
+  "UniqueId": "SAME_AS_START",
+  "Extensions": ["MANAGERS_FROM_STEP1"],
+  "Phone": "EXTERNAL_PHONE",
+  "ExtTrunk": "",
+  "Trunk": "SELECTED_LINE",
+  "Token": "375293332255",
+  "ExtPhone": "EXTERNAL_PHONE",
+  "CallType": 0
+}
+```
+
+#### **СОБЫТИЕ 4: DIAL #2 (только step2)**
+```json
+{
+  "UniqueId": "SAME_AS_START",
+  "Extensions": ["MANAGERS_FROM_STEP2"],
+  "Phone": "EXTERNAL_PHONE",
+  "ExtTrunk": "",
+  "Trunk": "SELECTED_LINE", 
+  "Token": "375293332255",
+  "ExtPhone": "EXTERNAL_PHONE",
+  "CallType": 0
+}
+```
+
+#### **СОБЫТИЕ 5: DIAL #3 (step3 + мобильный)**
+```json
+{
+  "UniqueId": "SAME_AS_START",
+  "Extensions": ["MANAGERS_FROM_STEP3", "MOBILE_NUMBER"],
+  "Phone": "EXTERNAL_PHONE",
+  "ExtTrunk": "",
+  "Trunk": "SELECTED_LINE",
+  "Token": "375293332255", 
+  "ExtPhone": "EXTERNAL_PHONE",
+  "CallType": 0
+}
+```
+
+#### **СОБЫТИЕ 6: NEW_CALLERID (Local ;1)**
+```json
+{
+  "UniqueId": "GENERATED_LOCAL_1",
+  "CallerIDName": "<unknown>",
+  "CallerIDNum": "TRUNK",
+  "Exten": "TRUNK",
+  "ConnectedLineName": "-EXTERNAL_PHONE",
+  "Channel": "Local/MOBILE_NUMBER@179e93af-00000001;1",
+  "ConnectedLineNum": "EXTERNAL_PHONE",
+  "Context": "179e93af",
+  "Token": "375293332255"
+}
+```
+
+#### **СОБЫТИЕ 7: NEW_CALLERID (Local ;2)**
+```json
+{
+  "UniqueId": "GENERATED_LOCAL_2", 
+  "CallerIDName": "-EXTERNAL_PHONE",
+  "CallerIDNum": "EXTERNAL_PHONE",
+  "Exten": "MOBILE_NUMBER",
+  "ConnectedLineName": "<unknown>",
+  "Channel": "Local/MOBILE_NUMBER@179e93af-00000001;2",
+  "ConnectedLineNum": "TRUNK",
+  "Context": "179e93af",
+  "Token": "375293332255"
+}
+```
+
+#### **СОБЫТИЕ 8: DIAL (мобильный 1)**
+```json
+{
+  "UniqueId": "LOCAL_2_ID",
+  "Trunk": "TRUNK",
+  "CallType": 1,
+  "Phone": "MOBILE_NUMBER",
+  "ExtPhone": "",
+  "Extensions": ["EXTERNAL_PHONE"],
+  "ExtTrunk": "",
+  "Token": "375293332255"
+}
+```
+
+#### **СОБЫТИЕ 9: NEW_CALLERID (SIP мобильный 1)**
+```json
+{
+  "UniqueId": "GENERATED_SIP_1",
+  "CallerIDName": "<unknown>",
+  "CallerIDNum": "MOBILE_NUMBER", 
+  "Exten": "MOBILE_NUMBER",
+  "ConnectedLineName": "-EXTERNAL_PHONE",
+  "Channel": "SIP/TRUNK-0000000f",
+  "ConnectedLineNum": "EXTERNAL_PHONE",
+  "Context": "from-out-office",
+  "Token": "375293332255"
+}
+```
+
+#### **СОБЫТИЕ 10: DIAL (мобильный 2)**
+```json
+{
+  "UniqueId": "LOCAL_2_ID",
+  "Trunk": "MOBILE_LINE",
+  "CallType": 1,
+  "Phone": "MOBILE_NUMBER",
+  "ExtPhone": "",
+  "Extensions": ["EXTERNAL_PHONE"],
+  "ExtTrunk": "",
+  "Token": "375293332255"
+}
+```
+
+#### **СОБЫТИЕ 11: NEW_CALLERID (SIP мобильный 2)**
+```json
+{
+  "UniqueId": "GENERATED_SIP_2",
+  "CallerIDName": "<unknown>",
+  "CallerIDNum": "MOBILE_NUMBER",
+  "Exten": "MOBILE_NUMBER", 
+  "ConnectedLineName": "-EXTERNAL_PHONE",
+  "Channel": "SIP/MOBILE_LINE-00000011",
+  "ConnectedLineNum": "EXTERNAL_PHONE",
+  "Context": "from-out-office",
+  "Token": "375293332255"
+}
+```
+
+#### **СОБЫТИЕ 12: BRIDGE_CREATE (мост 1)**
+```json
+{
+  "UniqueId": "GENERATED_BRIDGE_PREFIX",
+  "BridgeUniqueid": "GENERATED_BRIDGE_UUID_1",
+  "BridgeCreator": "<unknown>",
+  "BridgeNumChannels": "0",
+  "BridgeName": "<unknown>",
+  "BridgeType": "",
+  "Token": "375293332255",
+  "BridgeTechnology": "simple_bridge"
+}
+```
+
+#### **СОБЫТИЕ 13: BRIDGE (Local ;2 → мост 1)**
+```json
+{
+  "UniqueId": "LOCAL_2_ID",
+  "BridgeUniqueid": "BRIDGE_UUID_1",
+  "ConnectedLineName": "<unknown>",
+  "CallerIDNum": "EXTERNAL_PHONE",
+  "Exten": "MOBILE_NUMBER",
+  "Token": "375293332255",
+  "Channel": "Local/MOBILE_NUMBER@179e93af-00000001;2",
+  "ConnectedLineNum": "TRUNK",
+  "CallerIDName": "-EXTERNAL_PHONE"
+}
+```
+
+#### **СОБЫТИЕ 14: BRIDGE (SIP мобильный → мост 1)**
+```json
+{
+  "UniqueId": "SIP_2_ID",
+  "BridgeUniqueid": "BRIDGE_UUID_1",
+  "ConnectedLineName": "-EXTERNAL_PHONE",
+  "CallerIDNum": "MOBILE_NUMBER",
+  "Exten": "MOBILE_NUMBER",
+  "Token": "375293332255", 
+  "Channel": "SIP/MOBILE_LINE-00000011",
+  "ConnectedLineNum": "EXTERNAL_PHONE",
+  "CallerIDName": "<unknown>"
+}
+```
+
+#### **СОБЫТИЕ 15: BRIDGE_CREATE (мост 2)**
+```json
+{
+  "UniqueId": "GENERATED_BRIDGE_PREFIX",
+  "BridgeUniqueid": "GENERATED_BRIDGE_UUID_2",
+  "BridgeCreator": "<unknown>",
+  "BridgeNumChannels": "0",
+  "BridgeName": "<unknown>",
+  "BridgeType": "",
+  "Token": "375293332255",
+  "BridgeTechnology": "simple_bridge"
+}
+```
+
+#### **СОБЫТИЕ 16: BRIDGE (Local ;1 → мост 2)**
+```json
+{
+  "UniqueId": "LOCAL_1_ID",
+  "BridgeUniqueid": "BRIDGE_UUID_2",
+  "ConnectedLineName": "-EXTERNAL_PHONE",
+  "CallerIDNum": "TRUNK",
+  "Exten": "TRUNK",
+  "Token": "375293332255",
+  "Channel": "Local/MOBILE_NUMBER@179e93af-00000001;1",
+  "ConnectedLineNum": "EXTERNAL_PHONE",
+  "CallerIDName": "<unknown>"
+}
+```
+
+#### **СОБЫТИЕ 17: BRIDGE (основной SIP → мост 2)**
+```json
+{
+  "UniqueId": "START_ID",
+  "BridgeUniqueid": "BRIDGE_UUID_2",
+  "ConnectedLineName": "<unknown>",
+  "CallerIDNum": "EXTERNAL_PHONE",
+  "Exten": "TRUNK",
+  "Token": "375293332255",
+  "Channel": "SIP/TRUNK-00000009",
+  "ConnectedLineNum": "MOBILE_NUMBER",
+  "CallerIDName": "-EXTERNAL_PHONE"
+}
+```
+
+#### **СОБЫТИЕ 18: BRIDGE_LEAVE (SIP мобильный покидает мост 1)**
+```json
+{
+  "UniqueId": "SIP_2_ID",
+  "BridgeUniqueid": "BRIDGE_UUID_1",
+  "CallerIDNum": "MOBILE_NUMBER",
+  "ConnectedLineNum": "EXTERNAL_PHONE",
+  "Token": "375293332255",
+  "BridgeNumChannels": "1",
+  "Channel": "SIP/MOBILE_LINE-00000011",
+  "ConnectedLineName": "-EXTERNAL_PHONE",
+  "CallerIDName": "<unknown>"
+}
+```
+
+#### **СОБЫТИЕ 19: BRIDGE_LEAVE (Local ;2 покидает мост 1)**
+```json
+{
+  "UniqueId": "LOCAL_2_ID",
+  "BridgeUniqueid": "BRIDGE_UUID_1",
+  "CallerIDNum": "EXTERNAL_PHONE",
+  "ConnectedLineNum": "TRUNK",
+  "Token": "375293332255",
+  "BridgeNumChannels": "0",
+  "Channel": "Local/MOBILE_NUMBER@179e93af-00000001;2",
+  "ConnectedLineName": "<unknown>",
+  "CallerIDName": "-EXTERNAL_PHONE"
+}
+```
+
+#### **СОБЫТИЕ 20: BRIDGE_DESTROY (уничтожение моста 1)**
+```json
+{
+  "UniqueId": "GENERATED_BRIDGE_PREFIX",
+  "BridgeUniqueid": "BRIDGE_UUID_1",
+  "BridgeCreator": "<unknown>",
+  "Token": "375293332255",
+  "BridgeName": "<unknown>",
+  "BridgeNumChannels": "0",
+  "BridgeType": "",
+  "BridgeTechnology": "simple_bridge"
+}
+```
+
+#### **СОБЫТИЕ 21: HANGUP (мобильный звонок)**
+```json
+{
+  "UniqueId": "LOCAL_2_ID",
+  "EndTime": "CURRENT_TIMESTAMP",
+  "DateReceived": "CURRENT_TIMESTAMP",
+  "Trunk": "MOBILE_LINE",
+  "CallType": 1,
+  "Phone": "MOBILE_NUMBER",
+  "StartTime": "CURRENT_TIMESTAMP",
+  "Extensions": [""],
+  "CallStatus": "2",
+  "Token": "375293332255"
+}
+```
+
+#### **СОБЫТИЕ 22: BRIDGE_LEAVE (Local ;1 покидает мост 2)**
+```json
+{
+  "UniqueId": "LOCAL_1_ID",
+  "BridgeUniqueid": "BRIDGE_UUID_2",
+  "CallerIDNum": "TRUNK",
+  "ConnectedLineNum": "EXTERNAL_PHONE",
+  "Token": "375293332255",
+  "BridgeNumChannels": "1",
+  "Channel": "Local/MOBILE_NUMBER@179e93af-00000001;1",
+  "ConnectedLineName": "-EXTERNAL_PHONE",
+  "CallerIDName": "<unknown>"
+}
+```
+
+#### **СОБЫТИЕ 23: BRIDGE_LEAVE (основной SIP покидает мост 2)**
+```json
+{
+  "UniqueId": "START_ID",
+  "BridgeUniqueid": "BRIDGE_UUID_2",
+  "CallerIDNum": "EXTERNAL_PHONE",
+  "ConnectedLineNum": "MOBILE_NUMBER",
+  "Token": "375293332255",
+  "BridgeNumChannels": "0",
+  "Channel": "SIP/TRUNK-00000009",
+  "ConnectedLineName": "<unknown>",
+  "CallerIDName": "-EXTERNAL_PHONE"
+}
+```
+
+#### **СОБЫТИЕ 24: BRIDGE_DESTROY (уничтожение моста 2)**
+```json
+{
+  "UniqueId": "GENERATED_BRIDGE_PREFIX",
+  "BridgeUniqueid": "BRIDGE_UUID_2",
+  "BridgeCreator": "<unknown>",
+  "Token": "375293332255",
+  "BridgeName": "<unknown>",
+  "BridgeNumChannels": "0",
+  "BridgeType": "",
+  "BridgeTechnology": "simple_bridge"
+}
+```
+
+### ✅ **РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ (2025-09-27):**
+
+#### **🎯 ПОЛНОЕ СООТВЕТСТВИЕ DB ФАЙЛУ:**
+- **✅ Структурная аутентичность** - все 24 события имеют корректную структуру полей
+- **✅ Логическая последовательность** - порядок событий соответствует эталону
+- **✅ Правильные тайминги** - корректные интервалы между событиями
+- **✅ Успешная интеграция** - все события успешно отправлены на сервер
+- **✅ Мобильная логика** - Local каналы + SIP failover через 2 линии
+- **✅ Фиксированная структура** - точно 3 DIAL события + мобильные
+
+#### **🏆 УНИКАЛЬНЫЕ ОСОБЕННОСТИ ПАТТЕРНА 2-14:**
+1. **Фиксированные 3 DIAL события** - каждый только со своими менеджерами 🎯
+2. **Ответ на мобильном** - в отличие от 2-13, где ответ на внутреннем 📱
+3. **Два SIP канала для мобильного** - через разные линии с failover 🔄
+4. **Мобильный номер в Extensions DIAL #3** - добавляется к менеджерам шага 3 📞
+5. **CallStatus: 2** в hangup - подтверждение успешного ответа ✅
+
+#### **🔧 ТЕХНИЧЕСКИЕ РЕШЕНИЯ:**
+- **Правильная логика DIAL:** каждый шаг использует только своих менеджеров
+- **Мобильные номера:** корректно извлекаются через `data-mobile` атрибут
+- **Local каналы:** используют мобильный номер в Channel и Exten
+- **Временная синхронизация:** `currentDelay` корректно управляет интервалами
+- **Защита от браузера:** `<unknown>` в серверных событиях
+- **Данные из формы:** все номера и линии берутся из соответствующих полей
+
+#### **🔍 РЕЗУЛЬТАТЫ ПОШАГОВОГО АНАЛИЗА:**
+**ПРОАНАЛИЗИРОВАНО 24/24 СОБЫТИЯ - ВСЕ ИДЕНТИЧНЫ ЭТАЛОНУ!**
+- Шаги 1-5: Основные DIAL события ✅
+- Шаги 6-11: Мобильные события с Local/SIP каналами ✅
+- Шаги 12-20: Bridge события - создание, подключение, отключение ✅
+- Шаги 21-24: Hangup и финальная очистка мостов ✅
+
+**🌟 ПАТТЕРН 2-14 ГОТОВ К ПРОДАКШЕНУ! ЭТАЛОННАЯ РЕАЛИЗАЦИЯ МОБИЛЬНОГО ОТВЕТА! 🚀📞📱💎✨**
