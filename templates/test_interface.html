@@ -14682,6 +14682,380 @@
                     
                     break;
                     
+                case 40: // Паттерн 2-29: Follow Me без запроса с двойным DIAL на мобильный
+                    // Получаем данные из формы
+                    const phone_2_29 = (formData.get('external_phone') || '').replace(/^\+/, '');
+                    const trunk_2_29 = formData.get('line_id');
+                    const internalManager_2_29 = formData.get('follow_me_internal'); // 151 - кто принял
+                    const targetManager_2_29 = formData.get('follow_me_manager'); // 150 - внутренний номер менеджера с мобильным
+                    const externalLine_2_29 = formData.get('follow_me_external_line'); // внешняя линия для звонка на мобильный
+
+                    // Получаем мобильный номер выбранного менеджера
+                    const targetManagerSelect_2_29 = document.getElementById('follow_me_manager');
+                    const selectedOption_2_29 = targetManagerSelect_2_29.options[targetManagerSelect_2_29.selectedIndex];
+                    const mobileNumberRaw_2_29 = selectedOption_2_29?.getAttribute('data-mobile') || "375296254070";
+                    const mobileNumber_2_29 = mobileNumberRaw_2_29.replace(/^\+/, '');
+
+                    // Генерируем уникальный ID моста
+                    const bridgeId_2_29 = generateBridgeUUID();
+
+                    // Генерируем уникальные ID для каналов
+                    const uniqueIds_2_29 = {
+                        start: generateUniqueId("1759063885.14"),
+                        newCallerId1: generateUniqueId("1759063885.14"),
+                        dial1: generateUniqueId("1759063885.14"),
+                        bridgeCreate: "",
+                        bridge1: generateUniqueId("1759063885.14"),
+                        bridge2: generateUniqueId("1759063885.15"),
+                        bridgeLeave1: generateUniqueId("1759063885.15"),
+                        bridgeLeave2: generateUniqueId("1759063885.14"),
+                        bridgeDestroy: "",
+                        dial2: generateUniqueId("1759063885.14"),
+                        dial3: generateUniqueId("1759063885.14"),
+                        newCallerId2: generateUniqueId("1759063911.18"),
+                        newCallerId3: generateUniqueId("1759063911.19"),
+                        dial4: generateUniqueId("1759063911.19"),
+                        newCallerId4: generateUniqueId("1759063911.20"),
+                        dial5: generateUniqueId("1759063911.19"),
+                        newCallerId5: generateUniqueId("1759063911.21"),
+                        hangup: generateUniqueId("1759063885.14")
+                    };
+
+                    // Временные метки
+                    const startTime_2_29 = new Date();
+                    const receivedTime_2_29 = new Date(startTime_2_29.getTime() - 1000);
+                    const endTime_2_29 = new Date(startTime_2_29.getTime() + 56000); // +56 секунд
+
+                    // 1. start - Начало звонка
+                    events.push({
+                        step: 1,
+                        event: 'start',
+                        description: 'Начало входящего звонка',
+                        data: {
+                            Trunk: trunk_2_29,
+                            CallType: 0,
+                            UniqueId: uniqueIds_2_29.start,
+                            Token: token,
+                            Phone: phone_2_29
+                        }
+                    });
+
+                    // 2. new_callerid - Новый caller ID для входящего канала
+                    events.push({
+                        step: 2,
+                        event: 'new_callerid',
+                        description: 'Новый caller ID для входящего канала',
+                        data: {
+                            ConnectedLineName: "<ХРЕН>",
+                            Channel: `SIP/${trunk_2_29}-00000006`,
+                            CallerIDNum: phone_2_29,
+                            Context: "from-out-office",
+                            Token: token,
+                            Exten: trunk_2_29,
+                            CallerIDName: `-${phone_2_29}`,
+                            UniqueId: uniqueIds_2_29.newCallerId1,
+                            ConnectedLineNum: "<ХРЕН>"
+                        }
+                    });
+
+                    // 3. dial - DIAL на внутренний номер 151
+                    events.push({
+                        step: 3,
+                        event: 'dial',
+                        description: `DIAL на внутренний номер ${internalManager_2_29}`,
+                        data: {
+                            ExtTrunk: "",
+                            ExtPhone: phone_2_29,
+                            CallType: 0,
+                            Phone: phone_2_29,
+                            Token: token,
+                            Trunk: trunk_2_29,
+                            UniqueId: uniqueIds_2_29.dial1,
+                            Extensions: [internalManager_2_29]
+                        }
+                    });
+
+                    // 4. bridge_create - Создание моста
+                    events.push({
+                        step: 4,
+                        event: 'bridge_create',
+                        description: 'Создание моста',
+                        data: {
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeTechnology: "simple_bridge",
+                            Token: token,
+                            BridgeNumChannels: "0",
+                            BridgeUniqueid: bridgeId_2_29,
+                            BridgeType: "",
+                            UniqueId: "",
+                            BridgeName: "<ХРЕН>"
+                        }
+                    });
+
+                    // 5. bridge - Внешний канал присоединяется к мосту
+                    events.push({
+                        step: 5,
+                        event: 'bridge',
+                        description: 'Внешний канал присоединяется к мосту',
+                        data: {
+                            ConnectedLineName: "<ХРЕН>",
+                            ExternalInitiated: true,
+                            Channel: `SIP/${trunk_2_29}-00000006`,
+                            CallerIDNum: phone_2_29,
+                            Token: token,
+                            Exten: trunk_2_29,
+                            BridgeUniqueid: bridgeId_2_29,
+                            CallerIDName: `-${phone_2_29}`,
+                            UniqueId: uniqueIds_2_29.bridge1,
+                            ConnectedLineNum: internalManager_2_29
+                        }
+                    });
+
+                    // 6. bridge - Внутренний канал присоединяется к мосту
+                    events.push({
+                        step: 6,
+                        event: 'bridge',
+                        description: 'Внутренний канал присоединяется к мосту',
+                        data: {
+                            ConnectedLineName: `-${phone_2_29}`,
+                            ExternalInitiated: true,
+                            Channel: `SIP/${internalManager_2_29}-00000007`,
+                            CallerIDNum: internalManager_2_29,
+                            Token: token,
+                            Exten: "",
+                            BridgeUniqueid: bridgeId_2_29,
+                            CallerIDName: "",
+                            UniqueId: uniqueIds_2_29.bridge2,
+                            ConnectedLineNum: phone_2_29
+                        }
+                    });
+
+                    // 7. bridge_leave - Внутренний канал покидает мост
+                    events.push({
+                        step: 7,
+                        event: 'bridge_leave',
+                        description: 'Внутренний канал покидает мост',
+                        data: {
+                            ConnectedLineName: `-${phone_2_29}`,
+                            ExternalInitiated: true,
+                            Channel: `SIP/${internalManager_2_29}-00000007`,
+                            CallerIDNum: internalManager_2_29,
+                            Token: token,
+                            BridgeNumChannels: "1",
+                            BridgeUniqueid: bridgeId_2_29,
+                            CallerIDName: "<ХРЕН>",
+                            UniqueId: uniqueIds_2_29.bridgeLeave1,
+                            ConnectedLineNum: phone_2_29
+                        }
+                    });
+
+                    // 8. bridge_leave - Внешний канал покидает мост
+                    events.push({
+                        step: 8,
+                        event: 'bridge_leave',
+                        description: 'Внешний канал покидает мост',
+                        data: {
+                            ConnectedLineName: "<ХРЕН>",
+                            ExternalInitiated: true,
+                            Channel: `SIP/${trunk_2_29}-00000006`,
+                            CallerIDNum: phone_2_29,
+                            Token: token,
+                            BridgeNumChannels: "0",
+                            BridgeUniqueid: bridgeId_2_29,
+                            CallerIDName: `-${phone_2_29}`,
+                            UniqueId: uniqueIds_2_29.bridgeLeave2,
+                            ConnectedLineNum: internalManager_2_29
+                        }
+                    });
+
+                    // 9. bridge_destroy - Уничтожение моста
+                    events.push({
+                        step: 9,
+                        event: 'bridge_destroy',
+                        description: 'Уничтожение моста',
+                        data: {
+                            ExternalInitiated: true,
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeTechnology: "simple_bridge",
+                            Token: token,
+                            BridgeNumChannels: "0",
+                            BridgeUniqueid: bridgeId_2_29,
+                            BridgeType: "",
+                            UniqueId: "",
+                            BridgeName: "<ХРЕН>"
+                        }
+                    });
+
+                    // 10. dial - DIAL на 150 с ExternalInitiated
+                    events.push({
+                        step: 10,
+                        event: 'dial',
+                        description: `DIAL на ${targetManager_2_29} с ExternalInitiated`,
+                        data: {
+                            ExtTrunk: "",
+                            ExtPhone: phone_2_29,
+                            CallType: 0,
+                            Phone: phone_2_29,
+                            Token: token,
+                            Trunk: trunk_2_29,
+                            UniqueId: uniqueIds_2_29.dial2,
+                            Extensions: [targetManager_2_29],
+                            ExternalInitiated: true
+                        }
+                    });
+
+                    // 11. dial - DIAL на 150 + мобильный с ExternalInitiated
+                    events.push({
+                        step: 11,
+                        event: 'dial',
+                        description: `DIAL на ${targetManager_2_29} + мобильный ${mobileNumber_2_29} с ExternalInitiated`,
+                        data: {
+                            ExtTrunk: "",
+                            ExtPhone: phone_2_29,
+                            CallType: 0,
+                            Phone: phone_2_29,
+                            Token: token,
+                            Trunk: trunk_2_29,
+                            UniqueId: uniqueIds_2_29.dial3,
+                            Extensions: [targetManager_2_29, mobileNumber_2_29],
+                            ExternalInitiated: true
+                        }
+                    });
+
+                    // 12. new_callerid - Local канал ;1 для мобильного
+                    events.push({
+                        step: 12,
+                        event: 'new_callerid',
+                        description: 'Local канал ;1 для мобильного',
+                        data: {
+                            ConnectedLineName: `-${phone_2_29}`,
+                            Channel: `Local/${mobileNumber_2_29}@179e93af-00000001;1`,
+                            CallerIDNum: "300",
+                            Context: "179e93af",
+                            Token: token,
+                            Exten: "300",
+                            CallerIDName: "<ХРЕН>",
+                            UniqueId: uniqueIds_2_29.newCallerId2,
+                            ConnectedLineNum: phone_2_29
+                        }
+                    });
+
+                    // 13. new_callerid - Local канал ;2 для мобильного
+                    events.push({
+                        step: 13,
+                        event: 'new_callerid',
+                        description: 'Local канал ;2 для мобильного',
+                        data: {
+                            ConnectedLineName: "<ХРЕН>",
+                            Channel: `Local/${mobileNumber_2_29}@179e93af-00000001;2`,
+                            CallerIDNum: phone_2_29,
+                            Context: "179e93af",
+                            Token: token,
+                            Exten: mobileNumber_2_29,
+                            CallerIDName: `-${phone_2_29}`,
+                            UniqueId: uniqueIds_2_29.newCallerId3,
+                            ConnectedLineNum: "300"
+                        }
+                    });
+
+                    // 14. dial - DIAL мобильного через основную линию
+                    events.push({
+                        step: 14,
+                        event: 'dial',
+                        description: `DIAL мобильного ${mobileNumber_2_29} через основную линию ${trunk_2_29}`,
+                        data: {
+                            ExtTrunk: "",
+                            ExtPhone: "",
+                            CallType: 1,
+                            Phone: mobileNumber_2_29,
+                            Token: token,
+                            Trunk: trunk_2_29,
+                            UniqueId: uniqueIds_2_29.dial4,
+                            Extensions: [phone_2_29]
+                        }
+                    });
+
+                    // 15. new_callerid - SIP канал для мобильного через основную линию
+                    events.push({
+                        step: 15,
+                        event: 'new_callerid',
+                        description: `SIP канал для мобильного через основную линию`,
+                        data: {
+                            ConnectedLineName: `-${phone_2_29}`,
+                            Channel: `SIP/${trunk_2_29}-0000000a`,
+                            CallerIDNum: mobileNumber_2_29,
+                            Context: "from-out-office",
+                            Token: token,
+                            Exten: mobileNumber_2_29,
+                            CallerIDName: "<ХРЕН>",
+                            UniqueId: uniqueIds_2_29.newCallerId4,
+                            ConnectedLineNum: phone_2_29
+                        }
+                    });
+
+                    // 16. dial - DIAL мобильного через внешнюю линию
+                    events.push({
+                        step: 16,
+                        event: 'dial',
+                        description: `DIAL мобильного ${mobileNumber_2_29} через внешнюю линию ${externalLine_2_29}`,
+                        data: {
+                            ExtTrunk: "",
+                            ExtPhone: "",
+                            CallType: 1,
+                            Phone: mobileNumber_2_29,
+                            Token: token,
+                            Trunk: externalLine_2_29,
+                            UniqueId: uniqueIds_2_29.dial5,
+                            Extensions: [phone_2_29]
+                        }
+                    });
+
+                    // 17. new_callerid - SIP канал для мобильного через внешнюю линию
+                    events.push({
+                        step: 17,
+                        event: 'new_callerid',
+                        description: `SIP канал для мобильного через внешнюю линию`,
+                        data: {
+                            ConnectedLineName: `-${phone_2_29}`,
+                            Channel: `SIP/${externalLine_2_29}-0000000b`,
+                            CallerIDNum: mobileNumber_2_29,
+                            Context: "from-out-office",
+                            Token: token,
+                            Exten: mobileNumber_2_29,
+                            CallerIDName: "<ХРЕН>",
+                            UniqueId: uniqueIds_2_29.newCallerId5,
+                            ConnectedLineNum: phone_2_29
+                        }
+                    });
+
+                    // 18. hangup - Завершение основного звонка (CallStatus: "0")
+                    events.push({
+                        step: 18,
+                        event: 'hangup',
+                        description: 'Завершение основного звонка (не отвечен)',
+                        data: {
+                            Trunk: trunk_2_29,
+                            StartTime: startTime_2_29.toISOString().slice(0, 19).replace('T', ' '),
+                            CallType: 0,
+                            Phone: phone_2_29,
+                            Token: token,
+                            CallStatus: "0",
+                            EndTime: endTime_2_29.toISOString().slice(0, 19).replace('T', ' '),
+                            DateReceived: endTime_2_29.toISOString().slice(0, 19).replace('T', ' '),
+                            UniqueId: uniqueIds_2_29.hangup,
+                            Extensions: [""]
+                        }
+                    });
+
+                    // Установка состояния эмулятора
+                    emulatorState.events = events;
+                    emulatorState.currentStep = 0;
+                    emulatorState.isRunning = true;
+                    
+                    updateEmulatorStatus('Готов к эмуляции Follow Me без запроса (2-29)', 'success');
+                    
+                    break;
+                    
                 default:
                     // Общий паттерн для остальных типов (временно)
                     events.push({
