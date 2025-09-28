@@ -627,7 +627,7 @@
                                                 <select class="form-select" name="follow_me_external_line" id="follow_me_external_line">
                                                     <option value="">Выберите внешнюю линию</option>
                                                     {% for line in lines %}
-                                                    <option value="{{ line.phone }}">{{ line.phone }} - {{ line.name }}</option>
+                                                    <option value="{{ line.id }}">{{ line.id }} - {{ line.name }}</option>
                                                     {% endfor %}
                                                 </select>
                                             </div>
@@ -1866,7 +1866,7 @@
 
         // Функция для обновления доступности внешней линии Follow Me (не должна пересекаться с входящей)
         function updateFollowMeExternalLineAvailability() {
-            const incomingLine = document.getElementById('line');
+            const incomingLine = document.getElementById('line_id');
             const followMeExternalLine = document.getElementById('follow_me_external_line');
             
             if (!incomingLine || !followMeExternalLine) return;
@@ -1882,13 +1882,10 @@
                     option.disabled = true;
                     option.style.backgroundColor = '#f8f9fa';
                     option.style.color = '#6c757d';
-                    option.textContent = option.textContent.includes('(используется)') ? 
-                        option.textContent : option.textContent + ' (используется как входящая)';
                 } else {
                     option.disabled = false;
                     option.style.backgroundColor = '';
                     option.style.color = '';
-                    option.textContent = option.textContent.replace(' (используется как входящая)', '');
                 }
             });
             
@@ -2256,7 +2253,7 @@
             });
 
             // Обработчики для Follow Me (типы 2-23, 2-24)
-            const lineSelect = document.getElementById('line');
+            const lineSelect = document.getElementById('line_id');
             const followMeExternalLine = document.getElementById('follow_me_external_line');
             const followMeManager = document.getElementById('follow_me_manager');
             
@@ -11281,6 +11278,741 @@
                     
                     break;
                     
+                case 34: // Паттерн 2-23: Follow Me Accepted on Mobile
+                    // Получаем данные из формы
+                    const phone_2_23 = (formData.get('external_phone') || '').replace(/^\+/, '');
+                    const trunk_2_23 = formData.get('line_id');
+                    const internalManager_2_23 = formData.get('follow_me_internal'); // 151 - кто принял
+                    const targetManager_2_23 = formData.get('follow_me_manager'); // 150 - внутренний номер менеджера с мобильным
+                    const externalLine_2_23 = formData.get('follow_me_external_line'); // 0001366 - линия для звонка на мобильный
+                    
+                    // Получаем мобильный номер менеджера из data-mobile
+                    const targetManagerSelect_2_23 = document.getElementById('follow_me_manager');
+                    const selectedOption_2_23 = targetManagerSelect_2_23.options[targetManagerSelect_2_23.selectedIndex];
+                    const mobileNumber_2_23 = selectedOption_2_23?.getAttribute('data-mobile') || "375296254070";
+                    
+                    
+                    const token = "375293332255";
+                    
+                    // Генерируем уникальные ID
+                    const uniqueIds_2_23 = {
+                        start: generateUniqueId("1757843259.138"),          // Основной звонок
+                        internal_answer: generateUniqueId("1757843260.140"), // 151 отвечает
+                        local_300_2: generateUniqueId("1757843268.143"),     // Local/300;2
+                        mobile_local_2: generateUniqueId("1757843283.147"),  // Local мобильный ;2
+                        mobile_sip: generateUniqueId("1757843283.148"),      // SIP мобильного входящий
+                        mobile_line: generateUniqueId("1757843283.149"),     // SIP линии исходящий
+                        local_300_1: generateUniqueId("1757843268.142"),     // Local/300;1
+                        mobile_local_1: generateUniqueId("1757843283.146")   // Local мобильный ;1
+                    };
+                    
+                    const bridgeIds_2_23 = {
+                        main: generateBridgeUUID(),           // Основной мост
+                        transfer: generateBridgeUUID(),       // Мост для перевода
+                        mobile: generateBridgeUUID(),         // Мост для мобильного
+                        follow_me: generateBridgeUUID()       // Follow Me мост
+                    };
+                    
+                    // 1. START - начало звонка
+                    events.push({
+                        step: 1,
+                        event: 'start',
+                        description: 'Начало внешнего звонка',
+                        data: {
+                            "Trunk": trunk_2_23,
+                            "CallType": 0,
+                            "Token": token,
+                            "Phone": phone_2_23,
+                            "UniqueId": uniqueIds_2_23.start
+                        }
+                    });
+                    
+                    // 2. NEW_CALLERID - идентификация внешнего номера
+                    events.push({
+                        step: 2,
+                        event: 'new_callerid',
+                        description: 'Идентификация внешнего номера',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": `-${phone_2_23}`,
+                            "Channel": `SIP/${trunk_2_23}-0000003d`,
+                            "Context": "from-out-office",
+                            "Exten": trunk_2_23,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": phone_2_23,
+                            "UniqueId": uniqueIds_2_23.start,
+                            "ConnectedLineNum": "<ХРЕН>"
+                        }
+                    });
+                    
+                    // 3. DIAL - звонок группе менеджеров (первоначальный)
+                    events.push({
+                        step: 3,
+                        event: 'dial',
+                        description: 'Звонок группе менеджеров',
+                        data: {
+                            "Trunk": trunk_2_23,
+                            "Extensions": [targetManager_2_23, internalManager_2_23, "152"], // DB показывает [150, 151, 152]
+                            "Token": token,
+                            "CallType": 0,
+                            "ExtTrunk": "",
+                            "ExtPhone": phone_2_23,
+                            "UniqueId": uniqueIds_2_23.start,
+                            "Phone": phone_2_23
+                        }
+                    });
+                    
+                    // 4. BRIDGE_CREATE - создание основного моста
+                    events.push({
+                        step: 4,
+                        event: 'bridge_create',
+                        description: 'Создание основного моста',
+                        data: {
+                            "BridgeType": "",
+                            "BridgeName": "<ХРЕН>",
+                            "Token": token,
+                            "BridgeUniqueid": bridgeIds_2_23.main,
+                            "BridgeCreator": "<ХРЕН>",
+                            "BridgeTechnology": "simple_bridge",
+                            "UniqueId": "",
+                            "BridgeNumChannels": "0"
+                        }
+                    });
+                    
+                    // 5. BRIDGE - 151 отвечает на звонок
+                    events.push({
+                        step: 5,
+                        event: 'bridge',
+                        description: '151 отвечает на звонок',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "",
+                            "Channel": `SIP/${internalManager_2_23}-0000003f`,
+                            "BridgeUniqueid": bridgeIds_2_23.main,
+                            "CallerIDNum": internalManager_2_23,
+                            "ConnectedLineName": `-${phone_2_23}`,
+                            "Exten": "",
+                            "UniqueId": uniqueIds_2_23.internal_answer,
+                            "ConnectedLineNum": phone_2_23
+                        }
+                    });
+                    
+                    // 6. BRIDGE - внешний канал подключается к мосту
+                    events.push({
+                        step: 6,
+                        event: 'bridge',
+                        description: 'Внешний канал подключается к мосту',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": `-${phone_2_23}`,
+                            "Channel": `SIP/${trunk_2_23}-0000003d`,
+                            "BridgeUniqueid": bridgeIds_2_23.main,
+                            "CallerIDNum": phone_2_23,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "Exten": trunk_2_23,
+                            "UniqueId": uniqueIds_2_23.start,
+                            "ConnectedLineNum": internalManager_2_23
+                        }
+                    });
+                    
+                    // 7. BRIDGE_CREATE - создание моста для перевода
+                    events.push({
+                        step: 7,
+                        event: 'bridge_create',
+                        description: 'Создание моста для перевода',
+                        data: {
+                            "BridgeType": "",
+                            "BridgeName": "<ХРЕН>",
+                            "Token": token,
+                            "BridgeUniqueid": bridgeIds_2_23.transfer,
+                            "BridgeCreator": "<ХРЕН>",
+                            "BridgeTechnology": "simple_bridge",
+                            "UniqueId": "",
+                            "BridgeNumChannels": "0"
+                        }
+                    });
+                    
+                    // 8. NEW_CALLERID - Local/300;2 канал
+                    events.push({
+                        step: 8,
+                        event: 'new_callerid',
+                        description: 'Local/300;2 канал',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": "Local/300@dialexecute-00000007;2",
+                            "Context": "dialexecute",
+                            "Exten": "300",
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": internalManager_2_23,
+                            "UniqueId": uniqueIds_2_23.local_300_2,
+                            "ConnectedLineNum": "<ХРЕН>"
+                        }
+                    });
+                    
+                    // 9. BRIDGE_LEAVE - 151 покидает основной мост
+                    events.push({
+                        step: 9,
+                        event: 'bridge_leave',
+                        description: '151 покидает основной мост',
+                        data: {
+                            "BridgeNumChannels": "1",
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": `SIP/${internalManager_2_23}-0000003f`,
+                            "BridgeUniqueid": bridgeIds_2_23.main,
+                            "ConnectedLineName": `-${phone_2_23}`,
+                            "CallerIDNum": internalManager_2_23,
+                            "UniqueId": uniqueIds_2_23.internal_answer,
+                            "ConnectedLineNum": phone_2_23
+                        }
+                    });
+                    
+                    // 10. BRIDGE - 151 подключается к мосту перевода
+                    events.push({
+                        step: 10,
+                        event: 'bridge',
+                        description: '151 подключается к мосту перевода',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "",
+                            "Channel": `SIP/${internalManager_2_23}-0000003f`,
+                            "BridgeUniqueid": bridgeIds_2_23.transfer,
+                            "CallerIDNum": internalManager_2_23,
+                            "ConnectedLineName": `-${phone_2_23}`,
+                            "Exten": "",
+                            "UniqueId": uniqueIds_2_23.internal_answer,
+                            "ConnectedLineNum": phone_2_23
+                        }
+                    });
+                    
+                    // 11. NEW_CALLERID - SIP входящий для мобильного
+                    events.push({
+                        step: 11,
+                        event: 'new_callerid',
+                        description: 'SIP входящий для мобильного',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": `SIP/${externalLine_2_23}-00000043`,
+                            "Context": "from-out-office",
+                            "Exten": mobileNumber_2_23,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": mobileNumber_2_23,
+                            "UniqueId": uniqueIds_2_23.mobile_sip,
+                            "ConnectedLineNum": internalManager_2_23
+                        }
+                    });
+                    
+                    // 12. DIAL - звонок на мобильный номер
+                    events.push({
+                        step: 12,
+                        event: 'dial',
+                        description: 'Звонок на мобильный номер',
+                        data: {
+                            "Trunk": externalLine_2_23,
+                            "Extensions": [internalManager_2_23],
+                            "Token": token,
+                            "CallType": 1,
+                            "ExtTrunk": "",
+                            "ExtPhone": "",
+                            "UniqueId": uniqueIds_2_23.mobile_local_2,
+                            "Phone": mobileNumber_2_23
+                        }
+                    });
+                    
+                    // 13. NEW_CALLERID - SIP линии исходящий
+                    events.push({
+                        step: 13,
+                        event: 'new_callerid',
+                        description: 'SIP линии исходящий',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": `SIP/${externalLine_2_23}-00000044`,
+                            "Context": "from-out-office",
+                            "Exten": mobileNumber_2_23,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": mobileNumber_2_23,
+                            "UniqueId": uniqueIds_2_23.mobile_line,
+                            "ConnectedLineNum": internalManager_2_23
+                        }
+                    });
+                    
+                    // 14. BRIDGE_CREATE - мост для мобильного
+                    events.push({
+                        step: 14,
+                        event: 'bridge_create',
+                        description: 'Мост для мобильного',
+                        data: {
+                            "BridgeType": "",
+                            "BridgeName": "<ХРЕН>",
+                            "Token": token,
+                            "BridgeUniqueid": bridgeIds_2_23.mobile,
+                            "BridgeCreator": "<ХРЕН>",
+                            "BridgeTechnology": "simple_bridge",
+                            "UniqueId": "",
+                            "BridgeNumChannels": "0"
+                        }
+                    });
+                    
+                    // 15. BRIDGE - Local мобильного ;2
+                    events.push({
+                        step: 15,
+                        event: 'bridge',
+                        description: 'Local мобильного ;2',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "",
+                            "Channel": `Local/${mobileNumber_2_23}@179e93af-00000008;2`,
+                            "BridgeUniqueid": bridgeIds_2_23.mobile,
+                            "CallerIDNum": internalManager_2_23,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "Exten": mobileNumber_2_23,
+                            "UniqueId": uniqueIds_2_23.mobile_local_2,
+                            "ConnectedLineNum": "300"
+                        }
+                    });
+                    
+                    // 16. BRIDGE - SIP линии
+                    events.push({
+                        step: 16,
+                        event: 'bridge',
+                        description: 'SIP линии',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "",
+                            "Channel": `SIP/${externalLine_2_23}-00000044`,
+                            "BridgeUniqueid": bridgeIds_2_23.mobile,
+                            "CallerIDNum": mobileNumber_2_23,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "Exten": "",
+                            "UniqueId": uniqueIds_2_23.mobile_line,
+                            "ConnectedLineNum": internalManager_2_23
+                        }
+                    });
+                    
+                    // 17. NEW_CALLERID - Local/300;1
+                    events.push({
+                        step: 17,
+                        event: 'new_callerid',
+                        description: 'Local/300;1',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": "Local/300@dialexecute-00000007;1",
+                            "Context": "dialexecute",
+                            "Exten": "300",
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": targetManager_2_23,
+                            "UniqueId": uniqueIds_2_23.local_300_1,
+                            "ConnectedLineNum": internalManager_2_23
+                        }
+                    });
+                    
+                    // 18. BRIDGE_CREATE - Follow Me мост
+                    events.push({
+                        step: 18,
+                        event: 'bridge_create',
+                        description: 'Follow Me мост',
+                        data: {
+                            "BridgeType": "",
+                            "BridgeName": "<ХРЕН>",
+                            "Token": token,
+                            "BridgeUniqueid": bridgeIds_2_23.follow_me,
+                            "BridgeCreator": "<ХРЕН>",
+                            "BridgeTechnology": "simple_bridge",
+                            "UniqueId": "",
+                            "BridgeNumChannels": "0"
+                        }
+                    });
+                    
+                    // 19. BRIDGE - Local мобильного ;1
+                    events.push({
+                        step: 19,
+                        event: 'bridge',
+                        description: 'Local мобильного ;1',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "",
+                            "Channel": `Local/${mobileNumber_2_23}@179e93af-00000008;1`,
+                            "BridgeUniqueid": bridgeIds_2_23.follow_me,
+                            "CallerIDNum": "300",
+                            "ConnectedLineName": "<ХРЕН>",
+                            "Exten": "",
+                            "UniqueId": uniqueIds_2_23.mobile_local_1,
+                            "ConnectedLineNum": internalManager_2_23
+                        }
+                    });
+                    
+                    // 20. BRIDGE - Local/300;2
+                    events.push({
+                        step: 20,
+                        event: 'bridge',
+                        description: 'Local/300;2',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "",
+                            "Channel": "Local/300@dialexecute-00000007;2",
+                            "BridgeUniqueid": bridgeIds_2_23.follow_me,
+                            "CallerIDNum": internalManager_2_23,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "Exten": "300",
+                            "UniqueId": uniqueIds_2_23.local_300_2,
+                            "ConnectedLineNum": targetManager_2_23
+                        }
+                    });
+                    
+                    // 21. BRIDGE_LEAVE - 151 покидает мост перевода
+                    events.push({
+                        step: 21,
+                        event: 'bridge_leave',
+                        description: '151 покидает мост перевода',
+                        data: {
+                            "BridgeNumChannels": "1",
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": `SIP/${internalManager_2_23}-0000003f`,
+                            "BridgeUniqueid": bridgeIds_2_23.transfer,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": internalManager_2_23,
+                            "UniqueId": uniqueIds_2_23.internal_answer,
+                            "ConnectedLineNum": targetManager_2_23
+                        }
+                    });
+                    
+                    // 22. BRIDGE_LEAVE - Local/300;1 покидает мост перевода
+                    events.push({
+                        step: 22,
+                        event: 'bridge_leave',
+                        description: 'Local/300;1 покидает мост перевода',
+                        data: {
+                            "BridgeNumChannels": "0",
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": "Local/300@dialexecute-00000007;1",
+                            "BridgeUniqueid": bridgeIds_2_23.transfer,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": targetManager_2_23,
+                            "UniqueId": uniqueIds_2_23.local_300_1,
+                            "ConnectedLineNum": internalManager_2_23
+                        }
+                    });
+                    
+                    // 23. BRIDGE - Local/300;1 к основному мосту
+                    events.push({
+                        step: 23,
+                        event: 'bridge',
+                        description: 'Local/300;1 к основному мосту',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "",
+                            "Channel": "Local/300@dialexecute-00000007;1",
+                            "BridgeUniqueid": bridgeIds_2_23.main,
+                            "CallerIDNum": targetManager_2_23,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "Exten": "300",
+                            "UniqueId": uniqueIds_2_23.local_300_1,
+                            "ConnectedLineNum": internalManager_2_23
+                        }
+                    });
+                    
+                    // 24. BRIDGE_DESTROY - уничтожение моста перевода
+                    events.push({
+                        step: 24,
+                        event: 'bridge_destroy',
+                        description: 'Уничтожение моста перевода',
+                        data: {
+                            "BridgeType": "",
+                            "BridgeName": "<ХРЕН>",
+                            "Token": token,
+                            "BridgeUniqueid": bridgeIds_2_23.transfer,
+                            "BridgeCreator": "<ХРЕН>",
+                            "BridgeTechnology": "simple_bridge",
+                            "UniqueId": "",
+                            "BridgeNumChannels": "0"
+                        }
+                    });
+                    
+                    // 25. BRIDGE_LEAVE - Local мобильного ;1 покидает Follow Me мост
+                    events.push({
+                        step: 25,
+                        event: 'bridge_leave',
+                        description: 'Local мобильного ;1 покидает Follow Me мост',
+                        data: {
+                            "BridgeNumChannels": "1",
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": `Local/${mobileNumber_2_23}@179e93af-00000008;1`,
+                            "BridgeUniqueid": bridgeIds_2_23.follow_me,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": "300",
+                            "UniqueId": uniqueIds_2_23.mobile_local_1,
+                            "ConnectedLineNum": internalManager_2_23
+                        }
+                    });
+                    
+                    // 26. BRIDGE - Local мобильного ;1 к основному мосту
+                    events.push({
+                        step: 26,
+                        event: 'bridge',
+                        description: 'Local мобильного ;1 к основному мосту',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": "",
+                            "Channel": `Local/${mobileNumber_2_23}@179e93af-00000008;1`,
+                            "BridgeUniqueid": bridgeIds_2_23.main,
+                            "CallerIDNum": "300",
+                            "ConnectedLineName": `-${phone_2_23}`,
+                            "Exten": "",
+                            "UniqueId": uniqueIds_2_23.mobile_local_1,
+                            "ConnectedLineNum": phone_2_23
+                        }
+                    });
+                    
+                    // 27. BRIDGE_LEAVE - Local/300;1 покидает основной мост
+                    events.push({
+                        step: 27,
+                        event: 'bridge_leave',
+                        description: 'Local/300;1 покидает основной мост',
+                        data: {
+                            "BridgeNumChannels": "2",
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": "Local/300@dialexecute-00000007;1",
+                            "BridgeUniqueid": bridgeIds_2_23.main,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": targetManager_2_23,
+                            "UniqueId": uniqueIds_2_23.local_300_1,
+                            "ConnectedLineNum": internalManager_2_23
+                        }
+                    });
+                    
+                    // 28. BRIDGE_LEAVE - Local/300;2 покидает Follow Me мост
+                    events.push({
+                        step: 28,
+                        event: 'bridge_leave',
+                        description: 'Local/300;2 покидает Follow Me мост',
+                        data: {
+                            "BridgeNumChannels": "0",
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": "Local/300@dialexecute-00000007;2",
+                            "BridgeUniqueid": bridgeIds_2_23.follow_me,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": internalManager_2_23,
+                            "UniqueId": uniqueIds_2_23.local_300_2,
+                            "ConnectedLineNum": targetManager_2_23
+                        }
+                    });
+                    
+                    // 29. NEW_CALLERID - Local/300;2 изменение контекста
+                    events.push({
+                        step: 29,
+                        event: 'new_callerid',
+                        description: 'Local/300;2 изменение контекста',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": `-${phone_2_23}`,
+                            "Channel": "Local/300@dialexecute-00000007;2",
+                            "Context": "mngr25_2",
+                            "Exten": "300",
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": phone_2_23,
+                            "UniqueId": uniqueIds_2_23.local_300_2,
+                            "ConnectedLineNum": targetManager_2_23
+                        }
+                    });
+                    
+                    // 30. BRIDGE_DESTROY - уничтожение Follow Me моста
+                    events.push({
+                        step: 30,
+                        event: 'bridge_destroy',
+                        description: 'Уничтожение Follow Me моста',
+                        data: {
+                            "BridgeType": "",
+                            "BridgeName": "<ХРЕН>",
+                            "Token": token,
+                            "BridgeUniqueid": bridgeIds_2_23.follow_me,
+                            "BridgeCreator": "<ХРЕН>",
+                            "BridgeTechnology": "simple_bridge",
+                            "UniqueId": "",
+                            "BridgeNumChannels": "0"
+                        }
+                    });
+                    
+                    // 31. NEW_CALLERID - Local мобильного ;2 изменение контекста
+                    events.push({
+                        step: 31,
+                        event: 'new_callerid',
+                        description: 'Local мобильного ;2 изменение контекста',
+                        data: {
+                            "Token": token,
+                            "CallerIDName": `-${phone_2_23}`,
+                            "Channel": `Local/${mobileNumber_2_23}@179e93af-00000008;2`,
+                            "Context": "4d34a00c",
+                            "Exten": mobileNumber_2_23,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": phone_2_23,
+                            "UniqueId": uniqueIds_2_23.mobile_local_2,
+                            "ConnectedLineNum": "300"
+                        }
+                    });
+                    
+                    // 32. BRIDGE_LEAVE - SIP мобильного покидает мост
+                    events.push({
+                        step: 32,
+                        event: 'bridge_leave',
+                        description: 'SIP мобильного покидает мост',
+                        data: {
+                            "BridgeNumChannels": "1",
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": `SIP/${externalLine_2_23}-00000044`,
+                            "BridgeUniqueid": bridgeIds_2_23.mobile,
+                            "ConnectedLineName": `-${phone_2_23}`,
+                            "CallerIDNum": mobileNumber_2_23,
+                            "UniqueId": uniqueIds_2_23.mobile_line,
+                            "ConnectedLineNum": phone_2_23
+                        }
+                    });
+                    
+                    // 33. BRIDGE_LEAVE - Local мобильного ;2 покидает мост
+                    events.push({
+                        step: 33,
+                        event: 'bridge_leave',
+                        description: 'Local мобильного ;2 покидает мост',
+                        data: {
+                            "BridgeNumChannels": "0",
+                            "Token": token,
+                            "CallerIDName": `-${phone_2_23}`,
+                            "Channel": `Local/${mobileNumber_2_23}@179e93af-00000008;2`,
+                            "BridgeUniqueid": bridgeIds_2_23.mobile,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": phone_2_23,
+                            "UniqueId": uniqueIds_2_23.mobile_local_2,
+                            "ConnectedLineNum": "300"
+                        }
+                    });
+                    
+                    // 34. BRIDGE_DESTROY - уничтожение моста мобильного
+                    events.push({
+                        step: 34,
+                        event: 'bridge_destroy',
+                        description: 'Уничтожение моста мобильного',
+                        data: {
+                            "BridgeType": "",
+                            "BridgeName": "<ХРЕН>",
+                            "Token": token,
+                            "BridgeUniqueid": bridgeIds_2_23.mobile,
+                            "BridgeCreator": "<ХРЕН>",
+                            "BridgeTechnology": "simple_bridge",
+                            "UniqueId": "",
+                            "BridgeNumChannels": "0"
+                        }
+                    });
+                    
+                    // 35. HANGUP - завершение звонка на мобильный
+                    events.push({
+                        step: 35,
+                        event: 'hangup',
+                        description: 'Завершение звонка на мобильный',
+                        data: {
+                            "Trunk": externalLine_2_23,
+                            "EndTime": "2025-09-14 12:48:26",
+                            "Extensions": [phone_2_23],
+                            "Token": token,
+                            "CallType": 1,
+                            "DateReceived": "2025-09-14 12:48:03",
+                            "CallStatus": "2",
+                            "StartTime": "2025-09-14 12:48:03",
+                            "UniqueId": uniqueIds_2_23.mobile_local_2,
+                            "Phone": mobileNumber_2_23
+                        }
+                    });
+                    
+                    // 36. BRIDGE_LEAVE - Local мобильного ;1 покидает основной мост
+                    events.push({
+                        step: 36,
+                        event: 'bridge_leave',
+                        description: 'Local мобильного ;1 покидает основной мост',
+                        data: {
+                            "BridgeNumChannels": "1",
+                            "Token": token,
+                            "CallerIDName": "<ХРЕН>",
+                            "Channel": `Local/${mobileNumber_2_23}@179e93af-00000008;1`,
+                            "BridgeUniqueid": bridgeIds_2_23.main,
+                            "ConnectedLineName": `-${phone_2_23}`,
+                            "CallerIDNum": "300",
+                            "UniqueId": uniqueIds_2_23.mobile_local_1,
+                            "ConnectedLineNum": phone_2_23
+                        }
+                    });
+                    
+                    // 37. BRIDGE_LEAVE - внешний канал покидает основной мост
+                    events.push({
+                        step: 37,
+                        event: 'bridge_leave',
+                        description: 'Внешний канал покидает основной мост',
+                        data: {
+                            "BridgeNumChannels": "0",
+                            "Token": token,
+                            "CallerIDName": `-${phone_2_23}`,
+                            "Channel": `SIP/${trunk_2_23}-0000003d`,
+                            "BridgeUniqueid": bridgeIds_2_23.main,
+                            "ConnectedLineName": "<ХРЕН>",
+                            "CallerIDNum": phone_2_23,
+                            "UniqueId": uniqueIds_2_23.start,
+                            "ConnectedLineNum": targetManager_2_23
+                        }
+                    });
+                    
+                    // 38. BRIDGE_DESTROY - уничтожение основного моста
+                    events.push({
+                        step: 38,
+                        event: 'bridge_destroy',
+                        description: 'Уничтожение основного моста',
+                        data: {
+                            "BridgeType": "",
+                            "BridgeName": "<ХРЕН>",
+                            "Token": token,
+                            "BridgeUniqueid": bridgeIds_2_23.main,
+                            "BridgeCreator": "<ХРЕН>",
+                            "BridgeTechnology": "simple_bridge",
+                            "UniqueId": "",
+                            "BridgeNumChannels": "0"
+                        }
+                    });
+                    
+                    // 39. HANGUP - завершение основного звонка
+                    events.push({
+                        step: 39,
+                        event: 'hangup',
+                        description: 'Завершение основного звонка',
+                        data: {
+                            "Trunk": trunk_2_23,
+                            "EndTime": "2025-09-14 12:48:27",
+                            "Extensions": [internalManager_2_23],
+                            "Token": token,
+                            "CallType": 0,
+                            "DateReceived": "2025-09-14 12:47:40",
+                            "CallStatus": "2",
+                            "StartTime": "2025-09-14 12:47:40",
+                            "UniqueId": uniqueIds_2_23.start,
+                            "Phone": phone_2_23
+                        }
+                    });
+                    
+                    
+                    // Запускаем эмуляцию
+                    emulatorState.events = events;
+                    emulatorState.currentStep = 0;
+                    emulatorState.isRunning = true;
+                    
+                    updateEmulatorStatus('Готов к эмуляции Follow Me (2-23)', 'success');
+                    
+                    break;
+                    
                 default:
                     // Общий паттерн для остальных типов (временно)
                     events.push({
@@ -11685,6 +12417,7 @@ ${JSON.stringify(event.data, null, 2)}
             if (needsExternalPhone.includes(parseInt(callTypeId))) {
                 // Получаем номер из intl-tel-input виджета
                 const phoneNumber = phoneInputWidget ? phoneInputWidget.getNumber() : externalPhone;
+                
                 
                 if (!phoneNumber || phoneNumber.trim() === '') {
                     alert('Введите внешний номер телефона');
