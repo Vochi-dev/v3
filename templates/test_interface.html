@@ -15520,6 +15520,158 @@
                     
                     break;
                     
+                case 42: // Паттерн 3-1: Внутренний звонок между менеджерами
+                    // Получаем данные из формы
+                    const callerManager_3_1 = formData.get('internal_caller'); // Кто звонит
+                    const calleeManager_3_1 = formData.get('internal_callee'); // Кому звонят
+
+                    // Генерируем уникальный ID моста
+                    const bridgeId_3_1 = generateBridgeUUID();
+
+                    // Генерируем уникальные ID для каналов
+                    const uniqueIds_3_1 = {
+                        caller: generateUniqueId("1757775514.350"),
+                        callee: generateUniqueId("1757775515.351")
+                    };
+
+                    // Временные метки
+                    const startTime_3_1 = new Date();
+                    const receivedTime_3_1 = new Date(startTime_3_1.getTime() - 10000); // -10 секунд
+                    const endTime_3_1 = new Date(startTime_3_1.getTime() + 110000); // +110 секунд (2 минуты)
+
+                    // 1. bridge_create - Создание моста
+                    events.push({
+                        step: 1,
+                        event: 'bridge_create',
+                        description: 'Создание моста для внутреннего звонка',
+                        data: {
+                            BridgeCreator: "<ХРЕН>",
+                            Token: token,
+                            BridgeTechnology: "simple_bridge",
+                            BridgeUniqueid: bridgeId_3_1,
+                            UniqueId: "",
+                            BridgeType: "",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<ХРЕН>"
+                        }
+                    });
+
+                    // 2. bridge - Звонящий (caller) присоединяется к мосту
+                    events.push({
+                        step: 2,
+                        event: 'bridge',
+                        description: `Звонящий ${callerManager_3_1} присоединяется к мосту`,
+                        data: {
+                            Exten: calleeManager_3_1,
+                            ConnectedLineNum: calleeManager_3_1,
+                            Token: token,
+                            CallerIDName: callerManager_3_1,
+                            BridgeUniqueid: bridgeId_3_1,
+                            UniqueId: uniqueIds_3_1.caller,
+                            CallerIDNum: callerManager_3_1,
+                            ConnectedLineName: "<ХРЕН>",
+                            Channel: `SIP/${callerManager_3_1}-00000098`
+                        }
+                    });
+
+                    // 3. bridge - Принимающий (callee) присоединяется к мосту
+                    events.push({
+                        step: 3,
+                        event: 'bridge',
+                        description: `Принимающий ${calleeManager_3_1} присоединяется к мосту`,
+                        data: {
+                            Exten: "",
+                            ConnectedLineNum: callerManager_3_1,
+                            Token: token,
+                            CallerIDName: "",
+                            BridgeUniqueid: bridgeId_3_1,
+                            UniqueId: uniqueIds_3_1.callee,
+                            CallerIDNum: calleeManager_3_1,
+                            ConnectedLineName: callerManager_3_1,
+                            Channel: `SIP/${calleeManager_3_1}-00000099`
+                        }
+                    });
+
+                    // 4. bridge_leave - Принимающий покидает мост
+                    events.push({
+                        step: 4,
+                        event: 'bridge_leave',
+                        description: `Принимающий ${calleeManager_3_1} покидает мост`,
+                        data: {
+                            ConnectedLineNum: callerManager_3_1,
+                            Token: token,
+                            CallerIDName: "<ХРЕН>",
+                            BridgeUniqueid: bridgeId_3_1,
+                            UniqueId: uniqueIds_3_1.callee,
+                            CallerIDNum: calleeManager_3_1,
+                            ConnectedLineName: callerManager_3_1,
+                            BridgeNumChannels: "1",
+                            Channel: `SIP/${calleeManager_3_1}-00000099`
+                        }
+                    });
+
+                    // 5. bridge_leave - Звонящий покидает мост
+                    events.push({
+                        step: 5,
+                        event: 'bridge_leave',
+                        description: `Звонящий ${callerManager_3_1} покидает мост`,
+                        data: {
+                            ConnectedLineNum: calleeManager_3_1,
+                            Token: token,
+                            CallerIDName: callerManager_3_1,
+                            BridgeUniqueid: bridgeId_3_1,
+                            UniqueId: uniqueIds_3_1.caller,
+                            CallerIDNum: callerManager_3_1,
+                            ConnectedLineName: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            Channel: `SIP/${callerManager_3_1}-00000098`
+                        }
+                    });
+
+                    // 6. bridge_destroy - Уничтожение моста
+                    events.push({
+                        step: 6,
+                        event: 'bridge_destroy',
+                        description: 'Уничтожение моста внутреннего звонка',
+                        data: {
+                            BridgeCreator: "<ХРЕН>",
+                            Token: token,
+                            BridgeTechnology: "simple_bridge",
+                            BridgeUniqueid: bridgeId_3_1,
+                            UniqueId: "",
+                            BridgeType: "",
+                            BridgeNumChannels: "0",
+                            BridgeName: "<ХРЕН>"
+                        }
+                    });
+
+                    // 7. hangup - Завершение внутреннего звонка
+                    events.push({
+                        step: 7,
+                        event: 'hangup',
+                        description: 'Завершение внутреннего звонка',
+                        data: {
+                            Token: token,
+                            CallStatus: "2",
+                            StartTime: "",
+                            UniqueId: uniqueIds_3_1.caller,
+                            EndTime: endTime_3_1.toISOString().slice(0, 19).replace('T', ' '),
+                            Phone: callerManager_3_1,
+                            DateReceived: receivedTime_3_1.toISOString().slice(0, 19).replace('T', ' '),
+                            Extensions: [calleeManager_3_1],
+                            CallType: 2
+                        }
+                    });
+
+                    // Установка состояния эмулятора
+                    emulatorState.events = events;
+                    emulatorState.currentStep = 0;
+                    emulatorState.isRunning = true;
+                    
+                    updateEmulatorStatus('Готов к эмуляции внутреннего звонка (3-1)', 'success');
+                    
+                    break;
+                    
                 default:
                     // Общий паттерн для остальных типов (временно)
                     events.push({
