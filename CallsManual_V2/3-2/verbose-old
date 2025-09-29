@@ -1,0 +1,2062 @@
+[Jan  1 03:00:20] Asterisk 12.8.2 built by root @ ubuntu on a armv7l running Linux on 2015-06-25 09:29:28 UTC
+[Jan  1 03:00:20] VERBOSE[985] manager.c:   == Manager registered action DBGet
+[Jan  1 03:00:20] VERBOSE[985] manager.c:   == Manager registered action DBPut
+[Jan  1 03:00:20] VERBOSE[985] manager.c:   == Manager registered action DBDel
+[Jan  1 03:00:20] VERBOSE[985] manager.c:   == Manager registered action DBDelTree
+[Jan  1 03:00:20] VERBOSE[985] message.c:   == Message handler 'dialplan' registered.
+[Jan  1 03:00:20] VERBOSE[985] pbx.c:   == Registered custom function 'MESSAGE'
+[Jan  1 03:00:21] VERBOSE[985] pbx.c:   == Registered custom function 'MESSAGE_DATA'
+[Jan  1 03:00:21] VERBOSE[985] pbx.c:   == Registered application 'MessageSend'
+[Jan  1 03:00:21] VERBOSE[985] manager.c:   == Manager registered action MessageSend
+[Jan  1 03:00:21] VERBOSE[985] manager.c:   == Manager registered action DataGet
+[Jan  1 03:00:21] VERBOSE[985] channel.c:   == Registered channel type 'Surrogate' (Surrogate channel used to pull channel from an application)
+[Jan  1 03:00:21] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/codecs.conf': Found
+[Jan  1 03:00:21] VERBOSE[985] manager.c:   == Manager registered action BridgeTechnologyList
+[Jan  1 03:00:21] VERBOSE[985] manager.c:   == Manager registered action BridgeTechnologySuspend
+[Jan  1 03:00:21] VERBOSE[985] manager.c:   == Manager registered action BridgeTechnologyUnsuspend
+[Jan  1 03:00:21] VERBOSE[985] loader.c:  Asterisk Dynamic Loader Starting:
+[Jan  1 03:00:21] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/modules.conf': Found
+[Jan  1 03:00:21] VERBOSE[985] loader.c:  Loading res_odbc.so.
+[Jan  1 03:00:21] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/res_odbc.conf': Found
+[Jan  1 03:00:21] VERBOSE[985] pbx.c:   == Registered application 'ODBC_Commit'
+[Jan  1 03:00:21] VERBOSE[985] pbx.c:   == Registered application 'ODBC_Rollback'
+[Jan  1 03:00:21] VERBOSE[985] pbx.c:   == Registered custom function 'ODBC'
+[Jan  1 03:00:21] VERBOSE[985] loader.c:  res_odbc.so => (ODBC resource)
+[Jan  1 03:00:21] VERBOSE[985] loader.c:  Loading res_config_odbc.so.
+[Jan  1 03:00:21] VERBOSE[985] res_config_odbc.c:  res_config_odbc loaded.
+[Jan  1 03:00:21] VERBOSE[985] loader.c:  res_config_odbc.so => (Realtime ODBC configuration)
+[Jan  1 03:00:23] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/features.conf': Found
+[Jan  1 03:00:23] VERBOSE[985] pbx.c:   == Registered custom function 'FEATURE'
+[Jan  1 03:00:23] VERBOSE[985] pbx.c:   == Registered custom function 'FEATUREMAP'
+[Jan  1 03:00:23] VERBOSE[985] pbx.c:   == Registered application 'Bridge'
+[Jan  1 03:00:23] VERBOSE[985] manager.c:   == Manager registered action Bridge
+[Jan  1 03:00:23] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/dnsmgr.conf': Found
+[Jan  1 03:00:23] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/acl.conf': Found
+[Jan  1 03:00:23] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/http.conf': Found
+[Jan  1 03:00:23] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/indications.conf': Found
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'at'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'au'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'bg'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'br'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'be'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'ch'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'cl'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'cn'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'cz'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'de'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'dk'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'ee'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'es'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'fi'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'fr'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'gr'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'hu'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'il'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'in'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'it'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'lt'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'jp'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'mx'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'my'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'nl'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'no'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'nz'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'ph'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'pl'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'pt'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'ru'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'se'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'sg'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'th'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'uk'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'us'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'us-old'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'tw'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 've'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Registered indication country 'za'
+[Jan  1 03:00:23] VERBOSE[985] indications.c:     -- Setting default indication country to 'us'
+[Jan  1 03:00:23] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cdr.conf': Found
+[Jan  1 03:00:23] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/dsp.conf': Found
+[Sep 29 11:50:35] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/udptl.conf': Found
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  Asterisk PBX Core Initializing
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  Registering builtin applications:
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered custom function 'EXCEPTION'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered custom function 'TESTTIME'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [Answer]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'Answer'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [BackGround]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'BackGround'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [Busy]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'Busy'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [Congestion]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'Congestion'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [ExecIfTime]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'ExecIfTime'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [Goto]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'Goto'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [GotoIf]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'GotoIf'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [GotoIfTime]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'GotoIfTime'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [ImportVar]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'ImportVar'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [Hangup]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'Hangup'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [Incomplete]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'Incomplete'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [NoOp]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'NoOp'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [Proceeding]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'Proceeding'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [Progress]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'Progress'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [RaiseException]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'RaiseException'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [Ringing]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'Ringing'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [SayAlpha]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'SayAlpha'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [SayAlphaCase]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'SayAlphaCase'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [SayDigits]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'SayDigits'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [SayNumber]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'SayNumber'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [SayPhonetic]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'SayPhonetic'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [Set]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'Set'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [MSet]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'MSet'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [SetAMAFlags]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'SetAMAFlags'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [Wait]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'Wait'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:  [WaitExten]
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'WaitExten'
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action ShowDialPlan
+[Sep 29 11:50:35] VERBOSE[985] channel.c:   == Registered channel type 'Local' (Local Proxy Channel Driver)
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action LocalOptimizeAway
+[Sep 29 11:50:35] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cel.conf': Found
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Ping
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Events
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Logoff
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Login
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Challenge
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Hangup
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Status
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Setvar
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Getvar
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action GetConfig
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action GetConfigJSON
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action UpdateConfig
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action CreateConfig
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action ListCategories
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Redirect
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Atxfer
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Originate
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Command
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action ExtensionState
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action PresenceState
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action AbsoluteTimeout
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action MailboxStatus
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action MailboxCount
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action ListCommands
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action SendText
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action UserEvent
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action WaitEvent
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action CoreSettings
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action CoreStatus
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Reload
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action CoreShowChannels
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action ModuleLoad
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action ModuleCheck
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action AOCMessage
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action Filter
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action BlindTransfer
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered custom function 'AMI_CLIENT'
+[Sep 29 11:50:35] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/manager.conf': Found
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action BridgeList
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action BridgeInfo
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action BridgeDestroy
+[Sep 29 11:50:35] VERBOSE[985] manager.c:   == Manager registered action BridgeKick
+[Sep 29 11:50:35] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/users.conf': Found
+[Sep 29 11:50:35] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/enum.conf': Found
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'CallCompletionRequest'
+[Sep 29 11:50:35] VERBOSE[985] pbx.c:   == Registered application 'CallCompletionCancel'
+[Sep 29 11:50:35] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/ccss.conf': Found
+[Sep 29 11:50:35] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/ccss.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Asterisk Dynamic Loader Starting:
+[Sep 29 11:50:36] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/modules.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_statsd.so.
+[Sep 29 11:50:36] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/statsd.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_statsd.so => (Statsd client support)
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_sorcery_config.so.
+[Sep 29 11:50:36] VERBOSE[985] sorcery.c:   == Sorcery registered wizard 'config'
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_sorcery_config.so => (Sorcery Configuration File Object Wizard)
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_sorcery_astdb.so.
+[Sep 29 11:50:36] VERBOSE[985] sorcery.c:   == Sorcery registered wizard 'astdb'
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_sorcery_astdb.so => (Sorcery Astdb Object Wizard)
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_sorcery_realtime.so.
+[Sep 29 11:50:36] VERBOSE[985] sorcery.c:   == Sorcery registered wizard 'realtime'
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_sorcery_realtime.so => (Sorcery Realtime Object Wizard)
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_sorcery_memory.so.
+[Sep 29 11:50:36] VERBOSE[985] sorcery.c:   == Sorcery registered wizard 'memory'
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_sorcery_memory.so => (Sorcery In-Memory Object Wizard)
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_phoneprov.so.
+[Sep 29 11:50:36] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/phoneprov.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/phoneprov.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/sip.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/sip_addregister.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/sip_addproviders.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/users.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/users.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] res_phoneprov.c: Registered phoneprov provider 'sipusers'.
+[Sep 29 11:50:36] VERBOSE[985] pbx.c:   == Registered custom function 'PP_EACH_USER'
+[Sep 29 11:50:36] VERBOSE[985] pbx.c:   == Registered custom function 'PP_EACH_EXTENSION'
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_phoneprov.so => (HTTP Phone Provisioning)
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_stun_monitor.so.
+[Sep 29 11:50:36] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/res_stun_monitor.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_stun_monitor.so => (STUN Network Monitor)
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_crypto.so.
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_crypto.so => (Cryptographic Digital Signatures)
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_monitor.so.
+[Sep 29 11:50:36] VERBOSE[985] pbx.c:   == Registered application 'Monitor'
+[Sep 29 11:50:36] VERBOSE[985] pbx.c:   == Registered application 'StopMonitor'
+[Sep 29 11:50:36] VERBOSE[985] pbx.c:   == Registered application 'ChangeMonitor'
+[Sep 29 11:50:36] VERBOSE[985] pbx.c:   == Registered application 'PauseMonitor'
+[Sep 29 11:50:36] VERBOSE[985] pbx.c:   == Registered application 'UnpauseMonitor'
+[Sep 29 11:50:36] VERBOSE[985] manager.c:   == Manager registered action Monitor
+[Sep 29 11:50:36] VERBOSE[985] manager.c:   == Manager registered action StopMonitor
+[Sep 29 11:50:36] VERBOSE[985] manager.c:   == Manager registered action ChangeMonitor
+[Sep 29 11:50:36] VERBOSE[985] manager.c:   == Manager registered action PauseMonitor
+[Sep 29 11:50:36] VERBOSE[985] manager.c:   == Manager registered action UnpauseMonitor
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_monitor.so => (Call Monitoring Resource)
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_srtp.so.
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_srtp.so => (Secure RTP (SRTP))
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_smdi.so.
+[Sep 29 11:50:36] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/smdi.conf': Found
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_http_websocket.so.
+[Sep 29 11:50:36] VERBOSE[985] res_http_websocket.c:   == WebSocket registered sub-protocol 'echo'
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_http_websocket.so => (HTTP WebSocket Support)
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_stasis_recording.so.
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  res_stasis_recording.so => (Stasis application recording support)
+[Sep 29 11:50:36] VERBOSE[985] loader.c:  Loading res_ari.so.
+[Sep 29 11:50:37] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/ari.conf': Found
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_ari.so => (Asterisk RESTful Interface)
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  Loading res_agi.so.
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'answer' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'asyncagi break' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'channel status' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'database del' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'database deltree' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'database get' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'database put' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'exec' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'get data' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'get full variable' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'get option' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'get variable' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'hangup' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'noop' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'receive char' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'receive text' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'record file' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'say alpha' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'say digits' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'say number' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'say phonetic' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'say date' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'say time' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'say datetime' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'send image' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'send text' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'set autohangup' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'set callerid' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'set context' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'set extension' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'set music' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'set priority' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'set variable' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'stream file' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'control stream file' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'tdd mode' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'verbose' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'wait for digit' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'speech create' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'speech set' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'speech destroy' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'speech load grammar' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'speech unload grammar' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'speech activate grammar' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'speech deactivate grammar' registered
+[Sep 29 11:50:37] VERBOSE[985] res_agi.c:   == AGI Command 'speech recognize' registered
+[Sep 29 11:50:37] VERBOSE[985] pbx.c:   == Registered application 'DeadAGI'
+[Sep 29 11:50:37] VERBOSE[985] pbx.c:   == Registered application 'EAGI'
+[Sep 29 11:50:37] VERBOSE[985] manager.c:   == Manager registered action AGI
+[Sep 29 11:50:37] VERBOSE[985] pbx.c:   == Registered application 'AGI'
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_agi.so => (Asterisk Gateway Interface (AGI))
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  Loading res_ari_model.so.
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_ari_model.so => (ARI Model validators)
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  Loading res_fax.so.
+[Sep 29 11:50:37] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/res_fax.conf': Found
+[Sep 29 11:50:37] VERBOSE[985] pbx.c:   == Registered application 'SendFAX'
+[Sep 29 11:50:37] VERBOSE[985] pbx.c:   == Registered application 'ReceiveFAX'
+[Sep 29 11:50:37] VERBOSE[985] pbx.c:   == Registered custom function 'FAXOPT'
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_fax.so => (Generic FAX Applications)
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  Loading res_speech.so.
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_speech.so => (Generic Speech Recognition API)
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  Loading res_calendar.so.
+[Sep 29 11:50:37] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/calendar.conf': Found
+[Sep 29 11:50:37] VERBOSE[985] pbx.c:   == Registered custom function 'CALENDAR_BUSY'
+[Sep 29 11:50:37] VERBOSE[985] pbx.c:   == Registered custom function 'CALENDAR_EVENT'
+[Sep 29 11:50:37] VERBOSE[985] pbx.c:   == Registered custom function 'CALENDAR_QUERY'
+[Sep 29 11:50:37] VERBOSE[985] pbx.c:   == Registered custom function 'CALENDAR_QUERY_RESULT'
+[Sep 29 11:50:37] VERBOSE[985] pbx.c:   == Registered custom function 'CALENDAR_WRITE'
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_calendar.so => (Asterisk Calendar integration)
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  Loading res_stasis_playback.so.
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_stasis_playback.so => (Stasis application playback support)
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  Loading res_ael_share.so.
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_ael_share.so => (share-able code for AEL)
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  Loading res_stasis_snoop.so.
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_stasis_snoop.so => (Stasis application snoop support)
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  Loading res_stasis_answer.so.
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_stasis_answer.so => (Stasis application answer support)
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  Loading res_stasis.so.
+[Sep 29 11:50:37] VERBOSE[985] message.c:   == Message handler 'ari' registered.
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_stasis.so => (Stasis application support)
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  Loading res_stasis_device_state.so.
+[Sep 29 11:50:37] VERBOSE[985] loader.c:  res_stasis_device_state.so => (Stasis application device state support)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_parking.so.
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/res_parking.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Registered extension context 'parkedcalls'; registrar: res_parking
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '700' priority 1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '1' priority 1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '1' priority -1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '2' priority 1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '2' priority -1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '3' priority 1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '3' priority -1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '4' priority 1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '4' priority -1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '5' priority 1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '5' priority -1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '6' priority 1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '6' priority -1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '7' priority 1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '7' priority -1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '8' priority 1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:     -- Added extension '8' priority -1 to parkedcalls
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'Park'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'ParkedCall'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'ParkAndAnnounce'
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action Parkinglots
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action ParkedCalls
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action Park
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_parking.so => (Call Parking Resource)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_curl.so.
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_curl.so => (cURL Resource Module)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading func_curl.so.
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'CURL'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'CURLOPT'
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  func_curl.so => (Load external URL)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_config_curl.so.
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/res_curl.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] res_config_curl.c:  res_config_curl loaded.
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_config_curl.so => (Realtime Curl configuration)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_config_ldap.so.
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/res_ldap.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_config_ldap.so => (LDAP realtime interface)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_config_sqlite3.so.
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/res_config_sqlite3.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_config_sqlite3.so => (SQLite 3 realtime config engine)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_timing_pthread.so.
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_timing_pthread.so => (pthread Timing Interface)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_timing_timerfd.so.
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_timing_timerfd.so => (Timerfd Timing Interface)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_rtp_asterisk.so.
+[Sep 29 11:50:38] VERBOSE[985] rtp_engine.c:   == Registered RTP engine 'asterisk'
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/rtp.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] res_rtp_asterisk.c:   == RTP Allocating from port range 15001 -> 16000
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_rtp_asterisk.so => (Asterisk RTP Stack)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_format_attr_opus.so.
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/codecs.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_format_attr_opus.so => (Opus Format Attribute Module)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_musiconhold.so.
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/musiconhold.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'MusicOnHold'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'WaitMusicOnHold'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'SetMusicOnHold'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'StartMusicOnHold'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'StopMusicOnHold'
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_musiconhold.so => (Music On Hold Resource)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_format_attr_silk.so.
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/codecs.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_format_attr_silk.so => (SILK Format Attribute Module)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_rtp_multicast.so.
+[Sep 29 11:50:38] VERBOSE[985] rtp_engine.c:   == Registered RTP engine 'multicast'
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_rtp_multicast.so => (Multicast RTP Engine)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_format_attr_celt.so.
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/codecs.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_format_attr_celt.so => (CELT Format Attribute Module)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading chan_sip.so.
+[Sep 29 11:50:38] VERBOSE[985] chan_sip.c: SIP channel loading...
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/sip.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/sip_addregister.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/sip_addproviders.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/users.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] chan_sip.c:   == SIP Listening on 0.0.0.0:50156
+[Sep 29 11:50:38] VERBOSE[985] netsock2.c:   == Using SIP CoS mark 4
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/sip_notify.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] message.c:     -- Message technology 'sip' registered.
+[Sep 29 11:50:38] VERBOSE[985] channel.c:   == Registered channel type 'SIP' (Session Initiation Protocol (SIP))
+[Sep 29 11:50:38] VERBOSE[985] rtp_engine.c:   == Registered RTP glue 'SIP'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'SIPDtmfMode'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'SIPAddHeader'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'SIPRemoveHeader'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'SIP_HEADER'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'SIPPEER'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'SIPCHANINFO'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'CHECKSIPDOMAIN'
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action SIPpeers
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action SIPshowpeer
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action SIPqualifypeer
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action SIPshowregistry
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action SIPnotify
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action SIPpeerstatus
+[Sep 29 11:50:38] VERBOSE[985] res_http_websocket.c:   == WebSocket registered sub-protocol 'sip'
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  chan_sip.so => (Session Initiation Protocol (SIP))
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading chan_multicast_rtp.so.
+[Sep 29 11:50:38] VERBOSE[985] channel.c:   == Registered channel type 'MulticastRTP' (Multicast RTP Paging Channel Driver)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  chan_multicast_rtp.so => (Multicast RTP Paging Channel)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading chan_skinny.so.
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/skinny.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] chan_skinny.c:   == Skinny listening on 0.0.0.0:2000
+[Sep 29 11:50:38] VERBOSE[985] channel.c:   == Registered channel type 'Skinny' (Skinny Client Control Protocol (Skinny))
+[Sep 29 11:50:38] VERBOSE[985] rtp_engine.c:   == Registered RTP glue 'Skinny'
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action SKINNYdevices
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action SKINNYshowdevice
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action SKINNYlines
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action SKINNYshowline
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  chan_skinny.so => (Skinny Client Control Protocol (Skinny))
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading chan_iax2.so.
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/iax.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/users.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] chan_iax2.c:   == Binding IAX2 to default address 0.0.0.0:4569
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'IAX2Provision'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'IAXPEER'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'IAXVAR'
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action IAXpeers
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action IAXpeerlist
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action IAXnetstats
+[Sep 29 11:50:38] VERBOSE[985] manager.c:   == Manager registered action IAXregistry
+[Sep 29 11:50:38] VERBOSE[985] channel.c:   == Registered channel type 'IAX2' (Inter Asterisk eXchange Driver (Ver 2))
+[Sep 29 11:50:38] VERBOSE[985] chan_iax2.c:   == 10 helper threads started
+[Sep 29 11:50:38] VERBOSE[985] chan_iax2.c:   == IAX Ready and Listening
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/iaxprov.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] iax2/provision.c:     -- Loaded provisioning template 'default'
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  chan_iax2.so => (Inter Asterisk eXchange (Ver 2))
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_vox.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format vox, extension(s) vox
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_vox.so => (Dialogic VOX (ADPCM) File Format)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_gsm.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format gsm, extension(s) gsm
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_gsm.so => (Raw GSM data)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_g719.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format g719, extension(s) g719
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_g719.so => (ITU G.719)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_h264.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format h264, extension(s) h264
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_h264.so => (Raw H.264 data)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_ogg_vorbis.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format ogg_vorbis, extension(s) ogg
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_ogg_vorbis.so => (OGG/Vorbis audio)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_ilbc.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format iLBC, extension(s) ilbc
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_ilbc.so => (Raw iLBC data)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_sln.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format sln, extension(s) sln|raw
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format sln12, extension(s) sln12
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format sln16, extension(s) sln16
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format sln24, extension(s) sln24
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format sln32, extension(s) sln32
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format sln44, extension(s) sln44
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format sln48, extension(s) sln48
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format sln96, extension(s) sln96
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format sln192, extension(s) sln192
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_sln.so => (Raw Signed Linear Audio support (SLN) 8khz-192khz)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_g723.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format g723sf, extension(s) g723|g723sf
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_g723.so => (G.723.1 Simple Timestamp File Format)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_pcm.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format pcm, extension(s) pcm|ulaw|ul|mu|ulw
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format alaw, extension(s) alaw|al|alw
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format au, extension(s) au
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format g722, extension(s) g722
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_pcm.so => (Raw/Sun uLaw/ALaw 8KHz (PCM,PCMA,AU), G.722 16Khz)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_h263.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format h263, extension(s) h263
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_h263.so => (Raw H.263 data)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_wav.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format wav, extension(s) wav
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format wav16, extension(s) wav16
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_wav.so => (Microsoft WAV/WAV16 format (8kHz/16kHz Signed Linear))
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_g726.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format g726-40, extension(s) g726-40
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format g726-32, extension(s) g726-32
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format g726-24, extension(s) g726-24
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format g726-16, extension(s) g726-16
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_g726.so => (Raw G.726 (16/24/32/40kbps) data)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_jpeg.so.
+[Sep 29 11:50:38] VERBOSE[985] image.c:   == Registered format 'jpg' (JPEG (Joint Picture Experts Group))
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_jpeg.so => (jpeg (joint picture experts group) image format)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_siren7.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format siren7, extension(s) siren7
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_siren7.so => (ITU G.722.1 (Siren7, licensed from Polycom))
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_wav_gsm.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format wav49, extension(s) WAV|wav49
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_wav_gsm.so => (Microsoft WAV format (Proprietary GSM))
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading res_adsi.so.
+[Sep 29 11:50:38] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/adsi.conf': Found
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  res_adsi.so => (ADSI Resource)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_g729.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format g729, extension(s) g729
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_g729.so => (Raw G.729 data)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading func_dialplan.so.
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'DIALPLAN_EXISTS'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'VALID_EXTEN'
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  func_dialplan.so => (Dialplan Context/Extension/Priority Checking Functions)
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading format_siren14.so.
+[Sep 29 11:50:38] VERBOSE[985] file.c:   == Registered file format siren14, extension(s) siren14
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  format_siren14.so => (ITU G.722.1 Annex C (Siren14, licensed from Polycom))
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading app_stack.so.
+[Sep 29 11:50:38] VERBOSE[985] res_agi.c:   == AGI Command 'gosub' registered
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'StackPop'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'Return'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'GosubIf'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered application 'Gosub'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'LOCAL'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'LOCAL_PEEK'
+[Sep 29 11:50:38] VERBOSE[985] pbx.c:   == Registered custom function 'STACK_PEEK'
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  app_stack.so => (Dialplan subroutines (Gosub, Return, etc))
+[Sep 29 11:50:38] VERBOSE[985] loader.c:  Loading func_presencestate.so.
+[Sep 29 11:50:39] VERBOSE[985] pbx.c:   == Registered custom function 'PRESENCE_STATE'
+[Sep 29 11:50:39] VERBOSE[985] loader.c:  func_presencestate.so => (Gets or sets a presence state in the dialplan)
+[Sep 29 11:50:39] VERBOSE[985] loader.c:  Loading app_agent_pool.so.
+[Sep 29 11:50:39] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/agents.conf': Found
+[Sep 29 11:50:39] VERBOSE[985] manager.c:   == Manager registered action Agents
+[Sep 29 11:50:39] VERBOSE[985] manager.c:   == Manager registered action AgentLogoff
+[Sep 29 11:50:39] VERBOSE[985] pbx.c:   == Registered custom function 'AGENT'
+[Sep 29 11:50:39] VERBOSE[985] pbx.c:   == Registered application 'AgentLogin'
+[Sep 29 11:50:39] VERBOSE[985] pbx.c:   == Registered application 'AgentRequest'
+[Sep 29 11:50:39] VERBOSE[985] loader.c:  app_agent_pool.so => (Call center agent pool applications)
+[Sep 29 11:50:39] VERBOSE[985] loader.c:  Loading func_devstate.so.
+[Sep 29 11:50:39] VERBOSE[985] pbx.c:   == Registered custom function 'DEVICE_STATE'
+[Sep 29 11:50:39] VERBOSE[985] pbx.c:   == Registered custom function 'HINT'
+[Sep 29 11:50:39] VERBOSE[985] loader.c:  func_devstate.so => (Gets or sets a device state in the dialplan)
+[Sep 29 11:50:39] VERBOSE[985] loader.c:  Loading app_confbridge.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/confbridge.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] channel.c:   == Registered channel type 'CBRec' (Conference Bridge Recording Channel)
+[Sep 29 11:50:41] VERBOSE[985] channel.c:   == Registered channel type 'CBAnn' (Conference Bridge Announcing Channel)
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ConfBridge'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'CONFBRIDGE'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'CONFBRIDGE_INFO'
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action ConfbridgeList
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action ConfbridgeListRooms
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action ConfbridgeMute
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action ConfbridgeUnmute
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action ConfbridgeKick
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action ConfbridgeUnlock
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action ConfbridgeLock
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action ConfbridgeStartRecord
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action ConfbridgeStopRecord
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action ConfbridgeSetSingleVideoSrc
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_confbridge.so => (Conference Bridge Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_calendar_ews.so.
+[Sep 29 11:50:41] VERBOSE[985] res_calendar.c:   == Registered calendar type 'ews' (MS Exchange Web Service calendars)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_calendar_ews.so => (Asterisk MS Exchange Web Service Calendar Integration)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_calendar_icalendar.so.
+[Sep 29 11:50:41] VERBOSE[985] res_calendar.c:   == Registered calendar type 'ical' (iCalendar .ics calendars)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_calendar_icalendar.so => (Asterisk iCalendar .ics file integration)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_calendar_caldav.so.
+[Sep 29 11:50:41] VERBOSE[985] res_calendar.c:   == Registered calendar type 'caldav' (CalDAV calendars)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_calendar_caldav.so => (Asterisk CalDAV Calendar Integration)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading cdr_sqlite3_custom.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cdr_sqlite3_custom.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading cel_custom.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cel_custom.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] cel_custom.c:  Added CEL CSV mapping for 0 files.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  cel_custom.so => (Customizable Comma Separated Values CEL Backend)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading cdr_csv.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cdr.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  cdr_csv.so => (Comma Separated Values CDR Backend)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading cel_odbc.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cel_odbc.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  cel_odbc.so => (ODBC CEL backend)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading cdr_manager.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cdr_manager.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  cdr_manager.so => (Asterisk Manager Interface CDR Backend)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading cdr_custom.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cdr_custom.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  cdr_custom.so => (Customizable Comma Separated Values CDR Backend)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading cdr_syslog.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cdr_syslog.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading cel_manager.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cel.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  cel_manager.so => (Asterisk Manager Interface CEL Backend)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading cel_sqlite3_custom.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cel_sqlite3_custom.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading cdr_odbc.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cdr_odbc.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  cdr_odbc.so => (ODBC CDR Backend)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading cdr_adaptive_odbc.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  cdr_adaptive_odbc.so => (Adaptive ODBC CDR backend)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_shell.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SHELL'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_shell.so => (Collects the output generated by a command executed by the system shell)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_url.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SendURL'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_url.so => (Send URL Applications)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_dial.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'Dial'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'RetryDial'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_dial.so => (Dialing Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_module.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'IFMODULE'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_module.so => (Checks if Asterisk module is loaded in memory)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_channel.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'CHANNEL'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'CHANNELS'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'MASTER_CHANNEL'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_channel.so => (Channel information dialplan functions)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_jitterbuffer.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'JITTERBUFFER'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_jitterbuffer.so => (Jitter buffer for read side of channel.)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_ari_channels.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_ari_channels.so => (RESTful API module - Channel resources)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_mixmonitor.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'MixMonitor'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'StopMixMonitor'
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action MixMonitorMute
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action MixMonitor
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action StopMixMonitor
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_mixmonitor.so => (Mixed Audio Monitoring Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_senddtmf.so.
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action PlayDTMF
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SendDTMF'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_senddtmf.so => (Send DTMF digits Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_minivm.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'MinivmRecord'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'MinivmGreet'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'MinivmNotify'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'MinivmDelete'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'MinivmAccMess'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'MinivmMWI'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'MINIVMACCOUNT'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'MINIVMCOUNTER'
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/minivm.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_minivm.so => (Mini VoiceMail (A minimal Voicemail e-mail System))
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_speech_utils.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SpeechCreate'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SpeechLoadGrammar'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SpeechUnloadGrammar'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SpeechActivateGrammar'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SpeechDeactivateGrammar'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SpeechStart'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SpeechBackground'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SpeechDestroy'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SpeechProcessingSound'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SPEECH'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SPEECH_SCORE'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SPEECH_TEXT'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SPEECH_GRAMMAR'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SPEECH_ENGINE'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SPEECH_RESULTS_TYPE'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_speech_utils.so => (Dialplan Speech Applications)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_ari_bridges.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_ari_bridges.so => (RESTful API module - Bridge resources)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_ari_recordings.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_ari_recordings.so => (RESTful API module - Recording resources)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading codec_a_mu.so.
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'alawtoulaw' from format alaw to ulaw, table cost, 915000, computational cost 1
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'ulawtoalaw' from format ulaw to alaw, table cost, 915000, computational cost 1
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  codec_a_mu.so => (A-law and Mulaw direct Coder/Decoder)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_amd.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/amd.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] app_amd.c:     -- AMD defaults: initialSilence [2500] greeting [1500] afterGreetingSilence [800] totalAnalysisTime [5000] minimumWordLength [100] betweenWordsSilence [50] maximumNumberOfWords [3] silenceThreshold [256] maximumWordLength [5000]
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'AMD'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_amd.so => (Answering Machine Detection Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading pbx_ael.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'AELSub'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Setting global variable 'CONSOLE-AEL' to '"Console/dsp"'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Setting global variable 'IAXINFO-AEL' to 'guest'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Setting global variable 'OUTBOUND-TRUNK' to '"Zap/g2"'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Setting global variable 'OUTBOUND-TRUNKMSD' to '1'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-canonical'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-customers'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-via-pstn'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-local'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-canonical' in context 'ael-dundi-e164-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-customers' in context 'ael-dundi-e164-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-via-pstn' in context 'ael-dundi-e164-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-switch'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including switch 'DUNDi/e164' in context 'ael-dundi-e164-switch'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-lookup'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-local' in context 'ael-dundi-e164-lookup'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-switch' in context 'ael-dundi-e164-lookup'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-iaxtel700'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-iaxprovider'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-trunkint'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-lookup' in context 'ael-trunkint'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-trunkld'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-lookup' in context 'ael-trunkld'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-trunklocal'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-trunktollfree'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-international'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-longdistance' in context 'ael-international'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-trunkint' in context 'ael-international'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-longdistance'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-local' in context 'ael-longdistance'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-trunkld' in context 'ael-longdistance'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-local'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-default' in context 'ael-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-trunklocal' in context 'ael-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-iaxtel700' in context 'ael-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-trunktollfree' in context 'ael-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-iaxprovider' in context 'ael-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-std-exten-ael'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-demo'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-default'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-demo' in context 'ael-default'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-builtin-h-bubble'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-builtin-h-bubble' in context 'ael-dundi-e164'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-builtin-h-bubble' in context 'ael-std-exten-ael'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 1 to ael-dundi-e164
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 2 to ael-dundi-e164
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 3 to ael-dundi-e164
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91700XXXXXXX' priority 1 to ael-iaxtel700
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_9011.' priority 1 to ael-trunkint
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_9011.' priority 2 to ael-trunkint
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91NXXNXXXXXX' priority 1 to ael-trunkld
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91NXXNXXXXXX' priority 2 to ael-trunkld
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_9NXXXXXX' priority 1 to ael-trunklocal
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91800NXXXXXX' priority 1 to ael-trunktollfree
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91888NXXXXXX' priority 1 to ael-trunktollfree
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91877NXXXXXX' priority 1 to ael-trunktollfree
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91866NXXXXXX' priority 1 to ael-trunktollfree
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 1 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 2 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 3 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 4 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 5 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 6 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 7 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 8 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'a' priority 1 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'a' priority 2 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_sw_1_.' priority 10 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_sw_1_.' priority 11 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'sw_1_' priority 10 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'sw_1_BUSY' priority 10 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'sw_1_BUSY' priority 11 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 5 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 6 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 7 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 8 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 9 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 10 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 11 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 12 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '2' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '2' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '3' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '3' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '1000' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '500' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '500' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '500' priority 3 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '500' priority 4 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '600' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '600' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '600' priority 3 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '600' priority 4 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_1234' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '8500' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '8500' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '#' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '#' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 't' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'i' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 1 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9991 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9992 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9993 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9994 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9995 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9996 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'parkedcalls'; registrar: res_parking/default
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(parkedcalls) to new(parkedcalls) context, registrar = pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '8' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '8' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '7' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '7' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '6' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '6' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '5' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '5' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '4' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '4' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '3' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '3' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '2' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '2' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '1' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '1' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '700' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Time to scan old dialplan and merge leftovers back into the new: 0.001603 sec
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Time to restore hints and swap in new dialplan: 0.000031 sec
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Time to delete the old dialplan: 0.000298 sec
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Total time merge_contexts_delete: 0.001932 sec
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  pbx_ael.so => (Asterisk Extension Language Compiler)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading chan_oss.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/oss.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] channel.c:   == Registered channel type 'Console' (OSS Console Channel Driver)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  chan_oss.so => (OSS Console Channel Driver)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_ari_asterisk.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_ari_asterisk.so => (RESTful API module - Asterisk resources)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_talkdetect.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'TALK_DETECT'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_talkdetect.so => (Talk detection dialplan function)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_ari_device_states.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_ari_device_states.so => (RESTful API module - Device state resources)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_extstate.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'EXTENSION_STATE'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_extstate.so => (Gets an extension's state in the dialplan)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_md5.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'MD5'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_md5.so => (MD5 digest dialplan functions)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading chan_bridge_media.so.
+[Sep 29 11:50:41] VERBOSE[985] channel.c:   == Registered channel type 'Announcer' (Bridge Media Announcing Channel Driver)
+[Sep 29 11:50:41] VERBOSE[985] channel.c:   == Registered channel type 'Recorder' (Bridge Media Recording Channel Driver)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  chan_bridge_media.so => (Bridge Media Channel Driver)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading format_mp3.so.
+[Sep 29 11:50:41] VERBOSE[985] file.c:   == Registered file format mp3, extension(s) mp3
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  format_mp3.so => (MP3 format [Any rate but 8000hz mono is optimal])
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_echo.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'Echo'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_echo.so => (Simple Echo Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading pbx_spool.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  pbx_spool.so => (Outgoing Spool Support)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_userevent.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'UserEvent'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_userevent.so => (Custom User Event Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_clioriginate.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_clioriginate.so => (Call origination and redirection from the CLI)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_bridgewait.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'BridgeWait'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_bridgewait.so => (Place the channel into a holding bridge application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_mutestream.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'MUTEAUDIO'
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action MuteAudio
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_mutestream.so => (Mute audio stream resources)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_fax_spandsp.so.
+[Sep 29 11:50:41] VERBOSE[985] res_fax.c:     -- Registered handler for 'Spandsp' (Spandsp FAX Driver)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_fax_spandsp.so => (Spandsp G.711 and T.38 FAX Technologies)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_directed_pickup.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'Pickup'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'PickupChan'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_directed_pickup.so => (Directed Call Pickup Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_math.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'MATH'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'INC'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'DEC'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_math.so => (Mathematical dialplan function)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_getcpeid.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'GetCPEID'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_getcpeid.so => (Get ADSI CPE ID)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading codec_ilbc.so.
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'ilbctolin' from format ilbc to slin, table cost, 900000, computational cost 24000
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'lintoilbc' from format slin to ilbc, table cost, 600000, computational cost 132000
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  codec_ilbc.so => (iLBC Coder/Decoder)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_cdr.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'CDR'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'CDR_PROP'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_cdr.so => (Call Detail Record (CDR) dialplan functions)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_sorcery.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'AST_SORCERY'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_sorcery.so => (Get a field from a sorcery object)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_controlplayback.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ControlPlayback'
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action ControlPlayback
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_controlplayback.so => (Control Playback Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_config.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'AST_CONFIG'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_config.so => (Asterisk configuration file variable access)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading pbx_loopback.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  pbx_loopback.so => (Loopback Switch)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_global.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'GLOBAL'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SHARED'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_global.so => (Variable dialplan functions)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_image.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SendImage'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_image.so => (Image Transmission Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading codec_alaw.so.
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'alawtolin' from format alaw to slin, table cost, 900000, computational cost 1
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'lintoalaw' from format slin to alaw, table cost, 600000, computational cost 1
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  codec_alaw.so => (A-law Coder/Decoder)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_iconv.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'ICONV'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_iconv.so => (Charset conversions)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading bridge_native_rtp.so.
+[Sep 29 11:50:41] VERBOSE[985] bridge.c:   == Registered bridge technology native_rtp
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  bridge_native_rtp.so => (Native RTP bridging module)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_sms.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SMS'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_sms.so => (SMS/PSTN handler)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_format_attr_h264.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/codecs.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_format_attr_h264.so => (H.264 Format Attribute Module)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_ari_endpoints.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_ari_endpoints.so => (RESTful API module - Endpoint resources)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_cut.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'CUT'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SORT'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_cut.so => (Cut out information from a string)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_dictate.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'Dictate'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_dictate.so => (Virtual Dictation Machine)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_format_attr_h263.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/codecs.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/codecs.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_format_attr_h263.so => (H.263 Format Attribute Module)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_logic.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'ISNULL'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SET'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'EXISTS'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'IF'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'IFTIME'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'IMPORT'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_logic.so => (Logical dialplan functions)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_sayunixtime.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'SayUnixTime'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'DateTime'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_sayunixtime.so => (Say time)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_page.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'Page'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_page.so => (Page Multiple Phones)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_uri.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'URIDECODE'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'URIENCODE'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_uri.so => (URI encode/decode dialplan functions)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_db.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'DB'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'DB_EXISTS'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'DB_DELETE'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'DB_KEYS'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_db.so => (Database (astdb) related dialplan functions)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading codec_resample.so.
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 8000khz -> 12000khz' from format slin to slin12, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 8000khz -> 16000khz' from format slin to slin16, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 8000khz -> 24000khz' from format slin to slin24, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 8000khz -> 32000khz' from format slin to slin32, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 8000khz -> 44100khz' from format slin to slin44, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 8000khz -> 48000khz' from format slin to slin48, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 8000khz -> 96000khz' from format slin to slin96, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 8000khz -> 192000khz' from format slin to slin192, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 12000khz -> 8000khz' from format slin12 to slin, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 12000khz -> 16000khz' from format slin12 to slin16, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 12000khz -> 24000khz' from format slin12 to slin24, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 12000khz -> 32000khz' from format slin12 to slin32, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 12000khz -> 44100khz' from format slin12 to slin44, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 12000khz -> 48000khz' from format slin12 to slin48, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 12000khz -> 96000khz' from format slin12 to slin96, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 12000khz -> 192000khz' from format slin12 to slin192, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 16000khz -> 8000khz' from format slin16 to slin, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 16000khz -> 12000khz' from format slin16 to slin12, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 16000khz -> 24000khz' from format slin16 to slin24, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 16000khz -> 32000khz' from format slin16 to slin32, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 16000khz -> 44100khz' from format slin16 to slin44, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 16000khz -> 48000khz' from format slin16 to slin48, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 16000khz -> 96000khz' from format slin16 to slin96, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 16000khz -> 192000khz' from format slin16 to slin192, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 24000khz -> 8000khz' from format slin24 to slin, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 24000khz -> 12000khz' from format slin24 to slin12, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 24000khz -> 16000khz' from format slin24 to slin16, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 24000khz -> 32000khz' from format slin24 to slin32, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 24000khz -> 44100khz' from format slin24 to slin44, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 24000khz -> 48000khz' from format slin24 to slin48, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 24000khz -> 96000khz' from format slin24 to slin96, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 24000khz -> 192000khz' from format slin24 to slin192, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 32000khz -> 8000khz' from format slin32 to slin, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 32000khz -> 12000khz' from format slin32 to slin12, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 32000khz -> 16000khz' from format slin32 to slin16, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 32000khz -> 24000khz' from format slin32 to slin24, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 32000khz -> 44100khz' from format slin32 to slin44, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 32000khz -> 48000khz' from format slin32 to slin48, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 32000khz -> 96000khz' from format slin32 to slin96, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 32000khz -> 192000khz' from format slin32 to slin192, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 44100khz -> 8000khz' from format slin44 to slin, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 44100khz -> 12000khz' from format slin44 to slin12, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 44100khz -> 16000khz' from format slin44 to slin16, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 44100khz -> 24000khz' from format slin44 to slin24, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 44100khz -> 32000khz' from format slin44 to slin32, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 44100khz -> 48000khz' from format slin44 to slin48, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 44100khz -> 96000khz' from format slin44 to slin96, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 44100khz -> 192000khz' from format slin44 to slin192, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 48000khz -> 8000khz' from format slin48 to slin, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 48000khz -> 12000khz' from format slin48 to slin12, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 48000khz -> 16000khz' from format slin48 to slin16, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 48000khz -> 24000khz' from format slin48 to slin24, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 48000khz -> 32000khz' from format slin48 to slin32, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 48000khz -> 44100khz' from format slin48 to slin44, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 48000khz -> 96000khz' from format slin48 to slin96, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 48000khz -> 192000khz' from format slin48 to slin192, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 96000khz -> 8000khz' from format slin96 to slin, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 96000khz -> 12000khz' from format slin96 to slin12, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 96000khz -> 16000khz' from format slin96 to slin16, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 96000khz -> 24000khz' from format slin96 to slin24, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 96000khz -> 32000khz' from format slin96 to slin32, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 96000khz -> 44100khz' from format slin96 to slin44, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 96000khz -> 48000khz' from format slin96 to slin48, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 96000khz -> 192000khz' from format slin96 to slin192, table cost, 800000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 192000khz -> 8000khz' from format slin192 to slin, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 192000khz -> 12000khz' from format slin192 to slin12, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 192000khz -> 16000khz' from format slin192 to slin16, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 192000khz -> 24000khz' from format slin192 to slin24, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 192000khz -> 32000khz' from format slin192 to slin32, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 192000khz -> 44100khz' from format slin192 to slin44, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 192000khz -> 48000khz' from format slin192 to slin48, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'slin 192000khz -> 96000khz' from format slin192 to slin96, table cost, 850000, computational cost 999999
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  codec_resample.so => (SLIN Resampling Codec)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_realtime.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'REALTIME'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'REALTIME_STORE'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'REALTIME_DESTROY'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'REALTIME_FIELD'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'REALTIME_HASH'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_realtime.so => (Read/Write/Store/Destroy values from a RealTime repository)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading pbx_config.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/extensions.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/extensions_custom.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Setting global variable 'DIALOPTIONS' to 'mtT'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Setting global variable 'QUEUEOPTIONS' to 'tTHh'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Setting global variable 'RINGTIME' to '30'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Setting global variable 'OUTRINGTIME' to '120'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Setting global variable 'TRANSFER_CONTEXT' to 'dialexecute'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Setting global variable 'ID_TOKEN' to '375293332255'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'default'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to default
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'inoffice'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_*5X' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '*65' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '*65' priority 2 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '*65' priority 3 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '*65' priority 4 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '*65' priority 5 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 4 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 5 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 6 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 7 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_00XXX' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_01XXX' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_02XXX' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_07XXX' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_07XXX' priority 2 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_08XXX' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_09XXX' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '750' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '0' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '555' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '555' priority 2 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_[+]X.' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_00X.' priority 1 to inoffice
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'dialexecute'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXX' priority 1 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXX' priority 2 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXXX.' priority 1 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXXX.' priority 2 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXXX.' priority 3 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXXX.' priority 4 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXXX.' priority 5 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXXX.' priority 6 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXXX.' priority 7 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '901' priority 1 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '300' priority 1 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_[+]X.' priority 1 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_00X.' priority 1 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 1 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 2 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 3 to dialexecute
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context '5881945b'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to 5881945b
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to 5881945b
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to 5881945b
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 4 to 5881945b
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 1 to 5881945b
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 2 to 5881945b
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 3 to 5881945b
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 4 to 5881945b
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'mngr25_1'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to mngr25_1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to mngr25_1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to mngr25_1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 4 to mngr25_1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 5 to mngr25_1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 6 to mngr25_1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 1 to mngr25_1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 2 to mngr25_1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 3 to mngr25_1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 4 to mngr25_1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'mngr25_2'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to mngr25_2
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to mngr25_2
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to mngr25_2
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 4 to mngr25_2
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 5 to mngr25_2
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 1 to mngr25_2
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 2 to mngr25_2
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 3 to mngr25_2
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 4 to mngr25_2
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context '73e1872f'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to 73e1872f
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to 73e1872f
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to 73e1872f
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context '3003efd1'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to 3003efd1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to 3003efd1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to 3003efd1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 4 to 3003efd1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 1 to 3003efd1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 2 to 3003efd1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 3 to 3003efd1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 4 to 3003efd1
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context '179e93af'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to 179e93af
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to 179e93af
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to 179e93af
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context '4d34a00c'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to 4d34a00c
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to 4d34a00c
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to 4d34a00c
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 4 to 4d34a00c
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 5 to 4d34a00c
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 6 to 4d34a00c
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 1 to 4d34a00c
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 2 to 4d34a00c
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 3 to 4d34a00c
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 4 to 4d34a00c
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'from-out-office'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 4 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 5 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 6 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 7 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 8 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 9 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 10 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 11 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 12 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 13 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 14 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 1 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 2 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 3 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 4 to from-out-office
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context '0fc1986e'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to 0fc1986e
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to 0fc1986e
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to 0fc1986e
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 4 to 0fc1986e
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 1 to 0fc1986e
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 2 to 0fc1986e
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 3 to 0fc1986e
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 4 to 0fc1986e
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'playbackivr'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to playbackivr
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to playbackivr
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to playbackivr
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 4 to playbackivr
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'playback'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to playback
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to playback
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to playback
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 4 to playback
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'waitredirect'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to waitredirect
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to waitredirect
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to waitredirect
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'apphangup'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to apphangup
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'appchanspy'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to appchanspy
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to appchanspy
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'appchanspywhisp'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to appchanspywhisp
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to appchanspywhisp
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'appconfbridge'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to appconfbridge
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to appconfbridge
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'sip-providers'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to sip-providers
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to sip-providers
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to sip-providers
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to sip-providers
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'wapo'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_9XX' priority 1 to wapo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_4XX' priority 1 to wapo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXX' priority 1 to wapo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXXXXXXXXXX' priority 1 to wapo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_XXXXXXXXXXX' priority 2 to wapo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '555' priority 1 to wapo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '555' priority 2 to wapo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '0' priority 1 to wapo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '0' priority 2 to wapo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '0' priority 3 to wapo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_08XXX' priority 1 to wapo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'web-zapros'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '1' priority 1 to web-zapros
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'conf'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '750' priority 1 to conf
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '750' priority 2 to conf
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'from-mts'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '+375336953344' priority 1 to from-mts
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '+375336953344' priority 2 to from-mts
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-SendCurl'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 5 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 6 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 7 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 8 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 9 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 10 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 11 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 12 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 13 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 14 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 15 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 16 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 17 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 18 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 19 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 20 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 21 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 22 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 23 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 24 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 25 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 26 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 27 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 28 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 29 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 30 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 31 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 32 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 33 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 34 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 35 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 36 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 37 to macro-SendCurl
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-localcall_start_old'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-localcall_start_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-localcall_start_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to macro-localcall_start_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to macro-localcall_start_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 5 to macro-localcall_start_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-localcall_start'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-localcall_start
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-localcall_start
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to macro-localcall_start
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to macro-localcall_start
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 5 to macro-localcall_start
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-localcall_end_old'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-' priority 1 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-' priority 2 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-CANCEL' priority 1 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-CANCEL' priority 2 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-OTHER' priority 1 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-OTHER' priority 2 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-ANSWER' priority 1 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-ANSWER' priority 2 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-TALK' priority 1 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-TALK' priority 2 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-NOANSWER' priority 1 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-NOANSWER' priority 2 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-BUSY' priority 1 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-BUSY' priority 2 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-CONGESTION' priority 1 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-CONGESTION' priority 2 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-CHANUNAVAIL' priority 1 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'lceds-CHANUNAVAIL' priority 2 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 33 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 34 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 35 to macro-localcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-localcall_end'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-localcall_end
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-localcall_end
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-incall_start_old'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-incall_start_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-incall_start_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to macro-incall_start_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to macro-incall_start_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 5 to macro-incall_start_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-incall_start'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-incall_start
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-incall_start
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to macro-incall_start
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to macro-incall_start
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-incall_dial_old'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 5 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 6 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 7 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 8 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 9 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 10 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 11 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 12 to macro-incall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-incall_dial'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-incall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-incall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to macro-incall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to macro-incall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-incall_end_old'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-' priority 1 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-' priority 2 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-CANCEL' priority 1 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-CANCEL' priority 2 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-OTHER' priority 1 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-OTHER' priority 2 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-ANSWER' priority 1 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-ANSWER' priority 2 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-TALK' priority 1 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-TALK' priority 2 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-NOANSWER' priority 1 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-NOANSWER' priority 2 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-BUSY' priority 1 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-BUSY' priority 2 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-CONGESTION' priority 1 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-CONGESTION' priority 2 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-CHANUNAVAIL' priority 1 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'iceds-CHANUNAVAIL' priority 2 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 33 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 34 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 35 to macro-incall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-incall_end'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-incall_end
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-incall_end
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-outcall_dial_old'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-outcall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-outcall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to macro-outcall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to macro-outcall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 5 to macro-outcall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 6 to macro-outcall_dial_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-outcall_dial'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-outcall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-outcall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to macro-outcall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to macro-outcall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 5 to macro-outcall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 6 to macro-outcall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 7 to macro-outcall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 8 to macro-outcall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 9 to macro-outcall_dial
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-outcall_end_old'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-' priority 1 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-' priority 2 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-CANCEL' priority 1 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-CANCEL' priority 2 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-OTHER' priority 1 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-OTHER' priority 2 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-ANSWER' priority 1 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-ANSWER' priority 2 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-TALK' priority 1 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-TALK' priority 2 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-NOANSWER' priority 1 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-NOANSWER' priority 2 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-BUSY' priority 1 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-BUSY' priority 2 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-CONGESTION' priority 1 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-CONGESTION' priority 2 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-CHANUNAVAIL' priority 1 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'oceds-CHANUNAVAIL' priority 2 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 33 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 34 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 35 to macro-outcall_end_old
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-outcall_end'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-outcall_end
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-outcall_end
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'macro-getcustomerdata'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 5 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 6 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 7 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 8 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 9 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 10 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 11 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 12 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 13 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 14 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 15 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 16 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 17 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 18 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 19 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 20 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 21 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 22 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 23 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 24 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 25 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 26 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 27 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 28 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 29 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 30 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 31 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 32 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 33 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 34 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 35 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 36 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 37 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 38 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 39 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 40 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 41 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 42 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 43 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 44 to macro-getcustomerdata
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'set-extcall-callerid'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to set-extcall-callerid
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to set-extcall-callerid
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 3 to set-extcall-callerid
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 4 to set-extcall-callerid
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 5 to set-extcall-callerid
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 6 to set-extcall-callerid
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 7 to set-extcall-callerid
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 8 to set-extcall-callerid
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 9 to set-extcall-callerid
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'web-originate'; registrar: pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 1 to web-originate
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_X.' priority 2 to web-originate
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/users.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'parkedcalls'; registrar: res_parking
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(parkedcalls) to new(parkedcalls) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '700' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '1' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '1' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '2' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '2' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '3' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '3' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '4' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '4' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '5' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '5' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '6' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '6' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '7' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '7' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '8' priority 1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '8' priority -1 to parkedcalls
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-builtin-h-bubble'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-builtin-h-bubble) to new(ael-builtin-h-bubble) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9996 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9995 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9994 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9993 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9992 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 9991 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'h' priority 1 to ael-builtin-h-bubble
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-default'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-default) to new(ael-default) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-demo' in context 'ael-default'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-demo'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-demo) to new(ael-demo) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'i' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 't' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '#' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '#' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '8500' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '8500' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_1234' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '600' priority 4 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '600' priority 3 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '600' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '600' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '500' priority 4 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '500' priority 3 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '500' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '500' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '1000' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '3' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '3' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '2' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '2' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 12 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 11 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 10 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 9 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 8 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 7 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 6 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 5 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 4 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 3 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 2 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 's' priority 1 to ael-demo
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-std-exten-ael'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-std-exten-ael) to new(ael-std-exten-ael) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-builtin-h-bubble' in context 'ael-std-exten-ael'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'sw_1_BUSY' priority 11 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'sw_1_BUSY' priority 10 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'sw_1_' priority 10 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_sw_1_.' priority 11 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_sw_1_.' priority 10 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'a' priority 2 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension 'a' priority 1 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 8 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 7 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 6 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 5 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 4 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 3 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 2 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 1 to ael-std-exten-ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-local'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-local) to new(ael-local) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-default' in context 'ael-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-trunklocal' in context 'ael-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-iaxtel700' in context 'ael-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-trunktollfree' in context 'ael-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-iaxprovider' in context 'ael-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-longdistance'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-longdistance) to new(ael-longdistance) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-local' in context 'ael-longdistance'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-trunkld' in context 'ael-longdistance'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-international'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-international) to new(ael-international) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-longdistance' in context 'ael-international'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-trunkint' in context 'ael-international'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-trunktollfree'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-trunktollfree) to new(ael-trunktollfree) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91866NXXXXXX' priority 1 to ael-trunktollfree
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91877NXXXXXX' priority 1 to ael-trunktollfree
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91888NXXXXXX' priority 1 to ael-trunktollfree
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91800NXXXXXX' priority 1 to ael-trunktollfree
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-trunklocal'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-trunklocal) to new(ael-trunklocal) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_9NXXXXXX' priority 1 to ael-trunklocal
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-trunkld'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-trunkld) to new(ael-trunkld) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-lookup' in context 'ael-trunkld'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91NXXNXXXXXX' priority 2 to ael-trunkld
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91NXXNXXXXXX' priority 1 to ael-trunkld
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-trunkint'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-trunkint) to new(ael-trunkint) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-lookup' in context 'ael-trunkint'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_9011.' priority 2 to ael-trunkint
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_9011.' priority 1 to ael-trunkint
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-iaxprovider'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-iaxprovider) to new(ael-iaxprovider) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-iaxtel700'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-iaxtel700) to new(ael-iaxtel700) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '_91700XXXXXXX' priority 1 to ael-iaxtel700
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-dundi-e164) to new(ael-dundi-e164) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-builtin-h-bubble' in context 'ael-dundi-e164'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 3 to ael-dundi-e164
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 2 to ael-dundi-e164
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Added extension '~~s~~' priority 1 to ael-dundi-e164
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-lookup'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-dundi-e164-lookup) to new(ael-dundi-e164-lookup) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-local' in context 'ael-dundi-e164-lookup'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-switch' in context 'ael-dundi-e164-lookup'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-switch'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-dundi-e164-switch) to new(ael-dundi-e164-switch) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including switch 'DUNDi/e164' in context 'ael-dundi-e164-switch'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-local'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-dundi-e164-local) to new(ael-dundi-e164-local) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-canonical' in context 'ael-dundi-e164-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-customers' in context 'ael-dundi-e164-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Including context 'ael-dundi-e164-via-pstn' in context 'ael-dundi-e164-local'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-via-pstn'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-dundi-e164-via-pstn) to new(ael-dundi-e164-via-pstn) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-customers'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-dundi-e164-customers) to new(ael-dundi-e164-customers) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Registered extension context 'ael-dundi-e164-canonical'; registrar: pbx_ael
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- merging incls/swits/igpats from old(ael-dundi-e164-canonical) to new(ael-dundi-e164-canonical) context, registrar = pbx_config
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Time to scan old dialplan and merge leftovers back into the new: 0.007179 sec
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Time to restore hints and swap in new dialplan: 0.000039 sec
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Time to delete the old dialplan: 0.000519 sec
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:     -- Total time merge_contexts_delete: 0.007737 sec
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  pbx_config.so => (Text Extension Configuration)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_originate.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'Originate'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_originate.so => (Originate call)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_version.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'VERSION'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_version.so => (Get Asterisk Version/Build Info)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading codec_gsm.so.
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'gsmtolin' from format gsm to slin, table cost, 900000, computational cost 8000
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'lintogsm' from format slin to gsm, table cost, 600000, computational cost 28000
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  codec_gsm.so => (GSM Coder/Decoder)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_privacy.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'PrivacyManager'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_privacy.so => (Require phone number to be entered, if no CallerID sent)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading codec_g726.so.
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'g726tolin' from format g726 to slin, table cost, 900000, computational cost 16000
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'lintog726' from format slin to g726, table cost, 600000, computational cost 36000
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'g726aal2tolin' from format g726aal2 to slin, table cost, 900000, computational cost 16000
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'lintog726aal2' from format slin to g726aal2, table cost, 600000, computational cost 44000
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  codec_g726.so => (ITU G.726-32kbps G726 Transcoder)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading codec_ulaw.so.
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'ulawtolin' from format ulaw to slin, table cost, 900000, computational cost 4000
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'lintoulaw' from format slin to ulaw, table cost, 600000, computational cost 1
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'lintotestlaw' from format slin to testlaw, table cost, 600000, computational cost 1
+[Sep 29 11:50:41] VERBOSE[985] translate.c:   == Registered translator 'testlawtolin' from format testlaw to slin, table cost, 900000, computational cost 1
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  codec_ulaw.so => (mu-Law Coder/Decoder)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_talkdetect.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'BackgroundDetect'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_talkdetect.so => (Playback with Talk Detection)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_cdr.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'NoCDR'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ResetCDR'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_cdr.so => (Tell Asterisk to not maintain a CDR for the current call)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_security_log.so.
+[Sep 29 11:50:41] VERBOSE[985] res_security_log.c:     -- Security Logging Enabled
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_security_log.so => (Security Event Logging)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_odbc.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'ODBC_FETCH'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ODBCFinish'
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/func_odbc.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'ODBC_SQL'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'ODBC_ANTIGF'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'ODBC_PRESENCE'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SQL_ESC'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_odbc.so => (ODBC lookups)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_blacklist.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'BLACKLIST'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_blacklist.so => (Look up Caller*ID name/number from blacklist database)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_sha1.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SHA1'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_sha1.so => (SHA-1 computation dialplan function)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_limit.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_limit.so => (Resource limits)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_ari_playbacks.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_ari_playbacks.so => (RESTful API module - Playback control resources)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_pitchshift.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'PITCH_SHIFT'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_pitchshift.so => (Audio Effects Dialplan Functions)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_followme.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/followme.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'FollowMe'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_followme.so => (Find-Me/Follow-Me Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_channelredirect.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ChannelRedirect'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_channelredirect.so => (Redirects a given channel to a dialplan target)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_celgenuserevent.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'CELGenUserEvent'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_celgenuserevent.so => (Generate an User-Defined CEL event)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading chan_unistim.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/unistim.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] chan_unistim.c:   == UNISTIM Listening on 0.0.0.0:5000
+[Sep 29 11:50:41] VERBOSE[985] channel.c:   == Registered channel type 'USTM' (UNISTIM Channel Driver)
+[Sep 29 11:50:41] VERBOSE[985] rtp_engine.c:   == Registered RTP glue 'USTM'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  chan_unistim.so => (UNISTIM Protocol (USTM))
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_lock.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'LOCK'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'TRYLOCK'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'UNLOCK'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_lock.so => (Dialplan mutexes)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_sysinfo.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'SYSINFO'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_sysinfo.so => (System information related functions)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading bridge_softmix.so.
+[Sep 29 11:50:41] VERBOSE[985] bridge.c:   == Registered bridge technology softmix
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  bridge_softmix.so => (Multi-party software based channel mixing)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_chanspy.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ChanSpy'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ExtenSpy'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'DAHDIScan'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_chanspy.so => (Listen to the audio of an active channel)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_chanisavail.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ChanIsAvail'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_chanisavail.so => (Check channel availability)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_alarmreceiver.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/alarmreceiver.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'AlarmReceiver'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_alarmreceiver.so => (Alarm Receiver for Asterisk)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_while.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'While'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'EndWhile'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ExitWhile'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ContinueWhile'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_while.so => (While Loops and Conditional Execution)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_voicemail.so.
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/voicemail.conf': Found
+[Sep 29 11:50:41] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/users.conf': Found
+[Sep 29 11:50:41] VERBOSE[1275] app.c:     -- No voicemail provider registered.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'VoiceMail'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'VoiceMailMain'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'MailboxExists'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'VMAuthenticate'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'VoiceMailPlayMsg'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'VMSayName'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'MAILBOX_EXISTS'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'VM_INFO'
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action VoicemailUsersList
+[Sep 29 11:50:41] VERBOSE[985] manager.c:   == Manager registered action VoicemailRefresh
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_voicemail.so => (Comedian Mail (Voicemail System))
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_playtones.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'PlayTones'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'StopPlayTones'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_playtones.so => (Playtones Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_waitforring.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'WaitForRing'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_waitforring.so => (Waits until first ring after time)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_adsiprog.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ADSIProg'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_adsiprog.so => (Asterisk ADSI Programming Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_exec.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'Exec'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'TryExec'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ExecIf'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_exec.so => (Executes dialplan applications)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_mp3.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'MP3Player'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_mp3.so => (Silly MP3 Application)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_vmcount.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'VMCOUNT'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_vmcount.so => (Indicator for whether a voice mailbox has messages in a given folder.)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading func_groupcount.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'GROUP_COUNT'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'GROUP_MATCH_COUNT'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'GROUP_LIST'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered custom function 'GROUP'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  func_groupcount.so => (Channel group dialplan functions)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_waitforsilence.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'WaitForSilence'
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'WaitForNoise'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_waitforsilence.so => (Wait For Silence)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading res_realtime.so.
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  res_realtime.so => (Realtime Data Lookup/Rewrite)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_morsecode.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'Morsecode'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_morsecode.so => (Morse code)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_readexten.so.
+[Sep 29 11:50:41] VERBOSE[985] pbx.c:   == Registered application 'ReadExten'
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  app_readexten.so => (Read and evaluate extension validity)
+[Sep 29 11:50:41] VERBOSE[985] loader.c:  Loading app_authenticate.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Authenticate'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_authenticate.so => (Authentication Application)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading res_ari_sounds.so.
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  res_ari_sounds.so => (RESTful API module - Sound resources)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_frame_trace.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'FRAME_TRACE'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_frame_trace.so => (Frame Trace for internal ast_frame debugging.)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_dumpchan.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'DumpChan'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_dumpchan.so => (Dump Info About The Calling Channel)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_record.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Record'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_record.so => (Trivial Record Application)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_directory.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Directory'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_directory.so => (Extension Directory)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_waituntil.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'WaitUntil'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_waituntil.so => (Wait until specified time)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_forkcdr.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'ForkCDR'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_forkcdr.so => (Fork The CDR into 2 separate entities)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_timeout.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'TIMEOUT'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_timeout.so => (Channel timeout dialplan functions)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_volume.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'VOLUME'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_volume.so => (Technology independent volume control)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_verbose.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Log'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Verbose'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_verbose.so => (Send verbose output)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_test.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'TestClient'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'TestServer'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_test.so => (Interface Test Application)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_callerid.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'CALLERPRES'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'CALLERID'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'CONNECTEDLINE'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'REDIRECTING'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_callerid.so => (Party ID related dialplan functions (Caller-ID, Connected-line, Redirecting))
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_transfer.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Transfer'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_transfer.so => (Transfers a caller to another extension)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_system.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'TrySystem'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'System'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_system.so => (Generic System() application)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_hangupcause.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'HANGUPCAUSE'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'HANGUPCAUSE_KEYS'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'HangupCauseClear'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_hangupcause.so => (HANGUPCAUSE related functions and applications)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading bridge_simple.so.
+[Sep 29 11:50:42] VERBOSE[985] bridge.c:   == Registered bridge technology simple_bridge
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  bridge_simple.so => (Simple two channel bridging module)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_festival.so.
+[Sep 29 11:50:42] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/festival.conf': Found
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Festival'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_festival.so => (Simple Festival Interface)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_audiohookinherit.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'AUDIOHOOK_INHERIT'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_audiohookinherit.so => (Audiohook inheritance placeholder function)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading res_ari_events.so.
+[Sep 29 11:50:42] VERBOSE[985] res_http_websocket.c:   == WebSocket registered sub-protocol 'ari'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  res_ari_events.so => (RESTful API module - WebSocket resource)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_enum.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'ENUMRESULT'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'ENUMQUERY'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'ENUMLOOKUP'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'TXTCIDNAME'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_enum.so => (ENUM related dialplan functions)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_strings.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'FIELDQTY'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'FIELDNUM'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'FILTER'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'REPLACE'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'STRREPLACE'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'LISTFILTER'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'REGEX'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'ARRAY'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'QUOTE'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'CSV_QUOTE'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'LEN'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'STRFTIME'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'STRPTIME'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'EVAL'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'KEYPADHASH'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'HASHKEYS'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'HASH'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'ClearHash'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'TOUPPER'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'TOLOWER'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'SHIFT'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'POP'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'PUSH'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'UNSHIFT'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'PASSTHRU'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_strings.so => (String handling dialplan functions)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading pbx_realtime.so.
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  pbx_realtime.so => (Realtime Switch)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_playback.so.
+[Sep 29 11:50:42] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/say.conf': Found
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Playback'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_playback.so => (Sound File Playback Application)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading codec_adpcm.so.
+[Sep 29 11:50:42] VERBOSE[985] translate.c:   == Registered translator 'adpcmtolin' from format adpcm to slin, table cost, 900000, computational cost 1
+[Sep 29 11:50:42] VERBOSE[985] translate.c:   == Registered translator 'lintoadpcm' from format slin to adpcm, table cost, 600000, computational cost 4000
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  codec_adpcm.so => (Adaptive Differential PCM Coder/Decoder)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading chan_phone.so.
+[Sep 29 11:50:42] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/phone.conf': Found
+[Sep 29 11:50:42] VERBOSE[985] channel.c:   == Registered channel type 'Phone' (Standard Linux Telephony API Driver)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  chan_phone.so => (Linux Telephony API Support)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_softhangup.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'SoftHangup'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_softhangup.so => (Hangs up the requested channel)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_sprintf.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'SPRINTF'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_sprintf.so => (SPRINTF dialplan function)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_srv.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'SRVQUERY'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'SRVRESULT'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_srv.so => (SRV related dialplan functions)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_rand.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'RAND'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_rand.so => (Random number dialplan function)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_stasis.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Stasis'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_stasis.so => (Stasis dialplan application)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_aes.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'AES_DECRYPT'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'AES_ENCRYPT'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_aes.so => (AES dialplan functions)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading res_convert.so.
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  res_convert.so => (File format conversion CLI command)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading bridge_builtin_features.so.
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  bridge_builtin_features.so => (Built in bridging features)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_ices.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'ICES'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_ices.so => (Encode and Stream via icecast and ices)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading res_ari_applications.so.
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  res_ari_applications.so => (RESTful API module - Stasis application resources)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_env.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'ENV'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'STAT'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'FILE'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'FILE_COUNT_LINE'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'FILE_FORMAT'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_env.so => (Environment/filesystem dialplan functions)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_macro.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'MacroExit'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'MacroIf'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'MacroExclusive'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Macro'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_macro.so => (Extension Macros)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_disa.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'DISA'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_disa.so => (DISA (Direct Inward System Access) Application)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading bridge_holding.so.
+[Sep 29 11:50:42] VERBOSE[985] bridge.c:   == Registered bridge technology holding_bridge
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  bridge_holding.so => (Holding bridge module)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading codec_g722.so.
+[Sep 29 11:50:42] VERBOSE[985] translate.c:   == Registered translator 'g722tolin' from format g722 to slin, table cost, 960000, computational cost 12000
+[Sep 29 11:50:42] VERBOSE[985] translate.c:   == Registered translator 'lintog722' from format slin to g722, table cost, 825000, computational cost 12000
+[Sep 29 11:50:42] VERBOSE[985] translate.c:   == Registered translator 'g722tolin16' from format g722 to slin16, table cost, 900000, computational cost 24000
+[Sep 29 11:50:42] VERBOSE[985] translate.c:   == Registered translator 'lin16tog722' from format slin16 to g722, table cost, 600000, computational cost 24000
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  codec_g722.so => (ITU G.722-64kbps G722 Transcoder)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_db.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'DBdel'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'DBdeltree'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_db.so => (Database Access Functions)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading res_clialiases.so.
+[Sep 29 11:50:42] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cli_aliases.conf': Found
+[Sep 29 11:50:42] VERBOSE[985] res_clialiases.c:   == Aliased CLI command 'hangup request' to 'channel request hangup'
+[Sep 29 11:50:42] VERBOSE[985] res_clialiases.c:   == Aliased CLI command 'originate' to 'channel originate'
+[Sep 29 11:50:42] VERBOSE[985] res_clialiases.c:   == Aliased CLI command 'help' to 'core show help'
+[Sep 29 11:50:42] VERBOSE[985] res_clialiases.c:   == Aliased CLI command 'pri intense debug span' to 'pri set debug intense span'
+[Sep 29 11:50:42] VERBOSE[985] res_clialiases.c:   == Aliased CLI command 'reload' to 'module reload'
+[Sep 29 11:50:42] VERBOSE[985] res_clialiases.c:   == Aliased CLI command 'pjsip reload' to 'module reload res_pjsip.so'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  res_clialiases.so => (CLI Aliases)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_callcompletion.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'CALLCOMPLETION'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_callcompletion.so => (Call Control Configuration Function)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_dialgroup.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'DIALGROUP'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_dialgroup.so => (Dialgroup dialplan function)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_milliwatt.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Milliwatt'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_milliwatt.so => (Digital Milliwatt (mu-law) Test Application)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_read.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Read'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_read.so => (Read Variable Application)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading codec_lpc10.so.
+[Sep 29 11:50:42] VERBOSE[985] translate.c:   == Registered translator 'lpc10tolin' from format lpc10 to slin, table cost, 900000, computational cost 16000
+[Sep 29 11:50:42] VERBOSE[985] translate.c:   == Registered translator 'lintolpc10' from format slin to lpc10, table cost, 600000, computational cost 28000
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  codec_lpc10.so => (LPC10 2.4kbps Coder/Decoder)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_externalivr.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'ExternalIVR'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_externalivr.so => (External IVR Interface Application)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading pbx_dundi.so.
+[Sep 29 11:50:42] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/dundi.conf': Found
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'DUNDILOOKUP'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'DUNDIQUERY'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'DUNDIRESULT'
+[Sep 29 11:50:42] VERBOSE[985] pbx_dundi.c:   == DUNDi Ready and Listening on 0.0.0.0 port 4520
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  pbx_dundi.so => (Distributed Universal Number Discovery (DUNDi))
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading func_base64.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'BASE64_ENCODE'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'BASE64_DECODE'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  func_base64.so => (base64 encode/decode dialplan functions)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading bridge_builtin_interval_features.so.
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  bridge_builtin_interval_features.so => (Built in bridging interval features)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_nbscat.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'NBScat'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_nbscat.so => (Silly NBS Stream Application)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_sendtext.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'SendText'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_sendtext.so => (Send Text Applications)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_zapateller.so.
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Zapateller'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_zapateller.so => (Block Telemarketers with Special Information Tone)
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  Loading app_queue.so.
+[Sep 29 11:50:42] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/queuerules.conf': Found
+[Sep 29 11:50:42] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/queues.conf': Found
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'Queue'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'AddQueueMember'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'RemoveQueueMember'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'PauseQueueMember'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'UnpauseQueueMember'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered application 'QueueLog'
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action Queues
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action QueueStatus
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action QueueSummary
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action QueueAdd
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action QueueRemove
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action QueuePause
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action QueueLog
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action QueuePenalty
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action QueueMemberRingInUse
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action QueueRule
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action QueueReload
+[Sep 29 11:50:42] VERBOSE[985] manager.c:   == Manager registered action QueueReset
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'QUEUE_VARIABLES'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'QUEUE_EXISTS'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'QUEUE_MEMBER'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'QUEUE_MEMBER_COUNT'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'QUEUE_MEMBER_LIST'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'QUEUE_WAITING_COUNT'
+[Sep 29 11:50:42] VERBOSE[985] pbx.c:   == Registered custom function 'QUEUE_MEMBER_PENALTY'
+[Sep 29 11:50:42] VERBOSE[985] loader.c:  app_queue.so => (True Call Queueing)
+[Sep 29 11:50:42] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cli_permissions.conf': Found
+[Sep 29 11:50:42] VERBOSE[985] asterisk.c: Asterisk Ready.
+[Sep 29 11:50:42] VERBOSE[985] config.c:   == Parsing '/etc/asterisk/cli.conf': Found
+[Sep 29 11:52:03] VERBOSE[1408] chan_sip.c:     -- Registered SIP '151' at 213.184.245.128:5062
+[Sep 29 11:52:04] VERBOSE[1408] chan_sip.c:  Reloading SIP
+[Sep 29 11:52:04] VERBOSE[1408] config.c:   == Parsing '/etc/asterisk/sip.conf': Found
+[Sep 29 11:52:04] VERBOSE[1408] config.c:   == Parsing '/etc/asterisk/sip_addregister.conf': Found
+[Sep 29 11:52:04] VERBOSE[1408] config.c:   == Parsing '/etc/asterisk/sip_addproviders.conf': Found
+[Sep 29 11:52:04] VERBOSE[1408] config.c:   == Parsing '/etc/asterisk/users.conf': Found
+[Sep 29 11:52:04] VERBOSE[1408] netsock2.c:   == Using SIP CoS mark 4
+[Sep 29 11:52:04] VERBOSE[1408] config.c:   == Parsing '/etc/asterisk/sip_notify.conf': Found
+[Sep 29 11:52:12] VERBOSE[1408] chan_sip.c:     -- Registered SIP '0001366' at 213.184.245.128:5455
+[Sep 29 11:52:21] VERBOSE[1408] chan_sip.c:     -- Registered SIP '0001363' at 213.184.245.128:5455
+[Sep 29 11:52:34] VERBOSE[1408][C-00000000] netsock2.c:   == Using SIP RTP CoS mark 5
+[Sep 29 11:52:34] VERBOSE[1630][C-00000000] pbx.c:     -- Executing [152@inoffice:1] Set("SIP/151-00000000", "AUDIOHOOK_INHERIT(MixMonitor)=yes") in new stack
+[Sep 29 11:52:34] VERBOSE[1630][C-00000000] pbx.c:     -- Executing [152@inoffice:2] MixMonitor("SIP/151-00000000", "1759135954.0.wav") in new stack
+[Sep 29 11:52:34] VERBOSE[1631][C-00000000] app_mixmonitor.c:   == Begin MixMonitor Recording SIP/151-00000000
+[Sep 29 11:52:34] VERBOSE[1630][C-00000000] pbx.c:     -- Executing [152@inoffice:3] Wait("SIP/151-00000000", "1") in new stack
+[Sep 29 11:52:35] VERBOSE[1630][C-00000000] pbx.c:     -- Executing [152@inoffice:4] Goto("SIP/151-00000000", "dialexecute,152,1") in new stack
+[Sep 29 11:52:35] VERBOSE[1630][C-00000000] pbx.c:     -- Goto (dialexecute,152,1)
+[Sep 29 11:52:35] VERBOSE[1630][C-00000000] pbx.c:     -- Executing [152@dialexecute:1] NoOp("SIP/151-00000000", "Local call to 152") in new stack
+[Sep 29 11:52:35] VERBOSE[1630][C-00000000] pbx.c:     -- Executing [152@dialexecute:2] Dial("SIP/151-00000000", "SIP/152,,tTkK") in new stack
+[Sep 29 11:52:35] VERBOSE[1630][C-00000000] netsock2.c:   == Using SIP RTP CoS mark 5
+[Sep 29 11:52:35] VERBOSE[1630][C-00000000] app_dial.c:     -- Called SIP/152
+[Sep 29 11:52:36] VERBOSE[1630][C-00000000] app_dial.c:     -- SIP/152-00000001 is ringing
+[Sep 29 11:52:41] VERBOSE[1630][C-00000000] pbx.c:   == Spawn extension (dialexecute, 152, 2) exited non-zero on 'SIP/151-00000000'
+[Sep 29 11:52:41] VERBOSE[1630][C-00000000] pbx.c:     -- Executing [h@dialexecute:1] NoOp("SIP/151-00000000", "CALL=========================================================") in new stack
+[Sep 29 11:52:41] VERBOSE[1630][C-00000000] pbx.c:     -- Executing [h@dialexecute:2] Macro("SIP/151-00000000", "localcall_end") in new stack
+[Sep 29 11:52:41] VERBOSE[1630][C-00000000] pbx.c:     -- Executing [s@macro-localcall_end:1] Set("SIP/151-00000000", "LisAMI_EventData=localcallEnd_151__2025-09-29 11:52:34__2025-09-29 11:52:41_CANCEL") in new stack
+[Sep 29 11:52:41] VERBOSE[1630][C-00000000] pbx.c:     -- Executing [s@macro-localcall_end:2] MacroExit("SIP/151-00000000", "") in new stack
+[Sep 29 11:52:41] VERBOSE[1630][C-00000000] pbx.c:     -- Executing [h@dialexecute:3] NoOp("SIP/151-00000000", "CALL======================================================END") in new stack
+[Sep 29 11:52:41] VERBOSE[1631][C-00000000] app_mixmonitor.c:   == MixMonitor close filestream (mixed)
+[Sep 29 11:52:41] VERBOSE[1631][C-00000000] app_mixmonitor.c:   == End MixMonitor Recording SIP/151-00000000
