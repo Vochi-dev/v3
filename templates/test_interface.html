@@ -9122,9 +9122,9 @@
                             Exten: trunk_2_12,
                             Context: "from-out-office",
                             CallerIDNum: phone_2_12,
-                            ConnectedLineNum: "<unknown>",
+                            ConnectedLineNum: "<ХРЕН>",
                             Token: "375293332255",
-                            ConnectedLineName: "<unknown>",
+                            ConnectedLineName: "<ХРЕН>",
                             CallerIDName: `-${phone_2_12}`
                         }
                     });
@@ -9162,9 +9162,9 @@
                         data: {
                             UniqueId: uniqueIds_2_12.bridge_create,
                             BridgeUniqueid: bridgeId_2_12,
-                            BridgeCreator: "<unknown>",
+                            BridgeCreator: "<ХРЕН>",
                             BridgeNumChannels: "0",
-                            BridgeName: "<unknown>",
+                            BridgeName: "<ХРЕН>",
                             BridgeType: "",
                             Token: "375293332255",
                             BridgeTechnology: "simple_bridge"
@@ -9180,7 +9180,7 @@
                         data: {
                             UniqueId: uniqueIds_2_12.bridge_external,
                             BridgeUniqueid: bridgeId_2_12,
-                            ConnectedLineName: "<unknown>",
+                            ConnectedLineName: "<ХРЕН>",
                             CallerIDNum: phone_2_12,
                             Exten: trunk_2_12,
                             Token: "375293332255",
@@ -9224,7 +9224,7 @@
                             BridgeNumChannels: "1",
                             Channel: `SIP/${answeredManager_2_12}-0000006f`,
                             ConnectedLineName: `-${phone_2_12}`,
-                            CallerIDName: "<unknown>"
+                            CallerIDName: "<ХРЕН>"
                         }
                     });
                     currentDelay += 500;
@@ -9242,7 +9242,7 @@
                             Token: "375293332255",
                             BridgeNumChannels: "0",
                             Channel: `SIP/${trunk_2_12}-0000006c`,
-                            ConnectedLineName: "<unknown>",
+                            ConnectedLineName: "<ХРЕН>",
                             CallerIDName: `-${phone_2_12}`
                         }
                     });
@@ -9256,9 +9256,9 @@
                         data: {
                             UniqueId: uniqueIds_2_12.bridge_destroy,
                             BridgeUniqueid: bridgeId_2_12,
-                            BridgeCreator: "<unknown>",
+                            BridgeCreator: "<ХРЕН>",
                             BridgeNumChannels: "0",
-                            BridgeName: "<unknown>",
+                            BridgeName: "<ХРЕН>",
                             BridgeType: "",
                             Token: "375293332255",
                             BridgeTechnology: "simple_bridge"
@@ -10038,7 +10038,7 @@
                         data: {
                             UniqueId: uniqueIds_2_14.start,
                             BridgeUniqueid: bridgeId2_2_14,
-                            ConnectedLineName: "<unknown>",
+                            ConnectedLineName: "<ХРЕН>",
                             CallerIDNum: phone_2_14,
                             Exten: trunk_2_14,
                             Token: "375293332255",
@@ -10157,7 +10157,7 @@
                             Token: "375293332255",
                             BridgeNumChannels: "0",
                             Channel: `SIP/${trunk_2_14}-00000009`,
-                            ConnectedLineName: "<unknown>",
+                            ConnectedLineName: "<ХРЕН>",
                             CallerIDName: `-${phone_2_14}`
                         }
                     });
@@ -15708,6 +15708,167 @@
                     emulatorState.isRunning = true;
                     
                     updateEmulatorStatus('Готов к эмуляции внутреннего звонка без ответа (3-2)', 'success');
+                    
+                    break;
+
+                case 44: // Паттерн 3-3: Звонок на отдел 901 - ответил член отдела
+                    // Получаем данные из формы
+                    const callerManager_3_3 = formData.get('department_caller'); // Менеджер 152, который звонит
+                    const departmentMember_3_3 = formData.get('department_member_1'); // Член отдела 151, который ответил
+
+                    // Генерируем уникальные ID (используем базовые из реального db файла)
+                    const uniqueId_caller_3_3 = generateUniqueId("1759225684.16"); // ID звонящего
+                    const uniqueId_member_3_3 = generateUniqueId("1759225685.18"); // ID члена отдела
+                    const bridgeId_3_3 = generateBridgeUUID();
+                    
+                    // Генерируем временные метки
+                    const createTime_3_3 = new Date();
+                    const bridgeMemberTime_3_3 = new Date(createTime_3_3.getTime() + 3000); // +3 сек
+                    const bridgeCallerTime_3_3 = new Date(createTime_3_3.getTime() + 4000); // +4 сек
+                    const leaveCallerTime_3_3 = new Date(createTime_3_3.getTime() + 5000); // +5 сек
+                    const leaveMemberTime_3_3 = new Date(createTime_3_3.getTime() + 5000); // +5 сек
+                    const destroyTime_3_3 = new Date(createTime_3_3.getTime() + 6000); // +6 сек
+                    const hangupTime_3_3 = new Date(createTime_3_3.getTime() + 7000); // +7 сек
+                    const receivedTime_3_3 = new Date(createTime_3_3.getTime() - 5000); // -5 сек (начало набора)
+                    const endTime_3_3 = new Date(bridgeCallerTime_3_3.getTime() + 1000); // +1 сек после bridge
+
+                    // 1. bridge_create
+                    events.push({
+                        step: 1,
+                        event: 'bridge_create',
+                        description: 'Создание моста для звонка на отдел',
+                        data: {
+                            Token: token,
+                            BridgeUniqueid: bridgeId_3_3,
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeName: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            UniqueId: "",
+                            BridgeTechnology: "simple_bridge",
+                            BridgeType: ""
+                        }
+                    });
+
+                    // 2. bridge - член отдела присоединился ПЕРВЫМ
+                    events.push({
+                        step: 2,
+                        event: 'bridge',
+                        description: 'Член отдела присоединился к мосту',
+                        data: {
+                            Token: token,
+                            BridgeUniqueid: bridgeId_3_3,
+                            ExternalInitiated: true,
+                            CallerIDNum: departmentMember_3_3,
+                            CallerIDName: "",
+                            ConnectedLineName: callerManager_3_3,
+                            ConnectedLineNum: callerManager_3_3,
+                            UniqueId: uniqueId_member_3_3,
+                            Exten: "",
+                            Channel: `SIP/${departmentMember_3_3}-${Math.random().toString(36).substr(2, 8)}`
+                        }
+                    });
+
+                    // 3. bridge - звонящий присоединился ВТОРЫМ (Exten: 901)
+                    events.push({
+                        step: 3,
+                        event: 'bridge',
+                        description: 'Менеджер присоединился к мосту (звонок на 901)',
+                        data: {
+                            Token: token,
+                            BridgeUniqueid: bridgeId_3_3,
+                            ExternalInitiated: true,
+                            CallerIDNum: callerManager_3_3,
+                            CallerIDName: callerManager_3_3,
+                            ConnectedLineName: "<ХРЕН>",
+                            ConnectedLineNum: departmentMember_3_3,
+                            UniqueId: uniqueId_caller_3_3,
+                            Exten: "901",
+                            Channel: `SIP/${callerManager_3_3}-${Math.random().toString(36).substr(2, 8)}`
+                        }
+                    });
+
+                    // 4. bridge_leave - звонящий покинул
+                    events.push({
+                        step: 4,
+                        event: 'bridge_leave',
+                        description: 'Менеджер покинул мост',
+                        data: {
+                            Token: token,
+                            BridgeUniqueid: bridgeId_3_3,
+                            ExternalInitiated: true,
+                            CallerIDNum: callerManager_3_3,
+                            BridgeNumChannels: "1",
+                            CallerIDName: callerManager_3_3,
+                            ConnectedLineName: "<ХРЕН>",
+                            ConnectedLineNum: departmentMember_3_3,
+                            UniqueId: uniqueId_caller_3_3,
+                            Channel: `SIP/${callerManager_3_3}-${Math.random().toString(36).substr(2, 8)}`
+                        }
+                    });
+
+                    // 5. bridge_leave - член отдела покинул
+                    events.push({
+                        step: 5,
+                        event: 'bridge_leave',
+                        description: 'Член отдела покинул мост',
+                        data: {
+                            Token: token,
+                            BridgeUniqueid: bridgeId_3_3,
+                            ExternalInitiated: true,
+                            CallerIDNum: departmentMember_3_3,
+                            BridgeNumChannels: "0",
+                            CallerIDName: "<ХРЕН>",
+                            ConnectedLineName: callerManager_3_3,
+                            ConnectedLineNum: callerManager_3_3,
+                            UniqueId: uniqueId_member_3_3,
+                            Channel: `SIP/${departmentMember_3_3}-${Math.random().toString(36).substr(2, 8)}`
+                        }
+                    });
+
+                    // 6. bridge_destroy
+                    events.push({
+                        step: 6,
+                        event: 'bridge_destroy',
+                        description: 'Разрушение моста',
+                        data: {
+                            Token: token,
+                            BridgeUniqueid: bridgeId_3_3,
+                            BridgeCreator: "<ХРЕН>",
+                            BridgeName: "<ХРЕН>",
+                            BridgeNumChannels: "0",
+                            UniqueId: "",
+                            BridgeTechnology: "simple_bridge",
+                            ExternalInitiated: true,
+                            BridgeType: ""
+                        }
+                    });
+
+                    // 7. hangup - завершение звонка
+                    events.push({
+                        step: 7,
+                        event: 'hangup',
+                        description: 'Завершение звонка на отдел',
+                        data: {
+                            Token: token,
+                            CallStatus: "2", // ANSWER
+                            Phone: callerManager_3_3,
+                            ExternalInitiated: true,
+                            Trunk: "",
+                            Extensions: [departmentMember_3_3],
+                            UniqueId: uniqueId_caller_3_3,
+                            StartTime: "",
+                            DateReceived: receivedTime_3_3.toISOString().slice(0, 19).replace('T', ' '),
+                            EndTime: endTime_3_3.toISOString().slice(0, 19).replace('T', ' '),
+                            CallType: 0
+                        }
+                    });
+
+                    // Установка состояния эмулятора
+                    emulatorState.events = events;
+                    emulatorState.currentStep = 0;
+                    emulatorState.isRunning = true;
+                    
+                    updateEmulatorStatus('Готов к эмуляции звонка на отдел 901 (3-3)', 'success');
                     
                     break;
                     
