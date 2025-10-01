@@ -89,12 +89,29 @@ access_handler.setFormatter(
     logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
 )
 
+# Настройка логгера для тестового предприятия 0367 (Token: 375293332255)
+test_enterprise_handler = RotatingFileHandler(
+    "logs/0367.log",
+    maxBytes=5*1024*1024,  # 5MB
+    backupCount=3,
+    encoding="utf-8"
+)
+test_enterprise_handler.setFormatter(
+    logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+)
+
 # Конфигурация логгеров
 logging.basicConfig(
     level=logging.DEBUG,
     handlers=[main_handler]
 )
 logger = logging.getLogger(__name__)
+
+# Создаем отдельный логгер для тестового предприятия
+test_logger = logging.getLogger("test_enterprise_0367")
+test_logger.addHandler(test_enterprise_handler)
+test_logger.setLevel(logging.DEBUG)
+test_logger.propagate = False  # Не передавать в родительский логгер
 
 # Настройка логгеров uvicorn
 uvicorn_logger = logging.getLogger("uvicorn")
@@ -667,6 +684,14 @@ async def _dispatch_to_all(handler, body: dict):
         logger.info(f"Detected event_type: {event_type}")
     finally:
         del frame
+    
+    # Специальное логирование для тестового предприятия 0367 (june)
+    TEST_TOKEN = "375293332255"  # Token для предприятия 0367/june
+    if token == TEST_TOKEN:
+        test_logger_0367 = logging.getLogger("test_enterprise_0367")
+        test_logger_0367.info(f"🧪 TEST EVENT: {event_type}")
+        test_logger_0367.info(f"📋 Token: {token}, UniqueId: {unique_id}")
+        test_logger_0367.info(f"📦 Full Body: {json.dumps(body, ensure_ascii=False, indent=2)}")
     
     # Нормализуем номер по правилу на линии (если задано)
     await _apply_incoming_transform_if_any(body)
