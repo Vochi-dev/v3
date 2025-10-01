@@ -30,7 +30,8 @@ class MetadataCache:
         try:
             logger.info(f"🗄️ Загрузка метаданных для предприятия {enterprise_number}")
             
-            # Инициализируем структуру кэша для предприятия
+            # ✅ ПРАВИЛЬНОЕ РЕШЕНИЕ:
+            # Инициализируем структуру ТОЛЬКО если её нет
             if enterprise_number not in self.cache:
                 self.cache[enterprise_number] = {}
             
@@ -351,22 +352,26 @@ class MetadataCache:
         backup_lines = self.cache[enterprise_number].get("backup_lines", {})
         return backup_lines.get(primary_line, [])
     
-    def is_line_exists(self, enterprise_number: str, line_id: str) -> bool:
+    async def is_line_exists(self, enterprise_number: str, line_id: str) -> bool:
         """Проверяет существование линии"""
+        # Если кэш пуст - загружаем
         if enterprise_number not in self.cache:
-            return False
+            logger.info(f"🔄 Cache miss for enterprise {enterprise_number}, loading metadata...")
+            await self.load_enterprise_metadata(enterprise_number)
         
-        gsm_lines = self.cache[enterprise_number].get("gsm_lines", {})
-        sip_lines = self.cache[enterprise_number].get("sip_lines", {})
+        gsm_lines = self.cache.get(enterprise_number, {}).get("gsm_lines", {})
+        sip_lines = self.cache.get(enterprise_number, {}).get("sip_lines", {})
         
         return line_id in gsm_lines or line_id in sip_lines
     
-    def is_manager_exists(self, enterprise_number: str, internal_phone: str) -> bool:
+    async def is_manager_exists(self, enterprise_number: str, internal_phone: str) -> bool:
         """Проверяет существование менеджера"""
+        # Если кэш пуст - загружаем
         if enterprise_number not in self.cache:
-            return False
+            logger.info(f"🔄 Cache miss for enterprise {enterprise_number}, loading metadata...")
+            await self.load_enterprise_metadata(enterprise_number)
         
-        managers = self.cache[enterprise_number].get("managers", {})
+        managers = self.cache.get(enterprise_number, {}).get("managers", {})
         return internal_phone in managers
     
     def get_all_internal_phones(self, enterprise_number: str) -> List[str]:

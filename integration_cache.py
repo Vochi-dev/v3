@@ -1340,7 +1340,7 @@ async def get_line_info(enterprise_number: str, line_id: str):
     if not metadata_cache:
         raise HTTPException(status_code=503, detail="Metadata cache not initialized")
     
-    if not metadata_cache.is_line_exists(enterprise_number, line_id):
+    if not await metadata_cache.is_line_exists(enterprise_number, line_id):
         raise HTTPException(status_code=404, detail=f"Line {line_id} not found for enterprise {enterprise_number}")
     
     line_name = metadata_cache.get_line_name(enterprise_number, line_id)
@@ -1360,7 +1360,7 @@ async def get_manager_info(enterprise_number: str, internal_phone: str):
     if not metadata_cache:
         raise HTTPException(status_code=503, detail="Metadata cache not initialized")
     
-    if not metadata_cache.is_manager_exists(enterprise_number, internal_phone):
+    if not await metadata_cache.is_manager_exists(enterprise_number, internal_phone):
         raise HTTPException(status_code=404, detail=f"Manager {internal_phone} not found for enterprise {enterprise_number}")
     
     # Получаем полные данные менеджера
