@@ -46,8 +46,8 @@ async def process_bridge(bot: Bot, chat_id: int, data: dict):
     
     # Проверяем нужно ли отправлять этот bridge
     if should_send_bridge(data):
-        # Отправляем bridge МГНОВЕННО
-        result = await send_bridge_to_telegram(data)
+        # Отправляем bridge МГНОВЕННО в конкретный чат (используем переданные bot и chat_id)
+        result = await send_bridge_to_single_chat(bot, chat_id, data)
         return result
     else:
         logging.info(f"[process_bridge] Skipping bridge - not the right one to send")
@@ -346,31 +346,75 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     caller_internal = is_internal_number(caller)
     connected_internal = is_internal_number(connected)
     
+    # ВАЖНО: В bridge роли могут быть перевернуты!
+    # Для исходящих: CallerIDNum=внешний, ConnectedLineNum=внутренний
+    # Для входящих: CallerIDNum=внешний, ConnectedLineNum=внутренний (так же!)
+    # Различаем по тому, кто инициатор
+    
     if caller_internal and connected_internal:
         call_direction = "internal"
         internal_ext = caller or connected
         external_phone = None
-    elif caller_internal:
+    elif not caller_internal and connected_internal:
+        # Внешний номер в caller, внутренний в connected
+        # Это может быть как входящий, так и исходящий
+        # Предполагаем что это ИСХОДЯЩИЙ (т.к. ConnectedLineNum - это кто звонит)
         call_direction = "outgoing" 
+        internal_ext = connected  # внутренний номер менеджера
+        external_phone = caller   # внешний номер клиента
+    elif caller_internal and not connected_internal:
+        call_direction = "outgoing"
         internal_ext = caller
         external_phone = connected
-    elif connected_internal:
-        call_direction = "incoming"
-        internal_ext = connected
-        external_phone = caller
     else:
         call_direction = "unknown"
         internal_ext = caller or connected
         external_phone = connected or caller
 
-    logging.info(f"[send_bridge_to_single_chat] Bridge: {caller} <-> {connected}")
+    logging.info(f"[send_bridge_to_single_chat] Bridge: {caller} <-> {connected}, call_direction={call_direction}")
 
     # ───────── Шаг 3.5. Получаем обогащённые метаданные ─────────
     token = data.get("Token", "")
-    enterprise_number = token[:4] if token else "0000"
     
-    # Обогащение метаданными отключено для устранения блокировок
+    # Получаем enterprise_number из БД по токену
+    from app.services.postgres import get_pool
+    pool = await get_pool()
+    enterprise_number = "0000"
+    if pool and token:
+        async with pool.acquire() as conn:
+            ent_row = await conn.fetchrow(
+                "SELECT number FROM enterprises WHERE name2 = $1", token
+            )
+            if ent_row:
+                enterprise_number = ent_row["number"]
+    
+    # Обогащаем метаданными для bridge
     enriched_data = {}
+    
+    # Извлекаем trunk из Channel (например: "SIP/0001363-00000001" → "0001363")
+    trunk = data.get("Trunk", "")
+    if not trunk:
+        channel = data.get("Channel", "")
+        if channel and "/" in channel and "-" in channel:
+            # Формат: SIP/0001363-00000001
+            parts = channel.split("/")
+            if len(parts) > 1:
+                trunk_part = parts[1].split("-")[0]
+                trunk = trunk_part
+                logging.info(f"[send_bridge_to_single_chat] Extracted trunk '{trunk}' from Channel '{channel}'")
+    
+    # Для исходящих и входящих звонков получаем обогащённые данные
+    if call_direction in ["incoming", "outgoing"] and enterprise_number != "0000":
+        try:
+            enriched_data = await metadata_client.enrich_message_data(
+                enterprise_number=enterprise_number,
+                internal_phone=internal_ext if internal_ext else None,
+                line_id=trunk if trunk else None,
+                external_phone=external_phone if external_phone else None
+            )
+            logging.info(f"[send_bridge_to_single_chat] Enriched data: {enriched_data}")
+        except Exception as e:
+            logging.error(f"[send_bridge_to_single_chat] Error enriching metadata: {e}")
 
     # ───────── Шаг 4. Формируем текст согласно Пояснению ─────────
     if call_direction == "internal":
@@ -392,17 +436,36 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
                 formatted_external = format_phone_number(external_phone)
                 display_external = formatted_external if not formatted_external.startswith("+000") else "Номер не определен"
                 
-                # Обогащаем номер клиента именем если есть
-                if enriched_data.get("customer_name"):
-                    display_external = f"{display_external} ({enriched_data['customer_name']})"
+                # Обогащаем: сначала номер, потом ФИО в скобках
+                customer_name = enriched_data.get("customer_name", "")
+                if customer_name:
+                    display_external = f"{display_external} ({customer_name})"
         else:
             display_external = "Номер не определен"
         
         # Обогащаем ФИО менеджера
-        manager_display = enriched_data.get("manager_name", f"Доб.{internal_ext}")
+        manager_fio = enriched_data.get("manager_name", "")
+        if manager_fio and not manager_fio.startswith("Доб."):
+            # Есть реальное ФИО - показываем "ФИО (номер)"
+            manager_display = f"{manager_fio} ({internal_ext})"
+        else:
+            # Нет ФИО или это "Доб.XXX" - показываем просто номер
+            manager_display = internal_ext
         
-        # И для входящих, и для исходящих: внутренний номер у ☎️, внешний у 💰
-        text = f"☎️{manager_display} 📞➡️ 💰{display_external}📞"
+        # Формируем линию: антенна + название (без номера линии)
+        line_name = enriched_data.get("line_name", "")
+        trunk_display = f"📡 {line_name}" if line_name else f"📡 {trunk}"
+        
+        if call_direction == "outgoing":
+            # Заголовок для исходящего
+            text = f"🔗 Идет исходящий разговор\n☎️{manager_display} 📞➡️ 💰{display_external}📞"
+            if trunk_display:
+                text += f"\n{trunk_display}"
+        else:
+            # Для входящих оставляем старую логику
+            text = f"☎️{manager_display} 📞➡️ 💰{display_external}📞"
+            if trunk_display:
+                text += f"\n{trunk_display}"
     
     else:
         # Неопределенный тип
