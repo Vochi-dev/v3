@@ -21,10 +21,15 @@ async def save_asterisk_log(data: Dict[str, Any]) -> None:
     """Сохраняет лог Asterisk в базу данных"""
     # Получаем обязательные поля
     token = data.get('Token')
-    unique_id = data.get('UniqueId')
+    unique_id = data.get('UniqueId', '')
     
-    if not token or not unique_id:
-        raise ValueError("Token and UniqueId are required fields")
+    # ✅ Для некоторых событий UniqueId может быть пустым (bridge_create, bridge_destroy, bridge_leave)
+    # Используем BridgeUniqueid как альтернативу
+    if not unique_id and 'BridgeUniqueid' in data:
+        unique_id = f"bridge_{data['BridgeUniqueid']}"
+    
+    if not token:
+        raise ValueError("Token is required field")
 
     # Определяем тип события
     event_type = await determine_event_type(data)
