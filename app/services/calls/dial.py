@@ -50,8 +50,24 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     token = data.get("Token", "")
     trunk_info = data.get("Trunk", "")
     
-    # Получаем номер предприятия для метаданных
-    enterprise_number = token[:4] if token else "0000"  # fallback логика
+    # Получаем номер предприятия из БД по Token (name2)
+    from app.services.postgres import get_pool
+    enterprise_number = "0000"  # fallback
+    try:
+        pool = await get_pool()
+        if pool:
+            async with pool.acquire() as conn:
+                ent_row = await conn.fetchrow(
+                    "SELECT number FROM enterprises WHERE name2 = $1 LIMIT 1",
+                    token
+                )
+                if ent_row:
+                    enterprise_number = ent_row["number"]
+                    logging.info(f"[process_dial] Resolved Token '{token}' -> enterprise '{enterprise_number}'")
+                else:
+                    logging.warning(f"[process_dial] Enterprise not found for Token '{token}'")
+    except Exception as e:
+        logging.error(f"[process_dial] Failed to resolve enterprise_number: {e}")
 
     logging.info(f"[process_dial] RAW DATA = {data!r}")
     logging.info(f"[process_dial] Phone for grouping: {phone_for_grouping}, call_type: {call_type}")
@@ -100,8 +116,20 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             if is_internal_number(caller_id):
                 internal_phone = caller_id
     
-    # Обогащение метаданными отключено для устранения блокировок
+    # ───────── Обогащение метаданными через сервис 8020 ─────────
     enriched_data = {}
+    try:
+        enriched_data = await metadata_client.enrich_message_data(
+            enterprise_number=enterprise_number,
+            line_id=line_id,
+            internal_phone=internal_phone,
+            external_phone=external_phone,
+            short_names=False
+        )
+        logging.info(f"[process_dial] Enrichment successful: {enriched_data}")
+    except Exception as e:
+        logging.warning(f"[process_dial] Enrichment failed: {e}")
+        enriched_data = {}
     
     # ───────── Шаг 3. Формируем текст согласно Пояснению ─────────
     if is_int:
@@ -124,9 +152,20 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
 
         # Формируем сообщение: внутренний у ☎️, внешний у 💰
         if internal_num:
-            # Обогащаем ФИО менеджера
-            manager_display = enriched_data.get("manager_name", f"Доб.{internal_num}")
-            text = f"☎️{manager_display} ➡️ 💰{display}"
+            # Обогащаем ФИО менеджера (если есть - показываем ФИО (номер), иначе - просто номер)
+            manager_name = enriched_data.get("manager_name", "")
+            if manager_name and not manager_name.startswith("Доб."):
+                # Есть ФИО менеджера - показываем "ФИО (номер)"
+                manager_display = f"{manager_name} ({internal_num})"
+            else:
+                # Нет ФИО - показываем просто номер без "Доб."
+                manager_display = internal_num
+            
+            # Заголовок зависит от CallType
+            if call_type == 1:  # Исходящий
+                text = f"📞 Исходящий звонок\n☎️{manager_display} ➡️ 💰{display}"
+            else:  # Входящий
+                text = f"☎️{manager_display} ➡️ 💰{display}"
         else:
             text = f"📞 ➡️ 💰{display}"
             
