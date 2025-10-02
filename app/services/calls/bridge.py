@@ -216,7 +216,10 @@ def should_send_bridge(data: dict) -> bool:
     Логика:
     - Отправляем bridge если у него есть CallerIDNum и ConnectedLineNum
     - Пропускаем "пустые" или неполные bridge события
+    - Пропускаем промежуточные bridge с ExternalInitiated=true (internal→external)
     """
+    from .utils import is_internal_number
+    
     caller = data.get("CallerIDNum", "")
     connected = data.get("ConnectedLineNum", "")
     bridge_id = data.get("BridgeUniqueid", "")
@@ -232,6 +235,21 @@ def should_send_bridge(data: dict) -> bool:
     if caller in ["", "unknown", "<unknown>"] or connected in ["", "unknown", "<unknown>"]:
         logging.info(f"[should_send_bridge] Skipping bridge - invalid numbers")
         return False
+    
+    # НОВОЕ ПРАВИЛО: Пропускаем ПРОМЕЖУТОЧНЫЕ bridge события с ExternalInitiated=true
+    # Промежуточный bridge: внутренний номер → внешний номер (после bridge_create из CRM)
+    # Настоящий bridge: внешний номер → внутренний номер (реальный разговор)
+    external_initiated = data.get("ExternalInitiated", False)
+    if external_initiated:
+        # Определяем направление: если CallerIDNum внутренний, а ConnectedLineNum внешний - это промежуточный bridge
+        caller_is_internal = is_internal_number(caller)
+        connected_is_external = not is_internal_number(connected)
+        
+        if caller_is_internal and connected_is_external:
+            logging.info(f"[should_send_bridge] Skipping bridge {bridge_id} - ExternalInitiated=true intermediate bridge (internal→external)")
+            return False
+        else:
+            logging.info(f"[should_send_bridge] Allowing bridge {bridge_id} - ExternalInitiated=true but real conversation bridge (external→internal)")
     
     logging.info(f"[should_send_bridge] Bridge {bridge_id} is valid for sending")
     return True

@@ -289,6 +289,33 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 caller_id = data.get("CallerIDNum", "")
                 if is_internal_number(caller_id):
                     internal_phone = caller_id
+            
+            # ДОПОЛНИТЕЛЬНО для паттерна 1-2: ищем внутренний номер в предыдущих событиях
+            if not internal_phone and data.get("ExternalInitiated"):
+                try:
+                    # Ищем внутренний номер из предыдущих bridge событий для этого же внешнего номера
+                    pool = await get_pool()
+                    if pool:
+                        async with pool.acquire() as connection:
+                            # Ищем последний bridge с тем же внешним номером
+                            query = """
+                                SELECT raw_data->'ConnectedLineNum' as internal_num
+                                FROM call_events 
+                                WHERE raw_data->>'Token' = $1 
+                                  AND event_type = 'bridge'
+                                  AND (raw_data->>'CallerIDNum' = $2 OR raw_data->>'ConnectedLineNum' = $2)
+                                  AND raw_data ? 'ConnectedLineNum'
+                                ORDER BY event_timestamp DESC
+                                LIMIT 1
+                            """
+                            result = await connection.fetchrow(query, token, external_phone)
+                            if result and result['internal_num']:
+                                potential_internal = str(result['internal_num']).strip('"')
+                                if is_internal_number(potential_internal):
+                                    internal_phone = potential_internal
+                                    logging.info(f"[process_hangup] Found internal_phone '{internal_phone}' from previous bridge event")
+                except Exception as e:
+                    logging.error(f"[process_hangup] Error searching for internal phone in DB: {e}")
         elif call_direction == "internal":
             # Для внутренних звонков оба номера внутренние
             internal_phone = caller if is_internal_number(caller) else None
@@ -509,13 +536,15 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 text = f"✅Успешный исходящий звонок"
                 
                 # Добавляем информацию о менеджере (обогащённую)
-                if internal_caller:
+                # ИСПРАВЛЕНО: Используем internal_phone вместо internal_caller для паттерна 1-2
+                manager_number = internal_caller or internal_phone
+                if manager_number:
                     manager_fio = enriched_data.get("manager_name", "")
                     # ИСПРАВЛЕНО: Единообразие - если ФИО есть и это не "Доб.XXX", показываем "ФИО (номер)", иначе просто номер
                     if manager_fio and not manager_fio.startswith("Доб."):
-                        manager_display = f"{manager_fio} ({internal_caller})"
+                        manager_display = f"{manager_fio} ({manager_number})"
                     else:
-                        manager_display = internal_caller
+                        manager_display = manager_number
                     text += f"\n☎️{manager_display}"
                 
                 text += f"\n💰{display}"
@@ -545,13 +574,15 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 text = f"❌ Абонент не поднял трубку"
                 
                 # Добавляем информацию о менеджере (обогащённую)
-                if internal_caller:
+                # ИСПРАВЛЕНО: Используем internal_phone вместо internal_caller для паттерна 1-2
+                manager_number = internal_caller or internal_phone
+                if manager_number:
                     manager_fio = enriched_data.get("manager_name", "")
                     # ИСПРАВЛЕНО: Единообразие - если ФИО есть и это не "Доб.XXX", показываем "ФИО (номер)", иначе просто номер
                     if manager_fio and not manager_fio.startswith("Доб."):
-                        manager_display = f"{manager_fio} ({internal_caller})"
+                        manager_display = f"{manager_fio} ({manager_number})"
                     else:
-                        manager_display = internal_caller
+                        manager_display = manager_number
                     text += f"\n☎️{manager_display}"
                 
                 text += f"\n💰{display}"
