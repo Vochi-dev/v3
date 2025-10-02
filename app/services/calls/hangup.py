@@ -274,14 +274,41 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                         internal_phone = ext
                         break
         elif call_direction == "outgoing":
-            internal_phone = caller if is_internal_number(caller) else None
-            external_phone = connected if not is_internal_number(connected) else None
+            # ИСПРАВЛЕНО: Используем ту же логику что и в dial.py
+            external_phone = data.get("Phone", "")  # Внешний номер из Phone
+            
+            # Ищем внутренний номер в Extensions (как в dial.py)
+            if exts:
+                for ext in exts:
+                    if is_internal_number(ext):
+                        internal_phone = ext
+                        break
+            
+            # Если не нашли в Extensions, проверяем CallerIDNum
+            if not internal_phone:
+                caller_id = data.get("CallerIDNum", "")
+                if is_internal_number(caller_id):
+                    internal_phone = caller_id
         elif call_direction == "internal":
             # Для внутренних звонков оба номера внутренние
             internal_phone = caller if is_internal_number(caller) else None
         
-        # Обогащение метаданными отключено для устранения блокировок
+        # ───────── ВКЛЮЧАЕМ обогащение метаданными для hangup ─────────
         enriched_data = {}
+        if call_direction in ["incoming", "outgoing"] and enterprise_number != "0000":
+            try:
+                # ОТЛАДКА: Логируем параметры обогащения
+                logging.info(f"[process_hangup] Enrichment params: enterprise_number={enterprise_number}, internal_phone={internal_phone}, external_phone={external_phone}, line_id={line_id}")
+                
+                enriched_data = await metadata_client.enrich_message_data(
+                    enterprise_number=enterprise_number,
+                    internal_phone=internal_phone if internal_phone else None,
+                    line_id=line_id if line_id else None,
+                    external_phone=external_phone if external_phone else None
+                )
+                logging.info(f"[process_hangup] Enriched data: {enriched_data}")
+            except Exception as e:
+                logging.error(f"[process_hangup] Error enriching metadata: {e}")
         
         # ───────── Шаг 6. Формируем текст согласно Пояснению ─────────
         
@@ -361,7 +388,12 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 
                 # Добавляем информацию о менеджере (обогащённую)
                 if internal_phone:
-                    manager_display = enriched_data.get("manager_name", f"Доб.{internal_phone}")
+                    manager_fio = enriched_data.get("manager_name", "")
+                    # ИСПРАВЛЕНО: Единообразие - если ФИО есть и это не "Доб.XXX", показываем "ФИО (номер)", иначе просто номер
+                    if manager_fio and not manager_fio.startswith("Доб."):
+                        manager_display = f"{manager_fio} ({internal_phone})"
+                    else:
+                        manager_display = internal_phone
                     text += f"\n☎️{manager_display}"
                 elif connected and is_internal_number(connected):
                     text += f"\n☎️{connected}"
@@ -478,7 +510,12 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 
                 # Добавляем информацию о менеджере (обогащённую)
                 if internal_caller:
-                    manager_display = enriched_data.get("manager_name", f"Доб.{internal_caller}")
+                    manager_fio = enriched_data.get("manager_name", "")
+                    # ИСПРАВЛЕНО: Единообразие - если ФИО есть и это не "Доб.XXX", показываем "ФИО (номер)", иначе просто номер
+                    if manager_fio and not manager_fio.startswith("Доб."):
+                        manager_display = f"{manager_fio} ({internal_caller})"
+                    else:
+                        manager_display = internal_caller
                     text += f"\n☎️{manager_display}"
                 
                 text += f"\n💰{display}"
@@ -509,7 +546,12 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 
                 # Добавляем информацию о менеджере (обогащённую)
                 if internal_caller:
-                    manager_display = enriched_data.get("manager_name", f"Доб.{internal_caller}")
+                    manager_fio = enriched_data.get("manager_name", "")
+                    # ИСПРАВЛЕНО: Единообразие - если ФИО есть и это не "Доб.XXX", показываем "ФИО (номер)", иначе просто номер
+                    if manager_fio and not manager_fio.startswith("Доб."):
+                        manager_display = f"{manager_fio} ({internal_caller})"
+                    else:
+                        manager_display = internal_caller
                     text += f"\n☎️{manager_display}"
                 
                 text += f"\n💰{display}"
@@ -576,21 +618,27 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         # Удаляем bridge сообщения для этого звонка
         bridge_messages_to_delete = []
         
-        # 1. Проверяем bridge_store по UniqueId
-        if uid in bridge_store:
-            bridge_msg = bridge_store.pop(uid)
-            bridge_messages_to_delete.append(bridge_msg)
+        # ИСПРАВЛЕНО: Используем правильные индивидуальные хранилища для chat_id
+        from .utils import bridge_store_by_chat, phone_message_tracker_by_chat
         
-        # 2. Проверяем phone_message_tracker на bridge сообщения
-        # ИСПРАВЛЕНО: phone_message_tracker[phone] это один объект, не массив
-        if phone_for_grouping in phone_message_tracker:
-            tracker_data = phone_message_tracker[phone_for_grouping]
+        # 1. Проверяем bridge_store по UniqueId для конкретного chat_id
+        chat_bridge_store = bridge_store_by_chat[chat_id]
+        if uid in chat_bridge_store:
+            bridge_msg = chat_bridge_store.pop(uid)
+            bridge_messages_to_delete.append(bridge_msg)
+            logging.info(f"[process_hangup] Found bridge message {bridge_msg} in bridge_store for uid {uid}")
+        
+        # 2. ГЛАВНОЕ: Проверяем phone_message_tracker по ВНЕШНЕМУ НОМЕРУ (правильный якорь!)
+        chat_phone_tracker = phone_message_tracker_by_chat[chat_id]
+        if phone_for_grouping in chat_phone_tracker:
+            tracker_data = chat_phone_tracker[phone_for_grouping]
             # Проверяем что tracker_data это словарь
             if isinstance(tracker_data, dict) and tracker_data.get('event_type') == 'bridge':
                 bridge_msg_id = tracker_data['message_id']
                 bridge_messages_to_delete.append(bridge_msg_id)
                 # Очищаем tracker
-                del phone_message_tracker[phone_for_grouping]
+                del chat_phone_tracker[phone_for_grouping]
+                logging.info(f"[process_hangup] Found bridge message {bridge_msg_id} in phone_tracker for phone {phone_for_grouping}")
         
         # 3. Удаляем все найденные bridge сообщения
         for bridge_msg_id in bridge_messages_to_delete:
