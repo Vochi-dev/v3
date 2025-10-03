@@ -73,11 +73,148 @@ class TelegramMessage(BaseModel):
     timestamp: Optional[datetime] = None
 
 # ═══════════════════════════════════════════════════════════════════
-# ВРЕМЕННОЕ ХРАНИЛИЩЕ (ЗАГЛУШКА)
+# ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ
 # ═══════════════════════════════════════════════════════════════════
 
-# В будущем это будет заменено на PostgreSQL
+import asyncpg
+import os
+
+# Параметры подключения к БД
+DB_CONFIG = {
+    "host": "localhost",
+    "port": 5432,
+    "database": "postgres", 
+    "user": "postgres",
+    "password": "r/Yskqh/ZbZuvjb2b3ahfg=="
+}
+
+# Временное хранилище (заглушка) - будет заменено на PostgreSQL
 call_traces = {}  # unique_id -> call_trace_data
+
+# ═══════════════════════════════════════════════════════════════════
+# ФУНКЦИИ УПРАВЛЕНИЯ ПАРТИЦИЯМИ
+# ═══════════════════════════════════════════════════════════════════
+
+async def ensure_enterprise_partition(enterprise_number: str):
+    """Автоматически создает партицию для предприятия если её нет"""
+    try:
+        conn = await asyncpg.connect(**DB_CONFIG)
+        
+        # Проверяем существует ли партиция
+        partition_name = f"call_traces_{enterprise_number}"
+        
+        check_query = """
+        SELECT EXISTS (
+            SELECT 1 FROM pg_tables 
+            WHERE tablename = $1 AND schemaname = 'public'
+        )
+        """
+        
+        exists = await conn.fetchval(check_query, partition_name)
+        
+        if not exists:
+            # Создаем партицию
+            remainder_val = int(enterprise_number)
+            create_query = f"""
+            CREATE TABLE {partition_name} PARTITION OF call_traces 
+            FOR VALUES WITH (MODULUS 1000, REMAINDER {remainder_val})
+            """
+            
+            await conn.execute(create_query)
+            logger.info(f"✅ Created partition {partition_name} for enterprise {enterprise_number}")
+        
+        await conn.close()
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error ensuring partition for enterprise {enterprise_number}: {e}")
+        return False
+
+async def create_enterprise_partition_api(enterprise_number: str):
+    """API функция для создания партиции предприятия"""
+    try:
+        conn = await asyncpg.connect(**DB_CONFIG)
+        
+        partition_name = f"call_traces_{enterprise_number}"
+        remainder_val = int(enterprise_number)
+        
+        create_query = f"""
+        CREATE TABLE {partition_name} PARTITION OF call_traces 
+        FOR VALUES WITH (MODULUS 1000, REMAINDER {remainder_val})
+        """
+        
+        await conn.execute(create_query)
+        await conn.close()
+        
+        logger.info(f"✅ Created partition {partition_name}")
+        return {"status": "success", "partition": partition_name}
+        
+    except Exception as e:
+        logger.error(f"❌ Error creating partition: {e}")
+        return {"status": "error", "message": str(e)}
+
+async def drop_enterprise_partition_api(enterprise_number: str):
+    """API функция для удаления партиции предприятия"""
+    try:
+        conn = await asyncpg.connect(**DB_CONFIG)
+        
+        partition_name = f"call_traces_{enterprise_number}"
+        
+        # Сначала проверяем есть ли данные
+        count_query = f"SELECT COUNT(*) FROM {partition_name}"
+        count = await conn.fetchval(count_query)
+        
+        if count > 0:
+            await conn.close()
+            return {"status": "error", "message": f"Partition contains {count} records. Use force=true to delete anyway."}
+        
+        # Удаляем партицию
+        drop_query = f"DROP TABLE {partition_name}"
+        await conn.execute(drop_query)
+        await conn.close()
+        
+        logger.info(f"✅ Dropped partition {partition_name}")
+        return {"status": "success", "partition": partition_name}
+        
+    except Exception as e:
+        logger.error(f"❌ Error dropping partition: {e}")
+        return {"status": "error", "message": str(e)}
+
+async def list_enterprise_partitions():
+    """Список всех партиций предприятий"""
+    try:
+        conn = await asyncpg.connect(**DB_CONFIG)
+        
+        query = """
+        SELECT 
+            tablename,
+            pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
+            (SELECT COUNT(*) FROM information_schema.tables t2 
+             WHERE t2.table_name = t.tablename) as record_count
+        FROM pg_tables t
+        WHERE tablename LIKE 'call_traces_%' 
+        AND tablename != 'call_traces_default'
+        ORDER BY tablename
+        """
+        
+        partitions = await conn.fetch(query)
+        await conn.close()
+        
+        result = []
+        for partition in partitions:
+            enterprise_num = partition['tablename'].replace('call_traces_', '')
+            result.append({
+                "enterprise_number": enterprise_num,
+                "partition_name": partition['tablename'],
+                "size": partition['size'],
+                "estimated_records": partition['record_count']
+            })
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ Error listing partitions: {e}")
+        return []
 
 # ═══════════════════════════════════════════════════════════════════
 # API ENDPOINTS
@@ -107,31 +244,38 @@ async def log_call_event(event: CallEvent):
         if not event.timestamp:
             event.timestamp = datetime.now()
             
-        unique_id = event.unique_id
+        # Автоматически создаем партицию для предприятия если её нет
+        await ensure_enterprise_partition(event.enterprise_number)
         
-        # Инициализируем трейс если его нет
-        if unique_id not in call_traces:
-            call_traces[unique_id] = {
-                "enterprise_number": event.enterprise_number,
-                "unique_id": unique_id,
-                "events": [],
-                "http_requests": [],
-                "sql_queries": [],
-                "telegram_messages": [],
-                "created_at": event.timestamp,
-                "updated_at": event.timestamp
-            }
+        # Сохраняем событие в БД
+        conn = await asyncpg.connect(**DB_CONFIG)
         
-        # Добавляем событие
-        call_traces[unique_id]["events"].append({
-            "event_type": event.event_type,
-            "event_data": event.event_data,
-            "timestamp": event.timestamp.isoformat()
-        })
-        call_traces[unique_id]["updated_at"] = event.timestamp
+        # Извлекаем номер телефона из данных события если есть
+        phone_number = None
+        if 'Phone' in event.event_data:
+            phone_number = event.event_data['Phone']
+        elif 'phone' in event.event_data:
+            phone_number = event.event_data['phone']
         
-        logger.info(f"Logged event {event.event_type} for call {unique_id}")
-        return {"status": "success", "message": "Event logged"}
+        # Добавляем событие через функцию БД
+        trace_id = await conn.fetchval(
+            "SELECT add_call_event($1, $2, $3, $4, $5)",
+            event.unique_id,
+            event.enterprise_number, 
+            event.event_type,
+            json.dumps(event.event_data),
+            phone_number
+        )
+        
+        await conn.close()
+        
+        logger.info(f"Logged event {event.event_type} for call {event.unique_id} (trace_id: {trace_id})")
+        return {
+            "status": "success", 
+            "message": "Event logged",
+            "trace_id": trace_id,
+            "unique_id": event.unique_id
+        }
         
     except Exception as e:
         logger.error(f"Error logging event: {e}")
@@ -255,60 +399,51 @@ async def log_telegram_message(message: TelegramMessage):
 async def get_call_trace(unique_id: str):
     """Получение полного трейса звонка"""
     try:
-        if unique_id not in call_traces:
+        conn = await asyncpg.connect(**DB_CONFIG)
+        
+        # Получаем основную информацию о трейсе
+        trace_info = await conn.fetchrow("""
+            SELECT id, unique_id, enterprise_number, phone_number, call_direction, 
+                   call_status, start_time, end_time, duration_seconds, call_events,
+                   created_at, updated_at
+            FROM call_traces 
+            WHERE unique_id = $1
+        """, unique_id)
+        
+        if not trace_info:
+            await conn.close()
             raise HTTPException(status_code=404, detail="Call trace not found")
         
-        trace = call_traces[unique_id]
+        # Получаем события через функцию
+        events = await conn.fetch("SELECT * FROM get_call_events($1)", unique_id)
         
-        # Сортируем события по времени
-        all_events = []
+        await conn.close()
         
-        # Добавляем события звонков
-        for event in trace["events"]:
-            all_events.append({
-                "type": "call_event",
-                "timestamp": event["timestamp"],
-                "data": event
+        # Формируем timeline
+        timeline = []
+        for event in events:
+            timeline.append({
+                "sequence": event['event_sequence'],
+                "event_type": event['event_type'],
+                "timestamp": event['event_timestamp'].isoformat(),
+                "data": event['event_data']
             })
-        
-        # Добавляем HTTP запросы
-        for request in trace["http_requests"]:
-            all_events.append({
-                "type": "http_request",
-                "timestamp": request["timestamp"],
-                "data": request
-            })
-        
-        # Добавляем SQL запросы
-        for query in trace["sql_queries"]:
-            all_events.append({
-                "type": "sql_query",
-                "timestamp": query["timestamp"],
-                "data": query
-            })
-        
-        # Добавляем Telegram сообщения
-        for message in trace["telegram_messages"]:
-            all_events.append({
-                "type": "telegram_message",
-                "timestamp": message["timestamp"],
-                "data": message
-            })
-        
-        # Сортируем по времени
-        all_events.sort(key=lambda x: x["timestamp"])
         
         return {
             "unique_id": unique_id,
-            "enterprise_number": trace["enterprise_number"],
-            "created_at": trace["created_at"].isoformat(),
-            "updated_at": trace["updated_at"].isoformat(),
-            "timeline": all_events,
+            "enterprise_number": trace_info['enterprise_number'],
+            "phone_number": trace_info['phone_number'],
+            "call_direction": trace_info['call_direction'],
+            "call_status": trace_info['call_status'],
+            "start_time": trace_info['start_time'].isoformat() if trace_info['start_time'] else None,
+            "end_time": trace_info['end_time'].isoformat() if trace_info['end_time'] else None,
+            "duration_seconds": trace_info['duration_seconds'],
+            "created_at": trace_info['created_at'].isoformat(),
+            "updated_at": trace_info['updated_at'].isoformat(),
+            "timeline": timeline,
             "summary": {
-                "total_events": len(trace["events"]),
-                "http_requests": len(trace["http_requests"]),
-                "sql_queries": len(trace["sql_queries"]),
-                "telegram_messages": len(trace["telegram_messages"])
+                "total_events": len(timeline),
+                "events_in_jsonb": len(trace_info['call_events']) if trace_info['call_events'] else 0
             }
         }
         
@@ -380,6 +515,134 @@ async def health_check():
         "port": 8026,
         "traces_count": len(call_traces)
     }
+
+# ═══════════════════════════════════════════════════════════════════
+# API ENDPOINTS ДЛЯ УПРАВЛЕНИЯ ПАРТИЦИЯМИ
+# ═══════════════════════════════════════════════════════════════════
+
+@app.get("/partitions")
+async def get_partitions():
+    """Список всех партиций предприятий"""
+    try:
+        partitions = await list_enterprise_partitions()
+        return {
+            "status": "success",
+            "partitions": partitions,
+            "total": len(partitions)
+        }
+    except Exception as e:
+        logger.error(f"Error getting partitions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/partitions/{enterprise_number}")
+async def create_partition(enterprise_number: str):
+    """Создание партиции для предприятия"""
+    try:
+        # Валидация номера предприятия
+        if not enterprise_number.isdigit() or len(enterprise_number) != 4:
+            raise HTTPException(status_code=400, detail="Enterprise number must be 4 digits")
+        
+        result = await create_enterprise_partition_api(enterprise_number)
+        
+        if result["status"] == "error":
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating partition: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/partitions/{enterprise_number}")
+async def delete_partition(enterprise_number: str, force: bool = False):
+    """Удаление партиции предприятия"""
+    try:
+        # Валидация номера предприятия
+        if not enterprise_number.isdigit() or len(enterprise_number) != 4:
+            raise HTTPException(status_code=400, detail="Enterprise number must be 4 digits")
+        
+        if force:
+            # Принудительное удаление с данными
+            conn = await asyncpg.connect(**DB_CONFIG)
+            partition_name = f"call_traces_{enterprise_number}"
+            drop_query = f"DROP TABLE IF EXISTS {partition_name} CASCADE"
+            await conn.execute(drop_query)
+            await conn.close()
+            
+            logger.info(f"✅ Force dropped partition {partition_name}")
+            return {"status": "success", "partition": partition_name, "forced": True}
+        else:
+            result = await drop_enterprise_partition_api(enterprise_number)
+            
+            if result["status"] == "error":
+                raise HTTPException(status_code=400, detail=result["message"])
+            
+            return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting partition: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/partitions/{enterprise_number}/stats")
+async def get_partition_stats(enterprise_number: str):
+    """Статистика по партиции предприятия"""
+    try:
+        conn = await asyncpg.connect(**DB_CONFIG)
+        partition_name = f"call_traces_{enterprise_number}"
+        
+        # Проверяем существует ли партиция
+        exists_query = """
+        SELECT EXISTS (
+            SELECT 1 FROM pg_tables 
+            WHERE tablename = $1 AND schemaname = 'public'
+        )
+        """
+        exists = await conn.fetchval(exists_query, partition_name)
+        
+        if not exists:
+            await conn.close()
+            raise HTTPException(status_code=404, detail=f"Partition for enterprise {enterprise_number} not found")
+        
+        # Получаем статистику
+        stats_query = f"""
+        SELECT 
+            COUNT(*) as total_calls,
+            COUNT(CASE WHEN call_status = 'completed' THEN 1 END) as completed_calls,
+            COUNT(CASE WHEN call_status = 'failed' THEN 1 END) as failed_calls,
+            AVG(duration_seconds) as avg_duration,
+            MIN(start_time) as first_call,
+            MAX(start_time) as last_call,
+            pg_size_pretty(pg_total_relation_size('{partition_name}')) as partition_size
+        FROM {partition_name}
+        """
+        
+        stats = await conn.fetchrow(stats_query)
+        await conn.close()
+        
+        return {
+            "status": "success",
+            "enterprise_number": enterprise_number,
+            "partition_name": partition_name,
+            "stats": {
+                "total_calls": stats['total_calls'],
+                "completed_calls": stats['completed_calls'],
+                "failed_calls": stats['failed_calls'],
+                "avg_duration_seconds": float(stats['avg_duration']) if stats['avg_duration'] else 0,
+                "first_call": stats['first_call'].isoformat() if stats['first_call'] else None,
+                "last_call": stats['last_call'].isoformat() if stats['last_call'] else None,
+                "partition_size": stats['partition_size']
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting partition stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ═══════════════════════════════════════════════════════════════════
 # ЗАПУСК СЕРВИСА

@@ -5,9 +5,10 @@
 
 ## 🔧 Технические характеристики
 - **Порт**: 8026
-- **Технологии**: FastAPI, Pydantic, PostgreSQL (в будущем)
+- **Технологии**: FastAPI, Pydantic, PostgreSQL, asyncpg
 - **Формат данных**: JSON
-- **Логирование**: Структурированное в БД + файловые логи
+- **Логирование**: Структурированное в PostgreSQL с JSONB
+- **Партиционирование**: LIST по номерам предприятий
 
 ## 📋 Основные функции
 
@@ -147,17 +148,178 @@ GET /search?enterprise=0367&phone=375296254070&limit=10
 #### `GET /health`
 Проверка здоровья сервиса
 
+## 🗄️ Дизайн базы данных
+
+### Основная таблица `call_traces`
+
+Упрощенная схема с JSONB для хранения всех событий в одной таблице:
+
+```sql
+CREATE TABLE call_traces (
+    id BIGSERIAL,
+    unique_id VARCHAR(50) NOT NULL,
+    enterprise_number VARCHAR(10) NOT NULL,
+    phone_number VARCHAR(20),
+    call_direction VARCHAR(10),
+    call_status VARCHAR(20) DEFAULT 'active',
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    end_time TIMESTAMP WITH TIME ZONE,
+    call_events JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+) PARTITION BY LIST (enterprise_number);
+```
+
+### Партиционирование
+
+**LIST партиционирование по номерам предприятий** - каждое предприятие в своей партиции:
+
+```sql
+-- Партиции с простыми названиями (только 4 цифры)
+CREATE TABLE "0367" PARTITION OF call_traces FOR VALUES IN ('0367');
+CREATE TABLE "0280" PARTITION OF call_traces FOR VALUES IN ('0280');
+CREATE TABLE "0368" PARTITION OF call_traces FOR VALUES IN ('0368');
+CREATE TABLE "0286" PARTITION OF call_traces FOR VALUES IN ('0286');
+-- И так далее для каждого предприятия...
+```
+
+### Индексы
+
+```sql
+-- Основные индексы для быстрого поиска
+CREATE INDEX idx_call_traces_unique_id ON call_traces (unique_id);
+CREATE INDEX idx_call_traces_enterprise ON call_traces (enterprise_number);
+CREATE INDEX idx_call_traces_start_time ON call_traces (start_time);
+CREATE INDEX idx_call_traces_call_events ON call_traces USING GIN (call_events);
+```
+
+### Ограничения
+
+```sql
+-- UNIQUE constraint для каждой партиции
+ALTER TABLE "0367" ADD CONSTRAINT unique_call_trace_0367 UNIQUE (unique_id, enterprise_number);
+ALTER TABLE "0280" ADD CONSTRAINT unique_call_trace_0280 UNIQUE (unique_id, enterprise_number);
+-- И так далее...
+```
+
+### Функции БД
+
+#### `add_call_event` - Добавление/обновление события
+
+```sql
+CREATE OR REPLACE FUNCTION add_call_event(
+    p_unique_id VARCHAR(50),
+    p_enterprise_number VARCHAR(10),
+    p_event_type VARCHAR(30),
+    p_event_data JSONB,
+    p_phone_number VARCHAR(20) DEFAULT NULL
+)
+RETURNS BIGINT AS $$
+DECLARE
+    v_trace_id BIGINT;
+    v_call_direction VARCHAR(10);
+    v_call_status VARCHAR(20);
+BEGIN
+    -- Определяем направление и статус звонка
+    IF p_event_type IN ('start', 'dial') THEN
+        v_call_direction := 'outgoing';
+        v_call_status := 'active';
+    ELSIF p_event_type = 'hangup' THEN
+        v_call_status := 'completed';
+    END IF;
+
+    -- Проверяем существующую запись
+    SELECT id INTO v_trace_id 
+    FROM call_traces 
+    WHERE unique_id = p_unique_id AND enterprise_number = p_enterprise_number;
+    
+    IF v_trace_id IS NOT NULL THEN
+        -- Обновляем существующую запись
+        UPDATE call_traces SET
+            call_events = call_events || jsonb_build_object(
+                'event_sequence', jsonb_array_length(call_events) + 1,
+                'event_type', p_event_type,
+                'event_timestamp', NOW(),
+                'event_data', p_event_data
+            ),
+            updated_at = NOW()
+        WHERE id = v_trace_id;
+    ELSE
+        -- Создаем новую запись
+        INSERT INTO call_traces (unique_id, enterprise_number, phone_number, call_direction, call_status, call_events)
+        VALUES (p_unique_id, p_enterprise_number, p_phone_number, v_call_direction, v_call_status, 
+                jsonb_build_array(jsonb_build_object(
+                    'event_sequence', 1,
+                    'event_type', p_event_type,
+                    'event_timestamp', NOW(),
+                    'event_data', p_event_data
+                )))
+        RETURNING id INTO v_trace_id;
+    END IF;
+
+    RETURN v_trace_id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### `get_call_events` - Извлечение событий из JSONB
+
+```sql
+CREATE OR REPLACE FUNCTION get_call_events(p_unique_id VARCHAR(50))
+RETURNS TABLE (
+    event_sequence INTEGER,
+    event_type VARCHAR(30),
+    event_timestamp TIMESTAMP WITH TIME ZONE,
+    event_data JSONB
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        (event->>'event_sequence')::INTEGER,
+        (event->>'event_type')::VARCHAR(30),
+        (event->>'event_timestamp')::TIMESTAMP WITH TIME ZONE,
+        event->'event_data'
+    FROM call_traces,
+         jsonb_array_elements(call_events) AS event
+    WHERE unique_id = p_unique_id
+    ORDER BY (event->>'event_sequence')::INTEGER;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Преимущества схемы
+
+1. **Простота**: Одна таблица вместо множества связанных
+2. **Производительность**: Каждое предприятие в своей партиции
+3. **Гибкость**: JSONB позволяет хранить любые структуры событий
+4. **Масштабируемость**: Легко добавлять новые партиции
+5. **Понятность**: Партиции названы просто - номером предприятия
+
 ## 📊 Структура данных
 
-### CallTrace (основная структура)
+### CallTrace (основная структура в БД)
 ```json
 {
+  "id": 123,
   "unique_id": "1759490248.0",
   "enterprise_number": "0367",
-  "events": [...],           // События звонка
-  "http_requests": [...],    // HTTP запросы
-  "sql_queries": [...],      // SQL операции
-  "telegram_messages": [...], // Telegram операции
+  "phone_number": "375296254070",
+  "call_direction": "outgoing",
+  "call_status": "active",
+  "start_time": "2025-10-03T11:29:13",
+  "end_time": null,
+  "call_events": [
+    {
+      "event_sequence": 1,
+      "event_type": "dial",
+      "event_timestamp": "2025-10-03T11:29:13",
+      "event_data": {
+        "Phone": "375296254070",
+        "Extensions": ["150"],
+        "Trunk": "0001363"
+      }
+    }
+  ],
   "created_at": "2025-10-03T11:29:13",
   "updated_at": "2025-10-03T11:29:47"
 }
@@ -280,9 +442,9 @@ async def log_http_request(enterprise, unique_id, method, url, response_data, st
 - ✅ Простой поиск
 
 ### Этап 2 (PostgreSQL)
-- 🔄 Миграция на PostgreSQL
-- 🔄 Индексы для быстрого поиска
-- 🔄 Партиционирование по предприятиям
+- ✅ Миграция на PostgreSQL
+- ✅ Индексы для быстрого поиска
+- ✅ Партиционирование по предприятиям
 
 ### Этап 3 (Веб-интерфейс)
 - 🔄 HTML страница для просмотра трейсов
@@ -321,6 +483,218 @@ curl http://localhost:8026/health
 curl http://localhost:8026/
 ```
 
+## 🗂️ Управление партициями предприятий
+
+### Скрипт `logger_partitions.sh`
+
+Удобный скрипт для управления партициями базы данных по предприятиям с простыми названиями.
+
+#### Основные команды
+
+**Список всех партиций:**
+```bash
+./logger_partitions.sh list
+```
+Показывает все созданные партиции с размерами и количеством записей:
+```
+📋 Список всех партиций:
+
+🗂️ Текущая схема: партиции с простыми названиями по предприятиям
+ enterprise_partition | size  | records | enterprise_number 
+----------------------+-------+---------+-------------------
+ 0280                 | 48 kB |       1 | 0280
+ 0286                 | 48 kB |       0 | 0286
+ 0367                 | 48 kB |       1 | 0367
+ 0368                 | 48 kB |       0 | 0368
+ 0999                 | 48 kB |       1 | 0999
+```
+
+**Создание партиции для предприятия:**
+```bash
+./logger_partitions.sh add-enterprise 0369
+```
+Простое создание без лишних вопросов:
+```
+➕ Создание партиции для предприятия 0369...
+✅ Партиция 0369 создана успешно!
+📝 Теперь можно использовать: SELECT * FROM "0369";
+```
+
+**Статистика по предприятию:**
+```bash
+./logger_partitions.sh stats 0367
+```
+Показывает детальную статистику:
+```
+📊 Статистика предприятия 0367:
+
+ total_calls | completed_calls |  avg_events_per_call   | first_call | last_call | events_size 
+-------------+-----------------+------------------------+------------+-----------+-------------
+           5 |               2 | 2.40000000000000000000 | 2025-10-03 | 2025-10-03| 895 bytes
+```
+
+**Очистка данных предприятия:**
+```bash
+./logger_partitions.sh cleanup 0367     # Очистить данные предприятия
+./logger_partitions.sh cleanup-all      # Очистить все данные (с подтверждением)
+```
+
+**Пересоздание партиций:**
+```bash
+./logger_partitions.sh rebuild-partitions
+```
+Пересоздает партиции с правильными названиями.
+
+**Выполнение SQL запросов:**
+```bash
+./logger_partitions.sh sql "SELECT COUNT(*) FROM \"0367\";"
+./logger_partitions.sh sql "SELECT * FROM \"0367\" LIMIT 5;"
+```
+
+**Тестирование логирования:**
+```bash
+./logger_partitions.sh test-event 0367
+```
+Создает тестовое событие и показывает результат.
+
+**Проверка здоровья сервиса:**
+```bash
+./logger_partitions.sh health
+```
+
+#### Примеры использования
+
+**Сценарий 1: Новое предприятие**
+```bash
+# Создаем партицию для нового предприятия 0375
+./logger_partitions.sh add-enterprise 0375
+
+# Проверяем что партиция создалась
+./logger_partitions.sh list
+
+# Смотрим статистику (пока пустая)
+./logger_partitions.sh stats 0375
+```
+
+**Сценарий 2: Анализ данных предприятия**
+```bash
+# Общая статистика по 0367
+./logger_partitions.sh stats 0367
+
+# Детальный анализ через SQL (обратите внимание на кавычки!)
+./logger_partitions.sh sql "
+SELECT 
+    call_direction,
+    COUNT(*) as calls_count,
+    jsonb_array_length(call_events) as avg_events
+FROM \"0367\" 
+WHERE start_time >= NOW() - INTERVAL '7 days'
+GROUP BY call_direction;
+"
+
+# Поиск звонков по номеру телефона
+./logger_partitions.sh sql "
+SELECT unique_id, phone_number, call_status, start_time 
+FROM \"0367\" 
+WHERE phone_number = '375296254070';
+"
+```
+
+**Сценарий 3: Очистка тестовых данных**
+```bash
+# Сначала смотрим что в партиции
+./logger_partitions.sh stats 0999
+
+# Если это тестовые данные - очищаем
+./logger_partitions.sh cleanup 0999
+```
+
+**Сценарий 4: Тестирование логирования**
+```bash
+# Тестируем логирование для предприятия
+./logger_partitions.sh test-event 0367
+
+# Проверяем что событие записалось
+./logger_partitions.sh stats 0367
+
+# Смотрим детали события
+./logger_partitions.sh sql "SELECT * FROM \"0367\" ORDER BY id DESC LIMIT 1;"
+```
+
+#### Автоматическое создание партиций
+
+Партиции **НЕ создаются** автоматически! Нужно создавать их вручную перед логированием:
+
+```bash
+# Сначала создаем партицию для нового предприятия
+./logger_partitions.sh add-enterprise 0375
+
+# Теперь можно логировать события
+curl -X POST http://localhost:8026/log/event -H "Content-Type: application/json" -d '{
+    "enterprise_number": "0375",
+    "unique_id": "1759490248.0", 
+    "event_type": "dial",
+    "event_data": {...}
+}'
+```
+
+#### Важные особенности
+
+**Кавычки в SQL запросах:**
+Поскольку партиции названы цифрами, в SQL нужны двойные кавычки:
+```sql
+-- ✅ Правильно
+SELECT * FROM "0367";
+
+-- ❌ Неправильно  
+SELECT * FROM 0367;
+```
+
+**Простые названия партиций:**
+- Партиция для предприятия 0367 называется просто `"0367"`
+- Никаких префиксов `call_traces_` больше нет
+- Это упрощает понимание и использование
+
+#### Мониторинг партиций
+
+**Ежедневная проверка:**
+```bash
+# Размеры всех партиций
+./logger_partitions.sh list
+
+# Статистика активных предприятий
+for enterprise in 0367 0280 0368; do
+    echo "=== Предприятие $enterprise ==="
+    ./logger_partitions.sh stats $enterprise
+    echo ""
+done
+```
+
+**Поиск проблемных партиций:**
+```bash
+# Партиции без данных (возможно созданы ошибочно)
+./logger_partitions.sh sql "
+SELECT 
+    tablename as partition_name,
+    pg_size_pretty(pg_total_relation_size('public.'||tablename)) as size
+FROM pg_tables 
+WHERE schemaname = 'public' 
+AND tablename ~ '^[0-9]{4}$'
+ORDER BY pg_total_relation_size('public.'||tablename) DESC;
+"
+
+# Поиск пустых партиций
+./logger_partitions.sh sql "
+SELECT 
+    tablename,
+    (SELECT COUNT(*) FROM call_traces WHERE tableoid = ('public.'||tablename)::regclass) as records
+FROM pg_tables 
+WHERE schemaname = 'public' 
+AND tablename ~ '^[0-9]{4}$'
+HAVING (SELECT COUNT(*) FROM call_traces WHERE tableoid = ('public.'||tablename)::regclass) = 0;
+"
+```
+
 ## 📈 Мониторинг
 
 ### Логи сервиса
@@ -336,9 +710,12 @@ curl http://localhost:8026/
 ## ⚠️ Важные замечания
 
 1. **Производительность**: Сервис не использует --reload для избежания тормозов
-2. **Хранилище**: В текущей версии данные хранятся в памяти (будут потеряны при перезапуске)
-3. **Безопасность**: Сервис доступен только по localhost
-4. **Масштабирование**: При росте нагрузки потребуется оптимизация БД
+2. **Хранилище**: Данные хранятся в PostgreSQL с партиционированием по предприятиям
+3. **Безопасность**: Сервис доступен по localhost и через Nginx на `/logger/`
+4. **Партиции**: Названы просто номерами предприятий (0367, 0280, etc.) без префиксов
+5. **SQL запросы**: Обязательно используйте двойные кавычки для названий партиций
+6. **Создание партиций**: Партиции НЕ создаются автоматически, только через скрипт
+7. **JSONB**: Все события звонка хранятся в одном JSONB поле для гибкости
 
 ## 🔗 Связанные сервисы
 
