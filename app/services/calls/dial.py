@@ -1,12 +1,14 @@
 import logging
 import asyncio
 import aiohttp
+import time
 from telegram import Bot
 from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
+from app.utils.logger_client import call_logger
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
@@ -71,6 +73,19 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
 
     logging.info(f"[process_dial] RAW DATA = {data!r}")
     logging.info(f"[process_dial] Phone for grouping: {phone_for_grouping}, call_type: {call_type}")
+    
+    # ───────── Логирование dial события в Call Logger ─────────
+    try:
+        await call_logger.log_call_event(
+            enterprise_number=enterprise_number,
+            unique_id=uid,
+            event_type="dial",
+            event_data=data,
+            phone_number=phone
+        )
+        logging.info(f"[process_dial] Logged dial event to Call Logger: {uid}")
+    except Exception as e:
+        logging.warning(f"[process_dial] Failed to log dial event: {e}")
 
     # ───────── Шаг 2. Проверяем, нужно ли заменить предыдущее сообщение ─────────
     should_replace, message_to_delete = should_replace_previous_message(phone_for_grouping, 'dial', chat_id)
@@ -118,6 +133,8 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     
     # ───────── Обогащение метаданными через сервис 8020 ─────────
     enriched_data = {}
+    enrichment_start_time = time.time()
+    
     try:
         enriched_data = await metadata_client.enrich_message_data(
             enterprise_number=enterprise_number,
@@ -126,8 +143,44 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             external_phone=external_phone,
             short_names=False
         )
+        
+        # Логируем успешный HTTP запрос к 8020
+        enrichment_duration = (time.time() - enrichment_start_time) * 1000
+        await call_logger.log_http_request(
+            enterprise_number=enterprise_number,
+            unique_id=uid,
+            method="POST",
+            url=f"http://localhost:8020/metadata/{enterprise_number}/enrich",
+            request_data={
+                "line_id": line_id,
+                "internal_phone": internal_phone,
+                "external_phone": external_phone,
+                "short_names": False
+            },
+            response_data=enriched_data,
+            status_code=200,
+            duration_ms=enrichment_duration
+        )
+        
         logging.info(f"[process_dial] Enrichment successful: {enriched_data}")
     except Exception as e:
+        # Логируем ошибку HTTP запроса
+        enrichment_duration = (time.time() - enrichment_start_time) * 1000
+        await call_logger.log_http_request(
+            enterprise_number=enterprise_number,
+            unique_id=uid,
+            method="POST",
+            url=f"http://localhost:8020/metadata/{enterprise_number}/enrich",
+            request_data={
+                "line_id": line_id,
+                "internal_phone": internal_phone,
+                "external_phone": external_phone,
+                "short_names": False
+            },
+            duration_ms=enrichment_duration,
+            error=str(e)
+        )
+        
         logging.warning(f"[process_dial] Enrichment failed: {e}")
         enriched_data = {}
     
@@ -207,8 +260,37 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             )
         else:
             sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+        
+        # Логируем отправку Telegram сообщения
+        try:
+            await call_logger.log_telegram_message(
+                enterprise_number=enterprise_number,
+                unique_id=uid,
+                chat_id=chat_id,
+                message_type="dial",
+                action="send",
+                message_id=sent.message_id,
+                message_text=safe_text
+            )
+            logging.info(f"[process_dial] Logged Telegram message to Call Logger: {sent.message_id}")
+        except Exception as log_e:
+            logging.warning(f"[process_dial] Failed to log Telegram message: {log_e}")
             
     except BadRequest as e:
+        # Логируем ошибку отправки Telegram сообщения
+        try:
+            await call_logger.log_telegram_message(
+                enterprise_number=enterprise_number,
+                unique_id=uid,
+                chat_id=chat_id,
+                message_type="dial",
+                action="send",
+                message_text=safe_text,
+                error=str(e)
+            )
+        except Exception as log_e:
+            logging.warning(f"[process_dial] Failed to log Telegram error: {log_e}")
+            
         logging.error(f"[process_dial] send_message failed: {e}. text={safe_text!r}")
         return {"status": "error", "error": str(e)}
 
@@ -246,6 +328,9 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         event_type_for_gateway = "dial"
 
         async def _dispatch_to_gateway():
+            gateway_start_time = time.time()
+            gateway_url = "http://localhost:8020/dispatch/call-event"
+            
             try:
                 payload = {
                     "token": token_for_gateway,
@@ -256,15 +341,34 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                 timeout = aiohttp.ClientTimeout(total=2)
                 async with aiohttp.ClientSession(timeout=timeout) as session:
                     logging.info(f"[process_dial] gateway dispatch start: uid={unique_id_for_gateway} type={event_type_for_gateway}")
-                    resp = await session.post(
-                        "http://localhost:8020/dispatch/call-event",
-                        json=payload,
+                    resp = await session.post(gateway_url, json=payload)
+                    
+                    # Логируем успешный запрос к Gateway
+                    gateway_duration = (time.time() - gateway_start_time) * 1000
+                    await call_logger.log_http_request(
+                        enterprise_number=enterprise_number,
+                        unique_id=unique_id_for_gateway,
+                        method="POST",
+                        url=gateway_url,
+                        request_data=payload,
+                        status_code=resp.status,
+                        duration_ms=gateway_duration
                     )
-                    try:
-                        logging.info(f"[process_dial] gateway dispatch done: uid={unique_id_for_gateway} status={resp.status}")
-                    except Exception:
-                        pass
+                    
+                    logging.info(f"[process_dial] gateway dispatch done: uid={unique_id_for_gateway} status={resp.status}")
+                    
             except Exception as e:
+                # Логируем ошибку запроса к Gateway
+                gateway_duration = (time.time() - gateway_start_time) * 1000
+                await call_logger.log_http_request(
+                    enterprise_number=enterprise_number,
+                    unique_id=unique_id_for_gateway,
+                    method="POST",
+                    url=gateway_url,
+                    request_data=payload if 'payload' in locals() else None,
+                    duration_ms=gateway_duration,
+                    error=str(e)
+                )
                 logging.warning(f"[process_dial] gateway dispatch error: {e}")
 
         asyncio.create_task(_dispatch_to_gateway())

@@ -13,13 +13,14 @@ case "$1" in
         echo "🗂️ Простая схема: одна партиция = один номер предприятия"
         PGPASSWORD='r/Yskqh/ZbZuvjb2b3ahfg==' psql -U postgres -d postgres -c "
         SELECT 
-            SUBSTRING(tablename FROM 'call_traces_(.*)') as enterprise_number,
+            tablename as enterprise_number,
             tablename as partition_name,
             pg_size_pretty(pg_total_relation_size('public.'||tablename)) as size,
             (SELECT COUNT(*) FROM call_traces WHERE tableoid = ('public.'||tablename)::regclass) as records
         FROM pg_tables 
-        WHERE tablename LIKE 'call_traces_0%' 
-        ORDER BY enterprise_number;
+        WHERE schemaname = 'public' 
+        AND tablename ~ '^[0-9]{4}$'
+        ORDER BY tablename;
         "
         ;;
         
