@@ -400,6 +400,7 @@ async def get_services_status(request: Request):
             "ms": {"port": 8023, "script": "ms.sh", "app": "ms"},
             "24": {"port": 8024, "script": "24.sh", "app": "bitrix24"},
             "test": {"port": 8025, "script": "test.sh", "app": "test"},
+            "logger": {"port": 8026, "script": "logger.sh", "app": "logger"},
             "reboot": {"port": 8009, "script": "reboot.sh", "app": "reboot.py"},
             "ewelink": {"port": 8010, "script": "ewelink.sh", "app": "ewelink_api"}
         }
