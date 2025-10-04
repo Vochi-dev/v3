@@ -100,8 +100,8 @@ async def ensure_enterprise_partition(enterprise_number: str):
     try:
         conn = await asyncpg.connect(**DB_CONFIG)
         
-        # Проверяем существует ли партиция
-        partition_name = f"call_traces_{enterprise_number}"
+        # Проверяем существует ли партиция (новая схема - простые названия)
+        partition_name = enterprise_number
         
         check_query = """
         SELECT EXISTS (
@@ -113,15 +113,24 @@ async def ensure_enterprise_partition(enterprise_number: str):
         exists = await conn.fetchval(check_query, partition_name)
         
         if not exists:
-            # Создаем партицию
-            remainder_val = int(enterprise_number)
+            # Создаем LIST партицию с простым названием
             create_query = f"""
-            CREATE TABLE {partition_name} PARTITION OF call_traces 
-            FOR VALUES WITH (MODULUS 1000, REMAINDER {remainder_val})
+            CREATE TABLE "{partition_name}" PARTITION OF call_traces 
+            FOR VALUES IN ('{enterprise_number}')
             """
             
             await conn.execute(create_query)
-            logger.info(f"✅ Created partition {partition_name} for enterprise {enterprise_number}")
+            
+            # Добавляем UNIQUE constraint
+            constraint_query = f"""
+            ALTER TABLE "{partition_name}" 
+            ADD CONSTRAINT unique_call_trace_{enterprise_number} 
+            UNIQUE (unique_id, enterprise_number)
+            """
+            
+            await conn.execute(constraint_query)
+            
+            logger.info(f"✅ Created LIST partition {partition_name} for enterprise {enterprise_number}")
         
         await conn.close()
         return True
@@ -404,8 +413,13 @@ async def get_call_trace(unique_id: str):
         # Получаем основную информацию о трейсе
         trace_info = await conn.fetchrow("""
             SELECT id, unique_id, enterprise_number, phone_number, call_direction, 
-                   call_status, start_time, end_time, duration_seconds, call_events,
-                   created_at, updated_at
+                   call_status, start_time, end_time, call_events,
+                   created_at, updated_at,
+                   CASE 
+                       WHEN end_time IS NOT NULL AND start_time IS NOT NULL 
+                       THEN EXTRACT(EPOCH FROM (end_time - start_time))
+                       ELSE NULL 
+                   END as duration_seconds
             FROM call_traces 
             WHERE unique_id = $1
         """, unique_id)
@@ -414,20 +428,30 @@ async def get_call_trace(unique_id: str):
             await conn.close()
             raise HTTPException(status_code=404, detail="Call trace not found")
         
-        # Получаем события через функцию
-        events = await conn.fetch("SELECT * FROM get_call_events($1)", unique_id)
-        
         await conn.close()
         
-        # Формируем timeline
+        # Формируем timeline из JSONB поля call_events
         timeline = []
-        for event in events:
-            timeline.append({
-                "sequence": event['event_sequence'],
-                "event_type": event['event_type'],
-                "timestamp": event['event_timestamp'].isoformat(),
-                "data": event['event_data']
-            })
+        if trace_info['call_events']:
+            import json
+            
+            # Парсим JSONB в Python объект
+            try:
+                if isinstance(trace_info['call_events'], str):
+                    events_list = json.loads(trace_info['call_events'])
+                else:
+                    events_list = trace_info['call_events']
+                
+                if isinstance(events_list, list):
+                    for event in events_list:
+                        timeline.append({
+                            "sequence": event.get('event_sequence', 0),
+                            "event_type": event.get('event_type', 'unknown'),
+                            "timestamp": event.get('event_timestamp', ''),
+                            "data": event.get('event_data', {})
+                        })
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"Failed to parse call_events: {e}")
         
         return {
             "unique_id": unique_id,
@@ -437,9 +461,9 @@ async def get_call_trace(unique_id: str):
             "call_status": trace_info['call_status'],
             "start_time": trace_info['start_time'].isoformat() if trace_info['start_time'] else None,
             "end_time": trace_info['end_time'].isoformat() if trace_info['end_time'] else None,
-            "duration_seconds": trace_info['duration_seconds'],
-            "created_at": trace_info['created_at'].isoformat(),
-            "updated_at": trace_info['updated_at'].isoformat(),
+            "duration_seconds": float(trace_info['duration_seconds']) if trace_info['duration_seconds'] else None,
+            "created_at": trace_info['created_at'].isoformat() if trace_info['created_at'] else None,
+            "updated_at": trace_info['updated_at'].isoformat() if trace_info['updated_at'] else None,
             "timeline": timeline,
             "summary": {
                 "total_events": len(timeline),
@@ -613,11 +637,15 @@ async def get_partition_stats(enterprise_number: str):
             COUNT(*) as total_calls,
             COUNT(CASE WHEN call_status = 'completed' THEN 1 END) as completed_calls,
             COUNT(CASE WHEN call_status = 'failed' THEN 1 END) as failed_calls,
-            AVG(duration_seconds) as avg_duration,
+            AVG(CASE 
+                WHEN end_time IS NOT NULL AND start_time IS NOT NULL 
+                THEN EXTRACT(EPOCH FROM (end_time - start_time))
+                ELSE NULL 
+            END) as avg_duration,
             MIN(start_time) as first_call,
             MAX(start_time) as last_call,
-            pg_size_pretty(pg_total_relation_size('{partition_name}')) as partition_size
-        FROM {partition_name}
+            pg_size_pretty(pg_total_relation_size('"{partition_name}"')) as partition_size
+        FROM "{partition_name}"
         """
         
         stats = await conn.fetchrow(stats_query)
