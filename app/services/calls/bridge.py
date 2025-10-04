@@ -10,6 +10,7 @@ from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
+from app.utils.logger_client import call_logger
 from .utils import (
     format_phone_number,
     bridge_store,
@@ -43,6 +44,41 @@ async def process_bridge(bot: Bot, chat_id: int, data: dict):
     - НЕ кэширует, НЕ ждет 5 секунд
     """
     logging.info(f"[process_bridge] RAW DATA = {data!r}")
+    
+    # Получаем данные для логирования
+    uid = data.get("UniqueId", "")
+    token = data.get("Token", "")
+    
+    # Получаем номер предприятия из БД по Token (name2)
+    enterprise_number = "0000"  # fallback
+    try:
+        pool = await get_pool()
+        if pool:
+            async with pool.acquire() as conn:
+                ent_row = await conn.fetchrow(
+                    "SELECT number FROM enterprises WHERE name2 = $1 LIMIT 1",
+                    token
+                )
+                if ent_row:
+                    enterprise_number = ent_row["number"]
+                    logging.info(f"[process_bridge] Resolved Token '{token}' -> enterprise '{enterprise_number}'")
+                else:
+                    logging.warning(f"[process_bridge] Enterprise not found for Token '{token}'")
+    except Exception as e:
+        logging.error(f"[process_bridge] Failed to resolve enterprise_number: {e}")
+
+    # ───────── Логирование bridge события в Call Logger ─────────
+    try:
+        await call_logger.log_call_event(
+            enterprise_number=enterprise_number,
+            unique_id=uid,
+            event_type="bridge",
+            event_data=data,
+            chat_id=chat_id
+        )
+        logging.info(f"[process_bridge] Logged bridge event to Call Logger: {uid}")
+    except Exception as e:
+        logging.warning(f"[process_bridge] Failed to log bridge event: {e}")
     
     # Проверяем нужно ли отправлять этот bridge
     if should_send_bridge(data):

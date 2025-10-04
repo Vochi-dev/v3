@@ -81,7 +81,8 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             unique_id=uid,
             event_type="dial",
             event_data=data,
-            phone_number=phone
+            phone_number=phone,
+            chat_id=chat_id
         )
         logging.info(f"[process_dial] Logged dial event to Call Logger: {uid}")
     except Exception as e:

@@ -4,6 +4,7 @@ from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
+from app.utils.logger_client import call_logger
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
@@ -46,6 +47,39 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
     is_int = call_type == 2
     callee = exts[0] if exts else ""
     token = data.get("Token", "")
+    
+    # Получаем номер предприятия из БД по Token (name2)
+    from app.services.postgres import get_pool
+    enterprise_number = "0000"  # fallback
+    try:
+        pool = await get_pool()
+        if pool:
+            async with pool.acquire() as conn:
+                ent_row = await conn.fetchrow(
+                    "SELECT number FROM enterprises WHERE name2 = $1 LIMIT 1",
+                    token
+                )
+                if ent_row:
+                    enterprise_number = ent_row["number"]
+                    logging.info(f"[process_start] Resolved Token '{token}' -> enterprise '{enterprise_number}'")
+                else:
+                    logging.warning(f"[process_start] Enterprise not found for Token '{token}'")
+    except Exception as e:
+        logging.error(f"[process_start] Failed to resolve enterprise_number: {e}")
+
+    # ───────── Логирование start события в Call Logger ─────────
+    try:
+        await call_logger.log_call_event(
+            enterprise_number=enterprise_number,
+            unique_id=uid,
+            event_type="start",
+            event_data=data,
+            phone_number=phone,
+            chat_id=chat_id
+        )
+        logging.info(f"[process_start] Logged start event to Call Logger: {uid}")
+    except Exception as e:
+        logging.warning(f"[process_start] Failed to log start event: {e}")
 
     # ───────── Шаг 3. Формируем текст согласно Пояснению ─────────
     if is_int:

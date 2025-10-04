@@ -23,7 +23,8 @@ class LoggerClient:
         unique_id: str, 
         event_type: str, 
         event_data: Dict[str, Any],
-        phone_number: Optional[str] = None
+        phone_number: Optional[str] = None,
+        chat_id: Optional[int] = None
     ) -> bool:
         """
         Логирование события звонка
@@ -47,6 +48,8 @@ class LoggerClient:
         
         if phone_number:
             payload["phone_number"] = phone_number
+        if chat_id:
+            payload["chat_id"] = chat_id
             
         return await self._send_log("/log/event", payload)
     

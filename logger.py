@@ -37,6 +37,7 @@ class CallEvent(BaseModel):
     unique_id: str
     event_type: str  # dial, bridge, hangup, etc.
     event_data: Dict[str, Any]
+    chat_id: Optional[int] = None  # ID получателя в Telegram
     timestamp: Optional[datetime] = None
 
 class HttpRequest(BaseModel):
@@ -266,19 +267,25 @@ async def log_call_event(event: CallEvent):
         elif 'phone' in event.event_data:
             phone_number = event.event_data['phone']
         
+        # Добавляем chat_id в event_data для сохранения в JSONB
+        event_data_with_chat = event.event_data.copy()
+        if event.chat_id:
+            event_data_with_chat["_chat_id"] = event.chat_id
+        
         # Добавляем событие через функцию БД
         trace_id = await conn.fetchval(
             "SELECT add_call_event($1, $2, $3, $4, $5)",
             event.unique_id,
             event.enterprise_number, 
             event.event_type,
-            json.dumps(event.event_data),
+            json.dumps(event_data_with_chat),
             phone_number
         )
         
         await conn.close()
         
-        logger.info(f"Logged event {event.event_type} for call {event.unique_id} (trace_id: {trace_id})")
+        chat_info = f" (chat_id: {event.chat_id})" if event.chat_id else ""
+        logger.info(f"Logged event {event.event_type} for call {event.unique_id}{chat_info} (trace_id: {trace_id})")
         return {
             "status": "success", 
             "message": "Event logged",
