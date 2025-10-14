@@ -273,8 +273,18 @@ class CallTestService:
     async def simulate_call(self, call_params: Dict[str, Any]) -> Dict[str, Any]:
         """Эмуляция полного звонка"""
         try:
-            # Генерируем уникальные данные
-            unique_id = f"test_{int(datetime.now().timestamp())}.{uuid.uuid4().hex[:8]}"
+            # Генерируем уникальные данные из реального timestamp
+            base_timestamp = int(datetime.now().timestamp())
+            
+            # Формируем UniqueId: полный timestamp + последние 2 цифры после точки
+            # Пример: timestamp=1760435604 → UniqueId=1760435604.04
+            timestamp_str = str(base_timestamp)
+            last_two_digits = timestamp_str[-2:]  # Последние 2 цифры
+            unique_id = f"{base_timestamp}.{last_two_digits}"
+            
+            # ОТЛАДКА: выводим что генерируем
+            logger.info(f"🔧 DEBUG: Generated UniqueId = {unique_id} (timestamp={base_timestamp}, last_digits={last_two_digits})")
+            
             start_time = datetime.now()
             duration_seconds = call_params.get('duration_seconds', 180)  # 3 минуты по умолчанию
             end_time = start_time + timedelta(seconds=duration_seconds)
@@ -327,6 +337,14 @@ class CallTestService:
         call_status = call_params['call_status']
         enterprise_token = call_params['enterprise_token']
         
+        # Генерируем вторичный UniqueId для паттерна 1-1
+        # Берем основной timestamp + 1 и добавляем последние 2 цифры + 1
+        base_timestamp_str = unique_id.split('.')[0]  # Например: "1760435604"
+        base_timestamp_int = int(base_timestamp_str)
+        secondary_timestamp = base_timestamp_int + 1  # +1: 1760435605
+        secondary_last_digits = str(secondary_timestamp)[-2:]  # Последние 2 цифры: "05"
+        secondary_unique_id = f"{secondary_timestamp}.{secondary_last_digits}"  # "1760435605.05"
+        
         # 1. DIAL событие
         dial_data = {
             "Phone": external_phone,
@@ -353,7 +371,7 @@ class CallTestService:
             "Channel": f"SIP/{line_id}-55353474",
             "CallerIDName": "",
             "BridgeUniqueid": f"{uuid.uuid4()}",
-            "UniqueId": f"{unique_id}.1",
+            "UniqueId": secondary_unique_id,
             "ConnectedLineNum": internal_phone,
             "Token": enterprise_token,
             "ConnectedLineName": internal_phone,
@@ -396,7 +414,7 @@ class CallTestService:
             "Channel": f"SIP/{line_id}-55353474",
             "CallerIDName": "",
             "BridgeUniqueid": bridge_id,
-            "UniqueId": f"{unique_id}.1",
+            "UniqueId": secondary_unique_id,
             "Exten": "",
             "ConnectedLineNum": internal_phone,
             "Token": enterprise_token,
@@ -438,7 +456,7 @@ class CallTestService:
             "Channel": f"SIP/{line_id}-55353474",
             "CallerIDName": "",
             "BridgeUniqueid": bridge_id,
-            "UniqueId": f"{unique_id}.1",
+            "UniqueId": secondary_unique_id,
             "ConnectedLineNum": internal_phone,
             "Token": enterprise_token,
             "ConnectedLineName": internal_phone,

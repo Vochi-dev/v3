@@ -2352,12 +2352,12 @@
             callData: null
         };
 
-        // Генерация UniqueId согласно правилам
+        // Генерация UniqueId из реального timestamp
         function generateUniqueId(baseExample = "1757765248.0") {
             const currentUnixTime = Math.floor(Date.now() / 1000);
-            const first7Digits = currentUnixTime.toString().substring(0, 7);
-            const last3DigitsAndSuffix = baseExample.substring(7); // "248.0" из реального события
-            return first7Digits + last3DigitsAndSuffix;
+            const timestampStr = currentUnixTime.toString();
+            const lastTwoDigits = timestampStr.slice(-2); // Последние 2 цифры
+            return `${currentUnixTime}.${lastTwoDigits}`;
         }
 
         // Генерация Bridge UUID
@@ -2388,18 +2388,10 @@
             switch(parseInt(callTypeId)) {
                 case 1: // 1-1: Исходящий звонок - ответили
                     const bridgeId = generateBridgeUUID();
-                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-1
-                    const uniqueIds_1_1 = {
-                        step1: generateUniqueId("1757765248.0"), // dial
-                        step2: generateUniqueId("1757765249.1"), // new_callerid  
-                        step3: "", // bridge_create - пустой
-                        step4: generateUniqueId("1757765249.1"), // bridge
-                        step5: generateUniqueId("1757765248.0"), // bridge
-                        step6: generateUniqueId("1757765249.1"), // bridge_leave
-                        step7: generateUniqueId("1757765248.0"), // bridge_leave
-                        step8: "", // bridge_destroy - пустой
-                        step9: generateUniqueId("1757765248.0")  // hangup
-                    };
+                    
+                    // Очищаем UniqueId для новой эмуляции
+                    // UniqueId будут генерироваться в момент отправки каждого события
+                    window.callUniqueIds = {};
                     const phone = (formData.get('external_phone') || '').replace(/^\+/, ''); // Убираем + как в реальном Asterisk
                     const managerRaw = formData.get('internal_phone');
                     const lineRaw = formData.get('line_id');
@@ -2430,7 +2422,7 @@
                             ExtTrunk: "",
                             ExtPhone: "",
                             Extensions: [manager],
-                            UniqueId: uniqueIds_1_1.step1,
+                            UniqueId: '__PRIMARY_UNIQUE_ID__',
                             Token: token,
                             Trunk: trunk,
                             CallType: 1
@@ -2447,7 +2439,7 @@
                             Channel: `SIP/${trunk}-00000001`,
                             CallerIDName: "<ХРЕН>",
                             Context: "from-out-office",
-                            UniqueId: uniqueIds_1_1.step2,
+                            UniqueId: '__SECONDARY_UNIQUE_ID__',
                             ConnectedLineNum: manager,
                             Token: token,
                             ConnectedLineName: manager,
@@ -2482,7 +2474,7 @@
                             Channel: `SIP/${trunk}-00000001`,
                             CallerIDName: "",
                             BridgeUniqueid: bridgeId,
-                            UniqueId: uniqueIds_1_1.step4,
+                            UniqueId: '__SECONDARY_UNIQUE_ID__',
                             Exten: "",
                             ConnectedLineNum: manager,
                             Token: token,
@@ -2500,7 +2492,7 @@
                             Channel: `SIP/${manager}-00000000`,
                             CallerIDName: manager,
                             BridgeUniqueid: bridgeId,
-                            UniqueId: uniqueIds_1_1.step5,
+                            UniqueId: '__PRIMARY_UNIQUE_ID__',
                             Exten: phone,
                             ConnectedLineNum: "<ХРЕН>",
                             Token: token,
@@ -2518,7 +2510,7 @@
                             Channel: `SIP/${trunk}-00000001`,
                             CallerIDName: "<ХРЕН>",
                             BridgeUniqueid: bridgeId,
-                            UniqueId: uniqueIds_1_1.step6,
+                            UniqueId: '__SECONDARY_UNIQUE_ID__',
                             ConnectedLineNum: manager,
                             Token: token,
                             ConnectedLineName: manager,
@@ -2536,7 +2528,7 @@
                             Channel: `SIP/${manager}-00000000`,
                             CallerIDName: manager,
                             BridgeUniqueid: bridgeId,
-                            UniqueId: uniqueIds_1_1.step7,
+                            UniqueId: '__PRIMARY_UNIQUE_ID__',
                             ConnectedLineNum: "<ХРЕН>",
                             Token: token,
                             ConnectedLineName: "<ХРЕН>",
@@ -2574,7 +2566,7 @@
                             Phone: phone,
                             StartTime: startTime.toISOString().replace('T', ' ').substring(0, 19),
                             Extensions: extensionsForHangup,
-                            UniqueId: uniqueIds_1_1.step9,
+                            UniqueId: '__PRIMARY_UNIQUE_ID__',
                             DateReceived: receivedTime.toISOString().replace('T', ' ').substring(0, 19),
                             Token: token,
                             EndTime: now.toISOString().replace('T', ' ').substring(0, 19),
@@ -15890,6 +15882,25 @@
             return events;
         }
 
+        // Обработка UniqueId в событии
+        function processEventUniqueIds(event) {
+            let processedEvent = JSON.parse(JSON.stringify(event));
+            
+            if (processedEvent.data.UniqueId === '__PRIMARY_UNIQUE_ID__') {
+                if (!window.callUniqueIds.primary) {
+                    window.callUniqueIds.primary = generateUniqueId();
+                }
+                processedEvent.data.UniqueId = window.callUniqueIds.primary;
+            } else if (processedEvent.data.UniqueId === '__SECONDARY_UNIQUE_ID__') {
+                if (!window.callUniqueIds.secondary) {
+                    window.callUniqueIds.secondary = generateUniqueId();
+                }
+                processedEvent.data.UniqueId = window.callUniqueIds.secondary;
+            }
+            
+            return processedEvent;
+        }
+
         // Отображение события в логе
         function addEventToLog(event) {
             const eventsLog = document.getElementById('eventsLog');
@@ -16044,12 +16055,15 @@ ${JSON.stringify(event.data, null, 2)}
             // Логируем что генерируется
             console.log('📝 СГЕНЕРИРОВАНО ДЛЯ БРАУЗЕРА:', JSON.stringify(event, null, 2));
             
+            // Генерируем UniqueId для события перед отображением и отправкой
+            const processedEvent = processEventUniqueIds(event);
+            
             // Показываем событие в логе
-            addEventToLog(event);
+            addEventToLog(processedEvent);
             
             // Отправляем на сервер (не прерываем эмуляцию при ошибке)
             try {
-                await sendEventToServer(event);
+                await sendEventToServer(processedEvent);
             } catch (error) {
                 console.error('Ошибка отправки события:', error);
             }
