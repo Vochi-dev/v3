@@ -2771,32 +2771,8 @@
                     break;
                     
                 case 3: // 1-3: Переадресация вызова с запросом - вызов принят другим оператором - разговор отклонен
-                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-3
-                    const uniqueIds_1_3 = {
-                        step1: generateUniqueId("1757765679.3"), // dial
-                        step2: generateUniqueId("1757765681.4"), // new_callerid (внешний канал)
-                        step3: "", // bridge_create (мост A) - пустой
-                        step4: generateUniqueId("1757765681.4"), // bridge (внешний к мосту A)
-                        step5: generateUniqueId("1757765679.3"), // bridge (менеджер 1 к мосту A)
-                        step6: "", // bridge_create (мост B) - пустой
-                        step7: generateUniqueId("1757765700.6"), // new_callerid (Local channel ;2)
-                        step8: generateUniqueId("1757765700.5"), // new_callerid (Local channel ;1)
-                        step9: "", // bridge_create (мост C) - пустой
-                        step10: generateUniqueId("1757765700.6"), // bridge (Local ;2 к мосту C)
-                        step11: generateUniqueId("1757765700.7"), // bridge (менеджер 2 к мосту C)
-                        step12: generateUniqueId("1757765700.7"), // bridge_leave (менеджер 2 выход из моста C)
-                        step13: generateUniqueId("1757765700.6"), // bridge_leave (Local ;2 выход из моста C)
-                        step14: "", // bridge_destroy (мост C) - пустой
-                        step15: generateUniqueId("1757765700.6"), // hangup (Local ;2)
-                        step16: generateUniqueId("1757765700.5"), // bridge_leave (Local ;1 выход из моста B)
-                        step17: generateUniqueId("1757765679.3"), // bridge_leave (менеджер 1 выход из моста B)
-                        step18: generateUniqueId("1757765679.3"), // bridge (менеджер 1 возврат к мосту A)
-                        step19: "", // bridge_destroy (мост B) - пустой
-                        step20: generateUniqueId("1757765679.3"), // bridge_leave (менеджер 1 выход из моста A)
-                        step21: generateUniqueId("1757765681.4"), // bridge_leave (внешний выход из моста A)
-                        step22: "", // bridge_destroy (мост A) - пустой
-                        step23: generateUniqueId("1757765679.3")  // hangup (основной звонок)
-                    };
+                    // Очищаем UniqueId для новой эмуляции
+                    window.callUniqueIds = {};
                     
                     const phone_1_3 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const manager1Raw_1_3 = formData.get('internal_phone');
@@ -2829,7 +2805,7 @@
                             CallType: 1,
                             ExtTrunk: "",
                             Phone: phone_1_3,
-                            UniqueId: uniqueIds_1_3.step1,
+                            UniqueId: '__UNIQUE_ID_1__',
                             Trunk: trunk_1_3
                         }
                     });
@@ -2848,7 +2824,7 @@
                             CallerIDNum: phone_1_3,
                             Context: "from-out-office",
                             ConnectedLineName: manager1_1_3,
-                            UniqueId: uniqueIds_1_3.step2
+                            UniqueId: '__UNIQUE_ID_2__'
                         }
                     });
 
@@ -2864,7 +2840,7 @@
                             BridgeCreator: "<ХРЕН>",
                             BridgeType: "",
                             BridgeTechnology: "simple_bridge",
-                            UniqueId: uniqueIds_1_3.step3,
+                            UniqueId: "",
                             BridgeNumChannels: "0"
                         }
                     });
@@ -2883,7 +2859,7 @@
                             ConnectedLineNum: manager1_1_3,
                             CallerIDNum: phone_1_3,
                             ConnectedLineName: manager1_1_3,
-                            UniqueId: uniqueIds_1_3.step4
+                            UniqueId: '__UNIQUE_ID_2__'
                         }
                     });
 
@@ -2901,7 +2877,7 @@
                             ConnectedLineNum: "<ХРЕН>",
                             CallerIDNum: manager1_1_3,
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_3.step5
+                            UniqueId: '__UNIQUE_ID_1__'
                         }
                     });
 
@@ -2917,7 +2893,7 @@
                             BridgeCreator: "<ХРЕН>",
                             BridgeType: "",
                             BridgeTechnology: "simple_bridge",
-                            UniqueId: uniqueIds_1_3.step6,
+                            UniqueId: "",
                             BridgeNumChannels: "0"
                         }
                     });
@@ -2936,7 +2912,7 @@
                             CallerIDNum: manager1_1_3,
                             Context: "dialexecute",
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_3.step7
+                            UniqueId: '__UNIQUE_ID_4__'
                         }
                     });
 
@@ -2954,7 +2930,7 @@
                             CallerIDNum: manager2_1_3,
                             Context: "dialexecute",
                             ConnectedLineName: manager1_1_3,
-                            UniqueId: uniqueIds_1_3.step8
+                            UniqueId: '__UNIQUE_ID_3__'
                         }
                     });
 
@@ -2970,7 +2946,7 @@
                             BridgeCreator: "<ХРЕН>",
                             BridgeType: "",
                             BridgeTechnology: "simple_bridge",
-                            UniqueId: uniqueIds_1_3.step9,
+                            UniqueId: "",
                             BridgeNumChannels: "0"
                         }
                     });
@@ -2989,7 +2965,7 @@
                             ConnectedLineNum: manager2_1_3,
                             CallerIDNum: manager1_1_3,
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_3.step10
+                            UniqueId: '__UNIQUE_ID_4__'
                         }
                     });
 
@@ -3007,7 +2983,7 @@
                             ConnectedLineNum: manager1_1_3,
                             CallerIDNum: manager2_1_3,
                             ConnectedLineName: manager1_1_3,
-                            UniqueId: uniqueIds_1_3.step11
+                            UniqueId: '__UNIQUE_ID_5__'
                         }
                     });
 
@@ -3024,7 +3000,7 @@
                             ConnectedLineNum: manager1_1_3,
                             CallerIDNum: manager2_1_3,
                             ConnectedLineName: manager1_1_3,
-                            UniqueId: uniqueIds_1_3.step12,
+                            UniqueId: '__UNIQUE_ID_5__',
                             BridgeNumChannels: "1"
                         }
                     });
@@ -3042,7 +3018,7 @@
                             ConnectedLineNum: manager2_1_3,
                             CallerIDNum: manager1_1_3,
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_3.step13,
+                            UniqueId: '__UNIQUE_ID_4__',
                             BridgeNumChannels: "0"
                         }
                     });
@@ -3059,7 +3035,7 @@
                             BridgeCreator: "<ХРЕН>",
                             BridgeType: "",
                             BridgeTechnology: "simple_bridge",
-                            UniqueId: uniqueIds_1_3.step14,
+                            UniqueId: "",
                             BridgeNumChannels: "0"
                         }
                     });
@@ -3078,7 +3054,7 @@
                             CallType: 2,
                             StartTime: "",
                             Phone: manager1_1_3,
-                            UniqueId: uniqueIds_1_3.step15
+                            UniqueId: '__UNIQUE_ID_4__'
                         }
                     });
 
@@ -3095,7 +3071,7 @@
                             ConnectedLineNum: manager1_1_3,
                             CallerIDNum: manager2_1_3,
                             ConnectedLineName: manager1_1_3,
-                            UniqueId: uniqueIds_1_3.step16,
+                            UniqueId: '__UNIQUE_ID_3__',
                             BridgeNumChannels: "1"
                         }
                     });
@@ -3113,7 +3089,7 @@
                             ConnectedLineNum: manager2_1_3,
                             CallerIDNum: manager1_1_3,
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_3.step17,
+                            UniqueId: '__UNIQUE_ID_1__',
                             BridgeNumChannels: "0"
                         }
                     });
@@ -3132,7 +3108,7 @@
                             ConnectedLineNum: manager2_1_3,
                             CallerIDNum: manager1_1_3,
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_3.step18
+                            UniqueId: '__UNIQUE_ID_1__'
                         }
                     });
 
@@ -3148,7 +3124,7 @@
                             BridgeCreator: "<ХРЕН>",
                             BridgeType: "",
                             BridgeTechnology: "simple_bridge",
-                            UniqueId: uniqueIds_1_3.step19,
+                            UniqueId: "",
                             BridgeNumChannels: "0"
                         }
                     });
@@ -3166,7 +3142,7 @@
                             ConnectedLineNum: phone_1_3,
                             CallerIDNum: manager1_1_3,
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_3.step20,
+                            UniqueId: '__UNIQUE_ID_1__',
                             BridgeNumChannels: "1"
                         }
                     });
@@ -3184,7 +3160,7 @@
                             ConnectedLineNum: manager1_1_3,
                             CallerIDNum: phone_1_3,
                             ConnectedLineName: manager1_1_3,
-                            UniqueId: uniqueIds_1_3.step21,
+                            UniqueId: '__UNIQUE_ID_2__',
                             BridgeNumChannels: "0"
                         }
                     });
@@ -3201,7 +3177,7 @@
                             BridgeCreator: "<ХРЕН>",
                             BridgeType: "",
                             BridgeTechnology: "simple_bridge",
-                            UniqueId: uniqueIds_1_3.step22,
+                            UniqueId: "",
                             BridgeNumChannels: "0"
                         }
                     });
@@ -3220,7 +3196,7 @@
                             CallType: 1,
                             StartTime: startTime_1_3.toISOString().replace('T', ' ').substring(0, 19),
                             Phone: phone_1_3,
-                            UniqueId: uniqueIds_1_3.step23,
+                            UniqueId: '__UNIQUE_ID_1__',
                             Trunk: trunk_1_3
                         }
                     });
