@@ -3915,26 +3915,8 @@
                     break;
 
                 case 6: // 1-6: Прямая переадресация без переспроса
-                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-6
-                    const uniqueIds_1_6 = {
-                        step1: generateUniqueId("1757766483.42"), // dial
-                        step2: generateUniqueId("1757766484.43"), // new_callerid (внешний канал)
-                        step3: "", // bridge_create (мост A) - пустой
-                        step4: generateUniqueId("1757766484.43"), // bridge (внешний к мосту A)
-                        step5: generateUniqueId("1757766483.42"), // bridge (менеджер 1 к мосту A)
-                        step6: generateUniqueId("1757766483.42"), // bridge_leave (менеджер 1 покидает мост A)
-                        step7: generateUniqueId("1757766484.43"), // bridge_leave (внешний покидает мост A)
-                        step8: "", // bridge_destroy (мост A) - пустой
-                        step9: generateUniqueId("1757766502.44"), // new_callerid (менеджер 2 вызывается)
-                        step10: generateUniqueId("1757766483.42"), // hangup (завершение первого звонка)
-                        step11: "", // bridge_create (мост B) - пустой
-                        step12: generateUniqueId("1757766502.44"), // bridge (менеджер 2 к мосту B)
-                        step13: generateUniqueId("1757766484.43"), // bridge (внешний к мосту B)
-                        step14: generateUniqueId("1757766502.44"), // bridge_leave (менеджер 2 покидает мост B)
-                        step15: generateUniqueId("1757766484.43"), // bridge_leave (внешний покидает мост B)
-                        step16: "", // bridge_destroy (мост B) - пустой
-                        step17: generateUniqueId("1757766484.43")  // hangup (завершение второго звонка)
-                    };
+                    // Очищаем UniqueId для новой эмуляции
+                    window.callUniqueIds = {};
                     
                     const phone_1_6 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const manager1Raw_1_6 = formData.get('internal_phone');
@@ -3968,7 +3950,7 @@
                             ExtTrunk: "",
                             CallType: 1,
                             Extensions: [manager1_1_6],
-                            UniqueId: uniqueIds_1_6.step1
+                            UniqueId: '__UNIQUE_ID_1__'
                         }
                     });
                     
@@ -3986,7 +3968,7 @@
                             Exten: phone_1_6,
                             Context: "from-out-office",
                             Channel: `SIP/${trunk_1_6}-00000012`,
-                            UniqueId: uniqueIds_1_6.step2
+                            UniqueId: '__UNIQUE_ID_2__'
                         }
                     });
                     
@@ -4021,7 +4003,7 @@
                             ConnectedLineName: manager1_1_6,
                             Exten: "",
                             Channel: `SIP/${trunk_1_6}-00000012`,
-                            UniqueId: uniqueIds_1_6.step4
+                            UniqueId: '__UNIQUE_ID_2__'
                         }
                     });
                     
@@ -4039,7 +4021,7 @@
                             ConnectedLineName: "<ХРЕН>",
                             Exten: phone_1_6,
                             Channel: `SIP/${manager1_1_6}-00000011`,
-                            UniqueId: uniqueIds_1_6.step5
+                            UniqueId: '__UNIQUE_ID_1__'
                         }
                     });
                     
@@ -4057,7 +4039,7 @@
                             ConnectedLineName: "<ХРЕН>",
                             BridgeNumChannels: "1",
                             Channel: `SIP/${manager1_1_6}-00000011`,
-                            UniqueId: uniqueIds_1_6.step6
+                            UniqueId: '__UNIQUE_ID_1__'
                         }
                     });
                     
@@ -4075,7 +4057,7 @@
                             ConnectedLineName: manager1_1_6,
                             BridgeNumChannels: "0",
                             Channel: `SIP/${trunk_1_6}-00000012`,
-                            UniqueId: uniqueIds_1_6.step7
+                            UniqueId: '__UNIQUE_ID_2__'
                         }
                     });
                     
@@ -4110,7 +4092,7 @@
                             Exten: manager2_1_6,
                             Context: "inoffice",
                             Channel: `SIP/${manager2_1_6}-00000013`,
-                            UniqueId: uniqueIds_1_6.step9
+                            UniqueId: '__UNIQUE_ID_3__'
                         }
                     });
                     
@@ -4129,7 +4111,7 @@
                             CallType: 1,
                             Extensions: [manager1_1_6],
                             DateReceived: receivedTime_1_6.toISOString().slice(0, 19).replace('T', ' '),
-                            UniqueId: uniqueIds_1_6.step10
+                            UniqueId: '__UNIQUE_ID_1__'
                         }
                     });
                     
@@ -4164,7 +4146,7 @@
                             ConnectedLineName: "<ХРЕН>",
                             Exten: "",
                             Channel: `SIP/${manager2_1_6}-00000013`,
-                            UniqueId: uniqueIds_1_6.step12
+                            UniqueId: '__UNIQUE_ID_3__'
                         }
                     });
                     
@@ -4182,7 +4164,7 @@
                             ConnectedLineName: manager1_1_6,
                             Exten: manager2_1_6,
                             Channel: `SIP/${trunk_1_6}-00000012`,
-                            UniqueId: uniqueIds_1_6.step13
+                            UniqueId: '__UNIQUE_ID_2__'
                         }
                     });
                     
@@ -4200,7 +4182,7 @@
                             ConnectedLineName: "<ХРЕН>",
                             BridgeNumChannels: "1",
                             Channel: `SIP/${manager2_1_6}-00000013`,
-                            UniqueId: uniqueIds_1_6.step14
+                            UniqueId: '__UNIQUE_ID_3__'
                         }
                     });
                     
@@ -4218,7 +4200,7 @@
                             ConnectedLineName: manager1_1_6,
                             BridgeNumChannels: "0",
                             Channel: `SIP/${trunk_1_6}-00000012`,
-                            UniqueId: uniqueIds_1_6.step15
+                            UniqueId: '__UNIQUE_ID_2__'
                         }
                     });
                     
@@ -4253,7 +4235,7 @@
                             CallType: 2,
                             Extensions: [manager2_1_6],
                             DateReceived: firstCallEnd_1_6.toISOString().slice(0, 19).replace('T', ' '),
-                            UniqueId: uniqueIds_1_6.step17
+                            UniqueId: '__UNIQUE_ID_2__'
                         }
                     });
                     
