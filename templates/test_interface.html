@@ -3607,25 +3607,8 @@
                     break;
 
                 case 5: // 1-5: Переадресация вызова с запросом - вызов отклонен другим оператором
-                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-5 
-                    const uniqueIds_1_5 = {
-                        step1: generateUniqueId("1757766219.23"), // dial
-                        step2: generateUniqueId("1757766220.24"), // new_callerid (внешний канал)
-                        step3: "", // bridge_create (мост A) - пустой
-                        step4: generateUniqueId("1757766220.24"), // bridge (внешний к мосту A)
-                        step5: generateUniqueId("1757766219.23"), // bridge (менеджер 1 к мосту A)
-                        step6: "", // bridge_create (мост B) - пустой
-                        step7: generateUniqueId("1757766239.25"), // new_callerid (Local channel для менеджера 2)
-                        step8: generateUniqueId("1757766219.23"), // bridge_leave (менеджер 1 выход из моста B)
-                        step9: generateUniqueId("1757766219.23"), // bridge (менеджер 1 возврат к мосту A)
-                        step10: generateUniqueId("1757766239.25"), // bridge_leave (Local канал выход из моста B)
-                        step11: "", // bridge_destroy (мост B) - пустой
-                        step12: generateUniqueId("1757766239.26"), // hangup (отклонение менеджером 2)
-                        step13: generateUniqueId("1757766219.23"), // bridge_leave (менеджер 1 выход из моста A)
-                        step14: generateUniqueId("1757766220.24"), // bridge_leave (внешний выход из моста A)
-                        step15: "", // bridge_destroy (мост A) - пустой
-                        step16: generateUniqueId("1757766219.23")  // hangup (завершение основного звонка)
-                    };
+                    // Очищаем UniqueId для новой эмуляции
+                    window.callUniqueIds = {};
                     
                     const phone_1_5 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const manager1Raw_1_5 = formData.get('internal_phone');
@@ -3654,7 +3637,7 @@
                             Extensions: [manager1_1_5],
                             CallType: 1,
                             Token: token,
-                            UniqueId: uniqueIds_1_5.step1,
+                            UniqueId: '__UNIQUE_ID_1__',
                             ExtTrunk: "",
                             ExtPhone: "",
                             Trunk: trunk_1_5,
@@ -3675,7 +3658,7 @@
                             Exten: phone_1_5,
                             Context: "from-out-office",
                             CallerIDName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_5.step2,
+                            UniqueId: '__UNIQUE_ID_2__',
                             ConnectedLineNum: manager1_1_5
                         }
                     });
@@ -3709,7 +3692,7 @@
                             Token: token,
                             Exten: "",
                             CallerIDName: "",
-                            UniqueId: uniqueIds_1_5.step4,
+                            UniqueId: '__UNIQUE_ID_2__',
                             BridgeUniqueid: bridgeId_A_1_5,
                             ConnectedLineNum: manager1_1_5
                         }
@@ -3727,7 +3710,7 @@
                             Token: token,
                             Exten: phone_1_5,
                             CallerIDName: manager1_1_5,
-                            UniqueId: uniqueIds_1_5.step5,
+                            UniqueId: '__UNIQUE_ID_1__',
                             BridgeUniqueid: bridgeId_A_1_5,
                             ConnectedLineNum: "<ХРЕН>"
                         }
@@ -3763,7 +3746,7 @@
                             Exten: manager2_1_5,
                             Context: "dialexecute",
                             CallerIDName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_5.step7,
+                            UniqueId: '__UNIQUE_ID_3__',
                             ConnectedLineNum: manager1_1_5
                         }
                     });
@@ -3780,7 +3763,7 @@
                             Channel: `SIP/${manager1_1_5}-00000008`,
                             Token: token,
                             CallerIDName: manager1_1_5,
-                            UniqueId: uniqueIds_1_5.step8,
+                            UniqueId: '__UNIQUE_ID_1__',
                             BridgeUniqueid: bridgeId_B_1_5,
                             ConnectedLineNum: "<ХРЕН>"
                         }
@@ -3798,7 +3781,7 @@
                             Token: token,
                             Exten: phone_1_5,
                             CallerIDName: manager1_1_5,
-                            UniqueId: uniqueIds_1_5.step9,
+                            UniqueId: '__UNIQUE_ID_1__',
                             BridgeUniqueid: bridgeId_A_1_5,
                             ConnectedLineNum: manager2_1_5
                         }
@@ -3816,7 +3799,7 @@
                             Channel: `Local/${manager2_1_5}@dialexecute-00000002;1`,
                             Token: token,
                             CallerIDName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_5.step10,
+                            UniqueId: '__UNIQUE_ID_3__',
                             BridgeUniqueid: bridgeId_B_1_5,
                             ConnectedLineNum: manager1_1_5
                         }
@@ -3850,7 +3833,7 @@
                             Phone: manager1_1_5,
                             Token: token,
                             Extensions: [manager2_1_5],
-                            UniqueId: uniqueIds_1_5.step12,
+                            UniqueId: '__UNIQUE_ID_4__',
                             EndTime: endTime_1_5.toISOString().slice(0, 19).replace('T', ' '),
                             CallType: 2,
                             StartTime: ""
@@ -3869,7 +3852,7 @@
                             Channel: `SIP/${manager1_1_5}-00000008`,
                             Token: token,
                             CallerIDName: manager1_1_5,
-                            UniqueId: uniqueIds_1_5.step13,
+                            UniqueId: '__UNIQUE_ID_1__',
                             BridgeUniqueid: bridgeId_A_1_5,
                             ConnectedLineNum: phone_1_5
                         }
@@ -3887,7 +3870,7 @@
                             Channel: `SIP/${trunk_1_5}-00000009`,
                             Token: token,
                             CallerIDName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_5.step14,
+                            UniqueId: '__UNIQUE_ID_2__',
                             BridgeUniqueid: bridgeId_A_1_5,
                             ConnectedLineNum: manager1_1_5
                         }
@@ -3922,7 +3905,7 @@
                             Phone: phone_1_5,
                             Token: token,
                             Extensions: [manager1_1_5],
-                            UniqueId: uniqueIds_1_5.step16,
+                            UniqueId: '__UNIQUE_ID_1__',
                             EndTime: new Date(endTime_1_5.getTime() + 6000).toISOString().slice(0, 19).replace('T', ' '),
                             CallType: 1,
                             StartTime: startTime_1_5.toISOString().slice(0, 19).replace('T', ' ')
