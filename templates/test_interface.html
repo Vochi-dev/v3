@@ -2578,18 +2578,8 @@
                     break;
 
                 case 2: // 1-2: Исходящий звонок с внешней инициацией
-                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-2
-                    const uniqueIds_1_2 = {
-                        step1: "", // bridge_create - пустой
-                        step2: generateUniqueId("1758619319.101"), // bridge
-                        step3: generateUniqueId("1758619324.103"), // dial  
-                        step4: generateUniqueId("1758619324.104"), // new_callerid
-                        step5: generateUniqueId("1758619324.104"), // bridge
-                        step6: generateUniqueId("1758619324.104"), // bridge_leave
-                        step7: "", // bridge_destroy - пустой
-                        step8: generateUniqueId("1758619324.103"), // hangup
-                        step9: generateUniqueId("1758619319.101")  // bridge_leave
-                    };
+                    // Очищаем UniqueId для новой эмуляции
+                    window.callUniqueIds = {};
                     
                     const phone_1_2 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const managerRaw_1_2 = formData.get('internal_phone');
@@ -2618,7 +2608,7 @@
                         data: {
                             BridgeType: "",
                             BridgeUniqueid: bridgeId_A,
-                            UniqueId: uniqueIds_1_2.step1,
+                            UniqueId: "",
                             BridgeCreator: "<ХРЕН>",
                             Token: token,
                             BridgeName: "<ХРЕН>",
@@ -2638,7 +2628,7 @@
                             Channel: `SIP/${manager_1_2}-00000018`,
                             CallerIDName: "",
                             BridgeUniqueid: bridgeId_A,
-                            UniqueId: uniqueIds_1_2.step2,
+                            UniqueId: '__UNIQUE_ID_1__',
                             Exten: "",
                             ConnectedLineNum: `+${phone_1_2}`,
                             Token: token,
@@ -2657,7 +2647,7 @@
                             ExtTrunk: "",
                             ExtPhone: "",
                             Extensions: [manager_1_2],
-                            UniqueId: uniqueIds_1_2.step3,
+                            UniqueId: '__UNIQUE_ID_2__',
                             Token: token,
                             Trunk: trunk_1_2,
                             CallType: 1,
@@ -2675,7 +2665,7 @@
                             Channel: `SIP/${trunk_1_2}-00000019`,
                             CallerIDName: "<ХРЕН>",
                             Context: "from-out-office",
-                            UniqueId: uniqueIds_1_2.step4,
+                            UniqueId: '__UNIQUE_ID_3__',
                             ConnectedLineNum: manager_1_2,
                             Token: token,
                             ConnectedLineName: "<ХРЕН>",
@@ -2694,7 +2684,7 @@
                             Channel: `SIP/${trunk_1_2}-00000019`,
                             CallerIDName: "",
                             BridgeUniqueid: bridgeId_B,
-                            UniqueId: uniqueIds_1_2.step5,
+                            UniqueId: '__UNIQUE_ID_3__',
                             Exten: "",
                             ConnectedLineNum: manager_1_2,
                             Token: token,
@@ -2713,7 +2703,7 @@
                             Channel: `SIP/${trunk_1_2}-00000019`,
                             CallerIDName: "<ХРЕН>",
                             BridgeUniqueid: bridgeId_B,
-                            UniqueId: uniqueIds_1_2.step6,
+                            UniqueId: '__UNIQUE_ID_3__',
                             ConnectedLineNum: manager_1_2,
                             Token: token,
                             ConnectedLineName: "<ХРЕН>",
@@ -2730,7 +2720,7 @@
                         data: {
                             BridgeType: "",
                             BridgeUniqueid: bridgeId_B,
-                            UniqueId: uniqueIds_1_2.step7,
+                            UniqueId: "",
                             BridgeCreator: "<ХРЕН>",
                             Token: token,
                             BridgeName: "<ХРЕН>",
@@ -2749,7 +2739,7 @@
                             Phone: phone_1_2,
                             StartTime: startTime_1_2.toISOString().replace('T', ' ').substring(0, 19),
                             Extensions: [""],
-                            UniqueId: uniqueIds_1_2.step8,
+                            UniqueId: '__UNIQUE_ID_2__',
                             DateReceived: receivedTime_1_2.toISOString().replace('T', ' ').substring(0, 19),
                             Token: token,
                             EndTime: now_1_2.toISOString().replace('T', ' ').substring(0, 19),
@@ -2770,7 +2760,7 @@
                             Channel: `SIP/${manager_1_2}-00000018`,
                             CallerIDName: "<ХРЕН>",
                             BridgeUniqueid: bridgeId_A,
-                            UniqueId: uniqueIds_1_2.step9,
+                            UniqueId: '__UNIQUE_ID_1__',
                             ConnectedLineNum: `+${phone_1_2}`,
                             Token: token,
                             ConnectedLineName: "<ХРЕН>",
@@ -15886,6 +15876,7 @@
         function processEventUniqueIds(event) {
             let processedEvent = JSON.parse(JSON.stringify(event));
             
+            // Паттерн 1-1: PRIMARY и SECONDARY
             if (processedEvent.data.UniqueId === '__PRIMARY_UNIQUE_ID__') {
                 if (!window.callUniqueIds.primary) {
                     window.callUniqueIds.primary = generateUniqueId();
@@ -15896,6 +15887,33 @@
                     window.callUniqueIds.secondary = generateUniqueId();
                 }
                 processedEvent.data.UniqueId = window.callUniqueIds.secondary;
+            }
+            // Паттерн 1-2 и другие: пронумерованные UniqueId
+            else if (processedEvent.data.UniqueId === '__UNIQUE_ID_1__') {
+                if (!window.callUniqueIds.id1) {
+                    window.callUniqueIds.id1 = generateUniqueId();
+                }
+                processedEvent.data.UniqueId = window.callUniqueIds.id1;
+            } else if (processedEvent.data.UniqueId === '__UNIQUE_ID_2__') {
+                if (!window.callUniqueIds.id2) {
+                    window.callUniqueIds.id2 = generateUniqueId();
+                }
+                processedEvent.data.UniqueId = window.callUniqueIds.id2;
+            } else if (processedEvent.data.UniqueId === '__UNIQUE_ID_3__') {
+                if (!window.callUniqueIds.id3) {
+                    window.callUniqueIds.id3 = generateUniqueId();
+                }
+                processedEvent.data.UniqueId = window.callUniqueIds.id3;
+            } else if (processedEvent.data.UniqueId === '__UNIQUE_ID_4__') {
+                if (!window.callUniqueIds.id4) {
+                    window.callUniqueIds.id4 = generateUniqueId();
+                }
+                processedEvent.data.UniqueId = window.callUniqueIds.id4;
+            } else if (processedEvent.data.UniqueId === '__UNIQUE_ID_5__') {
+                if (!window.callUniqueIds.id5) {
+                    window.callUniqueIds.id5 = generateUniqueId();
+                }
+                processedEvent.data.UniqueId = window.callUniqueIds.id5;
             }
             
             return processedEvent;
