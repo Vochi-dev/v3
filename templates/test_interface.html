@@ -3203,30 +3203,8 @@
                     break;
                     
                 case 4: // 1-4: Переадресация вызова с запросом - вызов принят другим оператором - он согласился поговорить
-                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-4
-                    const uniqueIds_1_4 = {
-                        step1: generateUniqueId("1758717503.0"), // dial
-                        step2: generateUniqueId("1758717504.1"), // new_callerid (внешний канал)
-                        step3: "", // bridge_create (мост A) - пустой
-                        step4: generateUniqueId("1758717504.1"), // bridge (внешний к мосту A)
-                        step5: generateUniqueId("1758717503.0"), // bridge (менеджер 1 к мосту A)
-                        step6: "", // bridge_create (мост B) - пустой
-                        step7: generateUniqueId("1758717525.3"), // new_callerid (Local channel ;2)
-                        step8: "", // bridge_create (мост C) - пустой
-                        step9: generateUniqueId("1758717525.3"), // bridge (Local ;2 к мосту C)
-                        step10: generateUniqueId("1758717525.4"), // bridge (менеджер 2 к мосту C)
-                        step11: generateUniqueId("1758717503.0"), // bridge_leave (менеджер 1 выход из моста B)
-                        step12: generateUniqueId("1758717525.2"), // bridge_leave (Local ;1 выход из моста B)
-                        step13: generateUniqueId("1758717525.2"), // bridge (Local ;1 к мосту A)
-                        step14: "", // bridge_destroy (мост B) - пустой
-                        step15: generateUniqueId("1758717503.0"), // hangup (основной звонок)
-                        step16: generateUniqueId("1758717504.1"), // bridge_leave (внешний выход из моста A)
-                        step17: generateUniqueId("1758717504.1"), // bridge (внешний к мосту C)
-                        step18: generateUniqueId("1758717525.3"), // bridge_leave (Local ;2 выход из моста C)
-                        step19: generateUniqueId("1758717525.2"), // bridge_leave (Local ;1 выход из моста A)
-                        step20: generateUniqueId("1758717525.4"), // bridge_leave (менеджер 2 выход из моста C)
-                        step21: generateUniqueId("1758717504.1")  // bridge_leave (внешний финальный выход из моста C)
-                    };
+                    // Очищаем UniqueId для новой эмуляции
+                    window.callUniqueIds = {};
                     
                     const phone_1_4 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const manager1Raw_1_4 = formData.get('internal_phone');
@@ -3255,7 +3233,7 @@
                             Extensions: [manager1_1_4],
                             CallType: 1,
                             Token: token,
-                            UniqueId: uniqueIds_1_4.step1,
+                            UniqueId: '__UNIQUE_ID_1__',
                             ExtTrunk: "",
                             ExtPhone: "",
                             Trunk: trunk_1_4,
@@ -3272,7 +3250,7 @@
                             CallerIDName: "<ХРЕН>",
                             Token: token,
                             Channel: `SIP/${trunk_1_4}-00000001`,
-                            UniqueId: uniqueIds_1_4.step2,
+                            UniqueId: '__UNIQUE_ID_2__',
                             Context: "from-out-office",
                             Exten: phone_1_4,
                             ConnectedLineNum: manager1_1_4,
@@ -3291,7 +3269,7 @@
                             BridgeNumChannels: "0",
                             Token: token,
                             BridgeUniqueid: bridgeId_A_1_4,
-                            UniqueId: uniqueIds_1_4.step3,
+                            UniqueId: "",
                             BridgeTechnology: "simple_bridge",
                             BridgeCreator: "<ХРЕН>",
                             BridgeType: ""
@@ -3308,7 +3286,7 @@
                             Token: token,
                             CallerIDNum: phone_1_4,
                             BridgeUniqueid: bridgeId_A_1_4,
-                            UniqueId: uniqueIds_1_4.step4,
+                            UniqueId: '__UNIQUE_ID_2__',
                             Exten: "",
                             ConnectedLineNum: manager1_1_4,
                             ConnectedLineName: manager1_1_4,
@@ -3326,7 +3304,7 @@
                             Token: token,
                             CallerIDNum: manager1_1_4,
                             BridgeUniqueid: bridgeId_A_1_4,
-                            UniqueId: uniqueIds_1_4.step5,
+                            UniqueId: '__UNIQUE_ID_1__',
                             Exten: phone_1_4,
                             ConnectedLineNum: "<ХРЕН>",
                             ConnectedLineName: "<ХРЕН>",
@@ -3344,7 +3322,7 @@
                             BridgeNumChannels: "0",
                             Token: token,
                             BridgeUniqueid: bridgeId_B_1_4,
-                            UniqueId: uniqueIds_1_4.step6,
+                            UniqueId: "",
                             BridgeTechnology: "simple_bridge",
                             BridgeCreator: "<ХРЕН>",
                             BridgeType: ""
@@ -3360,7 +3338,7 @@
                             CallerIDName: manager1_1_4,
                             Token: token,
                             Channel: `Local/${manager2_1_4}@dialexecute-00000000;2`,
-                            UniqueId: uniqueIds_1_4.step7,
+                            UniqueId: '__UNIQUE_ID_4__',
                             Context: "dialexecute",
                             Exten: manager2_1_4,
                             ConnectedLineNum: "<ХРЕН>",
@@ -3379,7 +3357,7 @@
                             BridgeNumChannels: "0",
                             Token: token,
                             BridgeUniqueid: bridgeId_C_1_4,
-                            UniqueId: uniqueIds_1_4.step8,
+                            UniqueId: "",
                             BridgeTechnology: "simple_bridge",
                             BridgeCreator: "<ХРЕН>",
                             BridgeType: ""
@@ -3396,7 +3374,7 @@
                             Token: token,
                             CallerIDNum: manager1_1_4,
                             BridgeUniqueid: bridgeId_C_1_4,
-                            UniqueId: uniqueIds_1_4.step9,
+                            UniqueId: '__UNIQUE_ID_4__',
                             Exten: manager2_1_4,
                             ConnectedLineNum: manager2_1_4,
                             ConnectedLineName: "<ХРЕН>",
@@ -3414,7 +3392,7 @@
                             Token: token,
                             CallerIDNum: manager2_1_4,
                             BridgeUniqueid: bridgeId_C_1_4,
-                            UniqueId: uniqueIds_1_4.step10,
+                            UniqueId: '__UNIQUE_ID_5__',
                             Exten: "",
                             ConnectedLineNum: manager1_1_4,
                             ExternalInitiated: true,
@@ -3433,7 +3411,7 @@
                             Token: token,
                             CallerIDNum: manager1_1_4,
                             BridgeUniqueid: bridgeId_B_1_4,
-                            UniqueId: uniqueIds_1_4.step11,
+                            UniqueId: '__UNIQUE_ID_1__',
                             BridgeNumChannels: "1",
                             ConnectedLineNum: manager2_1_4,
                             ExternalInitiated: true,
@@ -3452,7 +3430,7 @@
                             Token: token,
                             CallerIDNum: manager2_1_4,
                             BridgeUniqueid: bridgeId_B_1_4,
-                            UniqueId: uniqueIds_1_4.step12,
+                            UniqueId: '__UNIQUE_ID_3__',
                             BridgeNumChannels: "0",
                             ConnectedLineNum: manager1_1_4,
                             ExternalInitiated: true,
@@ -3471,7 +3449,7 @@
                             Token: token,
                             CallerIDNum: manager2_1_4,
                             BridgeUniqueid: bridgeId_A_1_4,
-                            UniqueId: uniqueIds_1_4.step13,
+                            UniqueId: '__UNIQUE_ID_3__',
                             Exten: manager2_1_4,
                             ConnectedLineNum: manager1_1_4,
                             ExternalInitiated: true,
@@ -3490,7 +3468,7 @@
                             BridgeNumChannels: "0",
                             Token: token,
                             BridgeUniqueid: bridgeId_B_1_4,
-                            UniqueId: uniqueIds_1_4.step14,
+                            UniqueId: "",
                             BridgeTechnology: "simple_bridge",
                             BridgeCreator: "<ХРЕН>",
                             BridgeType: "",
@@ -3508,7 +3486,7 @@
                             CallType: 1,
                             Token: token,
                             Trunk: trunk_1_4,
-                            UniqueId: uniqueIds_1_4.step15,
+                            UniqueId: '__UNIQUE_ID_1__',
                             StartTime: startTime_1_4.toISOString().replace('T', ' ').substring(0, 19),
                             DateReceived: receivedTime_1_4.toISOString().replace('T', ' ').substring(0, 19),
                             EndTime: now_1_4.toISOString().replace('T', ' ').substring(0, 19),
@@ -3527,7 +3505,7 @@
                             Token: token,
                             CallerIDNum: phone_1_4,
                             BridgeUniqueid: bridgeId_A_1_4,
-                            UniqueId: uniqueIds_1_4.step16,
+                            UniqueId: '__UNIQUE_ID_2__',
                             BridgeNumChannels: "1",
                             ConnectedLineNum: manager1_1_4,
                             ConnectedLineName: manager1_1_4,
@@ -3545,7 +3523,7 @@
                             Token: token,
                             CallerIDNum: phone_1_4,
                             BridgeUniqueid: bridgeId_C_1_4,
-                            UniqueId: uniqueIds_1_4.step17,
+                            UniqueId: '__UNIQUE_ID_2__',
                             Exten: "",
                             ConnectedLineNum: manager2_1_4,
                             ConnectedLineName: "<ХРЕН>",
@@ -3563,7 +3541,7 @@
                             Token: token,
                             CallerIDNum: manager1_1_4,
                             BridgeUniqueid: bridgeId_C_1_4,
-                            UniqueId: uniqueIds_1_4.step18,
+                            UniqueId: '__UNIQUE_ID_4__',
                             BridgeNumChannels: "2",
                             ConnectedLineNum: manager2_1_4,
                             ConnectedLineName: "<ХРЕН>",
@@ -3581,7 +3559,7 @@
                             Token: token,
                             CallerIDNum: manager2_1_4,
                             BridgeUniqueid: bridgeId_A_1_4,
-                            UniqueId: uniqueIds_1_4.step19,
+                            UniqueId: '__UNIQUE_ID_3__',
                             BridgeNumChannels: "0",
                             ConnectedLineNum: manager1_1_4,
                             ConnectedLineName: manager1_1_4,
@@ -3599,7 +3577,7 @@
                             Token: token,
                             CallerIDNum: manager2_1_4,
                             BridgeUniqueid: bridgeId_C_1_4,
-                            UniqueId: uniqueIds_1_4.step20,
+                            UniqueId: '__UNIQUE_ID_5__',
                             BridgeNumChannels: "1",
                             ConnectedLineNum: phone_1_4,
                             ExternalInitiated: true,
@@ -3618,7 +3596,7 @@
                             Token: token,
                             CallerIDNum: phone_1_4,
                             BridgeUniqueid: bridgeId_C_1_4,
-                            UniqueId: uniqueIds_1_4.step21,
+                            UniqueId: '__UNIQUE_ID_2__',
                             BridgeNumChannels: "0",
                             ConnectedLineNum: manager2_1_4,
                             ExternalInitiated: true,
