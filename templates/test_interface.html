@@ -4536,20 +4536,8 @@
                     break;
 
                 case 9: // 1-9: Переключение между линиями с успешным звонком
-                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-9
-                    const uniqueIds_1_9 = {
-                        step1: generateUniqueId("1758723701.11"), // dial (первая линия)
-                        step2: generateUniqueId("1758723702.12"), // new_callerid (первая линия)
-                        step3: generateUniqueId("1758723701.11"), // dial (вторая линия - тот же UniqueId!)
-                        step4: generateUniqueId("1758723702.13"), // new_callerid (вторая линия)
-                        step5: "", // bridge_create (единственный мост) - пустой
-                        step6: generateUniqueId("1758723702.13"), // bridge (вторая линия к мосту)
-                        step7: generateUniqueId("1758723701.11"), // bridge (менеджер к мосту)
-                        step8: generateUniqueId("1758723702.13"), // bridge_leave (вторая линия покидает мост)
-                        step9: generateUniqueId("1758723701.11"), // bridge_leave (менеджер покидает мост)
-                        step10: "", // bridge_destroy (единственный мост) - пустой
-                        step11: generateUniqueId("1758723701.11")  // hangup (успешное завершение)
-                    };
+                    // Очищаем UniqueId для новой эмуляции
+                    window.callUniqueIds = {};
                     
                     const phone_1_9 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const managerRaw_1_9 = formData.get('internal_phone');
@@ -4574,7 +4562,7 @@
                         event: 'dial',
                         description: 'Инициация на первой линии',
                         data: {
-                            UniqueId: uniqueIds_1_9.step1,
+                            UniqueId: '__UNIQUE_ID_1__',
                             ExtPhone: "",
                             Token: token,
                             CallType: 1,
@@ -4591,7 +4579,7 @@
                         event: 'new_callerid',
                         description: 'Создание первой линии',
                         data: {
-                            UniqueId: uniqueIds_1_9.step2,
+                            UniqueId: '__UNIQUE_ID_2__',
                             Token: token,
                             CallerIDNum: phone_1_9,
                             Context: "from-out-office",
@@ -4609,7 +4597,7 @@
                         event: 'dial',
                         description: 'Переключение на вторую линию',
                         data: {
-                            UniqueId: uniqueIds_1_9.step3,
+                            UniqueId: '__UNIQUE_ID_1__',
                             ExtPhone: "",
                             Token: token,
                             CallType: 1,
@@ -4626,7 +4614,7 @@
                         event: 'new_callerid',
                         description: 'Создание второй линии',
                         data: {
-                            UniqueId: uniqueIds_1_9.step4,
+                            UniqueId: '__UNIQUE_ID_3__',
                             Token: token,
                             CallerIDNum: phone_1_9,
                             Context: "from-out-office",
@@ -4661,7 +4649,7 @@
                         event: 'bridge',
                         description: 'Подключение второй линии к мосту',
                         data: {
-                            UniqueId: uniqueIds_1_9.step6,
+                            UniqueId: '__UNIQUE_ID_3__',
                             Token: token,
                             CallerIDNum: phone_1_9,
                             ConnectedLineName: manager_1_9,
@@ -4679,7 +4667,7 @@
                         event: 'bridge',
                         description: 'Подключение менеджера к мосту',
                         data: {
-                            UniqueId: uniqueIds_1_9.step7,
+                            UniqueId: '__UNIQUE_ID_1__',
                             Token: token,
                             CallerIDNum: manager_1_9,
                             ConnectedLineName: "<ХРЕН>",
@@ -4697,7 +4685,7 @@
                         event: 'bridge_leave',
                         description: 'Вторая линия покидает мост',
                         data: {
-                            UniqueId: uniqueIds_1_9.step8,
+                            UniqueId: '__UNIQUE_ID_3__',
                             BridgeNumChannels: "1",
                             Token: token,
                             CallerIDNum: phone_1_9,
@@ -4715,7 +4703,7 @@
                         event: 'bridge_leave',
                         description: 'Менеджер покидает мост',
                         data: {
-                            UniqueId: uniqueIds_1_9.step9,
+                            UniqueId: '__UNIQUE_ID_1__',
                             BridgeNumChannels: "0",
                             Token: token,
                             CallerIDNum: manager_1_9,
@@ -4751,7 +4739,7 @@
                         description: 'Успешное завершение звонка',
                         data: {
                             StartTime: startTime_1_9.toISOString().slice(0, 19).replace('T', ' '),
-                            UniqueId: uniqueIds_1_9.step11,
+                            UniqueId: '__UNIQUE_ID_1__',
                             DateReceived: receivedTime_1_9.toISOString().slice(0, 19).replace('T', ' '),
                             Token: token,
                             CallType: 1,
