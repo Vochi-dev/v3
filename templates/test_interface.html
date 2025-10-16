@@ -11662,6 +11662,7 @@
                     break;
                     
                 case 35: // Паттерн 2-24: Follow Me Rejected on Mobile
+                    window.callUniqueIds = {};
                     // Получаем данные из формы
                     const phone_2_24 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const trunk_2_24 = formData.get('line_id');
@@ -11682,24 +11683,24 @@
                     
                     // Генерируем уникальные ID
                     const uniqueIds_2_24 = {
-                        start: generateUniqueId("1757843368.163"),
-                        newcaller: generateUniqueId("1757843368.163"),
-                        dial1: generateUniqueId("1757843368.163"),
+                        start: '__UNIQUE_ID_1__',
+                        newcaller: '__UNIQUE_ID_1__',
+                        dial1: '__UNIQUE_ID_1__',
                         bridge1_create: '',
-                        bridge1_external: generateUniqueId("1757843368.163"),
-                        bridge1_manager: generateUniqueId("1757843368.165"),
+                        bridge1_external: '__UNIQUE_ID_1__',
+                        bridge1_manager: '__UNIQUE_ID_2__',
                         bridge2_create: '',
-                        followme_local: generateUniqueId("1757843380.168"),
-                        dial_mobile: generateUniqueId("1757843395.172"),
-                        mobile_newcaller: generateUniqueId("1757843395.174"),
+                        followme_local: '__UNIQUE_ID_3__',
+                        dial_mobile: '__UNIQUE_ID_5__',
+                        mobile_newcaller: '__UNIQUE_ID_6__',
                         bridge3_create: '',
-                        bridge3_local: generateUniqueId("1757843395.172"),
-                        bridge3_sip: generateUniqueId("1757843395.174"),
+                        bridge3_local: '__UNIQUE_ID_5__',
+                        bridge3_sip: '__UNIQUE_ID_6__',
                         bridge4_create: '',
-                        bridge4_followme: generateUniqueId("1757843380.168"),
-                        bridge4_mobile: generateUniqueId("1757843395.171"),
-                        hangup_mobile: generateUniqueId("1757843395.172"),
-                        hangup_main: generateUniqueId("1757843368.163")
+                        bridge4_followme: '__UNIQUE_ID_3__',
+                        bridge4_mobile: '__UNIQUE_ID_4__',
+                        hangup_mobile: '__UNIQUE_ID_5__',
+                        hangup_main: '__UNIQUE_ID_1__'
                     };
                     
                     // Шаг 1: START
