@@ -12187,6 +12187,7 @@
                     break;
                     
                 case 36: // Паттерн 2-25: Follow Me Double Mobile Dial (No Answer)
+                    window.callUniqueIds = {};
                     // Получаем данные из формы
                     const phone_2_25 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const trunk_2_25 = formData.get('line_id');
@@ -12207,15 +12208,15 @@
 
                     // Генерируем уникальные ID для каналов
                     const uniqueIds_2_25 = {
-                        start: generateUniqueId("1757843474.185"),
-                        manager: generateUniqueId("1757843474.187"),
-                        followmeLocal1: generateUniqueId("1757843502.193"),
-                        followmeLocal2: generateUniqueId("1757843502.194"),
-                        mobileSipPrimary: generateUniqueId("1757843502.195"),
-                        mobileSipSecondary: generateUniqueId("1757843502.196"),
-                        followmeLocalMain: generateUniqueId("1757843487.189"),
-                        followmeLocalAux: generateUniqueId("1757843487.190"),
-                        followmeSipManager: generateUniqueId("1757843502.192")
+                        start: '__UNIQUE_ID_1__',
+                        manager: '__UNIQUE_ID_2__',
+                        followmeLocal1: '__UNIQUE_ID_6__',
+                        followmeLocal2: '__UNIQUE_ID_7__',
+                        mobileSipPrimary: '__UNIQUE_ID_8__',
+                        mobileSipSecondary: '__UNIQUE_ID_9__',
+                        followmeLocalMain: '__UNIQUE_ID_3__',
+                        followmeLocalAux: '__UNIQUE_ID_4__',
+                        followmeSipManager: '__UNIQUE_ID_5__'
                     };
 
                     // 1. START
