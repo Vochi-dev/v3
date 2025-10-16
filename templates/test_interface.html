@@ -14339,6 +14339,7 @@
                     break;
                     
                 case 40: // Паттерн 2-29: Follow Me без запроса с двойным DIAL на мобильный
+                    window.callUniqueIds = {};
                     // Получаем данные из формы
                     const phone_2_29 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const trunk_2_29 = formData.get('line_id');
@@ -14357,24 +14358,24 @@
 
                     // Генерируем уникальные ID для каналов
                     const uniqueIds_2_29 = {
-                        start: generateUniqueId("1759063885.14"),
-                        newCallerId1: generateUniqueId("1759063885.14"),
-                        dial1: generateUniqueId("1759063885.14"),
+                        start: '__UNIQUE_ID_1__',
+                        newCallerId1: '__UNIQUE_ID_1__',
+                        dial1: '__UNIQUE_ID_1__',
                         bridgeCreate: "",
-                        bridge1: generateUniqueId("1759063885.14"),
-                        bridge2: generateUniqueId("1759063885.15"),
-                        bridgeLeave1: generateUniqueId("1759063885.15"),
-                        bridgeLeave2: generateUniqueId("1759063885.14"),
+                        bridge1: '__UNIQUE_ID_1__',
+                        bridge2: '__UNIQUE_ID_2__',
+                        bridgeLeave1: '__UNIQUE_ID_2__',
+                        bridgeLeave2: '__UNIQUE_ID_1__',
                         bridgeDestroy: "",
-                        dial2: generateUniqueId("1759063885.14"),
-                        dial3: generateUniqueId("1759063885.14"),
-                        newCallerId2: generateUniqueId("1759063911.18"),
-                        newCallerId3: generateUniqueId("1759063911.19"),
-                        dial4: generateUniqueId("1759063911.19"),
-                        newCallerId4: generateUniqueId("1759063911.20"),
-                        dial5: generateUniqueId("1759063911.19"),
-                        newCallerId5: generateUniqueId("1759063911.21"),
-                        hangup: generateUniqueId("1759063885.14")
+                        dial2: '__UNIQUE_ID_1__',
+                        dial3: '__UNIQUE_ID_1__',
+                        newCallerId2: '__UNIQUE_ID_3__',
+                        newCallerId3: '__UNIQUE_ID_4__',
+                        dial4: '__UNIQUE_ID_4__',
+                        newCallerId4: '__UNIQUE_ID_5__',
+                        dial5: '__UNIQUE_ID_4__',
+                        newCallerId5: '__UNIQUE_ID_6__',
+                        hangup: '__UNIQUE_ID_1__'
                     };
 
                     // Временные метки
