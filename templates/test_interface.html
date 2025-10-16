@@ -9324,6 +9324,7 @@
                     break;
 
                 case 25:
+                    window.callUniqueIds = {};
                     // ======= ПАТТЕРН 2-14: ФИКСИРОВАННЫЕ 3 DIAL + МОБИЛЬНЫЕ СОБЫТИЯ - ОТВЕТ НА МОБИЛЬНОМ (24 события) =======
 
                     // Получаем базовую информацию
@@ -9365,17 +9366,17 @@
 
                     // Генерируем UniqueId на основе DB образца 2-14
                     const uniqueIds_2_14 = {
-                        start: generateUniqueId("1758977530.20"),
-                        new_callerid: generateUniqueId("1758977530.20"),
-                        dial1: generateUniqueId("1758977530.20"),
-                        dial2: generateUniqueId("1758977530.20"),
-                        dial3: generateUniqueId("1758977530.20"),
-                        mobile_local_1: generateUniqueId("1758977551.25"),
-                        mobile_local_2: generateUniqueId("1758977551.26"),
-                        mobile_dial_1: generateUniqueId("1758977551.26"),
-                        mobile_sip_1: generateUniqueId("1758977551.29"),
-                        mobile_dial_2: generateUniqueId("1758977551.26"),
-                        mobile_sip_2: generateUniqueId("1758977551.30")
+                        start: '__UNIQUE_ID_1__',
+                        new_callerid: '__UNIQUE_ID_1__',
+                        dial1: '__UNIQUE_ID_1__',
+                        dial2: '__UNIQUE_ID_1__',
+                        dial3: '__UNIQUE_ID_1__',
+                        mobile_local_1: '__UNIQUE_ID_2__',
+                        mobile_local_2: '__UNIQUE_ID_3__',
+                        mobile_dial_1: '__UNIQUE_ID_3__',
+                        mobile_sip_1: '__UNIQUE_ID_4__',
+                        mobile_dial_2: '__UNIQUE_ID_3__',
+                        mobile_sip_2: '__UNIQUE_ID_5__'
                     };
 
                     // UUID для мостов
