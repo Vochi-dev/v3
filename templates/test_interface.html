@@ -4817,19 +4817,8 @@
                     break;
                     
                 case 12:
-                    // ======= ПАТТЕРН 2-1: ВХОДЯЩИЙ ЗВОНОК НА ГРУППУ (10 событий) =======
-                    const uniqueIds_2_1 = {
-                        step1: generateUniqueId("1758798777.27"), // start
-                        step2: generateUniqueId("1758798777.27"), // new_callerid  
-                        step3: generateUniqueId("1758798777.27"), // dial
-                        step4: generateUniqueId(""),              // bridge_create (пустой)
-                        step5: generateUniqueId("1758798787.28"), // bridge (менеджер)
-                        step6: generateUniqueId("1758798777.27"), // bridge (внешний)
-                        step7: generateUniqueId("1758798787.28"), // bridge_leave (менеджер)
-                        step8: generateUniqueId("1758798777.27"), // bridge_leave (внешний)
-                        step9: generateUniqueId(""),              // bridge_destroy (пустой)
-                        step10: generateUniqueId("1758798777.27") // hangup
-                    };
+                    // Очищаем UniqueId для новой эмуляции
+                    window.callUniqueIds = {};
                     
                     const phone_2_1 = (formData.get('external_phone') || 'UNKNOWN_PHONE').replace(/^\+/, '');
                     const trunk_2_1 = formData.get('line_id') || 'UNKNOWN_LINE';
@@ -4853,7 +4842,7 @@
                         description: 'Начало входящего звонка',
                         data: {
                             "Token": token,
-                            "UniqueId": uniqueIds_2_1.step1,
+                            "UniqueId": '__UNIQUE_ID_1__',
                             "CallType": 0,
                             "Phone": phone_2_1,
                             "Trunk": trunk_2_1
@@ -4870,7 +4859,7 @@
                             "Channel": `SIP/${trunk_2_1}-0000001c`,
                             "ConnectedLineNum": "<ХРЕН>",
                             "ConnectedLineName": "<ХРЕН>",
-                            "UniqueId": uniqueIds_2_1.step2,
+                            "UniqueId": '__UNIQUE_ID_1__',
                             "CallerIDName": `-${phone_2_1}`,
                             "CallerIDNum": phone_2_1,
                             "Exten": trunk_2_1,
@@ -4887,7 +4876,7 @@
                             "Token": token,
                             "CallType": 0,
                             "ExtPhone": phone_2_1,
-                            "UniqueId": uniqueIds_2_1.step3,
+                            "UniqueId": '__UNIQUE_ID_1__',
                             "ExtTrunk": "",
                             "Extensions": groupExtensions_2_1,
                             "Phone": phone_2_1,
@@ -4904,7 +4893,7 @@
                             "Token": token,
                             "BridgeType": "",
                             "BridgeUniqueid": bridgeId_2_1,
-                            "UniqueId": uniqueIds_2_1.step4,
+                            "UniqueId": '',
                             "BridgeCreator": "<ХРЕН>",
                             "BridgeName": "<ХРЕН>",
                             "BridgeNumChannels": "0",
@@ -4922,7 +4911,7 @@
                             "Channel": `SIP/${answeredManager_2_1}-0000001e`,
                             "ConnectedLineNum": phone_2_1,
                             "ConnectedLineName": `-${phone_2_1}`,
-                            "UniqueId": uniqueIds_2_1.step5,
+                            "UniqueId": '__UNIQUE_ID_2__',
                             "CallerIDName": "",
                             "CallerIDNum": answeredManager_2_1,
                             "Exten": "",
@@ -4940,7 +4929,7 @@
                             "Channel": `SIP/${trunk_2_1}-0000001c`,
                             "ConnectedLineNum": answeredManager_2_1,
                             "ConnectedLineName": answeredManager_2_1,
-                            "UniqueId": uniqueIds_2_1.step6,
+                            "UniqueId": '__UNIQUE_ID_1__',
                             "CallerIDName": `-${phone_2_1}`,
                             "CallerIDNum": phone_2_1,
                             "Exten": "",
@@ -4958,7 +4947,7 @@
                             "Channel": `SIP/${answeredManager_2_1}-0000001e`,
                             "ConnectedLineNum": phone_2_1,
                             "ConnectedLineName": `-${phone_2_1}`,
-                            "UniqueId": uniqueIds_2_1.step7,
+                            "UniqueId": '__UNIQUE_ID_2__',
                             "CallerIDName": "",
                             "CallerIDNum": answeredManager_2_1,
                             "Exten": "",
@@ -4977,7 +4966,7 @@
                             "Channel": `SIP/${trunk_2_1}-0000001c`,
                             "ConnectedLineNum": answeredManager_2_1,
                             "ConnectedLineName": answeredManager_2_1,
-                            "UniqueId": uniqueIds_2_1.step8,
+                            "UniqueId": '__UNIQUE_ID_1__',
                             "CallerIDName": `-${phone_2_1}`,
                             "CallerIDNum": phone_2_1,
                             "Exten": "",
@@ -4995,7 +4984,7 @@
                             "Token": token,
                             "BridgeType": "",
                             "BridgeUniqueid": bridgeId_2_1,
-                            "UniqueId": uniqueIds_2_1.step9,
+                            "UniqueId": '__UNIQUE_ID_1__',
                             "BridgeCreator": "<ХРЕН>",
                             "BridgeName": "<ХРЕН>",
                             "BridgeNumChannels": "0",
@@ -5014,7 +5003,7 @@
                             "EndTime": new Date().toISOString().slice(0, 19).replace('T', ' '),
                             "CallStatus": "2",
                             "StartTime": new Date().toISOString().slice(0, 19).replace('T', ' '),
-                            "UniqueId": uniqueIds_2_1.step10,
+                            "UniqueId": '__UNIQUE_ID_1__',
                             "DateReceived": new Date().toISOString().slice(0, 19).replace('T', ' '),
                             "Extensions": [answeredManager_2_1],
                             "Phone": phone_2_1,
