@@ -10929,6 +10929,7 @@
                     break;
                     
                 case 34: // Паттерн 2-23: Follow Me Accepted on Mobile
+                    window.callUniqueIds = {};
                     // Получаем данные из формы
                     const phone_2_23 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const trunk_2_23 = formData.get('line_id');
@@ -10943,14 +10944,14 @@
                     
                     // Генерируем уникальные ID
                     const uniqueIds_2_23 = {
-                        start: generateUniqueId("1757843259.138"),          // Основной звонок
-                        internal_answer: generateUniqueId("1757843260.140"), // 151 отвечает
-                        local_300_2: generateUniqueId("1757843268.143"),     // Local/300;2
-                        mobile_local_2: generateUniqueId("1757843283.147"),  // Local мобильный ;2
-                        mobile_sip: generateUniqueId("1757843283.148"),      // SIP мобильного входящий
-                        mobile_line: generateUniqueId("1757843283.149"),     // SIP линии исходящий
-                        local_300_1: generateUniqueId("1757843268.142"),     // Local/300;1
-                        mobile_local_1: generateUniqueId("1757843283.146")   // Local мобильный ;1
+                        start: '__UNIQUE_ID_1__',          // Основной звонок
+                        internal_answer: '__UNIQUE_ID_2__', // 151 отвечает
+                        local_300_2: '__UNIQUE_ID_4__',     // Local/300;2
+                        mobile_local_2: '__UNIQUE_ID_6__',  // Local мобильный ;2
+                        mobile_sip: '__UNIQUE_ID_7__',      // SIP мобильного входящий
+                        mobile_line: '__UNIQUE_ID_8__',     // SIP линии исходящий
+                        local_300_1: '__UNIQUE_ID_3__',     // Local/300;1
+                        mobile_local_1: '__UNIQUE_ID_5__'   // Local мобильный ;1
                     };
                     
                     const bridgeIds_2_23 = {
