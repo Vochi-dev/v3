@@ -8729,18 +8729,8 @@
                         activeSteps_2_12.push({step: 1, extensions: ['150']});
                     }
                     
+                    window.callUniqueIds = {};
                     // Генерируем UniqueId для каждого события
-                    const uniqueIds_2_12 = {
-                        start: generateUniqueId("1757774467.253"),
-                        new_callerid: generateUniqueId("1757774467.253"),
-                        bridge_create: generateUniqueId(""),
-                        bridge_external: generateUniqueId("1757774467.253"),
-                        bridge_manager: generateUniqueId("1757774482.256"),
-                        bridge_leave_manager: generateUniqueId("1757774482.256"),
-                        bridge_leave_external: generateUniqueId("1757774467.253"),
-                        bridge_destroy: generateUniqueId(""),
-                        hangup: generateUniqueId("1757774467.253")
-                    };
                     
                     // Генерируем уникальные ID для каждого dial события
                     const dialUniqueIds_2_12 = activeSteps_2_12.map((_, index) => 
@@ -8758,7 +8748,7 @@
                         event: "start",
                         delay: currentDelay,
                         data: {
-                            UniqueId: uniqueIds_2_12.start,
+                            UniqueId: '__UNIQUE_ID_1__',
                             Token: "375293332255",
                             Phone: phone_2_12,
                             CallType: 0,
@@ -8773,7 +8763,7 @@
                         event: "new_callerid",
                         delay: currentDelay,
                         data: {
-                            UniqueId: uniqueIds_2_12.new_callerid,
+                            UniqueId: '__UNIQUE_ID_1__',
                             Channel: `SIP/${trunk_2_12}-0000006c`,
                             Exten: trunk_2_12,
                             Context: "from-out-office",
@@ -8816,7 +8806,7 @@
                         event: "bridge_create",
                         delay: currentDelay,
                         data: {
-                            UniqueId: uniqueIds_2_12.bridge_create,
+                            UniqueId: '',
                             BridgeUniqueid: bridgeId_2_12,
                             BridgeCreator: "<ХРЕН>",
                             BridgeNumChannels: "0",
@@ -8834,7 +8824,7 @@
                         event: "bridge",
                         delay: currentDelay,
                         data: {
-                            UniqueId: uniqueIds_2_12.bridge_external,
+                            UniqueId: '__UNIQUE_ID_1__',
                             BridgeUniqueid: bridgeId_2_12,
                             ConnectedLineName: "<ХРЕН>",
                             CallerIDNum: phone_2_12,
@@ -8853,7 +8843,7 @@
                         event: "bridge",
                         delay: currentDelay,
                         data: {
-                            UniqueId: uniqueIds_2_12.bridge_manager,
+                            UniqueId: '__UNIQUE_ID_2__',
                             BridgeUniqueid: bridgeId_2_12,
                             ConnectedLineName: `-${phone_2_12}`,
                             CallerIDNum: answeredManager_2_12,
@@ -8872,7 +8862,7 @@
                         event: "bridge_leave",
                         delay: currentDelay,
                         data: {
-                            UniqueId: uniqueIds_2_12.bridge_leave_manager,
+                            UniqueId: '__UNIQUE_ID_2__',
                             BridgeUniqueid: bridgeId_2_12,
                             CallerIDNum: answeredManager_2_12,
                             ConnectedLineNum: phone_2_12,
@@ -8891,7 +8881,7 @@
                         event: "bridge_leave",
                         delay: currentDelay,
                         data: {
-                            UniqueId: uniqueIds_2_12.bridge_leave_external,
+                            UniqueId: '__UNIQUE_ID_1__',
                             BridgeUniqueid: bridgeId_2_12,
                             CallerIDNum: phone_2_12,
                             ConnectedLineNum: answeredManager_2_12,
@@ -8910,7 +8900,7 @@
                         event: "bridge_destroy",
                         delay: currentDelay,
                         data: {
-                            UniqueId: uniqueIds_2_12.bridge_destroy,
+                            UniqueId: '',
                             BridgeUniqueid: bridgeId_2_12,
                             BridgeCreator: "<ХРЕН>",
                             BridgeNumChannels: "0",
@@ -8928,7 +8918,7 @@
                         event: "hangup",
                         delay: currentDelay,
                         data: {
-                            UniqueId: uniqueIds_2_12.hangup,
+                            UniqueId: '__UNIQUE_ID_1__',
                             DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
                             CallStatus: "2", // успешно
                             CallType: 0,
