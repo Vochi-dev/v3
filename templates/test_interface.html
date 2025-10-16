@@ -13768,6 +13768,7 @@
                     break;
                     
                 case 39: // Паттерн 2-28: Follow Me Mobile Accept (3 Bridges)
+                    window.callUniqueIds = {};
                     // Получаем данные из формы
                     const phone_2_28 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const trunk_2_28 = formData.get('line_id');
@@ -13788,12 +13789,12 @@
 
                     // Генерируем уникальные ID для каналов
                     const uniqueIds_2_28 = {
-                        start: generateUniqueId("1759062901.0"),
-                        manager: generateUniqueId("1759062901.1"),
-                        localMobile1: generateUniqueId("1759062926.4"),
-                        localMobile2: generateUniqueId("1759062926.5"),
-                        mobileSipPrimary: generateUniqueId("1759062926.6"),
-                        mobileSipSecondary: generateUniqueId("1759062926.7")
+                        start: '__UNIQUE_ID_1__',
+                        manager: '__UNIQUE_ID_2__',
+                        localMobile1: '__UNIQUE_ID_3__',
+                        localMobile2: '__UNIQUE_ID_4__',
+                        mobileSipPrimary: '__UNIQUE_ID_5__',
+                        mobileSipSecondary: '__UNIQUE_ID_6__'
                     };
 
                     // 1. START
