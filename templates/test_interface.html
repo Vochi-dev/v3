@@ -5386,30 +5386,7 @@
                     
                 case 16:
                     // ======= ПАТТЕРН 2-5: СЛОЖНЫЙ ВХОДЯЩИЙ ЗВОНОК С ПЕРЕАДРЕСАЦИЕЙ (22 события) =======
-                    const uniqueIds_2_5 = {
-                        step1: generateUniqueId("1758812596.44"),  // start
-                        step2: generateUniqueId("1758812596.44"),  // new_callerid (исходный)
-                        step3: generateUniqueId("1758812596.44"),  // dial (на группу)
-                        step4: generateUniqueId("1758812596.46"),  // new_callerid (Local ;1)
-                        step5: generateUniqueId("1758812596.47"),  // new_callerid (Local ;2)
-                        step6: generateUniqueId("1758812596.47"),  // dial (переадресация)
-                        step7: generateUniqueId("1758812596.50"),  // new_callerid (первый trunk)
-                        step8: generateUniqueId("1758812596.47"),  // dial (на второй trunk)
-                        step9: generateUniqueId("1758812596.51"),  // new_callerid (второй trunk)
-                        step10: generateUniqueId(""),              // bridge_create (мост 1)
-                        step11: generateUniqueId("1758812596.51"), // bridge (второй trunk)
-                        step12: generateUniqueId("1758812596.47"), // bridge (Local ;2)
-                        step13: generateUniqueId(""),              // bridge_create (мост 2)
-                        step14: generateUniqueId("1758812596.44"), // bridge (исходный)
-                        step15: generateUniqueId("1758812596.46"), // bridge (Local ;1)
-                        step16: generateUniqueId("1758812596.51"), // bridge_leave (второй trunk)
-                        step17: generateUniqueId("1758812596.47"), // bridge_leave (Local ;2)
-                        step18: generateUniqueId(""),              // bridge_destroy (мост 1)
-                        step19: generateUniqueId("1758812596.47"), // hangup (переадресация)
-                        step20: generateUniqueId("1758812596.46"), // bridge_leave (Local ;1)
-                        step21: generateUniqueId("1758812596.44"), // bridge_leave (исходный)
-                        step22: generateUniqueId("")               // bridge_destroy (мост 2)
-                    };
+                    window.callUniqueIds = {};
                     
                     const phone_2_5 = (formData.get('external_phone') || 'UNKNOWN_PHONE').replace(/^\+/, '');
                     const trunk_2_5 = formData.get('line_id') || 'UNKNOWN_LINE';
@@ -5440,7 +5417,7 @@
                         event: 'start',
                         description: '[ПАТТЕРН 2-5] Шаг 1: START - Начало входящего звонка',
                         data: {
-                            UniqueId: uniqueIds_2_5.step1,
+                            UniqueId: "__UNIQUE_ID_1__",
                             Token: "375293332255",
                             Phone: phone_2_5,
                             CallType: 0,
@@ -5454,7 +5431,7 @@
                         event: 'new_callerid',
                         description: '[ПАТТЕРН 2-5] Шаг 2: NEW_CALLERID - Создание исходного канала',
                         data: {
-                            UniqueId: uniqueIds_2_5.step2,
+                            UniqueId: "__UNIQUE_ID_1__",
                             Channel: `SIP/${trunk_2_5}-00000019`,
                             Exten: trunk_2_5,
                             Context: "from-out-office",
@@ -5472,7 +5449,7 @@
                         event: 'dial',
                         description: '[ПАТТЕРН 2-5] Шаг 3: DIAL - Звонок на группу менеджеров',
                         data: {
-                            UniqueId: uniqueIds_2_5.step3,
+                            UniqueId: "__UNIQUE_ID_1__",
                             ExtPhone: phone_2_5,
                             CallType: 0,
                             Extensions: groupExtensions_2_5,
@@ -5489,7 +5466,7 @@
                         event: 'new_callerid',
                         description: '[ПАТТЕРН 2-5] Шаг 4: NEW_CALLERID - Local канал ;1',
                         data: {
-                            UniqueId: uniqueIds_2_5.step4,
+                            UniqueId: "__UNIQUE_ID_2__",
                             Channel: `Local/${mobileNumber_2_5}@179e93af-00000000;1`,
                             Exten: trunk_2_5,
                             Context: "179e93af",
@@ -5507,7 +5484,7 @@
                         event: 'new_callerid',
                         description: '[ПАТТЕРН 2-5] Шаг 5: NEW_CALLERID - Local канал ;2',
                         data: {
-                            UniqueId: uniqueIds_2_5.step5,
+                            UniqueId: "__UNIQUE_ID_3__",
                             Channel: `Local/${mobileNumber_2_5}@179e93af-00000000;2`,
                             Exten: mobileNumber_2_5,
                             Context: "179e93af",
@@ -5525,7 +5502,7 @@
                         event: 'dial',
                         description: '[ПАТТЕРН 2-5] Шаг 6: DIAL - Переадресация на внешний номер',
                         data: {
-                            UniqueId: uniqueIds_2_5.step6,
+                            UniqueId: "__UNIQUE_ID_3__",
                             ExtPhone: "",
                             CallType: 1,
                             Extensions: [phone_2_5],
@@ -5542,7 +5519,7 @@
                         event: 'new_callerid',
                         description: '[ПАТТЕРН 2-5] Шаг 7: NEW_CALLERID - Первый trunk переадресации',
                         data: {
-                            UniqueId: uniqueIds_2_5.step7,
+                            UniqueId: "__UNIQUE_ID_4__",
                             Channel: `SIP/${trunk_2_5}-0000001d`,
                             Exten: mobileNumber_2_5,
                             Context: "from-out-office",
@@ -5560,7 +5537,7 @@
                         event: 'dial',
                         description: '[ПАТТЕРН 2-5] Шаг 8: DIAL - Переход на резервный trunk',
                         data: {
-                            UniqueId: uniqueIds_2_5.step8,
+                            UniqueId: "__UNIQUE_ID_3__",
                             ExtPhone: "",
                             CallType: 1,
                             Extensions: [phone_2_5],
@@ -5577,7 +5554,7 @@
                         event: 'new_callerid',
                         description: '[ПАТТЕРН 2-5] Шаг 9: NEW_CALLERID - Второй trunk переадресации',
                         data: {
-                            UniqueId: uniqueIds_2_5.step9,
+                            UniqueId: "__UNIQUE_ID_5__",
                             Channel: `SIP/${backupTrunk_2_5}-0000001e`,
                             Exten: mobileNumber_2_5,
                             Context: "from-out-office",
@@ -5595,7 +5572,7 @@
                         event: 'bridge_create',
                         description: '[ПАТТЕРН 2-5] Шаг 10: BRIDGE_CREATE - Создание первого моста',
                         data: {
-                            UniqueId: uniqueIds_2_5.step10,
+                            UniqueId: "",
                             BridgeUniqueid: bridgeId1_2_5,
                             BridgeCreator: "<ХРЕН>",
                             BridgeNumChannels: "0",
@@ -5612,7 +5589,7 @@
                         event: 'bridge',
                         description: '[ПАТТЕРН 2-5] Шаг 11: BRIDGE - Второй trunk подключается к первому мосту',
                         data: {
-                            UniqueId: uniqueIds_2_5.step11,
+                            UniqueId: "__UNIQUE_ID_5__",
                             BridgeUniqueid: bridgeId1_2_5,
                             ConnectedLineName: `-${phone_2_5}`,
                             CallerIDNum: mobileNumber_2_5,
@@ -5630,7 +5607,7 @@
                         event: 'bridge',
                         description: '[ПАТТЕРН 2-5] Шаг 12: BRIDGE - Local ;2 подключается к первому мосту',
                         data: {
-                            UniqueId: uniqueIds_2_5.step12,
+                            UniqueId: "__UNIQUE_ID_3__",
                             BridgeUniqueid: bridgeId1_2_5,
                             ConnectedLineName: "<ХРЕН>",
                             CallerIDNum: phone_2_5,
@@ -5648,7 +5625,7 @@
                         event: 'bridge_create',
                         description: '[ПАТТЕРН 2-5] Шаг 13: BRIDGE_CREATE - Создание второго моста',
                         data: {
-                            UniqueId: uniqueIds_2_5.step13,
+                            UniqueId: "",
                             BridgeUniqueid: bridgeId2_2_5,
                             BridgeCreator: "<ХРЕН>",
                             BridgeNumChannels: "0",
@@ -5665,7 +5642,7 @@
                         event: 'bridge',
                         description: '[ПАТТЕРН 2-5] Шаг 14: BRIDGE - Исходный канал подключается ко второму мосту',
                         data: {
-                            UniqueId: uniqueIds_2_5.step14,
+                            UniqueId: "__UNIQUE_ID_1__",
                             BridgeUniqueid: bridgeId2_2_5,
                             ConnectedLineName: "<ХРЕН>",
                             CallerIDNum: phone_2_5,
@@ -5683,7 +5660,7 @@
                         event: 'bridge',
                         description: '[ПАТТЕРН 2-5] Шаг 15: BRIDGE - Local ;1 подключается ко второму мосту',
                         data: {
-                            UniqueId: uniqueIds_2_5.step15,
+                            UniqueId: "__UNIQUE_ID_2__",
                             BridgeUniqueid: bridgeId2_2_5,
                             ConnectedLineName: `-${phone_2_5}`,
                             CallerIDNum: trunk_2_5,
@@ -5701,7 +5678,7 @@
                         event: 'bridge_leave',
                         description: '[ПАТТЕРН 2-5] Шаг 16: BRIDGE_LEAVE - Второй trunk покидает первый мост',
                         data: {
-                            UniqueId: uniqueIds_2_5.step16,
+                            UniqueId: "__UNIQUE_ID_5__",
                             BridgeUniqueid: bridgeId1_2_5,
                             CallerIDNum: mobileNumber_2_5,
                             ConnectedLineNum: phone_2_5,
@@ -5719,7 +5696,7 @@
                         event: 'bridge_leave',
                         description: '[ПАТТЕРН 2-5] Шаг 17: BRIDGE_LEAVE - Local ;2 покидает первый мост',
                         data: {
-                            UniqueId: uniqueIds_2_5.step17,
+                            UniqueId: "__UNIQUE_ID_3__",
                             BridgeUniqueid: bridgeId1_2_5,
                             CallerIDNum: phone_2_5,
                             ConnectedLineNum: trunk_2_5,
@@ -5737,7 +5714,7 @@
                         event: 'bridge_destroy',
                         description: '[ПАТТЕРН 2-5] Шаг 18: BRIDGE_DESTROY - Удаление первого моста',
                         data: {
-                            UniqueId: uniqueIds_2_5.step18,
+                            UniqueId: "",
                             BridgeUniqueid: bridgeId1_2_5,
                             BridgeCreator: "<ХРЕН>",
                             BridgeNumChannels: "0",
@@ -5754,7 +5731,7 @@
                         event: 'hangup',
                         description: '[ПАТТЕРН 2-5] Шаг 19: HANGUP - Завершение переадресации',
                         data: {
-                            UniqueId: uniqueIds_2_5.step19,
+                            UniqueId: "__UNIQUE_ID_3__",
                             DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
                             CallStatus: "2",
                             CallType: 1,
@@ -5773,7 +5750,7 @@
                         event: 'bridge_leave',
                         description: '[ПАТТЕРН 2-5] Шаг 20: BRIDGE_LEAVE - Local ;1 покидает второй мост',
                         data: {
-                            UniqueId: uniqueIds_2_5.step20,
+                            UniqueId: "__UNIQUE_ID_2__",
                             BridgeUniqueid: bridgeId2_2_5,
                             CallerIDNum: trunk_2_5,
                             ConnectedLineNum: phone_2_5,
@@ -5791,7 +5768,7 @@
                         event: 'bridge_leave',
                         description: '[ПАТТЕРН 2-5] Шаг 21: BRIDGE_LEAVE - Исходный канал покидает второй мост',
                         data: {
-                            UniqueId: uniqueIds_2_5.step21,
+                            UniqueId: "__UNIQUE_ID_1__",
                             BridgeUniqueid: bridgeId2_2_5,
                             CallerIDNum: phone_2_5,
                             ConnectedLineNum: "<ХРЕН>",
@@ -5809,7 +5786,7 @@
                         event: 'bridge_destroy',
                         description: '[ПАТТЕРН 2-5] Шаг 22: BRIDGE_DESTROY - Удаление второго моста',
                         data: {
-                            UniqueId: uniqueIds_2_5.step22,
+                            UniqueId: "",
                             BridgeUniqueid: bridgeId2_2_5,
                             BridgeCreator: "<ХРЕН>",
                             BridgeNumChannels: "0",
