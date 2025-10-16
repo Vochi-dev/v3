@@ -9831,6 +9831,7 @@
                     break;
                     
                 case 26:
+                    window.callUniqueIds = {};
                     // ======= ПАТТЕРН 2-15: ФИКСИРОВАННЫЕ 3 DIAL + МОБИЛЬНЫЕ СОБЫТИЯ - НЕТ ОТВЕТА (13 событий) =======
                     
                     // Получаем базовую информацию
@@ -9872,19 +9873,19 @@
 
                     // Генерируем UniqueId на основе DB образца 2-15
                     const uniqueIds_2_15 = {
-                        start: generateUniqueId("1757774843.296"),
-                        new_callerid: generateUniqueId("1757774843.296"),
-                        dial1: generateUniqueId("1757774843.296"),
-                        dial2: generateUniqueId("1757774843.296"),
-                        dial3: generateUniqueId("1757774843.296"),
-                        mobile_local_1: generateUniqueId("1757774873.301"),
-                        mobile_local_2: generateUniqueId("1757774873.302"),
-                        mobile_dial_1: generateUniqueId("1757774873.302"),
-                        mobile_sip_1: generateUniqueId("1757774873.304"),
-                        mobile_dial_2: generateUniqueId("1757774873.302"),
-                        mobile_sip_2: generateUniqueId("1757774873.305"),
-                        hangup_mobile: generateUniqueId("1757774873.302"),
-                        hangup_main: generateUniqueId("1757774843.296")
+                        start: '__UNIQUE_ID_1__',
+                        new_callerid: '__UNIQUE_ID_1__',
+                        dial1: '__UNIQUE_ID_1__',
+                        dial2: '__UNIQUE_ID_1__',
+                        dial3: '__UNIQUE_ID_1__',
+                        mobile_local_1: '__UNIQUE_ID_2__',
+                        mobile_local_2: '__UNIQUE_ID_3__',
+                        mobile_dial_1: '__UNIQUE_ID_3__',
+                        mobile_sip_1: '__UNIQUE_ID_4__',
+                        mobile_dial_2: '__UNIQUE_ID_3__',
+                        mobile_sip_2: '__UNIQUE_ID_5__',
+                        hangup_mobile: '__UNIQUE_ID_3__',
+                        hangup_main: '__UNIQUE_ID_1__'
                     };
 
                     currentDelay = 0;
