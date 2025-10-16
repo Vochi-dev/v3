@@ -5298,13 +5298,8 @@
                     break;
                     
                 case 15:
+                    window.callUniqueIds = {};
                     // ======= ПАТТЕРН 2-4: НЕУСПЕШНЫЙ ВХОДЯЩИЙ ЗВОНОК НА ГРУППУ (4 события - АНАЛОГ 2-2) =======
-                    const uniqueIds_2_4 = {
-                        step1: generateUniqueId("1757773093.88"), // start
-                        step2: generateUniqueId("1757773093.88"), // new_callerid
-                        step3: generateUniqueId("1757773093.88"), // dial  
-                        step4: generateUniqueId("1757773093.88")  // hangup
-                    };
                     
                     const phone_2_4 = (formData.get('external_phone') || 'UNKNOWN_PHONE').replace(/^\+/, '');
                     const trunk_2_4 = formData.get('line_id') || 'UNKNOWN_LINE';
@@ -5326,7 +5321,7 @@
                         description: '[ПАТТЕРН 2-4] Шаг 1: START - Начало входящего звонка',
                         data: {
                             CallType: 0,
-                            UniqueId: uniqueIds_2_4.step1,
+                            UniqueId: "__UNIQUE_ID_1__",
                             Token: "375293332255",
                             Trunk: trunk_2_4,
                             Phone: phone_2_4
@@ -5340,7 +5335,7 @@
                         description: '[ПАТТЕРН 2-4] Шаг 2: NEW_CALLERID - Создание внешнего канала',
                         data: {
                             CallerIDName: `-${phone_2_4}`,
-                            UniqueId: uniqueIds_2_4.step2,
+                            UniqueId: "__UNIQUE_ID_1__",
                             Exten: trunk_2_4,
                             ConnectedLineName: "<ХРЕН>",
                             Channel: `SIP/${trunk_2_4}-0000002c`,
@@ -5359,7 +5354,7 @@
                         data: {
                             CallType: 0,
                             ExtTrunk: "",
-                            UniqueId: uniqueIds_2_4.step3,
+                            UniqueId: "__UNIQUE_ID_1__",
                             Trunk: trunk_2_4,
                             ExtPhone: phone_2_4,
                             Extensions: groupExtensions_2_4, // вся группа
@@ -5376,7 +5371,7 @@
                         data: {
                             CallType: 0,
                             StartTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
-                            UniqueId: uniqueIds_2_4.step4,
+                            UniqueId: "__UNIQUE_ID_1__",
                             CallStatus: "0", // неуспешный
                             DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
                             Extensions: [""], // никто не ответил
