@@ -10132,6 +10132,7 @@
                     break;
 
                 case 29: // Паттерн 2-18: Call Transfer Chain (151 → 152 → 150)
+                    window.callUniqueIds = {};
                     console.log('🎯 Эмуляция паттерна 2-18: Call Transfer Chain');
                     
                     // Получаем данные из формы
@@ -10143,14 +10144,14 @@
                     
                     // Генерируем UniqueId на основе DB образца 2-18
                     const uniqueIds_2_18 = {
-                        start: generateUniqueId("1757840723.6"),
-                        dial1: generateUniqueId("1757840723.8"),
-                        transfer1_1: generateUniqueId("1757840735.10"), 
-                        transfer1_2: generateUniqueId("1757840735.11"),
-                        transfer1_sip: generateUniqueId("1757840735.12"),
-                        transfer2_1: generateUniqueId("1757840756.16"),
-                        transfer2_2: generateUniqueId("1757840756.17"), 
-                        transfer2_sip: generateUniqueId("1757840757.18")
+                        start: '__UNIQUE_ID_1__',
+                        dial1: '__UNIQUE_ID_2__',
+                        transfer1_1: '__UNIQUE_ID_3__', 
+                        transfer1_2: '__UNIQUE_ID_4__',
+                        transfer1_sip: '__UNIQUE_ID_5__',
+                        transfer2_1: '__UNIQUE_ID_6__',
+                        transfer2_2: '__UNIQUE_ID_7__', 
+                        transfer2_sip: '__UNIQUE_ID_8__'
                     };
                     
                     // Генерируем Bridge UUID для всех мостов
