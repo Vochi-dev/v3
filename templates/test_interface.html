@@ -5102,19 +5102,8 @@
                     break;
                     
                 case 14:
+                    window.callUniqueIds = {};
                     // ======= ПАТТЕРН 2-3: ПОЛНЫЙ УСПЕШНЫЙ ВХОДЯЩИЙ ЗВОНОК НА ГРУППУ (10 событий) =======
-                    const uniqueIds_2_3 = {
-                        step1: generateUniqueId("1757772963.74"), // start
-                        step2: generateUniqueId("1757772963.74"), // new_callerid
-                        step3: generateUniqueId("1757772963.74"), // dial  
-                        step4: generateUniqueId(""),              // bridge_create (пустой)
-                        step5: generateUniqueId("1757772963.76"), // bridge (менеджер)
-                        step6: generateUniqueId("1757772963.74"), // bridge (внешний)
-                        step7: generateUniqueId("1757772963.76"), // bridge_leave (менеджер)
-                        step8: generateUniqueId("1757772963.74"), // bridge_leave (внешний)
-                        step9: generateUniqueId(""),              // bridge_destroy (пустой)
-                        step10: generateUniqueId("1757772963.74") // hangup
-                    };
                     
                     const phone_2_3 = (formData.get('external_phone') || 'UNKNOWN_PHONE').replace(/^\+/, '');
                     const trunk_2_3 = formData.get('line_id') || 'UNKNOWN_LINE';
@@ -5140,7 +5129,7 @@
                         data: {
                             Token: "375293332255",
                             Phone: phone_2_3,
-                            UniqueId: uniqueIds_2_3.step1,
+                            UniqueId: "__UNIQUE_ID_1__",
                             Trunk: trunk_2_3,
                             CallType: 0
                         }
@@ -5156,7 +5145,7 @@
                             CallerIDNum: phone_2_3,
                             Token: "375293332255",
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_2_3.step2,
+                            UniqueId: "__UNIQUE_ID_1__",
                             CallerIDName: `-${phone_2_3}`,
                             Exten: trunk_2_3,
                             Channel: `SIP/${trunk_2_3}-00000024`,
@@ -5174,7 +5163,7 @@
                             Extensions: groupExtensions_2_3, // вся группа
                             Token: "375293332255",
                             Phone: phone_2_3,
-                            UniqueId: uniqueIds_2_3.step3,
+                            UniqueId: "__UNIQUE_ID_1__",
                             CallType: 0,
                             ExtTrunk: "",
                             ExtPhone: phone_2_3
@@ -5192,7 +5181,7 @@
                             BridgeNumChannels: "0",
                             BridgeTechnology: "simple_bridge",
                             Token: "375293332255",
-                            UniqueId: uniqueIds_2_3.step4,
+                            UniqueId: "",
                             BridgeUniqueid: bridgeId_2_3,
                             BridgeCreator: "<ХРЕН>"
                         }
@@ -5209,7 +5198,7 @@
                             Channel: `SIP/${answeredManager_2_3}-00000026`,
                             Token: "375293332255",
                             ConnectedLineName: `-${phone_2_3}`,
-                            UniqueId: uniqueIds_2_3.step5,
+                            UniqueId: "__UNIQUE_ID_2__",
                             CallerIDName: "",
                             Exten: "",
                             BridgeUniqueid: bridgeId_2_3
@@ -5227,7 +5216,7 @@
                             Channel: `SIP/${trunk_2_3}-00000024`,
                             Token: "375293332255",
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_2_3.step6,
+                            UniqueId: "__UNIQUE_ID_1__",
                             CallerIDName: `-${phone_2_3}`,
                             Exten: trunk_2_3,
                             BridgeUniqueid: bridgeId_2_3
@@ -5246,7 +5235,7 @@
                             Channel: `SIP/${answeredManager_2_3}-00000026`,
                             Token: "375293332255",
                             ConnectedLineName: `-${phone_2_3}`,
-                            UniqueId: uniqueIds_2_3.step7,
+                            UniqueId: "__UNIQUE_ID_2__",
                             CallerIDName: "<ХРЕН>",
                             BridgeUniqueid: bridgeId_2_3
                         }
@@ -5264,7 +5253,7 @@
                             Channel: `SIP/${trunk_2_3}-00000024`,
                             Token: "375293332255",
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_2_3.step8,
+                            UniqueId: "__UNIQUE_ID_1__",
                             CallerIDName: `-${phone_2_3}`,
                             BridgeUniqueid: bridgeId_2_3
                         }
@@ -5281,7 +5270,7 @@
                             BridgeNumChannels: "0",
                             BridgeTechnology: "simple_bridge",
                             Token: "375293332255",
-                            UniqueId: uniqueIds_2_3.step9,
+                            UniqueId: "",
                             BridgeUniqueid: bridgeId_2_3,
                             BridgeCreator: "<ХРЕН>"
                         }
@@ -5299,7 +5288,7 @@
                             Extensions: [answeredManager_2_3], // только ответивший
                             Token: "375293332255",
                             Phone: phone_2_3,
-                            UniqueId: uniqueIds_2_3.step10,
+                            UniqueId: "__UNIQUE_ID_1__",
                             StartTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
                             Trunk: trunk_2_3,
                             CallType: 0
