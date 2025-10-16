@@ -5015,13 +5015,8 @@
                     break;
                     
                 case 13:
+                    window.callUniqueIds = {};
                     // ======= ПАТТЕРН 2-2: НЕУСПЕШНЫЙ ВХОДЯЩИЙ ЗВОНОК НА ГРУППУ (4 события) =======
-                    const uniqueIds_2_2 = {
-                        step1: generateUniqueId("1757772834.67"), // start
-                        step2: generateUniqueId("1757772834.67"), // new_callerid
-                        step3: generateUniqueId("1757772834.67"), // dial  
-                        step4: generateUniqueId("1757772834.67")  // hangup
-                    };
                     
                     const phone_2_2 = (formData.get('external_phone') || 'UNKNOWN_PHONE').replace(/^\+/, '');
                     const trunk_2_2 = formData.get('line_id') || 'UNKNOWN_LINE';
@@ -5046,7 +5041,7 @@
                             Token: "375293332255",
                             Trunk: trunk_2_2,
                             Phone: phone_2_2,
-                            UniqueId: uniqueIds_2_2.step1
+                            UniqueId: "__UNIQUE_ID_1__"
                         }
                     });
                     
@@ -5057,7 +5052,7 @@
                         description: '[ПАТТЕРН 2-2] Шаг 2: NEW_CALLERID - Создание внешнего канала',
                         data: {
                             ConnectedLineNum: "<ХРЕН>",
-                            UniqueId: uniqueIds_2_2.step2,
+                            UniqueId: "__UNIQUE_ID_1__",
                             Context: "from-out-office",
                             CallerIDNum: phone_2_2,
                             Token: "375293332255",
@@ -5078,7 +5073,7 @@
                             Trunk: trunk_2_2,
                             ExtPhone: phone_2_2,
                             Phone: phone_2_2,
-                            UniqueId: uniqueIds_2_2.step3,
+                            UniqueId: "__UNIQUE_ID_1__",
                             Extensions: groupExtensions_2_2, // вся группа
                             Token: "375293332255",
                             ExtTrunk: ""
@@ -5095,7 +5090,7 @@
                             DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
                             CallStatus: "0", // неуспешный
                             Phone: phone_2_2,
-                            UniqueId: uniqueIds_2_2.step4,
+                            UniqueId: "__UNIQUE_ID_1__",
                             StartTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
                             Extensions: [""], // никто не ответил
                             Token: "375293332255",
