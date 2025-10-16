@@ -4242,20 +4242,8 @@
                     break;
 
                 case 7: // 1-7: Переадресация с неответом второго менеджера
-                    // UniqueId для каждого шага из AlternativeAPIlogs паттерна 1-7
-                    const uniqueIds_1_7 = {
-                        step1: generateUniqueId("1757766568.47"), // dial
-                        step2: generateUniqueId("1757766569.48"), // new_callerid (внешний канал)
-                        step3: "", // bridge_create (единственный мост) - пустой
-                        step4: generateUniqueId("1757766569.48"), // bridge (внешний к мосту)
-                        step5: generateUniqueId("1757766568.47"), // bridge (менеджер 1 к мосту)
-                        step6: generateUniqueId("1757766568.47"), // bridge_leave (менеджер 1 покидает мост)
-                        step7: generateUniqueId("1757766569.48"), // bridge_leave (внешний покидает мост)
-                        step8: "", // bridge_destroy (единственный мост) - пустой
-                        step9: generateUniqueId("1757766568.47"), // hangup (завершение первого звонка)
-                        step10: generateUniqueId("1757766589.49"), // new_callerid (вызов менеджера 2)
-                        step11: generateUniqueId("1757766569.48")  // hangup (завершение второго звонка - неотвеченный)
-                    };
+                    // Очищаем UniqueId для новой эмуляции
+                    window.callUniqueIds = {};
                     
                     const phone_1_7 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const manager1Raw_1_7 = formData.get('internal_phone');
@@ -4287,7 +4275,7 @@
                             ExtTrunk: "",
                             Trunk: trunk_1_7,
                             Phone: phone_1_7,
-                            UniqueId: uniqueIds_1_7.step1,
+                            UniqueId: '__UNIQUE_ID_1__',
                             ExtPhone: ""
                         }
                     });
@@ -4303,7 +4291,7 @@
                             CallerIDName: "<ХРЕН>",
                             ConnectedLineNum: manager1_1_7,
                             ConnectedLineName: manager1_1_7,
-                            UniqueId: uniqueIds_1_7.step2,
+                            UniqueId: '__UNIQUE_ID_2__',
                             Context: "from-out-office",
                             CallerIDNum: phone_1_7,
                             Exten: phone_1_7
@@ -4339,7 +4327,7 @@
                             BridgeUniqueid: bridgeId_1_7,
                             ConnectedLineNum: manager1_1_7,
                             ConnectedLineName: manager1_1_7,
-                            UniqueId: uniqueIds_1_7.step4,
+                            UniqueId: '__UNIQUE_ID_2__',
                             CallerIDNum: phone_1_7,
                             Exten: ""
                         }
@@ -4357,7 +4345,7 @@
                             BridgeUniqueid: bridgeId_1_7,
                             ConnectedLineNum: "<ХРЕН>",
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_7.step5,
+                            UniqueId: '__UNIQUE_ID_1__',
                             CallerIDNum: manager1_1_7,
                             Exten: phone_1_7
                         }
@@ -4376,7 +4364,7 @@
                             ConnectedLineNum: "<ХРЕН>",
                             ConnectedLineName: "<ХРЕН>",
                             BridgeNumChannels: "1",
-                            UniqueId: uniqueIds_1_7.step6,
+                            UniqueId: '__UNIQUE_ID_1__',
                             CallerIDNum: manager1_1_7
                         }
                     });
@@ -4394,7 +4382,7 @@
                             ConnectedLineNum: manager1_1_7,
                             ConnectedLineName: manager1_1_7,
                             BridgeNumChannels: "0",
-                            UniqueId: uniqueIds_1_7.step7,
+                            UniqueId: '__UNIQUE_ID_2__',
                             CallerIDNum: phone_1_7
                         }
                     });
@@ -4429,7 +4417,7 @@
                             Extensions: [manager1_1_7],
                             Trunk: trunk_1_7,
                             Phone: phone_1_7,
-                            UniqueId: uniqueIds_1_7.step9,
+                            UniqueId: '__UNIQUE_ID_1__',
                             EndTime: firstCallEnd_1_7.toISOString().slice(0, 19).replace('T', ' '),
                             StartTime: startTime_1_7.toISOString().slice(0, 19).replace('T', ' ')
                         }
@@ -4446,7 +4434,7 @@
                             CallerIDName: manager1_1_7,
                             ConnectedLineNum: phone_1_7,
                             ConnectedLineName: "<ХРЕН>",
-                            UniqueId: uniqueIds_1_7.step10,
+                            UniqueId: '__UNIQUE_ID_3__',
                             Context: "inoffice",
                             CallerIDNum: manager2_1_7,
                             Exten: manager2_1_7
@@ -4465,7 +4453,7 @@
                             CallType: 2,
                             Extensions: [manager2_1_7],
                             Phone: phone_1_7,
-                            UniqueId: uniqueIds_1_7.step11,
+                            UniqueId: '__UNIQUE_ID_2__',
                             EndTime: endTime_1_7.toISOString().slice(0, 19).replace('T', ' '),
                             StartTime: ""
                         }
