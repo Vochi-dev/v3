@@ -13291,6 +13291,7 @@
                     break;
                     
                 case 38: // Паттерн 2-27: Follow Me Fast Bridge Switch (No Answer)
+                    window.callUniqueIds = {};
                     // Получаем данные из формы
                     const phone_2_27 = (formData.get('external_phone') || '').replace(/^\+/, '');
                     const trunk_2_27 = formData.get('line_id');
@@ -13310,13 +13311,13 @@
 
                     // Генерируем уникальные ID для каналов
                     const uniqueIds_2_27 = {
-                        start: generateUniqueId("1757843687.232"),
-                        manager: generateUniqueId("1757843687.234"),
-                        localMobile1: generateUniqueId("1757843712.238"),
-                        localMobile2: generateUniqueId("1757843712.239"),
-                        mobileSipPrimary: generateUniqueId("1757843712.240"),
-                        mobileSipSecondary: generateUniqueId("1757843712.241"),
-                        targetSip: generateUniqueId("1757843712.237")
+                        start: '__UNIQUE_ID_1__',
+                        manager: '__UNIQUE_ID_2__',
+                        localMobile1: '__UNIQUE_ID_4__',
+                        localMobile2: '__UNIQUE_ID_5__',
+                        mobileSipPrimary: '__UNIQUE_ID_6__',
+                        mobileSipSecondary: '__UNIQUE_ID_7__',
+                        targetSip: '__UNIQUE_ID_3__'
                     };
 
                     // 1. START
