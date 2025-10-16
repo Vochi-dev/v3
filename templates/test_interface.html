@@ -5801,25 +5801,7 @@
                     
                 case 17:
                     // ======= ПАТТЕРН 2-6: ВХОДЯЩИЙ ЗВОНОК С ПЕРЕАДРЕСАЦИЕЙ, ОТВЕТИЛ ВНУТРЕННИЙ (17 событий) =======
-                    const uniqueIds_2_6 = {
-                        step1: generateUniqueId("1757773581.109"),  // start
-                        step2: generateUniqueId("1757773581.109"),  // new_callerid (исходный)
-                        step3: generateUniqueId("1757773581.109"),  // dial (на группу)
-                        step4: generateUniqueId("1757773581.111"),  // new_callerid (Local ;1)
-                        step5: generateUniqueId("1757773581.112"),  // new_callerid (Local ;2)
-                        step6: generateUniqueId("1757773581.112"),  // dial (переадресация)
-                        step7: generateUniqueId("1757773581.115"),  // new_callerid (первый trunk)
-                        step8: generateUniqueId("1757773581.112"),  // dial (на второй trunk)
-                        step9: generateUniqueId("1757773581.116"),  // new_callerid (второй trunk)
-                        step10: generateUniqueId(""),               // bridge_create (один мост)
-                        step11: generateUniqueId("1757773581.113"), // bridge (внутренний менеджер 151)
-                        step12: generateUniqueId("1757773581.109"), // bridge (исходный канал)
-                        step13: generateUniqueId("1757773581.112"), // hangup (переадресация неуспешна)
-                        step14: generateUniqueId("1757773581.113"), // bridge_leave (менеджер 151)
-                        step15: generateUniqueId("1757773581.109"), // bridge_leave (исходный)
-                        step16: generateUniqueId(""),               // bridge_destroy
-                        step17: generateUniqueId("1757773581.109")  // hangup (успешный звонок)
-                    };
+                    window.callUniqueIds = {};
                     
                     const phone_2_6 = (formData.get('external_phone') || 'UNKNOWN_PHONE').replace(/^\+/, '');
                     const trunk_2_6 = formData.get('line_id') || 'UNKNOWN_LINE';
@@ -5852,7 +5834,7 @@
                         event: 'start',
                         description: '[ПАТТЕРН 2-6] Шаг 1: START - Начало входящего звонка',
                         data: {
-                            UniqueId: uniqueIds_2_6.step1,
+                            UniqueId: "__UNIQUE_ID_1__",
                             Token: "375293332255",
                             Phone: phone_2_6,
                             CallType: 0,
@@ -5866,7 +5848,7 @@
                         event: 'new_callerid',
                         description: '[ПАТТЕРН 2-6] Шаг 2: NEW_CALLERID - Создание исходного канала',
                         data: {
-                            UniqueId: uniqueIds_2_6.step2,
+                            UniqueId: "__UNIQUE_ID_1__",
                             Channel: `SIP/${trunk_2_6}-00000036`,
                             Exten: trunk_2_6,
                             Context: "from-out-office",
@@ -5884,7 +5866,7 @@
                         event: 'dial',
                         description: '[ПАТТЕРН 2-6] Шаг 3: DIAL - Звонок на группу менеджеров',
                         data: {
-                            UniqueId: uniqueIds_2_6.step3,
+                            UniqueId: "__UNIQUE_ID_1__",
                             ExtPhone: phone_2_6,
                             CallType: 0,
                             Extensions: groupExtensions_2_6,
@@ -5901,7 +5883,7 @@
                         event: 'new_callerid',
                         description: '[ПАТТЕРН 2-6] Шаг 4: NEW_CALLERID - Local канал ;1',
                         data: {
-                            UniqueId: uniqueIds_2_6.step4,
+                            UniqueId: "__UNIQUE_ID_2__",
                             Channel: `Local/${mobileNumber_2_6}@179e93af-00000004;1`,
                             Exten: trunk_2_6,
                             Context: "179e93af",
@@ -5919,7 +5901,7 @@
                         event: 'new_callerid',
                         description: '[ПАТТЕРН 2-6] Шаг 5: NEW_CALLERID - Local канал ;2',
                         data: {
-                            UniqueId: uniqueIds_2_6.step5,
+                            UniqueId: "__UNIQUE_ID_3__",
                             Channel: `Local/${mobileNumber_2_6}@179e93af-00000004;2`,
                             Exten: mobileNumber_2_6,
                             Context: "179e93af",
@@ -5937,7 +5919,7 @@
                         event: 'dial',
                         description: '[ПАТТЕРН 2-6] Шаг 6: DIAL - Переадресация на внешний номер',
                         data: {
-                            UniqueId: uniqueIds_2_6.step6,
+                            UniqueId: "__UNIQUE_ID_3__",
                             ExtPhone: "",
                             CallType: 1,
                             Extensions: [phone_2_6],
@@ -5954,7 +5936,7 @@
                         event: 'new_callerid',
                         description: '[ПАТТЕРН 2-6] Шаг 7: NEW_CALLERID - Первый trunk переадресации',
                         data: {
-                            UniqueId: uniqueIds_2_6.step7,
+                            UniqueId: "__UNIQUE_ID_4__",
                             Channel: `SIP/${trunk_2_6}-0000003a`,
                             Exten: mobileNumber_2_6,
                             Context: "from-out-office",
@@ -5972,7 +5954,7 @@
                         event: 'dial',
                         description: '[ПАТТЕРН 2-6] Шаг 8: DIAL - Переход на резервный trunk',
                         data: {
-                            UniqueId: uniqueIds_2_6.step8,
+                            UniqueId: "__UNIQUE_ID_3__",
                             ExtPhone: "",
                             CallType: 1,
                             Extensions: [phone_2_6],
@@ -5989,7 +5971,7 @@
                         event: 'new_callerid',
                         description: '[ПАТТЕРН 2-6] Шаг 9: NEW_CALLERID - Второй trunk переадресации',
                         data: {
-                            UniqueId: uniqueIds_2_6.step9,
+                            UniqueId: "__UNIQUE_ID_5__",
                             Channel: `SIP/${backupTrunk_2_6}-0000003b`,
                             Exten: mobileNumber_2_6,
                             Context: "from-out-office",
@@ -6007,7 +5989,7 @@
                         event: 'bridge_create',
                         description: '[ПАТТЕРН 2-6] Шаг 10: BRIDGE_CREATE - Создание моста',
                         data: {
-                            UniqueId: uniqueIds_2_6.step10,
+                            UniqueId: "",
                             BridgeUniqueid: bridgeId_2_6,
                             BridgeCreator: "<ХРЕН>",
                             BridgeNumChannels: "0",
@@ -6024,7 +6006,7 @@
                         event: 'bridge',
                         description: '[ПАТТЕРН 2-6] Шаг 11: BRIDGE - Внутренний менеджер подключается к мосту',
                         data: {
-                            UniqueId: uniqueIds_2_6.step11,
+                            UniqueId: "__UNIQUE_ID_6__",
                             BridgeUniqueid: bridgeId_2_6,
                             ConnectedLineName: `-${phone_2_6}`,
                             CallerIDNum: answeredManager_2_6,
@@ -6042,7 +6024,7 @@
                         event: 'bridge',
                         description: '[ПАТТЕРН 2-6] Шаг 12: BRIDGE - Исходный канал подключается к мосту',
                         data: {
-                            UniqueId: uniqueIds_2_6.step12,
+                            UniqueId: "__UNIQUE_ID_1__",
                             BridgeUniqueid: bridgeId_2_6,
                             ConnectedLineName: "<ХРЕН>",
                             CallerIDNum: phone_2_6,
@@ -6060,7 +6042,7 @@
                         event: 'hangup',
                         description: '[ПАТТЕРН 2-6] Шаг 13: HANGUP - Переадресация завершена (неуспешно)',
                         data: {
-                            UniqueId: uniqueIds_2_6.step13,
+                            UniqueId: "__UNIQUE_ID_3__",
                             DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
                             CallStatus: "0",
                             CallType: 1,
@@ -6079,7 +6061,7 @@
                         event: 'bridge_leave',
                         description: '[ПАТТЕРН 2-6] Шаг 14: BRIDGE_LEAVE - Внутренний менеджер покидает мост',
                         data: {
-                            UniqueId: uniqueIds_2_6.step14,
+                            UniqueId: "__UNIQUE_ID_6__",
                             BridgeUniqueid: bridgeId_2_6,
                             CallerIDNum: answeredManager_2_6,
                             ConnectedLineNum: phone_2_6,
@@ -6097,7 +6079,7 @@
                         event: 'bridge_leave',
                         description: '[ПАТТЕРН 2-6] Шаг 15: BRIDGE_LEAVE - Исходный канал покидает мост',
                         data: {
-                            UniqueId: uniqueIds_2_6.step15,
+                            UniqueId: "__UNIQUE_ID_1__",
                             BridgeUniqueid: bridgeId_2_6,
                             CallerIDNum: phone_2_6,
                             ConnectedLineNum: answeredManager_2_6,
@@ -6115,7 +6097,7 @@
                         event: 'bridge_destroy',
                         description: '[ПАТТЕРН 2-6] Шаг 16: BRIDGE_DESTROY - Уничтожение моста',
                         data: {
-                            UniqueId: uniqueIds_2_6.step16,
+                            UniqueId: "",
                             BridgeUniqueid: bridgeId_2_6,
                             BridgeCreator: "<ХРЕН>",
                             BridgeNumChannels: "0",
@@ -6132,7 +6114,7 @@
                         event: 'hangup',
                         description: '[ПАТТЕРН 2-6] Шаг 17: HANGUP - Успешное завершение звонка',
                         data: {
-                            UniqueId: uniqueIds_2_6.step17,
+                            UniqueId: "__UNIQUE_ID_1__",
                             DateReceived: new Date().toISOString().slice(0, 19).replace('T', ' '),
                             CallStatus: "2",
                             CallType: 0,
@@ -15746,6 +15728,11 @@
                     window.callUniqueIds.id5 = generateUniqueId();
                 }
                 processedEvent.data.UniqueId = window.callUniqueIds.id5;
+            } else if (processedEvent.data.UniqueId === '__UNIQUE_ID_6__') {
+                if (!window.callUniqueIds.id6) {
+                    window.callUniqueIds.id6 = generateUniqueId();
+                }
+                processedEvent.data.UniqueId = window.callUniqueIds.id6;
             }
             
             return processedEvent;
