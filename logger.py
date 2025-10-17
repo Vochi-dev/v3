@@ -73,6 +73,20 @@ class TelegramMessage(BaseModel):
     action: str  # send, edit, delete
     timestamp: Optional[datetime] = None
 
+class IntegrationResponse(BaseModel):
+    """Модель ответа интеграции"""
+    enterprise_number: str
+    unique_id: str
+    integration: str  # moysklad, retailcrm, etc.
+    endpoint: str
+    method: str
+    status: str  # success, error, etc.
+    request_data: Optional[Dict[str, Any]] = None
+    response_data: Optional[Dict[str, Any]] = None
+    duration_ms: Optional[float] = None
+    error: Optional[str] = None
+    timestamp: Optional[datetime] = None
+
 # ═══════════════════════════════════════════════════════════════════
 # ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ
 # ═══════════════════════════════════════════════════════════════════
@@ -88,9 +102,6 @@ DB_CONFIG = {
     "user": "postgres",
     "password": "r/Yskqh/ZbZuvjb2b3ahfg=="
 }
-
-# Временное хранилище (заглушка) - будет заменено на PostgreSQL
-call_traces = {}  # unique_id -> call_trace_data
 
 # ═══════════════════════════════════════════════════════════════════
 # ФУНКЦИИ УПРАВЛЕНИЯ ПАРТИЦИЯМИ
@@ -303,33 +314,25 @@ async def log_http_request(request: HttpRequest):
     try:
         if not request.timestamp:
             request.timestamp = datetime.now()
-            
-        unique_id = request.unique_id
         
-        if unique_id not in call_traces:
-            call_traces[unique_id] = {
-                "enterprise_number": request.enterprise_number,
-                "unique_id": unique_id,
-                "events": [],
-                "http_requests": [],
-                "sql_queries": [],
-                "telegram_messages": [],
-                "created_at": request.timestamp,
-                "updated_at": request.timestamp
-            }
+        conn = await asyncpg.connect(**DB_CONFIG)
         
-        call_traces[unique_id]["http_requests"].append({
-            "method": request.method,
-            "url": request.url,
-            "request_data": request.request_data,
-            "response_data": request.response_data,
-            "status_code": request.status_code,
-            "duration_ms": request.duration_ms,
-            "timestamp": request.timestamp.isoformat()
-        })
-        call_traces[unique_id]["updated_at"] = request.timestamp
+        # Добавляем HTTP запрос через функцию БД
+        await conn.execute(
+            "SELECT add_http_request($1, $2, $3, $4, $5, $6, $7, $8)",
+            request.unique_id,
+            request.enterprise_number,
+            request.method,
+            request.url,
+            json.dumps(request.request_data) if request.request_data else None,
+            json.dumps(request.response_data) if request.response_data else None,
+            request.status_code,
+            request.duration_ms
+        )
         
-        logger.info(f"Logged HTTP {request.method} {request.url} for call {unique_id}")
+        await conn.close()
+        
+        logger.info(f"Logged HTTP {request.method} {request.url} for call {request.unique_id}")
         return {"status": "success", "message": "HTTP request logged"}
         
     except Exception as e:
@@ -345,26 +348,23 @@ async def log_sql_query(query: SqlQuery):
             
         unique_id = query.unique_id
         
-        if unique_id not in call_traces:
-            call_traces[unique_id] = {
-                "enterprise_number": query.enterprise_number,
-                "unique_id": unique_id,
-                "events": [],
-                "http_requests": [],
-                "sql_queries": [],
-                "telegram_messages": [],
-                "created_at": query.timestamp,
-                "updated_at": query.timestamp
-            }
+        # Создаем партицию для предприятия, если её нет
+        await ensure_enterprise_partition(query.enterprise_number)
+
+        conn = await asyncpg.connect(**DB_CONFIG)
         
-        call_traces[unique_id]["sql_queries"].append({
-            "query": query.query,
-            "parameters": query.parameters,
-            "result": query.result,
-            "duration_ms": query.duration_ms,
-            "timestamp": query.timestamp.isoformat()
-        })
-        call_traces[unique_id]["updated_at"] = query.timestamp
+        # Добавляем SQL запрос через функцию БД
+        await conn.execute(
+            "SELECT add_sql_query($1, $2, $3, $4, $5, $6)",
+            query.unique_id,
+            query.enterprise_number,
+            query.query,
+            json.dumps(query.parameters) if query.parameters else None,
+            json.dumps(query.result) if query.result else None,
+            query.duration_ms
+        )
+        
+        await conn.close()
         
         logger.info(f"Logged SQL query for call {unique_id}")
         return {"status": "success", "message": "SQL query logged"}
@@ -382,33 +382,69 @@ async def log_telegram_message(message: TelegramMessage):
             
         unique_id = message.unique_id
         
-        if unique_id not in call_traces:
-            call_traces[unique_id] = {
-                "enterprise_number": message.enterprise_number,
-                "unique_id": unique_id,
-                "events": [],
-                "http_requests": [],
-                "sql_queries": [],
-                "telegram_messages": [],
-                "created_at": message.timestamp,
-                "updated_at": message.timestamp
-            }
+        # Создаем партицию для предприятия, если её нет
+        await ensure_enterprise_partition(message.enterprise_number)
+
+        conn = await asyncpg.connect(**DB_CONFIG)
         
-        call_traces[unique_id]["telegram_messages"].append({
-            "chat_id": message.chat_id,
-            "message_type": message.message_type,
-            "message_id": message.message_id,
-            "message_text": message.message_text,
-            "action": message.action,
-            "timestamp": message.timestamp.isoformat()
-        })
-        call_traces[unique_id]["updated_at"] = message.timestamp
+        # Добавляем Telegram сообщение через функцию БД
+        await conn.execute(
+            "SELECT add_telegram_message($1, $2, $3, $4, $5, $6, $7, $8)",
+            message.unique_id,
+            message.enterprise_number,
+            message.chat_id,
+            message.message_type,
+            message.action,
+            message.message_id,
+            message.message_text,
+            None  # error
+        )
+        
+        await conn.close()
         
         logger.info(f"Logged Telegram {message.action} for call {unique_id}")
         return {"status": "success", "message": "Telegram message logged"}
         
     except Exception as e:
         logger.error(f"Error logging Telegram message: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/log/integration")
+async def log_integration_response(response: IntegrationResponse):
+    """Логирование ответа интеграции"""
+    try:
+        if not response.timestamp:
+            response.timestamp = datetime.now()
+            
+        unique_id = response.unique_id
+        
+        # Создаем партицию для предприятия, если её нет
+        await ensure_enterprise_partition(response.enterprise_number)
+
+        conn = await asyncpg.connect(**DB_CONFIG)
+        
+        # Добавляем ответ интеграции через функцию БД
+        await conn.execute(
+            "SELECT add_integration_response($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+            response.unique_id,
+            response.enterprise_number,
+            response.integration,
+            response.endpoint,
+            response.method,
+            response.status,
+            json.dumps(response.request_data) if response.request_data else None,
+            json.dumps(response.response_data) if response.response_data else None,
+            response.duration_ms,
+            response.error
+        )
+        
+        await conn.close()
+        
+        logger.info(f"Logged integration response for call {unique_id}")
+        return {"status": "success", "message": "Integration response logged"}
+        
+    except Exception as e:
+        logger.error(f"Error logging integration response: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/trace/{unique_id}")
@@ -421,6 +457,7 @@ async def get_call_trace(unique_id: str):
         trace_info = await conn.fetchrow("""
             SELECT id, unique_id, enterprise_number, phone_number, call_direction, 
                    call_status, start_time, end_time, call_events,
+                   http_requests, sql_queries, telegram_messages, integration_responses,
                    created_at, updated_at,
                    CASE 
                        WHEN end_time IS NOT NULL AND start_time IS NOT NULL 
@@ -437,12 +474,11 @@ async def get_call_trace(unique_id: str):
         
         await conn.close()
         
-        # Формируем timeline из JSONB поля call_events
+        # Формируем единый timeline из всех типов логов
         timeline = []
+        
+        # Добавляем события звонков
         if trace_info['call_events']:
-            import json
-            
-            # Парсим JSONB в Python объект
             try:
                 if isinstance(trace_info['call_events'], str):
                     events_list = json.loads(trace_info['call_events'])
@@ -452,6 +488,7 @@ async def get_call_trace(unique_id: str):
                 if isinstance(events_list, list):
                     for event in events_list:
                         timeline.append({
+                            "type": "call_event",
                             "sequence": event.get('event_sequence', 0),
                             "event_type": event.get('event_type', 'unknown'),
                             "timestamp": event.get('event_timestamp', ''),
@@ -459,6 +496,115 @@ async def get_call_trace(unique_id: str):
                         })
             except (json.JSONDecodeError, TypeError) as e:
                 logger.warning(f"Failed to parse call_events: {e}")
+        
+        # Добавляем HTTP запросы
+        if trace_info['http_requests']:
+            try:
+                if isinstance(trace_info['http_requests'], str):
+                    http_list = json.loads(trace_info['http_requests'])
+                else:
+                    http_list = trace_info['http_requests']
+                
+                if isinstance(http_list, list):
+                    for req in http_list:
+                        timeline.append({
+                            "type": "http_request",
+                            "sequence": req.get('sequence', 0),
+                            "method": req.get('method', 'GET'),
+                            "url": req.get('url', ''),
+                            "status_code": req.get('status_code'),
+                            "duration_ms": req.get('duration_ms'),
+                            "timestamp": req.get('timestamp', ''),
+                            "data": {
+                                "request": req.get('request_data'),
+                                "response": req.get('response_data'),
+                                "error": req.get('error')
+                            }
+                        })
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"Failed to parse http_requests: {e}")
+        
+        # Добавляем SQL запросы
+        if trace_info['sql_queries']:
+            try:
+                if isinstance(trace_info['sql_queries'], str):
+                    sql_list = json.loads(trace_info['sql_queries'])
+                else:
+                    sql_list = trace_info['sql_queries']
+                
+                if isinstance(sql_list, list):
+                    for query in sql_list:
+                        timeline.append({
+                            "type": "sql_query",
+                            "sequence": query.get('sequence', 0),
+                            "query": query.get('query', ''),
+                            "duration_ms": query.get('duration_ms'),
+                            "timestamp": query.get('timestamp', ''),
+                            "data": {
+                                "parameters": query.get('parameters'),
+                                "result": query.get('result'),
+                                "error": query.get('error')
+                            }
+                        })
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"Failed to parse sql_queries: {e}")
+        
+        # Добавляем Telegram сообщения
+        if trace_info['telegram_messages']:
+            try:
+                if isinstance(trace_info['telegram_messages'], str):
+                    tg_list = json.loads(trace_info['telegram_messages'])
+                else:
+                    tg_list = trace_info['telegram_messages']
+                
+                if isinstance(tg_list, list):
+                    for msg in tg_list:
+                        timeline.append({
+                            "type": "telegram_message",
+                            "sequence": msg.get('sequence', 0),
+                            "action": msg.get('action', 'send'),
+                            "chat_id": msg.get('chat_id'),
+                            "message_id": msg.get('message_id'),
+                            "timestamp": msg.get('timestamp', ''),
+                            "data": {
+                                "message_type": msg.get('message_type'),
+                                "message_text": msg.get('message_text'),
+                                "error": msg.get('error')
+                            }
+                        })
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"Failed to parse telegram_messages: {e}")
+        
+        # Добавляем ответы интеграций
+        if trace_info['integration_responses']:
+            try:
+                if isinstance(trace_info['integration_responses'], str):
+                    int_list = json.loads(trace_info['integration_responses'])
+                else:
+                    int_list = trace_info['integration_responses']
+                
+                if isinstance(int_list, list):
+                    for resp in int_list:
+                        timeline.append({
+                            "type": "integration_response",
+                            "sequence": resp.get('sequence', 0),
+                            "integration": resp.get('integration', ''),
+                            "endpoint": resp.get('endpoint', ''),
+                            "method": resp.get('method', 'POST'),
+                            "status": resp.get('status', 'unknown'),
+                            "duration_ms": resp.get('duration_ms'),
+                            "timestamp": resp.get('timestamp', ''),
+                            "data": {
+                                "request": resp.get('request_data'),
+                                "response": resp.get('response_data'),
+                                "error": resp.get('error')
+                            }
+                        })
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"Failed to parse integration_responses: {e}")
+        
+        # Сортируем timeline по временным меткам
+        timeline.sort(key=lambda x: x.get('timestamp', ''))
         
         return {
             "unique_id": unique_id,
@@ -473,8 +619,12 @@ async def get_call_trace(unique_id: str):
             "updated_at": trace_info['updated_at'].isoformat() if trace_info['updated_at'] else None,
             "timeline": timeline,
             "summary": {
-                "total_events": len(timeline),
-                "events_in_jsonb": len(trace_info['call_events']) if trace_info['call_events'] else 0
+                "total_events": len([t for t in timeline if t['type'] == 'call_event']),
+                "http_requests": len([t for t in timeline if t['type'] == 'http_request']),
+                "sql_queries": len([t for t in timeline if t['type'] == 'sql_query']),
+                "telegram_messages": len([t for t in timeline if t['type'] == 'telegram_message']),
+                "integration_responses": len([t for t in timeline if t['type'] == 'integration_response']),
+                "total_timeline_entries": len(timeline)
             }
         }
         
@@ -490,47 +640,99 @@ async def search_traces(
     phone: Optional[str] = Query(None, description="Номер телефона"),
     date_from: Optional[str] = Query(None, description="Дата от (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="Дата до (YYYY-MM-DD)"),
-    limit: int = Query(50, description="Лимит результатов")
+    limit: int = Query(50, description="Лимит результатов"),
+    status: Optional[str] = Query(None, description="Статус звонка (active/completed/failed)")
 ):
-    """Поиск трейсов звонков"""
+    """Поиск трейсов звонков в БД"""
     try:
-        results = []
+        conn = await asyncpg.connect(**DB_CONFIG)
         
-        for unique_id, trace in call_traces.items():
-            # Фильтр по предприятию
-            if enterprise and trace["enterprise_number"] != enterprise:
-                continue
-            
-            # Фильтр по номеру телефона (ищем в событиях)
-            if phone:
-                phone_found = False
-                for event in trace["events"]:
-                    if phone in str(event.get("event_data", {})):
-                        phone_found = True
-                        break
-                if not phone_found:
-                    continue
-            
-            # Фильтры по дате пока пропускаем (заглушка)
-            
-            results.append({
-                "unique_id": unique_id,
-                "enterprise_number": trace["enterprise_number"],
-                "created_at": trace["created_at"].isoformat(),
-                "updated_at": trace["updated_at"].isoformat(),
-                "events_count": len(trace["events"]),
-                "http_requests_count": len(trace["http_requests"]),
-                "sql_queries_count": len(trace["sql_queries"]),
-                "telegram_messages_count": len(trace["telegram_messages"])
+        # Строим WHERE условие
+        where_conditions = []
+        params = []
+        param_counter = 1
+        
+        if enterprise:
+            where_conditions.append(f"enterprise_number = ${param_counter}")
+            params.append(enterprise)
+            param_counter += 1
+        
+        if phone:
+            where_conditions.append(f"phone_number LIKE ${param_counter}")
+            params.append(f"%{phone}%")
+            param_counter += 1
+        
+        if date_from:
+            where_conditions.append(f"start_time >= ${param_counter}::timestamp")
+            params.append(date_from)
+            param_counter += 1
+        
+        if date_to:
+            where_conditions.append(f"start_time < ${param_counter}::timestamp + interval '1 day'")
+            params.append(date_to)
+            param_counter += 1
+        
+        if status:
+            where_conditions.append(f"call_status = ${param_counter}")
+            params.append(status)
+            param_counter += 1
+        
+        # Строим SQL запрос
+        where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+        query = f"""
+        SELECT 
+            unique_id,
+            enterprise_number,
+            phone_number,
+            call_status,
+            start_time,
+            end_time,
+            jsonb_array_length(call_events) as events_count,
+            jsonb_array_length(http_requests) as http_count,
+            jsonb_array_length(sql_queries) as sql_count,
+            jsonb_array_length(telegram_messages) as tg_count,
+            jsonb_array_length(integration_responses) as int_count,
+            created_at,
+            updated_at
+        FROM call_traces
+        WHERE {where_clause}
+        ORDER BY start_time DESC
+        LIMIT ${param_counter}
+        """
+        params.append(limit)
+        
+        results = await conn.fetch(query, *params)
+        await conn.close()
+        
+        formatted_results = []
+        for row in results:
+            formatted_results.append({
+                "unique_id": row['unique_id'],
+                "enterprise_number": row['enterprise_number'],
+                "phone_number": row['phone_number'],
+                "call_status": row['call_status'],
+                "start_time": row['start_time'].isoformat() if row['start_time'] else None,
+                "end_time": row['end_time'].isoformat() if row['end_time'] else None,
+                "events_count": row['events_count'],
+                "http_requests_count": row['http_count'],
+                "sql_queries_count": row['sql_count'],
+                "telegram_messages_count": row['tg_count'],
+                "integration_responses_count": row['int_count'],
+                "created_at": row['created_at'].isoformat() if row['created_at'] else None,
+                "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None
             })
-            
-            if len(results) >= limit:
-                break
         
         return {
-            "results": results,
-            "total": len(results),
-            "limit": limit
+            "results": formatted_results,
+            "total": len(formatted_results),
+            "limit": limit,
+            "filters": {
+                "enterprise": enterprise,
+                "phone": phone,
+                "date_from": date_from,
+                "date_to": date_to,
+                "status": status
+            }
         }
         
     except Exception as e:
@@ -544,7 +746,7 @@ async def health_check():
         "status": "healthy",
         "service": "logger",
         "port": 8026,
-        "traces_count": len(call_traces)
+        "database": "connected"
     }
 
 # ═══════════════════════════════════════════════════════════════════

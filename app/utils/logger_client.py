@@ -188,6 +188,57 @@ class LoggerClient:
             
         return await self._send_log("/log/telegram", payload)
     
+    async def log_integration_response(
+        self,
+        enterprise_number: str,
+        unique_id: str,
+        integration: str,
+        endpoint: str,
+        method: str,
+        status: str,
+        request_data: Optional[Dict[str, Any]] = None,
+        response_data: Optional[Dict[str, Any]] = None,
+        duration_ms: Optional[float] = None,
+        error: Optional[str] = None
+    ) -> bool:
+        """
+        Логирование ответа интеграции
+        
+        Args:
+            enterprise_number: Номер предприятия
+            unique_id: Уникальный ID звонка
+            integration: Название интеграции (moysklad, retailcrm, etc.)
+            endpoint: Endpoint API
+            method: HTTP метод (GET, POST, PUT, DELETE)
+            status: Статус (success, error, etc.)
+            request_data: Данные запроса
+            response_data: Данные ответа
+            duration_ms: Время выполнения в миллисекундах
+            error: Текст ошибки если есть
+        
+        Returns:
+            bool: True если успешно залогировано
+        """
+        payload = {
+            "enterprise_number": enterprise_number,
+            "unique_id": unique_id,
+            "integration": integration,
+            "endpoint": endpoint,
+            "method": method,
+            "status": status
+        }
+        
+        if request_data is not None:
+            payload["request_data"] = request_data
+        if response_data is not None:
+            payload["response_data"] = response_data
+        if duration_ms is not None:
+            payload["duration_ms"] = duration_ms
+        if error is not None:
+            payload["error"] = error
+            
+        return await self._send_log("/log/integration", payload)
+    
     async def _send_log(self, endpoint: str, payload: Dict[str, Any]) -> bool:
         """
         Отправка лога в Call Logger Service
@@ -305,4 +356,28 @@ async def log_call_hangup(enterprise_number: str, unique_id: str, event_data: Di
         unique_id=unique_id,
         event_type="hangup",
         event_data=event_data
+    )
+
+async def log_integration_call(
+    enterprise_number: str,
+    unique_id: str,
+    integration: str,
+    endpoint: str,
+    method: str,
+    status: str,
+    response_data: Optional[Dict[str, Any]] = None,
+    duration_ms: Optional[float] = None,
+    error: Optional[str] = None
+):
+    """Быстрое логирование вызова интеграции"""
+    return await call_logger.log_integration_response(
+        enterprise_number=enterprise_number,
+        unique_id=unique_id,
+        integration=integration,
+        endpoint=endpoint,
+        method=method,
+        status=status,
+        response_data=response_data,
+        duration_ms=duration_ms,
+        error=error
     )
