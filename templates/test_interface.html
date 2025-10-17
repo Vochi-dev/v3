@@ -15178,6 +15178,7 @@
                     break;
                     
                 case 42: // Паттерн 3-1: Внутренний звонок между менеджерами
+                    window.callUniqueIds = {};
                     // Получаем данные из формы
                     const callerManager_3_1 = formData.get('internal_caller'); // Кто звонит
                     const calleeManager_3_1 = formData.get('internal_callee'); // Кому звонят
@@ -15187,8 +15188,8 @@
 
                     // Генерируем уникальные ID для каналов
                     const uniqueIds_3_1 = {
-                        caller: generateUniqueId("1757775514.350"),
-                        callee: generateUniqueId("1757775515.351")
+                        caller: '__UNIQUE_ID_1__',
+                        callee: '__UNIQUE_ID_2__'
                     };
 
                     // Временные метки
