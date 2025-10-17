@@ -15371,13 +15371,14 @@
                     break;
 
                 case 44: // Паттерн 3-3: Звонок на отдел 901 - ответил член отдела
+                    window.callUniqueIds = {};
                     // Получаем данные из формы
                     const callerManager_3_3 = formData.get('department_caller'); // Менеджер 152, который звонит
                     const departmentMember_3_3 = formData.get('department_member_1'); // Член отдела 151, который ответил
 
                     // Генерируем уникальные ID (используем базовые из реального db файла)
-                    const uniqueId_caller_3_3 = generateUniqueId("1759225684.16"); // ID звонящего
-                    const uniqueId_member_3_3 = generateUniqueId("1759225685.18"); // ID члена отдела
+                    const uniqueId_caller_3_3 = '__UNIQUE_ID_1__'; // ID звонящего
+                    const uniqueId_member_3_3 = '__UNIQUE_ID_2__'; // ID члена отдела
                     const bridgeId_3_3 = generateBridgeUUID();
                     
                     // Генерируем временные метки
