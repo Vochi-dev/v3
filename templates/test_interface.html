@@ -15331,12 +15331,13 @@
                     break;
                     
                 case 43: // Паттерн 3-2: Внутренний звонок - не ответили
+                    window.callUniqueIds = {};
                     // Получаем данные из формы
                     const callerManager_3_2 = formData.get('internal_caller'); // Кто звонит
                     const calleeManager_3_2 = formData.get('internal_callee'); // Кому звонят
 
                     // Генерируем уникальные ID
-                    const uniqueId_3_2 = generateUniqueId();
+                    const uniqueId_3_2 = '__UNIQUE_ID_1__';
                     
                     // Генерируем временные метки
                     const receivedTime_3_2 = new Date();
