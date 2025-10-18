@@ -968,3 +968,285 @@ HAVING (SELECT COUNT(*) FROM call_traces WHERE tableoid = ('public.'||tablename)
 **Завершено**: Этапы 1-6.1 (50% плана, 100% критических этапов)  
 **Время разработки**: ~2 часа  
 **Автор**: Call Logger Service Team
+
+---
+
+## 🔍 АНАЛИТИКА: Архитектура "ОДИН ЗВОНОК = ОДНА ЗАПИСЬ" (2025-10-18)
+
+### 🎯 Проблема текущей архитектуры
+
+**Текущая ситуация:**
+- Один звонок в Asterisk = **ДВА UniqueId** (два канала в bridge-мосту)
+- Каждый UniqueId создает **отдельную запись** в `call_traces`
+- Результат: **2 записи в БД** вместо одной
+
+**Пример из реальных логов:**
+```
+UniqueId: 1760709490.90 (канал 1) → запись 1 в БД
+UniqueId: 1760709496.96 (канал 2) → запись 2 в БД
+BridgeUniqueid: 9aee1b64-59fe-4da0-b11f-835ff1f22cf9 (ОДИН для обоих!)
+```
+
+### ✅ РЕШЕНИЕ: BridgeUniqueid как связующий идентификатор
+
+**Ключевая идея:**
+- **BridgeUniqueid** - это UUID моста, который **ОДИН** для всех каналов в звонке
+- Использовать `BridgeUniqueid` как **PRIMARY KEY** вместо `unique_id`
+- Хранить все `UniqueId` каналов в **JSONB массиве** внутри одной записи
+
+### 📊 Новая архитектура таблицы
+
+```sql
+CREATE TABLE call_traces (
+    id BIGSERIAL,
+    bridge_unique_id VARCHAR(50) NOT NULL,      -- ОСНОВНОЙ КЛЮЧ (BridgeUniqueid)
+    enterprise_number VARCHAR(10) NOT NULL,
+    channel_unique_ids JSONB DEFAULT '[]'::jsonb,  -- Массив всех UniqueId каналов
+    phone_number VARCHAR(20),
+    call_direction VARCHAR(10),
+    call_status VARCHAR(20) DEFAULT 'active',
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    end_time TIMESTAMP WITH TIME ZONE,
+    
+    -- JSONB поля для всех типов логов
+    call_events JSONB DEFAULT '[]'::jsonb,
+    http_requests JSONB DEFAULT '[]'::jsonb,
+    sql_queries JSONB DEFAULT '[]'::jsonb,
+    telegram_messages JSONB DEFAULT '[]'::jsonb,
+    integration_responses JSONB DEFAULT '[]'::jsonb,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    PRIMARY KEY (bridge_unique_id, enterprise_number)
+) PARTITION BY LIST (enterprise_number);
+```
+
+**Ключевые изменения:**
+1. `bridge_unique_id` - новый PRIMARY KEY (вместо `unique_id`)
+2. `channel_unique_ids` - JSONB массив для хранения всех UniqueId каналов
+3. Все события обоих каналов → **ОДНА запись**
+
+### 🔑 Логика определения BridgeUniqueid
+
+**Алгоритм извлечения связующего идентификатора:**
+
+```python
+def get_call_identifier(events):
+    """
+    Определяет связующий идентификатор для группировки событий звонка
+    
+    Приоритет:
+    1. BridgeUniqueid из первого bridge события (основной случай)
+    2. UniqueId из первого start/dial события (fallback)
+    """
+    # 1. Ищем первый bridge - берем его BridgeUniqueid
+    first_bridge = next((e for e in events if e.event == 'bridge'), None)
+    if first_bridge and first_bridge.data.get('BridgeUniqueid'):
+        return first_bridge.data.get('BridgeUniqueid')
+    
+    # 2. Fallback: используем UniqueId из start/dial
+    start_or_dial = next((e for e in events if e.event in ['start', 'dial']), None)
+    if start_or_dial:
+        return start_or_dial.uniqueid
+    
+    return None
+```
+
+**Источник логики:**
+- Основан на анализе `events.md` (строки 508-521)
+- Входящий звонок: первое `start` событие
+- Исходящий звонок: первое `dial` событие
+- Связь каналов: `BridgeUniqueid` из первого `bridge` события
+
+### 📝 Изменения в коде
+
+#### 1. Функция БД `add_call_event()` - ТРЕБУЕТ ОБНОВЛЕНИЯ
+
+**Новая сигнатура:**
+```sql
+CREATE OR REPLACE FUNCTION add_call_event(
+    p_bridge_unique_id VARCHAR(50),    -- НОВЫЙ: основной ключ
+    p_channel_unique_id VARCHAR(50),   -- НОВЫЙ: UniqueId канала
+    p_enterprise_number VARCHAR(10),
+    p_event_type VARCHAR(30),
+    p_event_data JSONB,
+    p_phone_number VARCHAR(20) DEFAULT NULL
+)
+RETURNS BIGINT AS $$
+DECLARE
+    v_trace_id BIGINT;
+BEGIN
+    -- Проверяем существующую запись по bridge_unique_id
+    SELECT id INTO v_trace_id 
+    FROM call_traces 
+    WHERE bridge_unique_id = p_bridge_unique_id 
+      AND enterprise_number = p_enterprise_number;
+    
+    IF v_trace_id IS NOT NULL THEN
+        -- Обновляем существующую запись
+        UPDATE call_traces SET
+            -- Добавляем channel_unique_id в массив (если его там нет)
+            channel_unique_ids = CASE 
+                WHEN NOT channel_unique_ids @> jsonb_build_array(p_channel_unique_id)
+                THEN channel_unique_ids || jsonb_build_array(p_channel_unique_id)
+                ELSE channel_unique_ids
+            END,
+            -- Добавляем событие
+            call_events = call_events || jsonb_build_object(
+                'event_sequence', jsonb_array_length(call_events) + 1,
+                'event_type', p_event_type,
+                'event_timestamp', NOW(),
+                'channel_unique_id', p_channel_unique_id,
+                'event_data', p_event_data
+            ),
+            updated_at = NOW()
+        WHERE id = v_trace_id;
+    ELSE
+        -- Создаем новую запись
+        INSERT INTO call_traces (
+            bridge_unique_id, 
+            enterprise_number, 
+            channel_unique_ids,
+            phone_number, 
+            call_direction, 
+            call_status, 
+            call_events
+        )
+        VALUES (
+            p_bridge_unique_id, 
+            p_enterprise_number, 
+            jsonb_build_array(p_channel_unique_id),
+            p_phone_number, 
+            CASE WHEN p_event_type IN ('start', 'dial') THEN 'outgoing' END,
+            'active',
+            jsonb_build_array(jsonb_build_object(
+                'event_sequence', 1,
+                'event_type', p_event_type,
+                'event_timestamp', NOW(),
+                'channel_unique_id', p_channel_unique_id,
+                'event_data', p_event_data
+            ))
+        )
+        RETURNING id INTO v_trace_id;
+    END IF;
+
+    RETURN v_trace_id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### 2. API эндпоинт `/log/event` - ТРЕБУЕТ ОБНОВЛЕНИЯ
+
+```python
+@app.post("/log/event")
+async def log_call_event(event: CallEvent):
+    try:
+        conn = await asyncpg.connect(**DB_CONFIG)
+        
+        # Определяем bridge_unique_id из данных события
+        bridge_uid = event.event_data.get('BridgeUniqueid') or event.unique_id
+        channel_uid = event.unique_id
+        
+        # Логируем с новой сигнатурой
+        await conn.fetchval(
+            "SELECT add_call_event($1, $2, $3, $4, $5, $6)",
+            bridge_uid,           # bridge_unique_id (основной ключ)
+            channel_uid,          # channel_unique_id (добавляется в массив)
+            event.enterprise_number,
+            event.event_type,
+            json.dumps(event.event_data),
+            event.event_data.get('Phone')
+        )
+        
+        await conn.close()
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Error logging event: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+#### 3. Обработчики событий - ТРЕБУЮТ ОБНОВЛЕНИЯ
+
+**dial.py, bridge.py, hangup.py:**
+- При вызове `log_call_event()` передавать `BridgeUniqueid` если доступен
+- Для событий без bridge использовать `UniqueId` как fallback
+
+### 📈 Результат архитектуры
+
+**БЫЛО (текущая архитектура):**
+```sql
+-- Два UniqueId → две записи
+SELECT * FROM "0367";
+
+ id | unique_id        | events | telegram_messages
+----+------------------+--------+------------------
+  1 | 1760709490.90    | 6      | {...}
+  2 | 1760709496.96    | 2      | {...}
+```
+
+**СТАНЕТ (новая архитектура):**
+```sql
+-- Один BridgeUniqueid → одна запись
+SELECT * FROM "0367";
+
+ id | bridge_unique_id                      | channel_unique_ids              | events
+----+---------------------------------------+---------------------------------+--------
+  1 | 9aee1b64-59fe-4da0-b11f-835ff1f22cf9 | ["1760709490.90","1760709496.96"] | 8
+```
+
+**Преимущества:**
+1. ✅ **Один звонок = одна запись** (требование выполнено)
+2. ✅ **Все данные в одном месте** (события обоих каналов)
+3. ✅ **Полная трассировка** (все UniqueId сохранены в массиве)
+4. ✅ **Простота анализа** (не нужно JOIN-ить записи)
+5. ✅ **Telegram сообщения** (все отправки в одной записи)
+
+### 🚀 План миграции
+
+#### Этап 1: Подготовка БД
+1. Добавить колонку `bridge_unique_id` в `call_traces`
+2. Добавить колонку `channel_unique_ids` (JSONB)
+3. Создать индекс на `bridge_unique_id`
+4. Обновить UNIQUE constraint
+
+#### Этап 2: Обновление функций БД
+1. Переписать `add_call_event()` с новой сигнатурой
+2. Обновить остальные функции (add_http_request, add_telegram_message и т.д.)
+3. Добавить миграцию существующих данных
+
+#### Этап 3: Обновление API
+1. Обновить `/log/event` эндпоинт
+2. Обновить `/trace/{id}` для поддержки bridge_unique_id
+3. Обновить `/search` для фильтрации по bridge_unique_id
+
+#### Этап 4: Обновление обработчиков
+1. Обновить `dial.py` для извлечения BridgeUniqueid
+2. Обновить `bridge.py` для извлечения BridgeUniqueid
+3. Обновить `hangup.py` для извлечения BridgeUniqueid
+
+#### Этап 5: Тестирование
+1. Тестовые звонки с эмуляцией
+2. Проверка что создается ОДНА запись
+3. Проверка что все UniqueId в массиве
+4. Проверка timeline и поиска
+
+### 📋 Статус внедрения
+
+**СТАТУС: 📋 ЗАПЛАНИРОВАНО**
+
+- 📋 Этап 1: Подготовка БД (не начато)
+- 📋 Этап 2: Обновление функций БД (не начато)
+- 📋 Этап 3: Обновление API (не начато)
+- 📋 Этап 4: Обновление обработчиков (не начато)
+- 📋 Этап 5: Тестирование (не начато)
+
+**Приоритет:** 🔴 ВЫСОКИЙ (критичное требование пользователя)
+
+**Оценка времени:** 3-4 часа работы
+
+---
+
+**Версия документации**: 2.1 (обновлено 2025-10-18)  
+**Добавлено**: Аналитика архитектуры "один звонок = одна запись"  
+**Автор**: Call Logger Service Team
