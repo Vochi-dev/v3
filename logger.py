@@ -38,6 +38,8 @@ class CallEvent(BaseModel):
     event_type: str  # dial, bridge, hangup, etc.
     event_data: Dict[str, Any]
     chat_id: Optional[int] = None  # ID получателя в Telegram
+    phone_number: Optional[str] = None  # Номер телефона
+    bridge_unique_id: Optional[str] = None  # BridgeUniqueid для группировки
     timestamp: Optional[datetime] = None
 
 class HttpRequest(BaseModel):
@@ -272,25 +274,32 @@ async def log_call_event(event: CallEvent):
         conn = await asyncpg.connect(**DB_CONFIG)
         
         # Извлекаем номер телефона из данных события если есть
-        phone_number = None
-        if 'Phone' in event.event_data:
-            phone_number = event.event_data['Phone']
-        elif 'phone' in event.event_data:
-            phone_number = event.event_data['phone']
+        phone_number = event.phone_number
+        if not phone_number:
+            if 'Phone' in event.event_data:
+                phone_number = event.event_data['Phone']
+            elif 'phone' in event.event_data:
+                phone_number = event.event_data['phone']
+        
+        # Извлекаем BridgeUniqueid из данных события если не передан явно
+        bridge_unique_id = event.bridge_unique_id
+        if not bridge_unique_id and 'BridgeUniqueid' in event.event_data:
+            bridge_unique_id = event.event_data['BridgeUniqueid']
         
         # Добавляем chat_id в event_data для сохранения в JSONB
         event_data_with_chat = event.event_data.copy()
         if event.chat_id:
             event_data_with_chat["_chat_id"] = event.chat_id
         
-        # Добавляем событие через функцию БД
+        # Добавляем событие через функцию БД (теперь с bridge_unique_id)
         trace_id = await conn.fetchval(
-            "SELECT add_call_event($1, $2, $3, $4, $5)",
+            "SELECT add_call_event($1, $2, $3, $4, $5, $6)",
             event.unique_id,
             event.enterprise_number, 
             event.event_type,
             json.dumps(event_data_with_chat),
-            phone_number
+            phone_number,
+            bridge_unique_id
         )
         
         await conn.close()

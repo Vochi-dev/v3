@@ -107,6 +107,38 @@ async def process_bridge_create(bot: Bot, chat_id: int, data: dict):
     
     logging.info(f"[process_bridge_create] BridgeCreate: uid={uid}, bridge_id={bridge_id}, type={bridge_type}")
     
+    # ───────── Логирование bridge_create события в Call Logger ─────────
+    enterprise_number = "unknown"
+    try:
+        token = data.get("Token", "")
+        if token:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                result = await conn.fetchrow(
+                    "SELECT number FROM enterprises WHERE name2 = $1",
+                    token
+                )
+                if result:
+                    enterprise_number = result['number']
+                else:
+                    logging.warning(f"[process_bridge_create] Enterprise not found for Token '{token}'")
+    except Exception as e:
+        logging.error(f"[process_bridge_create] Failed to resolve enterprise_number: {e}")
+
+    try:
+        # Для bridge_create используем bridge_id как unique_id если uid пустой
+        log_uid = uid if uid else bridge_id
+        await call_logger.log_call_event(
+            enterprise_number=enterprise_number,
+            unique_id=log_uid,
+            event_type="bridge_create",
+            event_data=data,
+            chat_id=chat_id
+        )
+        logging.info(f"[process_bridge_create] Logged bridge_create event to Call Logger: {log_uid}")
+    except Exception as e:
+        logging.warning(f"[process_bridge_create] Failed to log bridge_create event: {e}")
+    
     # Пока просто логируем событие без отправки Telegram сообщений
     # В будущем можно добавить логику отправки уведомлений
     
@@ -136,6 +168,36 @@ async def process_bridge_leave(bot: Bot, chat_id: int, data: dict):
     channel = data.get("Channel", "")
     
     logging.info(f"[process_bridge_leave] BridgeLeave: uid={uid}, bridge_id={bridge_id}, channel={channel}")
+    
+    # ───────── Логирование bridge_leave события в Call Logger ─────────
+    enterprise_number = "unknown"
+    try:
+        token = data.get("Token", "")
+        if token:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                result = await conn.fetchrow(
+                    "SELECT number FROM enterprises WHERE name2 = $1",
+                    token
+                )
+                if result:
+                    enterprise_number = result['number']
+                else:
+                    logging.warning(f"[process_bridge_leave] Enterprise not found for Token '{token}'")
+    except Exception as e:
+        logging.error(f"[process_bridge_leave] Failed to resolve enterprise_number: {e}")
+
+    try:
+        await call_logger.log_call_event(
+            enterprise_number=enterprise_number,
+            unique_id=uid,
+            event_type="bridge_leave",
+            event_data=data,
+            chat_id=chat_id
+        )
+        logging.info(f"[process_bridge_leave] Logged bridge_leave event to Call Logger: {uid}")
+    except Exception as e:
+        logging.warning(f"[process_bridge_leave] Failed to log bridge_leave event: {e}")
     
     # Обновляем active_bridges - удаляем участника если мост пустеет
     if uid in active_bridges:
@@ -167,6 +229,37 @@ async def process_bridge_destroy(bot: Bot, chat_id: int, data: dict):
     bridge_type = data.get("BridgeType", "")
     
     logging.info(f"[process_bridge_destroy] BridgeDestroy: bridge_id={bridge_id}, type={bridge_type}")
+    
+    # ───────── Логирование bridge_destroy события в Call Logger ─────────
+    enterprise_number = "unknown"
+    try:
+        token = data.get("Token", "")
+        if token:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                result = await conn.fetchrow(
+                    "SELECT number FROM enterprises WHERE name2 = $1",
+                    token
+                )
+                if result:
+                    enterprise_number = result['number']
+                else:
+                    logging.warning(f"[process_bridge_destroy] Enterprise not found for Token '{token}'")
+    except Exception as e:
+        logging.error(f"[process_bridge_destroy] Failed to resolve enterprise_number: {e}")
+
+    try:
+        # Для bridge_destroy используем bridge_id как unique_id
+        await call_logger.log_call_event(
+            enterprise_number=enterprise_number,
+            unique_id=bridge_id,
+            event_type="bridge_destroy",
+            event_data=data,
+            chat_id=chat_id
+        )
+        logging.info(f"[process_bridge_destroy] Logged bridge_destroy event to Call Logger: {bridge_id}")
+    except Exception as e:
+        logging.warning(f"[process_bridge_destroy] Failed to log bridge_destroy event: {e}")
     
     # Очищаем все связанные мосты из active_bridges
     bridges_to_remove = []
@@ -211,6 +304,36 @@ async def process_new_callerid(bot: Bot, chat_id: int, data: dict):
     logging.info(f"[process_new_callerid] NewCallerid: uid={uid}, channel={channel}")
     logging.info(f"[process_new_callerid] CallerID: {caller_id_num} ({caller_id_name})")
     logging.info(f"[process_new_callerid] ConnectedLine: {connected_line_num} ({connected_line_name})")
+    
+    # ───────── Логирование new_callerid события в Call Logger ─────────
+    enterprise_number = "unknown"
+    try:
+        token = data.get("Token", "")
+        if token:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                result = await conn.fetchrow(
+                    "SELECT number FROM enterprises WHERE name2 = $1",
+                    token
+                )
+                if result:
+                    enterprise_number = result['number']
+                else:
+                    logging.warning(f"[process_new_callerid] Enterprise not found for Token '{token}'")
+    except Exception as e:
+        logging.error(f"[process_new_callerid] Failed to resolve enterprise_number: {e}")
+
+    try:
+        await call_logger.log_call_event(
+            enterprise_number=enterprise_number,
+            unique_id=uid,
+            event_type="new_callerid",
+            event_data=data,
+            chat_id=chat_id
+        )
+        logging.info(f"[process_new_callerid] Logged new_callerid event to Call Logger: {uid}")
+    except Exception as e:
+        logging.warning(f"[process_new_callerid] Failed to log new_callerid event: {e}")
     
     # Обновляем активные мосты с новой информацией о CallerID
     if uid in active_bridges:

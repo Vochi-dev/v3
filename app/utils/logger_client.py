@@ -24,7 +24,8 @@ class LoggerClient:
         event_type: str, 
         event_data: Dict[str, Any],
         phone_number: Optional[str] = None,
-        chat_id: Optional[int] = None
+        chat_id: Optional[int] = None,
+        bridge_unique_id: Optional[str] = None
     ) -> bool:
         """
         Логирование события звонка
@@ -35,6 +36,8 @@ class LoggerClient:
             event_type: Тип события (dial, bridge, hangup, etc.)
             event_data: Данные события
             phone_number: Номер телефона (опционально)
+            chat_id: ID чата в Telegram (опционально)
+            bridge_unique_id: BridgeUniqueid для группировки событий (опционально)
         
         Returns:
             bool: True если успешно залогировано
@@ -50,6 +53,8 @@ class LoggerClient:
             payload["phone_number"] = phone_number
         if chat_id:
             payload["chat_id"] = chat_id
+        if bridge_unique_id:
+            payload["bridge_unique_id"] = bridge_unique_id
             
         return await self._send_log("/log/event", payload)
     
