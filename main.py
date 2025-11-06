@@ -435,42 +435,57 @@ async def root(request: Request):
 async def asterisk_start(body: dict = Body(...), request: Request = None):
     """
     При POST /start вызываем process_start из app/services/calls/start.py
+    АСИНХРОННО - сразу возвращаем 200 OK, обработка в фоне
     """
     client_ip = request.client.host if request and request.client else "Unknown"
     logger.info(f"START REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
     
-    return JSONResponse(await _dispatch_to_all(process_start, body))
+    # Запускаем обработку в фоне, не блокируем ответ
+    asyncio.create_task(_dispatch_to_all(process_start, body))
+    
+    return JSONResponse({"status": "ok", "message": "Event queued for processing"})
 
 @app.post("/dial")
 async def asterisk_dial(body: dict = Body(...), request: Request = None):
     """
     При POST /dial вызываем process_dial из app/services/calls/dial.py
+    АСИНХРОННО - сразу возвращаем 200 OK, обработка в фоне
     """
     client_ip = request.client.host if request and request.client else "Unknown"
     logger.info(f"DIAL REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
     
-    return JSONResponse(await _dispatch_to_all(process_dial, body))
+    # Запускаем обработку в фоне, не блокируем ответ
+    asyncio.create_task(_dispatch_to_all(process_dial, body))
+    
+    return JSONResponse({"status": "ok", "message": "Event queued for processing"})
 
 @app.post("/bridge")
 async def asterisk_bridge(body: dict = Body(...), request: Request = None):
     """
     При POST /bridge вызываем process_bridge из app/services/calls/bridge.py
+    АСИНХРОННО - сразу возвращаем 200 OK, обработка в фоне
     """
     client_ip = request.client.host if request and request.client else "Unknown"
     logger.info(f"BRIDGE REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
     
-    return JSONResponse(await _dispatch_to_all(process_bridge, body))
+    # Запускаем обработку в фоне, не блокируем ответ
+    asyncio.create_task(_dispatch_to_all(process_bridge, body))
+    
+    return JSONResponse({"status": "ok", "message": "Event queued for processing"})
 
 @app.post("/hangup")
 async def asterisk_hangup(body: dict = Body(...), request: Request = None):
     """
     При POST /hangup вызываем process_hangup из app/services/calls/hangup.py
+    АСИНХРОННО - сразу возвращаем 200 OK, обработка в фоне
     """
-    # Добавляем детальное логирование для диагностики
     client_ip = request.client.host if request and request.client else "Unknown"
     logger.info(f"HANGUP REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
     
-    return JSONResponse(await _dispatch_to_all(process_hangup, body))
+    # Запускаем обработку в фоне, не блокируем ответ
+    asyncio.create_task(_dispatch_to_all(process_hangup, body))
+    
+    return JSONResponse({"status": "ok", "message": "Event queued for processing"})
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Новые эндпоинты для модернизированного AMI-скрипта (17.01.2025)
@@ -480,41 +495,57 @@ async def asterisk_hangup(body: dict = Body(...), request: Request = None):
 async def asterisk_bridge_create(body: dict = Body(...), request: Request = None):
     """
     При POST /bridge_create вызываем process_bridge_create из app/services/calls/bridge.py
+    АСИНХРОННО - сразу возвращаем 200 OK, обработка в фоне
     """
     client_ip = request.client.host if request and request.client else "Unknown"
     logger.info(f"BRIDGE_CREATE REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
     
-    return JSONResponse(await _dispatch_to_all(process_bridge_create, body))
+    # Запускаем обработку в фоне, не блокируем ответ
+    asyncio.create_task(_dispatch_to_all(process_bridge_create, body))
+    
+    return JSONResponse({"status": "ok", "message": "Event queued for processing"})
 
 @app.post("/bridge_leave")
 async def asterisk_bridge_leave(body: dict = Body(...), request: Request = None):
     """
     При POST /bridge_leave вызываем process_bridge_leave из app/services/calls/bridge.py
+    АСИНХРОННО - сразу возвращаем 200 OK, обработка в фоне
     """
     client_ip = request.client.host if request and request.client else "Unknown"
     logger.info(f"BRIDGE_LEAVE REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
     
-    return JSONResponse(await _dispatch_to_all(process_bridge_leave, body))
+    # Запускаем обработку в фоне, не блокируем ответ
+    asyncio.create_task(_dispatch_to_all(process_bridge_leave, body))
+    
+    return JSONResponse({"status": "ok", "message": "Event queued for processing"})
 
 @app.post("/bridge_destroy")
 async def asterisk_bridge_destroy(body: dict = Body(...), request: Request = None):
     """
     При POST /bridge_destroy вызываем process_bridge_destroy из app/services/calls/bridge.py
+    АСИНХРОННО - сразу возвращаем 200 OK, обработка в фоне
     """
     client_ip = request.client.host if request and request.client else "Unknown"
     logger.info(f"BRIDGE_DESTROY REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
     
-    return JSONResponse(await _dispatch_to_all(process_bridge_destroy, body))
+    # Запускаем обработку в фоне, не блокируем ответ
+    asyncio.create_task(_dispatch_to_all(process_bridge_destroy, body))
+    
+    return JSONResponse({"status": "ok", "message": "Event queued for processing"})
 
 @app.post("/new_callerid")
 async def asterisk_new_callerid(body: dict = Body(...), request: Request = None):
     """
     При POST /new_callerid вызываем process_new_callerid из app/services/calls/bridge.py
+    АСИНХРОННО - сразу возвращаем 200 OK, обработка в фоне
     """
     client_ip = request.client.host if request and request.client else "Unknown"
     logger.info(f"NEW_CALLERID REQUEST from {client_ip}: {json.dumps(body, ensure_ascii=False)}")
     
-    return JSONResponse(await _dispatch_to_all(process_new_callerid, body))
+    # Запускаем обработку в фоне, не блокируем ответ
+    asyncio.create_task(_dispatch_to_all(process_new_callerid, body))
+    
+    return JSONResponse({"status": "ok", "message": "Event queued for processing"})
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Раздел, связанный с запуском Aiogram-ботов, временно отключён,

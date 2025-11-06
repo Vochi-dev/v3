@@ -25,7 +25,8 @@ class LoggerClient:
         event_data: Dict[str, Any],
         phone_number: Optional[str] = None,
         chat_id: Optional[int] = None,
-        bridge_unique_id: Optional[str] = None
+        bridge_unique_id: Optional[str] = None,
+        background: bool = False
     ) -> bool:
         """
         Логирование события звонка
@@ -38,9 +39,10 @@ class LoggerClient:
             phone_number: Номер телефона (опционально)
             chat_id: ID чата в Telegram (опционально)
             bridge_unique_id: BridgeUniqueid для группировки событий (опционально)
+            background: Если True, отправляет в фоне без ожидания (опционально)
         
         Returns:
-            bool: True если успешно залогировано
+            bool: True если успешно залогировано (или True если background=True)
         """
         payload = {
             "enterprise_number": enterprise_number,
@@ -55,8 +57,12 @@ class LoggerClient:
             payload["chat_id"] = chat_id
         if bridge_unique_id:
             payload["bridge_unique_id"] = bridge_unique_id
-            
-        return await self._send_log("/log/event", payload)
+        
+        if background:
+            self._send_log_background("/log/event", payload)
+            return True
+        else:
+            return await self._send_log("/log/event", payload)
     
     async def log_http_request(
         self,
@@ -277,6 +283,16 @@ class LoggerClient:
         except Exception as e:
             logger.warning(f"Error sending log to {endpoint}: {e}")
             return False
+    
+    def _send_log_background(self, endpoint: str, payload: Dict[str, Any]):
+        """
+        Отправка лога в фоне без ожидания ответа (fire-and-forget)
+        
+        Args:
+            endpoint: Эндпоинт API (/log/event, /log/http, etc.)
+            payload: Данные для отправки
+        """
+        asyncio.create_task(self._send_log(endpoint, payload))
 
 # Глобальный экземпляр клиента
 call_logger = LoggerClient()

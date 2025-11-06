@@ -67,7 +67,7 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
     except Exception as e:
         logging.error(f"[process_start] Failed to resolve enterprise_number: {e}")
 
-    # ───────── Логирование start события в Call Logger ─────────
+    # ───────── Логирование start события в Call Logger (ФОНОВО) ─────────
     try:
         await call_logger.log_call_event(
             enterprise_number=enterprise_number,
@@ -75,11 +75,12 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
             event_type="start",
             event_data=data,
             phone_number=phone,
-            chat_id=chat_id
+            chat_id=chat_id,
+            background=True
         )
-        logging.info(f"[process_start] Logged start event to Call Logger: {uid}")
+        logging.info(f"[process_start] Queued start event to Call Logger: {uid}")
     except Exception as e:
-        logging.warning(f"[process_start] Failed to log start event: {e}")
+        logging.warning(f"[process_start] Failed to queue start event: {e}")
 
     # ───────── Шаг 3. Формируем текст согласно Пояснению ─────────
     if is_int:

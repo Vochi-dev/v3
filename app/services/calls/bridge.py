@@ -67,18 +67,19 @@ async def process_bridge(bot: Bot, chat_id: int, data: dict):
     except Exception as e:
         logging.error(f"[process_bridge] Failed to resolve enterprise_number: {e}")
 
-    # ───────── Логирование bridge события в Call Logger ─────────
+    # ───────── Логирование bridge события в Call Logger (ФОНОВО) ─────────
     try:
         await call_logger.log_call_event(
             enterprise_number=enterprise_number,
             unique_id=uid,
             event_type="bridge",
             event_data=data,
-            chat_id=chat_id
+            chat_id=chat_id,
+            background=True
         )
-        logging.info(f"[process_bridge] Logged bridge event to Call Logger: {uid}")
+        logging.info(f"[process_bridge] Queued bridge event to Call Logger: {uid}")
     except Exception as e:
-        logging.warning(f"[process_bridge] Failed to log bridge event: {e}")
+        logging.warning(f"[process_bridge] Failed to queue bridge event: {e}")
     
     # Проверяем нужно ли отправлять этот bridge
     if should_send_bridge(data):
@@ -133,11 +134,12 @@ async def process_bridge_create(bot: Bot, chat_id: int, data: dict):
             unique_id=log_uid,
             event_type="bridge_create",
             event_data=data,
-            chat_id=chat_id
+            chat_id=chat_id,
+            background=True
         )
-        logging.info(f"[process_bridge_create] Logged bridge_create event to Call Logger: {log_uid}")
+        logging.info(f"[process_bridge_create] Queued bridge_create event to Call Logger: {log_uid}")
     except Exception as e:
-        logging.warning(f"[process_bridge_create] Failed to log bridge_create event: {e}")
+        logging.warning(f"[process_bridge_create] Failed to queue bridge_create event: {e}")
     
     # Пока просто логируем событие без отправки Telegram сообщений
     # В будущем можно добавить логику отправки уведомлений
@@ -193,11 +195,12 @@ async def process_bridge_leave(bot: Bot, chat_id: int, data: dict):
             unique_id=uid,
             event_type="bridge_leave",
             event_data=data,
-            chat_id=chat_id
+            chat_id=chat_id,
+            background=True
         )
-        logging.info(f"[process_bridge_leave] Logged bridge_leave event to Call Logger: {uid}")
+        logging.info(f"[process_bridge_leave] Queued bridge_leave event to Call Logger: {uid}")
     except Exception as e:
-        logging.warning(f"[process_bridge_leave] Failed to log bridge_leave event: {e}")
+        logging.warning(f"[process_bridge_leave] Failed to queue bridge_leave event: {e}")
     
     # Обновляем active_bridges - удаляем участника если мост пустеет
     if uid in active_bridges:
@@ -255,11 +258,12 @@ async def process_bridge_destroy(bot: Bot, chat_id: int, data: dict):
             unique_id=bridge_id,
             event_type="bridge_destroy",
             event_data=data,
-            chat_id=chat_id
+            chat_id=chat_id,
+            background=True
         )
-        logging.info(f"[process_bridge_destroy] Logged bridge_destroy event to Call Logger: {bridge_id}")
+        logging.info(f"[process_bridge_destroy] Queued bridge_destroy event to Call Logger: {bridge_id}")
     except Exception as e:
-        logging.warning(f"[process_bridge_destroy] Failed to log bridge_destroy event: {e}")
+        logging.warning(f"[process_bridge_destroy] Failed to queue bridge_destroy event: {e}")
     
     # Очищаем все связанные мосты из active_bridges
     bridges_to_remove = []
@@ -329,11 +333,12 @@ async def process_new_callerid(bot: Bot, chat_id: int, data: dict):
             unique_id=uid,
             event_type="new_callerid",
             event_data=data,
-            chat_id=chat_id
+            chat_id=chat_id,
+            background=True
         )
-        logging.info(f"[process_new_callerid] Logged new_callerid event to Call Logger: {uid}")
+        logging.info(f"[process_new_callerid] Queued new_callerid event to Call Logger: {uid}")
     except Exception as e:
-        logging.warning(f"[process_new_callerid] Failed to log new_callerid event: {e}")
+        logging.warning(f"[process_new_callerid] Failed to queue new_callerid event: {e}")
     
     # Обновляем активные мосты с новой информацией о CallerID
     if uid in active_bridges:

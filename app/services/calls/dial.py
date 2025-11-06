@@ -74,7 +74,7 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     logging.info(f"[process_dial] RAW DATA = {data!r}")
     logging.info(f"[process_dial] Phone for grouping: {phone_for_grouping}, call_type: {call_type}")
     
-    # ───────── Логирование dial события в Call Logger ─────────
+    # ───────── Логирование dial события в Call Logger (ФОНОВО) ─────────
     try:
         await call_logger.log_call_event(
             enterprise_number=enterprise_number,
@@ -82,11 +82,12 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             event_type="dial",
             event_data=data,
             phone_number=phone,
-            chat_id=chat_id
+            chat_id=chat_id,
+            background=True  # Отправляем в фоне, не блокируем обработку
         )
-        logging.info(f"[process_dial] Logged dial event to Call Logger: {uid}")
+        logging.info(f"[process_dial] Queued dial event to Call Logger: {uid}")
     except Exception as e:
-        logging.warning(f"[process_dial] Failed to log dial event: {e}")
+        logging.warning(f"[process_dial] Failed to queue dial event: {e}")
 
     # ───────── Шаг 2. Проверяем, нужно ли заменить предыдущее сообщение ─────────
     should_replace, message_to_delete = should_replace_previous_message(phone_for_grouping, 'dial', chat_id)

@@ -207,18 +207,19 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         logging.info(f"[process_hangup] Status: {call_status}, Type: {call_type}")
         logging.info(f"[process_hangup] DEBUG: caller='{caller}', exts={exts}, connected='{connected}'")
 
-        # ───────── Логирование hangup события в Call Logger ─────────
+        # ───────── Логирование hangup события в Call Logger (ФОНОВО) ─────────
         try:
             await call_logger.log_call_event(
                 enterprise_number=enterprise_number,
                 unique_id=uid,
                 event_type="hangup",
                 event_data=data,
-                chat_id=chat_id
+                chat_id=chat_id,
+                background=True
             )
-            logging.info(f"[process_hangup] Logged hangup event to Call Logger: {uid}")
+            logging.info(f"[process_hangup] Queued hangup event to Call Logger: {uid}")
         except Exception as e:
-            logging.warning(f"[process_hangup] Failed to log hangup event: {e}")
+            logging.warning(f"[process_hangup] Failed to queue hangup event: {e}")
 
         # БЕЗОПАСНАЯ ПРОВЕРКА МАССИВОВ
         try:
