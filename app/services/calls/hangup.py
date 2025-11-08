@@ -312,6 +312,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     if pool:
                         async with pool.acquire() as connection:
                             # Ищем в событиях dial/bridge для этого звонка
+                            # Приоритет: сначала dial, потом bridge
                             query = """
                                 SELECT 
                                     value->'event_data'->'Extensions' as extensions,
@@ -320,8 +321,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                                      jsonb_array_elements(call_events) as value
                                 WHERE enterprise_number = $1
                                   AND (unique_id = $2 OR related_unique_ids @> jsonb_build_array($2))
-                                  AND (value->>'event_type' = 'dial' OR value->>'event_type' = 'bridge')
-                                ORDER BY value->>'event_timestamp' DESC
+                                  AND value->>'event_type' = 'dial'
+                                ORDER BY value->>'event_timestamp' ASC
                                 LIMIT 1
                             """
                             result = await connection.fetchrow(query, enterprise_number, uid)

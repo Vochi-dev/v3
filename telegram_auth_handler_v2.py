@@ -28,12 +28,19 @@ class TelegramAuth(StatesGroup):
 def register_auth_handlers(dp: Dispatcher, enterprise_number: str):
     """Регистрирует обработчики авторизации в dispatcher"""
     
-    @dp.message_handler(commands=['start'])
+    # Обработчик /start должен работать в ЛЮБОМ состоянии
+    @dp.message_handler(Command('start'), state='*')
     async def cmd_start(message: types.Message, state: FSMContext):
         """
         Обработчик команды /start
         Всегда проверяет авторизацию и предлагает авторизоваться если нужно
         """
+        # Сбрасываем любое текущее состояние, если оно есть
+        current_state = await state.get_state()
+        if current_state is not None:
+            await state.finish()
+            logger.info(f"Reset state {current_state} for user {message.from_user.id}")
+        
         user_id = message.from_user.id
         username = message.from_user.username or "Пользователь"
         
