@@ -16,6 +16,12 @@ from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 from app.utils.logger_client import call_logger
+from app.utils.user_phones import (
+    get_min_internal_phone_by_tg_id,
+    get_bot_owner_chat_id,
+    get_enterprise_secret,
+    format_phone_with_click_to_call
+)
 
 def get_recording_link_text(call_record_info):
     """
@@ -584,6 +590,43 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             phone = format_phone_number(external_phone)
             display = phone if not phone.startswith("+000") else "Номер не определен"
             
+            # Получаем минимальный внутренний номер для текущего chat_id
+            user_internal_phone = None
+            owner_chat_id = None
+            enterprise_secret = None
+            
+            try:
+                # Получаем chat_id владельца бота и secret предприятия
+                owner_chat_id = await get_bot_owner_chat_id(token)
+                enterprise_secret = await get_enterprise_secret(token)
+                
+                # Если текущий chat_id НЕ владелец - получаем его внутренний номер
+                if owner_chat_id != chat_id:
+                    user_internal_phone = await get_min_internal_phone_by_tg_id(
+                        enterprise_number=enterprise_number,
+                        telegram_tg_id=chat_id
+                    )
+                    logging.info(
+                        f"[process_hangup] User internal phone for chat_id={chat_id}: {user_internal_phone}"
+                    )
+                else:
+                    logging.info(
+                        f"[process_hangup] chat_id={chat_id} is bot owner, no clickable link"
+                    )
+            except Exception as e:
+                logging.error(f"[process_hangup] Error getting user internal phone: {e}")
+            
+            # Форматируем номер с кликабельной ссылкой (если есть внутренний номер и secret)
+            if user_internal_phone and enterprise_secret:
+                # Очищаем external_phone от лишних символов для URL
+                clean_phone = external_phone.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+                display = format_phone_with_click_to_call(
+                    phone_number=clean_phone,
+                    internal_phone=user_internal_phone,
+                    enterprise_secret=enterprise_secret,
+                    formatted_phone=display
+                )
+            
             # Обогащаем номер клиента именем если есть
             if enriched_data.get("customer_name"):
                 display = f"{display} ({enriched_data['customer_name']})"
@@ -698,12 +741,18 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     chat_id,
                     safe_text,
                     reply_to_message_id=reply_to_id,
-                    parse_mode="HTML"
+                    parse_mode="HTML",
+                    disable_web_page_preview=True
                 )
                 logging.info(f"[process_hangup] ✅ HANGUP COMMENT SENT: message_id={sent.message_id}")
             else:
                 logging.info(f"[process_hangup] Sending as standalone message")
-                sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+                sent = await bot.send_message(
+                    chat_id, 
+                    safe_text, 
+                    parse_mode="HTML",
+                    disable_web_page_preview=True
+                )
                 logging.info(f"[process_hangup] ✅ HANGUP MESSAGE SENT: message_id={sent.message_id}")
                 
         except BadRequest as e:
