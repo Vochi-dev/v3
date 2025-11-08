@@ -39,6 +39,8 @@ async def run_bot(enterprise_number: str):
     register_auth_handlers(dp, enterprise_number)
 
     try:
+        # Удаляем webhook перед стартом polling (если был установлен)
+        await bot.delete_webhook(drop_pending_updates=False)
         logger.info(f"Bot for enterprise {enterprise_number} started with AUTH support.")
         await dp.start_polling(bot)
     except TelegramAPIError as e:
