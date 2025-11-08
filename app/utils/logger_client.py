@@ -164,7 +164,8 @@ class LoggerClient:
         action: str,
         message_id: Optional[int] = None,
         message_text: Optional[str] = None,
-        error: Optional[str] = None
+        error: Optional[str] = None,
+        background: bool = False
     ) -> bool:
         """
         Логирование Telegram операции
@@ -178,9 +179,10 @@ class LoggerClient:
             message_id: ID сообщения в Telegram
             message_text: Текст сообщения
             error: Текст ошибки если есть
+            background: Если True, отправка происходит в фоне без ожидания ответа
         
         Returns:
-            bool: True если успешно залогировано
+            bool: True если успешно залогировано (или запущено в фоне)
         """
         payload = {
             "enterprise_number": enterprise_number,
@@ -196,8 +198,11 @@ class LoggerClient:
             payload["message_text"] = message_text
         if error is not None:
             payload["error"] = error
-            
-        return await self._send_log("/log/telegram", payload)
+        
+        if background:
+            return await self._send_log_background("/log/telegram", payload)
+        else:
+            return await self._send_log("/log/telegram", payload)
     
     async def log_integration_response(
         self,

@@ -159,5 +159,19 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
         is_int
     )
 
+    # ───────── Шаг 8. Логируем отправленное Telegram сообщение ─────────
+    try:
+        await call_logger.log_telegram_message(
+            enterprise_number=enterprise_number,
+            unique_id=uid,
+            chat_id=chat_id,
+            message_type="start",
+            action="send",
+            message_id=sent.message_id,
+            message_text=safe_text
+        )
+    except Exception as e:
+        logging.warning(f"[process_start] Failed to log telegram message: {e}")
+
     logging.info(f"[process_start] Successfully sent start message {sent.message_id} for {phone_for_grouping}")
     return {"status": "sent", "message_id": sent.message_id}

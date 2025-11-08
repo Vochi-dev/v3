@@ -703,6 +703,20 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
             is_internal=is_internal
         )
         
+        # ───────── Логируем отправленное Telegram сообщение ─────────
+        try:
+            await call_logger.log_telegram_message(
+                enterprise_number=enterprise_number,
+                unique_id=uid,
+                chat_id=chat_id,
+                message_type="bridge",
+                action="send",
+                message_id=message_id,
+                message_text=text
+            )
+        except Exception as e:
+            logging.warning(f"[send_bridge_to_single_chat] Failed to log telegram message: {e}")
+        
         logging.info(f"[send_bridge_to_single_chat] Successfully sent bridge message {message_id} for {phone_for_grouping}")
         
         return {"status": "success", "message_id": message_id}

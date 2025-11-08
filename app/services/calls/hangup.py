@@ -295,7 +295,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             # Ищем внутренний номер в Extensions (как в dial.py)
             if exts:
                 for ext in exts:
-                    if is_internal_number(ext):
+                    if ext and is_internal_number(ext):  # Проверяем что ext не пустой
                         internal_phone = ext
                         break
             
@@ -304,6 +304,47 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 caller_id = data.get("CallerIDNum", "")
                 if is_internal_number(caller_id):
                     internal_phone = caller_id
+            
+            # ДОПОЛНИТЕЛЬНО: Если все еще не нашли, ищем в call_events текущего звонка
+            if not internal_phone:
+                try:
+                    pool = await get_pool()
+                    if pool:
+                        async with pool.acquire() as connection:
+                            # Ищем в событиях dial/bridge для этого звонка
+                            query = """
+                                SELECT 
+                                    value->'event_data'->'Extensions' as extensions,
+                                    value->'event_data'->>'CallerIDNum' as caller_id
+                                FROM call_traces, 
+                                     jsonb_array_elements(call_events) as value
+                                WHERE enterprise_number = $1
+                                  AND (unique_id = $2 OR related_unique_ids @> jsonb_build_array($2))
+                                  AND (value->>'event_type' = 'dial' OR value->>'event_type' = 'bridge')
+                                ORDER BY value->>'event_timestamp' DESC
+                                LIMIT 1
+                            """
+                            result = await connection.fetchrow(query, enterprise_number, uid)
+                            if result:
+                                # Пробуем Extensions
+                                if result['extensions']:
+                                    try:
+                                        extensions = json.loads(str(result['extensions']))
+                                        for ext in extensions:
+                                            if ext and is_internal_number(str(ext)):
+                                                internal_phone = str(ext)
+                                                logging.info(f"[process_hangup] Found internal_phone '{internal_phone}' from call_events Extensions")
+                                                break
+                                    except:
+                                        pass
+                                
+                                # Если не нашли, пробуем CallerIDNum
+                                if not internal_phone and result['caller_id']:
+                                    if is_internal_number(result['caller_id']):
+                                        internal_phone = result['caller_id']
+                                        logging.info(f"[process_hangup] Found internal_phone '{internal_phone}' from call_events CallerIDNum")
+                except Exception as e:
+                    logging.error(f"[process_hangup] Error searching for internal phone in call_events: {e}")
             
             # ДОПОЛНИТЕЛЬНО для паттерна 1-2: ищем внутренний номер в предыдущих событиях
             if not internal_phone and data.get("ExternalInitiated"):
@@ -552,7 +593,15 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 
                 # Добавляем информацию о менеджере (обогащённую)
                 # ИСПРАВЛЕНО: Используем internal_phone вместо internal_caller для паттерна 1-2
+                # Если internal_phone не найден, пытаемся извлечь из enriched_data
                 manager_number = internal_caller or internal_phone
+                if not manager_number and enriched_data.get("manager_name"):
+                    # Пытаемся извлечь номер из ФИО вида "Копачёв Алексей (151)"
+                    import re
+                    match = re.search(r'\((\d+)\)', enriched_data.get("manager_name", ""))
+                    if match:
+                        manager_number = match.group(1)
+                
                 if manager_number:
                     manager_fio = enriched_data.get("manager_name", "")
                     # ИСПРАВЛЕНО: Единообразие - если ФИО есть и это не "Доб.XXX", показываем "ФИО (номер)", иначе просто номер
@@ -728,6 +777,20 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             callee,
             is_int
         )
+        
+        # ───────── Логируем отправленное Telegram сообщение ─────────
+        try:
+            await call_logger.log_telegram_message(
+                enterprise_number=enterprise_number,
+                unique_id=uid,
+                chat_id=chat_id,
+                message_type="hangup",
+                action="send",
+                message_id=sent.message_id,
+                message_text=safe_text
+            )
+        except Exception as e:
+            logging.warning(f"[process_hangup] Failed to log telegram message: {e}")
         
         # ───────── Шаг 11. Уведомление U‑ON через 8020 (реальный звонок завершён) ─────────
         try:
