@@ -359,6 +359,7 @@ async def send_message_api(number: str, request: Request):
         raise HTTPException(status_code=404, detail="Предприятие или его токен не найдены.")
 
     bot_token = ent["bot_token"]
+    owner_chat_id = ent.get("chat_id")
     
     # Получаем всех подписчиков для этого бота из telegram_users
     pool = await db_services.get_pool()
@@ -371,17 +372,27 @@ async def send_message_api(number: str, request: Request):
             bot_token
         )
     
-    if not user_rows:
-        raise HTTPException(status_code=404, detail="Нет подписчиков для этого бота")
+    # Собираем список получателей: владелец + подписчики
+    recipients = set()
     
-    # Отправляем сообщение всем подписчикам
+    # Добавляем владельца бота (если есть chat_id)
+    if owner_chat_id:
+        recipients.add(str(owner_chat_id))
+    
+    # Добавляем подписчиков
+    for row in user_rows:
+        recipients.add(str(row["tg_id"]))
+    
+    if not recipients:
+        raise HTTPException(status_code=404, detail="Нет получателей для отправки (нет владельца и подписчиков)")
+    
+    # Отправляем сообщение всем получателям
     success_count = 0
     error_count = 0
     errors = []
     
-    for row in user_rows:
-        chat_id = int(row["tg_id"])
-        success, error = await send_message_to_bot(bot_token, str(chat_id), message)
+    for chat_id in recipients:
+        success, error = await send_message_to_bot(bot_token, chat_id, message)
         if success:
             success_count += 1
         else:
@@ -389,9 +400,9 @@ async def send_message_api(number: str, request: Request):
             errors.append(f"Chat {chat_id}: {error}")
     
     if success_count > 0:
-        result = {"detail": f"Message sent to {success_count} recipients"}
+        result = {"detail": f"Сообщение отправлено {success_count} получателям"}
         if error_count > 0:
-            result["warnings"] = f"{error_count} failed: {'; '.join(errors)}"
+            result["warnings"] = f"{error_count} ошибок: {'; '.join(errors)}"
         return JSONResponse(result)
     else:
-        raise HTTPException(status_code=500, detail=f"Failed to send to all recipients: {'; '.join(errors)}")
+        raise HTTPException(status_code=500, detail=f"Не удалось отправить всем получателям: {'; '.join(errors)}")
