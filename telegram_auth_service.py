@@ -234,13 +234,10 @@ async def send_auth_code_sms(phone: str, code: str, enterprise_name: str, bot_us
     if not phone:
         return True  # Если телефона нет - не отправляем, но не считаем ошибкой
     
-    # Формируем текст SMS с ссылкой на бота
-    bot_link = f"https://t.me/{bot_username}" if bot_username and bot_username != "unknown_bot" else ""
+    # Формируем текст SMS БЕЗ ссылки на бота (по требованию пользователя)
+    sms_text = f"Код авторизации Telegram-бота {enterprise_name}: {code}. Код действует 10 минут."
     
-    if bot_link:
-        sms_text = f"Код авторизации Telegram-бота {enterprise_name}: {code}. Бот: {bot_link}. Код действует 10 минут."
-    else:
-        sms_text = f"Код авторизации Telegram-бота {enterprise_name}: {code}. Действует 10 минут."
+    logger.info(f"Sending SMS to {phone}: {sms_text}")
         
     try:
         async with httpx.AsyncClient() as client:

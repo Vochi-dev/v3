@@ -265,8 +265,10 @@ async def get_enterprise_name(enterprise_number: str) -> str:
             )
             
             if result and result['name']:
+                logger.info(f"[get_enterprise_name] Found name '{result['name']}' for enterprise {enterprise_number}")
                 return result['name']
             else:
+                logger.warning(f"[get_enterprise_name] No name found for enterprise {enterprise_number}, using number as fallback")
                 return enterprise_number  # fallback на номер если нет названия
                 
         finally:
