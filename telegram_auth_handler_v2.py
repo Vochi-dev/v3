@@ -221,6 +221,75 @@ def register_auth_handlers(dp: Dispatcher, enterprise_number: str):
             logger.error(f"Ошибка при верификации кода: {e}")
             await message.answer("❌ Ошибка подключения к серверу. Попробуйте позже.")
             await state.finish()
+    
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # ОБРАБОТЧИК CALLBACK ДЛЯ КНОПКИ ЗВОНКА
+    # ═══════════════════════════════════════════════════════════════════════════════
+    
+    @dp.callback_query_handler(lambda c: c.data.startswith('call:'))
+    async def process_callback_call(callback_query: types.CallbackQuery):
+        """
+        Обработчик нажатия на кнопку "Позвонить"
+        Callback data format: call:phone:internal_phone:enterprise_secret
+        """
+        try:
+            # Парсим данные из callback
+            parts = callback_query.data.split(':')
+            if len(parts) != 4:
+                await callback_query.answer("❌ Ошибка формата данных", show_alert=True)
+                return
+            
+            _, phone, internal_phone, enterprise_secret = parts
+            
+            logger.info(
+                f"[callback_call] Initiating call: phone={phone}, "
+                f"internal_phone={internal_phone}, user={callback_query.from_user.id}"
+            )
+            
+            # Делаем запрос на инициацию звонка
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    "https://bot.vochi.by/api/makecallexternal",
+                    params={
+                        "code": internal_phone,
+                        "phone": phone,
+                        "clientId": enterprise_secret
+                    },
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    # Успешная инициация звонка
+                    await callback_query.answer(
+                        "📞 Звонок инициирован! Ожидайте входящий вызов на ваш телефон.",
+                        show_alert=True
+                    )
+                    logger.info(
+                        f"[callback_call] Call initiated successfully for user {callback_query.from_user.id}"
+                    )
+                else:
+                    # Ошибка при инициации
+                    logger.error(
+                        f"[callback_call] Failed to initiate call: status={response.status_code}, "
+                        f"response={response.text}"
+                    )
+                    await callback_query.answer(
+                        "❌ Ошибка инициации звонка. Попробуйте позже.",
+                        show_alert=True
+                    )
+                    
+        except httpx.TimeoutException:
+            logger.error(f"[callback_call] Timeout while initiating call")
+            await callback_query.answer(
+                "⏱️ Превышено время ожидания. Попробуйте позже.",
+                show_alert=True
+            )
+        except Exception as e:
+            logger.error(f"[callback_call] Error processing callback: {e}", exc_info=True)
+            await callback_query.answer(
+                "❌ Произошла ошибка. Попробуйте позже.",
+                show_alert=True
+            )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ

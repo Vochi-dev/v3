@@ -1,7 +1,7 @@
 import logging
 import asyncio
 import aiohttp
-from telegram import Bot
+from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.error import BadRequest
 import json
 import hashlib
@@ -19,8 +19,7 @@ from app.utils.logger_client import call_logger
 from app.utils.user_phones import (
     get_min_internal_phone_by_tg_id,
     get_bot_owner_chat_id,
-    get_enterprise_secret,
-    format_phone_with_click_to_call
+    get_enterprise_secret
 )
 
 def get_recording_link_text(call_record_info):
@@ -594,6 +593,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             user_internal_phone = None
             owner_chat_id = None
             enterprise_secret = None
+            clean_phone = None
             
             try:
                 # Получаем chat_id владельца бота и secret предприятия
@@ -611,21 +611,14 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     )
                 else:
                     logging.info(
-                        f"[process_hangup] chat_id={chat_id} is bot owner, no clickable link"
+                        f"[process_hangup] chat_id={chat_id} is bot owner, no callback button"
                     )
             except Exception as e:
                 logging.error(f"[process_hangup] Error getting user internal phone: {e}")
             
-            # Форматируем номер с кликабельной ссылкой (если есть внутренний номер и secret)
+            # Очищаем external_phone от лишних символов для callback data
             if user_internal_phone and enterprise_secret:
-                # Очищаем external_phone от лишних символов для URL
                 clean_phone = external_phone.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-                display = format_phone_with_click_to_call(
-                    phone_number=clean_phone,
-                    internal_phone=user_internal_phone,
-                    enterprise_secret=enterprise_secret,
-                    formatted_phone=display
-                )
             
             # Обогащаем номер клиента именем если есть
             if enriched_data.get("customer_name"):
@@ -734,6 +727,19 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         logging.info(f"[process_hangup] should_comment={should_comment}, reply_to_id={reply_to_id}")
         logging.info(f"[process_hangup] chat_id={chat_id}, safe_text={safe_text!r}")
         
+        # Создаём Inline кнопку для звонка (только для менеджеров, не для владельца)
+        reply_markup = None
+        if user_internal_phone and enterprise_secret and clean_phone:
+            # python-telegram-bot синтаксис (не aiogram!)
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton(
+                    text=f"📞 Позвонить {display}",
+                    callback_data=f"call:{clean_phone}:{user_internal_phone}:{enterprise_secret}"
+                )]
+            ])
+            reply_markup = keyboard
+            logging.info(f"[process_hangup] Added callback button for internal_phone={user_internal_phone}")
+        
         try:
             if should_comment and reply_to_id:
                 logging.info(f"[process_hangup] Sending as comment to message {reply_to_id}")
@@ -742,7 +748,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     safe_text,
                     reply_to_message_id=reply_to_id,
                     parse_mode="HTML",
-                    disable_web_page_preview=True
+                    disable_web_page_preview=True,
+                    reply_markup=reply_markup
                 )
                 logging.info(f"[process_hangup] ✅ HANGUP COMMENT SENT: message_id={sent.message_id}")
             else:
@@ -751,7 +758,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     chat_id, 
                     safe_text, 
                     parse_mode="HTML",
-                    disable_web_page_preview=True
+                    disable_web_page_preview=True,
+                    reply_markup=reply_markup
                 )
                 logging.info(f"[process_hangup] ✅ HANGUP MESSAGE SENT: message_id={sent.message_id}")
                 
