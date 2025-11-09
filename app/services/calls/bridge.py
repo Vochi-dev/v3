@@ -1,5 +1,5 @@
 import logging
-from telegram import Bot
+from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.error import BadRequest
 import json
 import hashlib
@@ -23,6 +23,11 @@ from .utils import (
     update_phone_tracker,
     is_internal_number,
     phone_message_tracker,
+)
+from app.utils.user_phones import (
+    get_all_internal_phones_by_tg_id,
+    get_bot_owner_chat_id,
+    get_enterprise_secret,
 )
 
 # ═══════════════════════════════════════════════════════════════════
@@ -653,7 +658,55 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
         # Неопределенный тип
         text = f"☎️{caller} 📞➡️ ☎️{connected}📞"
 
-    # ───────── Шаг 5. Отправляем сообщение ─────────
+    # ───────── Шаг 5. Создаём кнопки мониторинга (только для внешних звонков) ─────────
+    reply_markup = None
+    
+    # Кнопки мониторинга только для внешних звонков (не для internal)
+    if call_direction in ["incoming", "outgoing"] and internal_ext:
+        try:
+            # Получаем данные для кнопок
+            owner_chat_id = await get_bot_owner_chat_id(token)
+            enterprise_secret = await get_enterprise_secret(token)
+            
+            # Если текущий chat_id НЕ владелец - получаем ВСЕ его внутренние номера
+            if owner_chat_id != chat_id and enterprise_secret:
+                user_internal_phones = await get_all_internal_phones_by_tg_id(
+                    enterprise_number=enterprise_number,
+                    telegram_tg_id=chat_id
+                )
+                
+                if user_internal_phones:
+                    # target - кого мониторим (internal_ext - тот кто разговаривает)
+                    # monitor_from - кто мониторит (номера текущего пользователя)
+                    
+                    buttons = []
+                    for monitor_from in user_internal_phones:
+                        # Создаём 3 кнопки для каждого номера пользователя
+                        row = [
+                            InlineKeyboardButton(
+                                text=f"👂 Прослушивание {monitor_from}",
+                                callback_data=f"monitor:09:{internal_ext}:{monitor_from}:{enterprise_secret}"
+                            ),
+                            InlineKeyboardButton(
+                                text=f"💬 Суфлирование {monitor_from}",
+                                callback_data=f"monitor:01:{internal_ext}:{monitor_from}:{enterprise_secret}"
+                            ),
+                            InlineKeyboardButton(
+                                text=f"🎙️ Конференция {monitor_from}",
+                                callback_data=f"monitor:02:{internal_ext}:{monitor_from}:{enterprise_secret}"
+                            )
+                        ]
+                        buttons.append(row)
+                    
+                    reply_markup = InlineKeyboardMarkup(buttons)
+                    logging.info(
+                        f"[send_bridge_to_single_chat] Added {len(user_internal_phones)*3} monitor button(s) "
+                        f"for internal_phones={user_internal_phones}, target={internal_ext}"
+                    )
+        except Exception as e:
+            logging.error(f"[send_bridge_to_single_chat] Error creating monitor buttons: {e}")
+
+    # ───────── Шаг 6. Отправляем сообщение ─────────
     logging.info(f"[send_bridge_to_single_chat] => chat={chat_id}, text='{text}'")
     
     try:
@@ -672,12 +725,18 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
                 chat_id=chat_id, 
                 text=text, 
                 parse_mode='HTML',
-                reply_to_message_id=reply_to_msg_id
+                reply_to_message_id=reply_to_msg_id,
+                reply_markup=reply_markup
             )
             logging.info(f"[send_bridge_to_single_chat] Sent bridge as comment to message {reply_to_msg_id}")
         else:
             # Отправляем как обычное сообщение
-            message = await bot.send_message(chat_id=chat_id, text=text, parse_mode='HTML')
+            message = await bot.send_message(
+                chat_id=chat_id, 
+                text=text, 
+                parse_mode='HTML',
+                reply_markup=reply_markup
+            )
         
         message_id = message.message_id
         logging.info(f"[send_bridge_to_single_chat] Sent bridge message {message_id}")
