@@ -17,7 +17,7 @@ from app.services.postgres import get_pool
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 from app.utils.logger_client import call_logger
 from app.utils.user_phones import (
-    get_min_internal_phone_by_tg_id,
+    get_all_internal_phones_by_tg_id,
     get_bot_owner_chat_id,
     get_enterprise_secret
 )
@@ -589,8 +589,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             phone = format_phone_number(external_phone)
             display = phone if not phone.startswith("+000") else "Номер не определен"
             
-            # Получаем минимальный внутренний номер для текущего chat_id
-            user_internal_phone = None
+            # Получаем ВСЕ внутренние номера для текущего chat_id
+            user_internal_phones = []
             owner_chat_id = None
             enterprise_secret = None
             clean_phone = None
@@ -600,24 +600,24 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 owner_chat_id = await get_bot_owner_chat_id(token)
                 enterprise_secret = await get_enterprise_secret(token)
                 
-                # Если текущий chat_id НЕ владелец - получаем его внутренний номер
+                # Если текущий chat_id НЕ владелец - получаем ВСЕ его внутренние номера
                 if owner_chat_id != chat_id:
-                    user_internal_phone = await get_min_internal_phone_by_tg_id(
+                    user_internal_phones = await get_all_internal_phones_by_tg_id(
                         enterprise_number=enterprise_number,
                         telegram_tg_id=chat_id
                     )
                     logging.info(
-                        f"[process_hangup] User internal phone for chat_id={chat_id}: {user_internal_phone}"
+                        f"[process_hangup] User internal phones for chat_id={chat_id}: {user_internal_phones}"
                     )
                 else:
                     logging.info(
-                        f"[process_hangup] chat_id={chat_id} is bot owner, no callback button"
+                        f"[process_hangup] chat_id={chat_id} is bot owner, no callback buttons"
                     )
             except Exception as e:
-                logging.error(f"[process_hangup] Error getting user internal phone: {e}")
+                logging.error(f"[process_hangup] Error getting user internal phones: {e}")
             
             # Очищаем external_phone от лишних символов для callback data
-            if user_internal_phone and enterprise_secret:
+            if user_internal_phones and enterprise_secret:
                 clean_phone = external_phone.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
             
             # Обогащаем номер клиента именем если есть
@@ -727,18 +727,24 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         logging.info(f"[process_hangup] should_comment={should_comment}, reply_to_id={reply_to_id}")
         logging.info(f"[process_hangup] chat_id={chat_id}, safe_text={safe_text!r}")
         
-        # Создаём Inline кнопку для звонка (только для менеджеров, не для владельца)
+        # Создаём Inline кнопки для звонка (только для менеджеров, не для владельца)
         reply_markup = None
-        if user_internal_phone and enterprise_secret and clean_phone:
+        if user_internal_phones and enterprise_secret and clean_phone:
             # python-telegram-bot синтаксис (не aiogram!)
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton(
-                    text=f"📞 Позвонить {display}",
-                    callback_data=f"call:{clean_phone}:{user_internal_phone}:{enterprise_secret}"
-                )]
-            ])
+            buttons = []
+            for internal_phone in user_internal_phones:
+                button = InlineKeyboardButton(
+                    text=f"📞 Позвонить с {internal_phone}",
+                    callback_data=f"call:{clean_phone}:{internal_phone}:{enterprise_secret}"
+                )
+                buttons.append([button])  # Каждая кнопка на отдельной строке
+            
+            keyboard = InlineKeyboardMarkup(buttons)
             reply_markup = keyboard
-            logging.info(f"[process_hangup] Added callback button for internal_phone={user_internal_phone}")
+            logging.info(
+                f"[process_hangup] Added {len(user_internal_phones)} callback button(s) "
+                f"for internal_phones={user_internal_phones}"
+            )
         
         try:
             if should_comment and reply_to_id:

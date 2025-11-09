@@ -6,6 +6,56 @@ from typing import Optional
 from app.services.postgres import get_pool
 
 
+async def get_all_internal_phones_by_tg_id(
+    enterprise_number: str,
+    telegram_tg_id: int
+) -> list[str]:
+    """
+    Получить ВСЕ внутренние номера пользователя по telegram_tg_id
+    
+    Args:
+        enterprise_number: Номер предприятия
+        telegram_tg_id: Telegram ID пользователя
+        
+    Returns:
+        Список внутренних номеров (отсортированный по возрастанию) или пустой список
+    """
+    try:
+        pool = await get_pool()
+        if not pool:
+            logging.warning("[get_all_internal_phones_by_tg_id] Database pool not available")
+            return []
+            
+        async with pool.acquire() as conn:
+            query = """
+                SELECT uip.phone_number
+                FROM users u
+                JOIN user_internal_phones uip ON u.id = uip.user_id
+                WHERE u.enterprise_number = $1
+                  AND u.telegram_tg_id = $2
+                ORDER BY uip.phone_number ASC
+            """
+            results = await conn.fetch(query, enterprise_number, telegram_tg_id)
+            
+            if results:
+                phones = [row['phone_number'] for row in results]
+                logging.info(
+                    f"[get_all_internal_phones_by_tg_id] Found {len(phones)} phone(s) {phones} "
+                    f"for tg_id={telegram_tg_id}, enterprise={enterprise_number}"
+                )
+                return phones
+            else:
+                logging.info(
+                    f"[get_all_internal_phones_by_tg_id] No internal phones found "
+                    f"for tg_id={telegram_tg_id}, enterprise={enterprise_number}"
+                )
+                return []
+                
+    except Exception as e:
+        logging.error(f"[get_all_internal_phones_by_tg_id] Error: {e}", exc_info=True)
+        return []
+
+
 async def get_min_internal_phone_by_tg_id(
     enterprise_number: str,
     telegram_tg_id: int
@@ -20,41 +70,8 @@ async def get_min_internal_phone_by_tg_id(
     Returns:
         Минимальный внутренний номер или None если не найден
     """
-    try:
-        pool = await get_pool()
-        if not pool:
-            logging.warning("[get_min_internal_phone_by_tg_id] Database pool not available")
-            return None
-            
-        async with pool.acquire() as conn:
-            query = """
-                SELECT uip.phone_number
-                FROM users u
-                JOIN user_internal_phones uip ON u.id = uip.user_id
-                WHERE u.enterprise_number = $1
-                  AND u.telegram_tg_id = $2
-                ORDER BY uip.phone_number ASC
-                LIMIT 1
-            """
-            result = await conn.fetchrow(query, enterprise_number, telegram_tg_id)
-            
-            if result:
-                phone = result['phone_number']
-                logging.info(
-                    f"[get_min_internal_phone_by_tg_id] Found min phone {phone} "
-                    f"for tg_id={telegram_tg_id}, enterprise={enterprise_number}"
-                )
-                return phone
-            else:
-                logging.info(
-                    f"[get_min_internal_phone_by_tg_id] No internal phones found "
-                    f"for tg_id={telegram_tg_id}, enterprise={enterprise_number}"
-                )
-                return None
-                
-    except Exception as e:
-        logging.error(f"[get_min_internal_phone_by_tg_id] Error: {e}", exc_info=True)
-        return None
+    phones = await get_all_internal_phones_by_tg_id(enterprise_number, telegram_tg_id)
+    return phones[0] if phones else None
 
 
 async def get_bot_owner_chat_id(asterisk_token: str) -> Optional[int]:
