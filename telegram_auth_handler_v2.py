@@ -290,6 +290,87 @@ def register_auth_handlers(dp: Dispatcher, enterprise_number: str):
                 "❌ Произошла ошибка. Попробуйте позже.",
                 show_alert=True
             )
+    
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # ОБРАБОТЧИК CALLBACK ДЛЯ КНОПОК МОНИТОРИНГА
+    # ═══════════════════════════════════════════════════════════════════════════════
+    
+    @dp.callback_query_handler(lambda c: c.data.startswith('monitor:'))
+    async def process_callback_monitor(callback_query: types.CallbackQuery):
+        """
+        Обработчик нажатия на кнопки мониторинга (прослушивание, суфлирование, конференция)
+        Callback data format: monitor:action:target:monitor_from:enterprise_secret
+        
+        Actions:
+        - 09: Прослушивание
+        - 01: Суфлирование
+        - 02: Конференция
+        """
+        try:
+            # Парсим данные из callback
+            parts = callback_query.data.split(':')
+            if len(parts) != 5:
+                await callback_query.answer("❌ Ошибка формата данных", show_alert=True)
+                return
+            
+            _, action, target, monitor_from, enterprise_secret = parts
+            
+            # Названия действий для логов и уведомлений
+            action_names = {
+                "09": "Прослушивание",
+                "01": "Суфлирование",
+                "02": "Конференция"
+            }
+            action_name = action_names.get(action, "Неизвестное действие")
+            
+            logger.info(
+                f"[callback_monitor] Initiating {action_name}: target={target}, "
+                f"monitor_from={monitor_from}, user={callback_query.from_user.id}"
+            )
+            
+            # Делаем запрос на инициацию мониторинга
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    "https://bot.vochi.by/api/monitor",
+                    params={
+                        "action": action,
+                        "target": target,
+                        "monitor_from": monitor_from,
+                        "clientId": enterprise_secret
+                    },
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    logger.info(
+                        f"[callback_monitor] {action_name} initiated successfully for user {callback_query.from_user.id}"
+                    )
+                    await callback_query.answer(
+                        f"✅ {action_name} активировано!",
+                        show_alert=True
+                    )
+                else:
+                    logger.error(
+                        f"[callback_monitor] Failed to initiate {action_name}: status={response.status_code}, "
+                        f"response={response.text}"
+                    )
+                    await callback_query.answer(
+                        f"❌ Ошибка активации {action_name}. Попробуйте позже.",
+                        show_alert=True
+                    )
+                    
+        except httpx.TimeoutException:
+            logger.error(f"[callback_monitor] Timeout while initiating monitoring")
+            await callback_query.answer(
+                "⏱️ Превышено время ожидания. Попробуйте позже.",
+                show_alert=True
+            )
+        except Exception as e:
+            logger.error(f"[callback_monitor] Error processing callback: {e}", exc_info=True)
+            await callback_query.answer(
+                "❌ Произошла ошибка. Попробуйте позже.",
+                show_alert=True
+            )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
