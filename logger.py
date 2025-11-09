@@ -6,12 +6,14 @@
 в структурированном виде с возможностью быстрого поиска и анализа.
 """
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import logging
 import uvicorn
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import json
 
 # Настройка логирования
@@ -26,6 +28,9 @@ app = FastAPI(
     description="Сервис логирования звонков",
     version="1.0.0"
 )
+
+# Настройка шаблонов
+templates = Jinja2Templates(directory="templates/call_viewer")
 
 # ═══════════════════════════════════════════════════════════════════
 # МОДЕЛИ ДАННЫХ
@@ -888,6 +893,147 @@ async def get_partition_stats(enterprise_number: str):
         raise
     except Exception as e:
         logger.error(f"Error getting partition stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ═══════════════════════════════════════════════════════════════════
+# ПРОСМОТР ДЕТАЛЬНОЙ ИНФОРМАЦИИ О ЗВОНКЕ
+# ═══════════════════════════════════════════════════════════════════
+
+@app.get("/call/{enterprise_number}/{unique_id}", response_class=HTMLResponse)
+async def view_call_details(
+    request: Request,
+    enterprise_number: str,
+    unique_id: str,
+    token: str = Query(..., description="Secret токен для авторизации")
+):
+    """
+    Просмотр детальной информации о звонке в красивом HTML формате
+    
+    Args:
+        enterprise_number: Номер предприятия (например, 0367)
+        unique_id: Уникальный ID звонка из Asterisk
+        token: Secret токен для авторизации
+    
+    Returns:
+        HTML страница с детальной информацией о звонке
+    """
+    import asyncpg
+    
+    try:
+        # Проверяем права доступа
+        conn = await asyncpg.connect(**DB_CONFIG)
+        try:
+            result = await conn.fetchrow(
+                "SELECT secret, name FROM enterprises WHERE number = $1",
+                enterprise_number
+            )
+            
+            if not result or result['secret'] != token:
+                raise HTTPException(status_code=403, detail="Access denied")
+            
+            enterprise_info = {"name": result['name'], "number": enterprise_number}
+            
+        finally:
+            await conn.close()
+        
+        # Получаем данные о звонке (партиция называется просто номером предприятия)
+        partition_name = enterprise_number
+        
+        conn = await asyncpg.connect(**DB_CONFIG)
+        try:
+            # Ищем запись по Asterisk UniqueId в JSONB массиве call_events
+            query = f"""
+                SELECT 
+                    unique_id,
+                    enterprise_number,
+                    phone_number,
+                    call_direction,
+                    call_status,
+                    start_time,
+                    end_time,
+                    call_events,
+                    telegram_messages,
+                    http_requests,
+                    sql_queries,
+                    integration_responses,
+                    created_at,
+                    updated_at
+                FROM "{partition_name}"
+                WHERE call_events @> $1::jsonb
+                LIMIT 1
+            """
+            
+            # Ищем событие с Asterisk UniqueId
+            search_pattern = json.dumps([{"event_data": {"UniqueId": unique_id}}])
+            call_data = await conn.fetchrow(query, search_pattern)
+            
+            if not call_data:
+                raise HTTPException(status_code=404, detail="Call not found")
+            
+            # Преобразуем в dict
+            call_data = dict(call_data)
+            
+            # Парсим JSONB поля если они строки
+            if isinstance(call_data.get('call_events'), str):
+                call_data['call_events'] = json.loads(call_data['call_events'])
+            if isinstance(call_data.get('telegram_messages'), str):
+                call_data['telegram_messages'] = json.loads(call_data['telegram_messages'])
+            if isinstance(call_data.get('http_requests'), str):
+                call_data['http_requests'] = json.loads(call_data['http_requests'])
+            if isinstance(call_data.get('sql_queries'), str):
+                call_data['sql_queries'] = json.loads(call_data['sql_queries'])
+            if isinstance(call_data.get('integration_responses'), str):
+                call_data['integration_responses'] = json.loads(call_data['integration_responses'])
+            
+            # Извлекаем информацию об участниках из call_events
+            caller_info = {"name": "Не определен", "phone": ""}
+            callee_info = {"name": "Не определен", "phone": ""}
+            
+            if call_data.get('call_events'):
+                for event in call_data['call_events']:
+                    event_type = event.get('event_type')
+                    event_data = event.get('event_data', {})
+                    
+                    # Ищем информацию о клиенте
+                    if event_type == 'dial' and event_data.get('Phone'):
+                        caller_info['phone'] = event_data['Phone']
+                    
+                    # Ищем информацию о менеджере
+                    if event_type == 'bridge' and event_data.get('CallerIDNum'):
+                        callee_info['phone'] = event_data['CallerIDNum']
+                        callee_info['name'] = event_data.get('CallerIDName', event_data['CallerIDNum'])
+            
+        finally:
+            await conn.close()
+        
+        # Функция для конвертации времени в GMT+3
+        def to_gmt3(dt):
+            if dt is None:
+                return None
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone(timedelta(hours=3)))
+        
+        # Рендерим HTML страницу
+        return templates.TemplateResponse(
+            "call_details.html",
+            {
+                "request": request,
+                "call_data": call_data,
+                "enterprise_info": enterprise_info,
+                "enterprise_number": enterprise_number,
+                "unique_id": unique_id,
+                "caller_info": caller_info,
+                "callee_info": callee_info,
+                "to_gmt3": to_gmt3,
+                "now": datetime.now
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error viewing call details: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # ═══════════════════════════════════════════════════════════════════

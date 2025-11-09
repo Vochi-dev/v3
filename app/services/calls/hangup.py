@@ -729,9 +729,11 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         
         # Создаём Inline кнопки для звонка (только для менеджеров, не для владельца)
         reply_markup = None
+        buttons = []
+        
+        # Кнопки "Позвонить" (только если есть внутренние номера и телефон клиента)
         if user_internal_phones and enterprise_secret and clean_phone:
             # python-telegram-bot синтаксис (не aiogram!)
-            buttons = []
             for internal_phone in user_internal_phones:
                 button = InlineKeyboardButton(
                     text=f"📞 Позвонить с {internal_phone}",
@@ -739,12 +741,25 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 )
                 buttons.append([button])  # Каждая кнопка на отдельной строке
             
-            keyboard = InlineKeyboardMarkup(buttons)
-            reply_markup = keyboard
             logging.info(
-                f"[process_hangup] Added {len(user_internal_phones)} callback button(s) "
+                f"[process_hangup] Added {len(user_internal_phones)} call button(s) "
                 f"for internal_phones={user_internal_phones}"
             )
+        
+        # Кнопка "Детали звонка" (для ВСЕХ пользователей, включая владельца)
+        if enterprise_secret and uid:
+            details_url = f"https://bot.vochi.by/call/{enterprise_number}/{uid}?token={enterprise_secret}"
+            details_button = InlineKeyboardButton(
+                text="📊 Детали звонка",
+                url=details_url
+            )
+            buttons.append([details_button])
+            logging.info(f"[process_hangup] Added call details button: {details_url}")
+        
+        # Создаём keyboard если есть хотя бы одна кнопка
+        if buttons:
+            keyboard = InlineKeyboardMarkup(buttons)
+            reply_markup = keyboard
         
         try:
             if should_comment and reply_to_id:
