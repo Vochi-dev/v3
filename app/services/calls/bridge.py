@@ -679,8 +679,11 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
                     # target - кого мониторим (internal_ext - тот кто разговаривает)
                     # monitor_from - кто мониторит (номера текущего пользователя)
                     
+                    # ФИЛЬТРУЕМ: исключаем номер который сейчас разговаривает
+                    available_phones = [phone for phone in user_internal_phones if phone != internal_ext]
+                    
                     buttons = []
-                    for monitor_from in user_internal_phones:
+                    for monitor_from in available_phones:
                         # Создаём 3 кнопки для каждого номера пользователя
                         row = [
                             InlineKeyboardButton(
@@ -698,11 +701,18 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
                         ]
                         buttons.append(row)
                     
-                    reply_markup = InlineKeyboardMarkup(buttons)
-                    logging.info(
-                        f"[send_bridge_to_single_chat] Added {len(user_internal_phones)*3} monitor button(s) "
-                        f"for internal_phones={user_internal_phones}, target={internal_ext}"
-                    )
+                    # Создаём keyboard только если есть доступные номера
+                    if buttons:
+                        reply_markup = InlineKeyboardMarkup(buttons)
+                        logging.info(
+                            f"[send_bridge_to_single_chat] Added {len(available_phones)*3} monitor button(s) "
+                            f"for available_phones={available_phones}, target={internal_ext} (excluded from {user_internal_phones})"
+                        )
+                    else:
+                        logging.info(
+                            f"[send_bridge_to_single_chat] No available phones for monitoring "
+                            f"(user only has {internal_ext} which is currently talking)"
+                        )
         except Exception as e:
             logging.error(f"[send_bridge_to_single_chat] Error creating monitor buttons: {e}")
 
