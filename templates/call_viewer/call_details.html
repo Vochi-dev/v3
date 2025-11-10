@@ -103,9 +103,9 @@
                         <p class="text-sm text-gray-600">Направление</p>
                         <p class="text-lg font-semibold">
                             {% if call_data.call_direction == 'incoming' %}
-                            📥 Входящий
+                            📞➡️ Входящий (к нам)
                             {% elif call_data.call_direction == 'outgoing' %}
-                            📤 Исходящий
+                            ☎️➡️📱 Исходящий (от нас)
                             {% elif call_data.call_direction == 'internal' %}
                             🔄 Внутренний
                             {% else %}
@@ -116,9 +116,11 @@
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-sm text-gray-600">Статус</p>
                         <p class="text-lg font-semibold">
-                            {% if call_data.call_status == 'ANSWERED' or call_data.call_status == 1 %}
+                            {% if call_data.call_status == 'ANSWERED' or call_data.call_status == '1' or call_data.call_status == 1 %}
                             <span class="status-success">✅ Отвечен</span>
-                            {% elif call_data.call_status == 'NO ANSWER' or call_data.call_status == 0 %}
+                            {% elif call_data.call_status == 'completed' or call_data.call_status == '2' or call_data.call_status == 2 %}
+                            <span class="status-success">✅ Успешный исходящий звонок</span>
+                            {% elif call_data.call_status == 'NO ANSWER' or call_data.call_status == '0' or call_data.call_status == 0 %}
                             <span class="status-error">❌ Не отвечен</span>
                             {% else %}
                             <span class="status-warning">⚠️ {{ call_data.call_status }}</span>
