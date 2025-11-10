@@ -986,8 +986,8 @@ async def view_call_details(
                 call_data['integration_responses'] = json.loads(call_data['integration_responses'])
             
             # Извлекаем информацию об участниках из call_events
-            caller_info = {"name": "Не определен", "phone": ""}
-            callee_info = {"name": "Не определен", "phone": ""}
+            client_info = {"name": "Не определен", "phone": ""}
+            manager_info = {"name": "Не определен", "phone": "", "extension": ""}
             duration_seconds = 0
             
             if call_data.get('call_events'):
@@ -995,14 +995,18 @@ async def view_call_details(
                     event_type = event.get('event_type')
                     event_data = event.get('event_data', {})
                     
-                    # Ищем информацию о клиенте
-                    if event_type == 'dial' and event_data.get('Phone'):
-                        caller_info['phone'] = event_data['Phone']
+                    # Ищем информацию о клиенте из dial события
+                    if event_type == 'dial' and event_data.get('Phone') and not client_info['phone']:
+                        client_info['phone'] = event_data['Phone']
                     
-                    # Ищем информацию о менеджере
+                    # Ищем информацию о менеджере из bridge события
                     if event_type == 'bridge' and event_data.get('CallerIDNum'):
-                        callee_info['phone'] = event_data['CallerIDNum']
-                        callee_info['name'] = event_data.get('CallerIDName', event_data['CallerIDNum'])
+                        caller_id = event_data['CallerIDNum']
+                        # Менеджер - это тот у кого короткий номер (внутренний)
+                        if len(caller_id) <= 4 and caller_id.isdigit():
+                            manager_info['extension'] = caller_id
+                            manager_info['phone'] = caller_id
+                            manager_info['name'] = event_data.get('CallerIDName', caller_id)
                     
                     # Рассчитываем длительность из события hangup
                     if event_type == 'hangup' and not duration_seconds:
@@ -1018,6 +1022,22 @@ async def view_call_details(
                             except Exception as e:
                                 logger.warning(f"Failed to calculate duration: {e}")
             
+            # Обогащаем имена из HTTP запросов (metadata/enrich)
+            if call_data.get('http_requests'):
+                for req in call_data['http_requests']:
+                    if 'metadata' in req.get('url', '') and 'enrich' in req.get('url', ''):
+                        response_data = req.get('response_data', {})
+                        if response_data:
+                            # Имя клиента
+                            if response_data.get('customer_name') and client_info['name'] == "Не определен":
+                                client_info['name'] = response_data['customer_name']
+                            # Имя менеджера (перезаписываем даже если было "151")
+                            if response_data.get('manager_name'):
+                                manager_info['name'] = response_data['manager_name']
+                            if response_data.get('manager_personal_phone'):
+                                manager_info['personal_phone'] = response_data['manager_personal_phone']
+                            break
+            
         finally:
             await conn.close()
         
@@ -1029,6 +1049,17 @@ async def view_call_details(
                 dt = dt.replace(tzinfo=timezone.utc)
             return dt.astimezone(timezone(timedelta(hours=3)))
         
+        # Функция для форматирования телефона с префиксами
+        def format_phone(phone):
+            if not phone:
+                return ""
+            # Убираем все кроме цифр
+            digits = ''.join(filter(str.isdigit, str(phone)))
+            if len(digits) == 12 and digits.startswith('375'):
+                # Формат: +375 (XX) XXX-XX-XX
+                return f"+{digits[0:3]} ({digits[3:5]}) {digits[5:8]}-{digits[8:10]}-{digits[10:12]}"
+            return phone
+        
         # Рендерим HTML страницу
         return templates.TemplateResponse(
             "call_details.html",
@@ -1038,9 +1069,10 @@ async def view_call_details(
                 "enterprise_info": enterprise_info,
                 "enterprise_number": enterprise_number,
                 "unique_id": unique_id,
-                "caller_info": caller_info,
-                "callee_info": callee_info,
+                "client_info": client_info,
+                "manager_info": manager_info,
                 "duration_seconds": duration_seconds,
+                "format_phone": format_phone,
                 "to_gmt3": to_gmt3,
                 "now": datetime.now
             }

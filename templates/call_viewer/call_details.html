@@ -134,31 +134,38 @@
             <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
                 <h2 class="text-2xl font-bold text-gray-900 mb-4">👥 Участники звонка</h2>
                 <div class="space-y-4">
-                    <div class="flex items-center space-x-4 p-4 bg-blue-50 rounded-lg">
-                        <div class="text-4xl">👤</div>
+                    <!-- Менеджер (сверху для исходящего) -->
+                    <div class="flex items-center space-x-4 p-4 bg-red-50 rounded-lg">
+                        <div class="text-4xl">☎️</div>
                         <div>
-                            <p class="text-sm text-gray-600">Клиент</p>
-                            <p class="text-xl font-semibold">
-                                {% if caller_info.phone %}
-                                {{ caller_info.phone }}
+                            <p class="text-sm text-gray-600">Менеджер</p>
+                            <p class="text-2xl text-gray-900 font-bold">
+                                {% if manager_info.extension %}
+                                {{ manager_info.extension }}
                                 {% else %}
                                 Не определен
+                                {% endif %}
+                                {% if manager_info.name and manager_info.name != 'Не определен' %}
+                                {{ manager_info.name }}
                                 {% endif %}
                             </p>
                         </div>
                     </div>
+                    <!-- Стрелка вниз (от менеджера к клиенту) -->
                     <div class="flex items-center justify-center">
-                        <div class="text-2xl">↕️</div>
+                        <div class="text-3xl">⬇️</div>
                     </div>
+                    <!-- Клиент (снизу) -->
                     <div class="flex items-center space-x-4 p-4 bg-green-50 rounded-lg">
-                        <div class="text-4xl">☎️</div>
+                        <div class="text-4xl">💰</div>
                         <div>
-                            <p class="text-sm text-gray-600">Менеджер</p>
-                            <p class="text-xl font-semibold">
-                                {% if callee_info.name and callee_info.name != 'Не определен' %}
-                                {{ callee_info.name }} ({{ callee_info.phone }})
-                                {% elif callee_info.phone %}
-                                {{ callee_info.phone }}
+                            <p class="text-sm text-gray-600">Клиент</p>
+                            <p class="text-2xl text-gray-900 font-bold">
+                                {% if client_info.phone %}
+                                {{ format_phone(client_info.phone) }}
+                                {% endif %}
+                                {% if client_info.name and client_info.name != 'Не определен' %}
+                                {{ client_info.name }}
                                 {% else %}
                                 Не определен
                                 {% endif %}
