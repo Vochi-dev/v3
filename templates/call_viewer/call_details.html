@@ -81,7 +81,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-sm text-gray-600">Дата и время (GMT+3)</p>
-                        <p class="text-lg font-semibold">
+                        <p class="text-xl font-bold">
                             {% if call_data.start_time %}
                             {{ to_gmt3(call_data.start_time).strftime('%d.%m.%Y %H:%M:%S') }}
                             {% else %}
@@ -91,7 +91,7 @@
                     </div>
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-sm text-gray-600">Длительность</p>
-                        <p class="text-lg font-semibold">
+                        <p class="text-xl font-bold">
                             {% if duration_seconds %}
                             {{ '%02d:%02d' % (duration_seconds // 60, duration_seconds % 60) }}
                             {% else %}
@@ -101,7 +101,7 @@
                     </div>
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-sm text-gray-600">Направление</p>
-                        <p class="text-lg font-semibold">
+                        <p class="text-xl font-bold">
                             {% if call_data.call_direction == 'incoming' %}
                             📞➡️ Входящий (к нам)
                             {% elif call_data.call_direction == 'outgoing' %}
@@ -115,7 +115,7 @@
                     </div>
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-sm text-gray-600">Статус</p>
-                        <p class="text-lg font-semibold">
+                        <p class="text-xl font-bold">
                             {% if call_data.call_status == 'ANSWERED' or call_data.call_status == '1' or call_data.call_status == 1 %}
                             <span class="status-success">✅ Отвечен</span>
                             {% elif call_data.call_status == 'completed' or call_data.call_status == '2' or call_data.call_status == 2 %}
@@ -177,42 +177,25 @@
 
             <!-- Блок 3: Timeline событий -->
             <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">⏱️ Хронология событий</h2>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">⏱️ Хронология событий от хоста</h2>
+                <p class="text-lg text-gray-700 mb-4 font-medium">Показаны уникальные события, полученные от Asterisk</p>
                 
-                {% if call_data.call_events %}
-                <div class="space-y-4">
-                    {% for event in call_data.call_events %}
+                {% if call_data.unique_events %}
+                <div class="space-y-6">
+                    {% for event in call_data.unique_events %}
                     <div class="timeline-item flex items-start space-x-4">
-                        <div class="flex-shrink-0 w-32 text-sm text-gray-600">
-                            {% if event.event_timestamp %}
+                        <div class="flex-shrink-0 w-32 text-xl text-gray-900 font-bold">
+                            {% if event.event_timestamp_dt %}
+                            {{ to_gmt3(event.event_timestamp_dt).strftime('%H:%M:%S') }}
+                            {% elif event.event_timestamp %}
                             {{ event.event_timestamp.split('T')[1][:8] if 'T' in event.event_timestamp else event.event_timestamp[-8:] }}
                             {% endif %}
                         </div>
-                        <div class="flex-shrink-0">
-                            {% if event.event_type == 'start' %}
-                            <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-                                🚀
-                            </div>
-                            {% elif event.event_type == 'dial' %}
-                            <div class="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center text-white font-bold">
-                                📞
-                            </div>
-                            {% elif event.event_type == 'bridge' %}
-                            <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
-                                🔗
-                            </div>
-                            {% elif event.event_type == 'hangup' %}
-                            <div class="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white font-bold">
-                                ⏹️
-                            </div>
-                            {% else %}
-                            <div class="w-10 h-10 bg-gray-500 rounded-full flex items-center justify-center text-white font-bold">
-                                ℹ️
-                            </div>
-                            {% endif %}
+                        <div class="flex-shrink-0 w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                            {{ loop.index }}
                         </div>
                         <div class="flex-1 bg-gray-50 p-4 rounded-lg">
-                            <p class="font-semibold text-lg mb-2">
+                            <p class="font-bold text-xl mb-2">
                                 {% if event.event_type == 'start' %}
                                 🚀 Звонок инициирован
                                 {% elif event.event_type == 'dial' %}
@@ -234,7 +217,7 @@
                                 {% endif %}
                             </p>
                             {% if event.event_data %}
-                            <p class="text-sm text-gray-600 mb-2">
+                            <p class="text-xl font-bold text-gray-900 mb-2">
                                 {% if event.event_type == 'dial' and event.event_data.Phone %}
                                 Номер: {{ event.event_data.Phone }}
                                 {% if event.event_data.Extensions %}
@@ -247,12 +230,82 @@
                                 {% endif %}
                             </p>
                             {% endif %}
+                            
+                            <!-- Что мы сделали с этим событием -->
+                            <div class="mt-4 pl-4 border-l-4 border-blue-200 bg-blue-50 p-3 rounded">
+                                <p class="text-xl font-bold text-blue-900 mb-2">📋 Что мы сделали:</p>
+                                <ul class="text-xl font-bold text-gray-900 space-y-2">
+                                    <li>
+                                        <details>
+                                            <summary class="cursor-pointer hover:text-blue-700">✅ Событие получено и обработано</summary>
+                                            {% if event.event_data %}
+                                            <div class="mt-2 ml-6 bg-white p-3 rounded border border-gray-300">
+                                                <p class="text-xl font-bold text-gray-900 mb-2">Запрос от хоста:</p>
+                                                <pre class="text-xl font-bold text-gray-900 bg-gray-100 p-3 rounded overflow-x-auto">{{ event.event_data|tojson(indent=2) }}</pre>
+                                            </div>
+                                            {% endif %}
+                                        </details>
+                                    </li>
+                                    
+                                    {% set event_timestamp = event.event_timestamp %}
+                                    {% set has_actions = false %}
+                                    
+                                    {# Проверяем HTTP запросы #}
+                                    {% if call_data.http_requests %}
+                                        {% for req in call_data.http_requests %}
+                                            {% if req.timestamp and event_timestamp and 
+                                                 (req.timestamp[:19] == event_timestamp[:19] or 
+                                                  (req.timestamp[:16] == event_timestamp[:16])) %}
+                                                {% set has_actions = true %}
+                                                <li>🌐 HTTP: {{ req.method }} {{ req.url.split('/')[-1] }}</li>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    {# Проверяем Telegram сообщения #}
+                                    {% if call_data.telegram_messages %}
+                                        {% for msg in call_data.telegram_messages %}
+                                            {% if msg.timestamp and event_timestamp and 
+                                                 (msg.timestamp[:19] == event_timestamp[:19] or 
+                                                  (msg.timestamp[:16] == event_timestamp[:16])) %}
+                                                {% set has_actions = true %}
+                                                <li>📱 Telegram: отправлено сообщение (chat_id: {{ msg.chat_id }})</li>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    {# Проверяем SQL запросы #}
+                                    {% if call_data.sql_queries %}
+                                        {% for sql in call_data.sql_queries %}
+                                            {% if sql.timestamp and event_timestamp and 
+                                                 (sql.timestamp[:19] == event_timestamp[:19] or 
+                                                  (sql.timestamp[:16] == event_timestamp[:16])) %}
+                                                {% set has_actions = true %}
+                                                <li>💾 SQL: {{ sql.query[:50] }}...</li>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    {# Проверяем интеграции #}
+                                    {% if call_data.integration_responses %}
+                                        {% for integ in call_data.integration_responses %}
+                                            {% if integ.timestamp and event_timestamp and 
+                                                 (integ.timestamp[:19] == event_timestamp[:19] or 
+                                                  (integ.timestamp[:16] == event_timestamp[:16])) %}
+                                                {% set has_actions = true %}
+                                                <li>🔗 Интеграция: {{ integ.integration_name }}</li>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                </ul>
+                            </div>
+                            
                             {% if event.event_data %}
                             <details class="mt-2">
                                 <summary class="cursor-pointer text-sm text-blue-600 hover:text-blue-800">
-                                    Показать детали
+                                    Показать детали события
                                 </summary>
-                                <pre class="mt-2 text-xs">{{ event.event_data|tojson(indent=2) }}</pre>
+                                <pre class="mt-2 text-xs bg-gray-100 p-2 rounded">{{ event.event_data|tojson(indent=2) }}</pre>
                             </details>
                             {% endif %}
                         </div>

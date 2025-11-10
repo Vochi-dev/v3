@@ -985,6 +985,52 @@ async def view_call_details(
             if isinstance(call_data.get('integration_responses'), str):
                 call_data['integration_responses'] = json.loads(call_data['integration_responses'])
             
+            # Группируем события - убираем дубли по chat_id
+            # Группируем по: тип события + UniqueId (для событий с UniqueId)
+            unique_events = []
+            seen_events = set()
+            
+            if call_data.get('call_events'):
+                for event in call_data['call_events']:
+                    event_data = event.get('event_data', {})
+                    unique_id = event_data.get('UniqueId', '')
+                    
+                    # Для событий с UniqueId - группируем по типу + UniqueId
+                    # Для событий без UniqueId (bridge_create, bridge_destroy) - только по типу
+                    if unique_id:
+                        event_key = (event.get('event_type'), unique_id)
+                    else:
+                        # Для событий без UniqueId берем первое вхождение
+                        event_key = (event.get('event_type'), 'no_uid')
+                    
+                    if event_key not in seen_events:
+                        seen_events.add(event_key)
+                        unique_events.append(event)
+                
+                # Сортируем по времени
+                unique_events.sort(key=lambda x: x.get('event_timestamp', ''))
+                
+                # Конвертируем timestamp строки в datetime для шаблона
+                from datetime import datetime as dt
+                from dateutil import parser
+                for event in unique_events:
+                    if event.get('event_timestamp'):
+                        try:
+                            # Парсим ISO формат с timezone
+                            ts_str = event['event_timestamp']
+                            event['event_timestamp_dt'] = parser.isoparse(ts_str)
+                        except:
+                            # Fallback - пробуем без timezone
+                            try:
+                                if '+' in ts_str:
+                                    ts_str = ts_str.split('+')[0]
+                                event['event_timestamp_dt'] = dt.fromisoformat(ts_str.replace('Z', ''))
+                            except:
+                                pass
+                
+                call_data['unique_events'] = unique_events
+                logger.info(f"Total call_events: {len(call_data['call_events'])}, Unique events: {len(unique_events)}")
+            
             # Извлекаем информацию об участниках из call_events
             client_info = {"name": "Не определен", "phone": ""}
             manager_info = {"name": "Не определен", "phone": "", "extension": ""}
