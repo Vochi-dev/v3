@@ -250,26 +250,56 @@
                                     {% set event_timestamp = event.event_timestamp %}
                                     {% set has_actions = false %}
                                     
-                                    {# Проверяем HTTP запросы #}
+                                    {# Проверяем HTTP запросы - группируем одинаковые #}
                                     {% if call_data.http_requests %}
+                                        {% set seen_http = {} %}
                                         {% for req in call_data.http_requests %}
                                             {% if req.timestamp and event_timestamp and 
                                                  (req.timestamp[:19] == event_timestamp[:19] or 
                                                   (req.timestamp[:16] == event_timestamp[:16])) %}
-                                                {% set has_actions = true %}
-                                                <li>🌐 HTTP: {{ req.method }} {{ req.url.split('/')[-1] }}</li>
+                                                {% set req_key = req.method ~ '|' ~ req.url %}
+                                                {% if req_key not in seen_http %}
+                                                    {% set _ = seen_http.update({req_key: req}) %}
+                                                    {% set has_actions = true %}
+                                                    <li>
+                                                        <details>
+                                                            <summary class="cursor-pointer hover:text-blue-700">
+                                                                🌐 HTTP: {{ req.method }} → {{ req.url }}
+                                                                {% if req.status_code %}
+                                                                <span class="{% if req.status_code == 200 %}text-green-600{% else %}text-red-600{% endif %}">
+                                                                    ({{ req.status_code }})
+                                                                </span>
+                                                                {% endif %}
+                                                            </summary>
+                                                            <div class="mt-2 ml-6 bg-white p-3 rounded border border-gray-300">
+                                                                {% if req.request_body %}
+                                                                <p class="text-xl font-bold text-gray-900 mb-1">Запрос:</p>
+                                                                <pre class="text-xl font-bold text-gray-900 bg-gray-100 p-2 rounded overflow-x-auto mb-3">{{ req.request_body|tojson(indent=2) if req.request_body is not string else req.request_body }}</pre>
+                                                                {% endif %}
+                                                                {% if req.response_data %}
+                                                                <p class="text-xl font-bold text-gray-900 mb-1">Ответ:</p>
+                                                                <pre class="text-xl font-bold text-gray-900 bg-gray-100 p-2 rounded overflow-x-auto">{{ req.response_data|tojson(indent=2) if req.response_data is not string else req.response_data }}</pre>
+                                                                {% endif %}
+                                                            </div>
+                                                        </details>
+                                                    </li>
+                                                {% endif %}
                                             {% endif %}
                                         {% endfor %}
                                     {% endif %}
                                     
-                                    {# Проверяем Telegram сообщения #}
+                                    {# Проверяем Telegram сообщения - группируем по chat_id #}
                                     {% if call_data.telegram_messages %}
+                                        {% set seen_tg_chats = [] %}
                                         {% for msg in call_data.telegram_messages %}
                                             {% if msg.timestamp and event_timestamp and 
                                                  (msg.timestamp[:19] == event_timestamp[:19] or 
                                                   (msg.timestamp[:16] == event_timestamp[:16])) %}
-                                                {% set has_actions = true %}
-                                                <li>📱 Telegram: отправлено сообщение (chat_id: {{ msg.chat_id }})</li>
+                                                {% if msg.chat_id not in seen_tg_chats %}
+                                                    {% set _ = seen_tg_chats.append(msg.chat_id) %}
+                                                    {% set has_actions = true %}
+                                                    <li>📱 Telegram: отправлено сообщение (chat_id: {{ msg.chat_id }})</li>
+                                                {% endif %}
                                             {% endif %}
                                         {% endfor %}
                                     {% endif %}
