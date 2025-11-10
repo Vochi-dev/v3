@@ -92,8 +92,8 @@
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-sm text-gray-600">Длительность</p>
                         <p class="text-lg font-semibold">
-                            {% if call_data.duration %}
-                            {{ '%02d:%02d' % (call_data.duration // 60, call_data.duration % 60) }}
+                            {% if duration_seconds %}
+                            {{ '%02d:%02d' % (duration_seconds // 60, duration_seconds % 60) }}
                             {% else %}
                             00:00
                             {% endif %}

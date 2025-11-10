@@ -988,6 +988,7 @@ async def view_call_details(
             # Извлекаем информацию об участниках из call_events
             caller_info = {"name": "Не определен", "phone": ""}
             callee_info = {"name": "Не определен", "phone": ""}
+            duration_seconds = 0
             
             if call_data.get('call_events'):
                 for event in call_data['call_events']:
@@ -1002,6 +1003,20 @@ async def view_call_details(
                     if event_type == 'bridge' and event_data.get('CallerIDNum'):
                         callee_info['phone'] = event_data['CallerIDNum']
                         callee_info['name'] = event_data.get('CallerIDName', event_data['CallerIDNum'])
+                    
+                    # Рассчитываем длительность из события hangup
+                    if event_type == 'hangup' and not duration_seconds:
+                        start_time_str = event_data.get('StartTime')
+                        end_time_str = event_data.get('EndTime')
+                        
+                        if start_time_str and end_time_str:
+                            try:
+                                from datetime import datetime as dt
+                                start = dt.strptime(start_time_str, '%Y-%m-%d %H:%M:%S')
+                                end = dt.strptime(end_time_str, '%Y-%m-%d %H:%M:%S')
+                                duration_seconds = int((end - start).total_seconds())
+                            except Exception as e:
+                                logger.warning(f"Failed to calculate duration: {e}")
             
         finally:
             await conn.close()
@@ -1025,6 +1040,7 @@ async def view_call_details(
                 "unique_id": unique_id,
                 "caller_info": caller_info,
                 "callee_info": callee_info,
+                "duration_seconds": duration_seconds,
                 "to_gmt3": to_gmt3,
                 "now": datetime.now
             }
