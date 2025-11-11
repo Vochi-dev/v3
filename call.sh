@@ -15,7 +15,6 @@ case "${1:-start}" in
     setsid uvicorn "$APP_MODULE" \
       --host "$HOST" \
       --port "$PORT" \
-      --reload \
       --log-level debug \
       --log-config log_config.json &
 
