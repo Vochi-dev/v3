@@ -82,7 +82,9 @@
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-sm text-gray-600">Дата и время (GMT+3)</p>
                         <p class="text-xl font-bold">
-                            {% if call_data.start_time %}
+                            {% if call_start_time %}
+                            {{ to_gmt3(call_start_time).strftime('%d.%m.%Y %H:%M:%S') }}
+                            {% elif call_data.start_time %}
                             {{ to_gmt3(call_data.start_time).strftime('%d.%m.%Y %H:%M:%S') }}
                             {% else %}
                             Не определено
@@ -102,11 +104,11 @@
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-sm text-gray-600">Направление</p>
                         <p class="text-xl font-bold">
-                            {% if call_data.call_direction == 'incoming' %}
+                            {% if call_direction == 'incoming' %}
                             📞➡️ Входящий (к нам)
-                            {% elif call_data.call_direction == 'outgoing' %}
+                            {% elif call_direction == 'outgoing' %}
                             ☎️➡️📱 Исходящий (от нас)
-                            {% elif call_data.call_direction == 'internal' %}
+                            {% elif call_direction == 'internal' %}
                             🔄 Внутренний
                             {% else %}
                             ❓ Неизвестно

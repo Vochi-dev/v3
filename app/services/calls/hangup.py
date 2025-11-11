@@ -382,22 +382,29 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             # Для внутренних звонков оба номера внутренние
             internal_phone = caller if is_internal_number(caller) else None
         
-        # ───────── ВКЛЮЧАЕМ обогащение метаданными для hangup ─────────
-        enriched_data = {}
-        if call_direction in ["incoming", "outgoing"] and enterprise_number != "0000":
-            try:
-                # ОТЛАДКА: Логируем параметры обогащения
-                logging.info(f"[process_hangup] Enrichment params: enterprise_number={enterprise_number}, internal_phone={internal_phone}, external_phone={external_phone}, line_id={line_id}")
-                
-                enriched_data = await metadata_client.enrich_message_data(
-                    enterprise_number=enterprise_number,
-                    internal_phone=internal_phone if internal_phone else None,
-                    line_id=line_id if line_id else None,
-                    external_phone=external_phone if external_phone else None
-                )
-                logging.info(f"[process_hangup] Enriched data: {enriched_data}")
-            except Exception as e:
-                logging.error(f"[process_hangup] Error enriching metadata: {e}")
+        # ───────── Используем pre-enriched данные (уже сделано в main.py) ─────────
+        enriched_data = data.get("_enriched_data", {})
+        
+        # Используем pre-computed параметры из main.py (если есть)
+        if "_internal_phone" in data:
+            internal_phone = data["_internal_phone"]
+        if "_external_phone" in data:
+            external_phone = data["_external_phone"]
+        if "_line_id" in data:
+            line_id = data["_line_id"]
+        
+        if enriched_data:
+            logging.info(f"[process_hangup] Using pre-enriched data: {enriched_data}")
+        else:
+            logging.warning(f"[process_hangup] No pre-enriched data available, will enrich now")
+            # Fallback - если по какой-то причине не было pre-enriched
+            enriched_data = await metadata_client.enrich_message_data(
+                enterprise_number=enterprise_number,
+                internal_phone=internal_phone,
+                external_phone=external_phone,
+                line_id=line_id,
+                short_names=False
+            )
         
         # ───────── Шаг 6. Формируем текст согласно Пояснению ─────────
         

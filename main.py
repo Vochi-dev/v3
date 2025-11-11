@@ -690,31 +690,26 @@ async def _dispatch_to_all(handler, body: dict):
     # Детальное логирование для диагностики
     logger.info(f"_dispatch_to_all: Token='{token}', UniqueId='{unique_id}', body keys: {list(body.keys())}")
     
-    # Определяем тип события из URL
+    # Определяем тип события из имени handler'а
     event_type = "unknown"
-    import inspect
-    frame = inspect.currentframe()
-    try:
-        caller_name = frame.f_back.f_code.co_name
-        if "hangup" in caller_name:
-            event_type = "hangup"
-        elif "bridge_create" in caller_name:
-            event_type = "bridge_create"
-        elif "bridge_leave" in caller_name:
-            event_type = "bridge_leave"
-        elif "bridge_destroy" in caller_name:
-            event_type = "bridge_destroy"
-        elif "new_callerid" in caller_name:
-            event_type = "new_callerid"
-        elif "bridge" in caller_name:
-            event_type = "bridge"
-        elif "dial" in caller_name:
-            event_type = "dial"
-        elif "start" in caller_name:
-            event_type = "start"
-        logger.info(f"Detected event_type: {event_type}")
-    finally:
-        del frame
+    handler_name = handler.__name__ if hasattr(handler, '__name__') else str(handler)
+    if "hangup" in handler_name:
+        event_type = "hangup"
+    elif "bridge_create" in handler_name:
+        event_type = "bridge_create"
+    elif "bridge_leave" in handler_name:
+        event_type = "bridge_leave"
+    elif "bridge_destroy" in handler_name:
+        event_type = "bridge_destroy"
+    elif "new_callerid" in handler_name:
+        event_type = "new_callerid"
+    elif "bridge" in handler_name:
+        event_type = "bridge"
+    elif "dial" in handler_name:
+        event_type = "dial"
+    elif "start" in handler_name:
+        event_type = "start"
+    logger.info(f"Detected event_type: {event_type} from handler: {handler_name}")
     
     # Специальное логирование для тестового предприятия 0367 (june)
     TEST_TOKEN = "375293332255"  # Token для предприятия 0367/june
@@ -722,7 +717,11 @@ async def _dispatch_to_all(handler, body: dict):
         test_logger_0367 = logging.getLogger("test_enterprise_0367")
         test_logger_0367.info(f"🧪 TEST EVENT: {event_type}")
         test_logger_0367.info(f"📋 Token: {token}, UniqueId: {unique_id}")
-        test_logger_0367.info(f"📦 Full Body: {json.dumps(body, ensure_ascii=False, indent=2)}")
+        try:
+            test_logger_0367.info(f"📦 Full Body: {json.dumps(body, ensure_ascii=False, indent=2)}")
+        except Exception as e:
+            test_logger_0367.error(f"❌ Failed to serialize body: {e}")
+            test_logger_0367.error(f"Body type: {type(body)}, Body keys: {list(body.keys()) if isinstance(body, dict) else 'not a dict'}")
     
     # Нормализуем номер по правилу на линии (если задано)
     await _apply_incoming_transform_if_any(body)
@@ -747,6 +746,171 @@ async def _dispatch_to_all(handler, body: dict):
         shared_uuid_token = str(uuid.uuid4())
         body["_shared_uuid_token"] = shared_uuid_token
         logger.info(f"Generated shared UUID token for hangup {unique_id}: {shared_uuid_token}")
+    
+    # 🎯 ОПТИМИЗАЦИЯ: Подготовка данных ДО цикла по подписчикам
+    # Для dial/bridge/hangup делаем enrichment ОДИН РАЗ
+    if event_type in ["dial", "bridge", "hangup"]:
+        try:
+            from app.services.metadata_client import metadata_client, extract_line_id_from_exten
+            from app.services.calls.utils import is_internal_number
+            
+            # Получаем enterprise_number
+            enterprise_number = await _get_enterprise_number_by_token(token)
+            
+            if enterprise_number and enterprise_number != "0000":
+                internal_phone = None
+                external_phone = None
+                line_id = None
+                
+                # Извлекаем параметры в зависимости от типа события
+                if event_type == "dial":
+                    call_type = int(body.get("CallType", 0))
+                    raw_phone = body.get("Phone", "") or body.get("CallerIDNum", "") or ""
+                    exts = body.get("Extensions", [])
+                    trunk = body.get("Trunk", "")
+                    
+                    line_id = extract_line_id_from_exten(trunk)
+                    external_phone = raw_phone if call_type != 2 else None
+                    
+                    # Ищем внутренний номер
+                    if exts:
+                        for ext in exts:
+                            if is_internal_number(str(ext)):
+                                internal_phone = str(ext)
+                                break
+                    
+                    if not internal_phone:
+                        caller_id = body.get("CallerIDNum", "")
+                        if is_internal_number(caller_id):
+                            internal_phone = caller_id
+                
+                elif event_type == "bridge":
+                    caller = body.get("CallerIDNum", "")
+                    connected = body.get("ConnectedLineNum", "")
+                    
+                    caller_internal = is_internal_number(caller)
+                    connected_internal = is_internal_number(connected)
+                    
+                    if caller_internal:
+                        internal_phone = caller
+                        external_phone = connected if not connected_internal else None
+                    elif connected_internal:
+                        internal_phone = connected
+                        external_phone = caller
+                    
+                    # Извлекаем trunk
+                    trunk = body.get("Trunk", "")
+                    if not trunk:
+                        channel = body.get("Channel", "")
+                        if channel and "/" in channel and "-" in channel:
+                            parts = channel.split("/")
+                            if len(parts) > 1:
+                                trunk = parts[1].split("-")[0]
+                    line_id = trunk
+                
+                elif event_type == "hangup":
+                    call_type = int(body.get("CallType", 0))
+                    caller = body.get("Phone", "")
+                    exts = body.get("Extensions", [])
+                    trunk = body.get("Trunk", "")
+                    
+                    line_id = extract_line_id_from_exten(trunk)
+                    
+                    if call_type == 0:  # Входящий
+                        external_phone = caller
+                        # Ищем внутренний номер в Extensions
+                        if exts:
+                            for ext in exts:
+                                if ext and is_internal_number(str(ext)):
+                                    internal_phone = str(ext)
+                                    break
+                        
+                        # Если не нашли, ищем в старой таблице call_events
+                        if not internal_phone:
+                            try:
+                                from app.services.postgres import get_pool
+                                pool = await get_pool()
+                                if pool:
+                                    async with pool.acquire() as connection:
+                                        query = """
+                                            SELECT raw_data->'Extensions' as extensions
+                                            FROM call_events
+                                            WHERE unique_id = $1
+                                              AND event_type = 'dial'
+                                            ORDER BY event_timestamp ASC
+                                            LIMIT 1
+                                        """
+                                        result = await connection.fetchrow(query, unique_id)
+                                        if result and result['extensions']:
+                                            try:
+                                                import json
+                                                extensions = json.loads(str(result['extensions']))
+                                                for ext in extensions:
+                                                    if ext and is_internal_number(str(ext)):
+                                                        internal_phone = str(ext)
+                                                        logger.info(f"✅ Found internal_phone '{internal_phone}' from call_events for hangup")
+                                                        break
+                                            except Exception as parse_e:
+                                                logger.error(f"Failed to parse extensions: {parse_e}")
+                            except Exception as e:
+                                logger.error(f"Error finding internal_phone for hangup: {e}")
+                    
+                    elif call_type == 1:  # Исходящий
+                        external_phone = caller
+                        if exts:
+                            for ext in exts:
+                                if ext and is_internal_number(str(ext)):
+                                    internal_phone = str(ext)
+                                    break
+                        
+                        # Если не нашли, ищем в старой таблице call_events
+                        if not internal_phone:
+                            try:
+                                from app.services.postgres import get_pool
+                                pool = await get_pool()
+                                if pool:
+                                    async with pool.acquire() as connection:
+                                        query = """
+                                            SELECT raw_data->'Extensions' as extensions
+                                            FROM call_events
+                                            WHERE unique_id = $1
+                                              AND event_type = 'dial'
+                                            ORDER BY event_timestamp ASC
+                                            LIMIT 1
+                                        """
+                                        result = await connection.fetchrow(query, unique_id)
+                                        if result and result['extensions']:
+                                            try:
+                                                import json
+                                                extensions = json.loads(str(result['extensions']))
+                                                for ext in extensions:
+                                                    if ext and is_internal_number(str(ext)):
+                                                        internal_phone = str(ext)
+                                                        logger.info(f"✅ Found internal_phone '{internal_phone}' from call_events for hangup")
+                                                        break
+                                            except Exception as parse_e:
+                                                logger.error(f"Failed to parse extensions: {parse_e}")
+                            except Exception as e:
+                                logger.error(f"Error finding internal_phone for hangup: {e}")
+                
+                # Делаем enrichment ОДИН РАЗ для всех подписчиков
+                if internal_phone or external_phone:
+                    enriched_data = await metadata_client.enrich_message_data(
+                        enterprise_number=enterprise_number,
+                        internal_phone=internal_phone,
+                        external_phone=external_phone,
+                        line_id=line_id,
+                        short_names=False
+                    )
+                    body["_enriched_data"] = enriched_data
+                    body["_internal_phone"] = internal_phone
+                    body["_external_phone"] = external_phone
+                    body["_line_id"] = line_id
+                    logger.info(f"✅ Enriched data ONCE for all subscribers: {enriched_data}")
+        except Exception as e:
+            import traceback
+            logger.error(f"Failed to prepare enrichment data: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
     
     telegram_success = False
 

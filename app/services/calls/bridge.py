@@ -590,18 +590,12 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
                 trunk = trunk_part
                 logging.info(f"[send_bridge_to_single_chat] Extracted trunk '{trunk}' from Channel '{channel}'")
     
-    # Для исходящих и входящих звонков получаем обогащённые данные
-    if call_direction in ["incoming", "outgoing"] and enterprise_number != "0000":
-        try:
-            enriched_data = await metadata_client.enrich_message_data(
-                enterprise_number=enterprise_number,
-                internal_phone=internal_ext if internal_ext else None,
-                line_id=trunk if trunk else None,
-                external_phone=external_phone if external_phone else None
-            )
-            logging.info(f"[send_bridge_to_single_chat] Enriched data: {enriched_data}")
-        except Exception as e:
-            logging.error(f"[send_bridge_to_single_chat] Error enriching metadata: {e}")
+    # Используем pre-enriched данные (уже сделано в main.py)
+    enriched_data = data.get("_enriched_data", {})
+    if enriched_data:
+        logging.info(f"[send_bridge_to_single_chat] Using pre-enriched data: {enriched_data}")
+    else:
+        logging.warning(f"[send_bridge_to_single_chat] No pre-enriched data available")
 
     # ───────── Шаг 4. Формируем текст согласно Пояснению ─────────
     if call_direction == "internal":

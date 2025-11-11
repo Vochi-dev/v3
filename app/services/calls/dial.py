@@ -133,58 +133,33 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             if is_internal_number(caller_id):
                 internal_phone = caller_id
     
-    # ───────── Обогащение метаданными через сервис 8020 ─────────
-    enriched_data = {}
-    enrichment_start_time = time.time()
+    # ───────── Используем pre-enriched данные (уже сделано в main.py) ─────────
+    enriched_data = data.get("_enriched_data", {})
     
-    try:
-        enriched_data = await metadata_client.enrich_message_data(
-            enterprise_number=enterprise_number,
-            line_id=line_id,
-            internal_phone=internal_phone,
-            external_phone=external_phone,
-            short_names=False
-        )
+    if enriched_data:
+        logging.info(f"[process_dial] Using pre-enriched data: {enriched_data}")
         
-        # Логируем успешный HTTP запрос к 8020
-        enrichment_duration = (time.time() - enrichment_start_time) * 1000
-        await call_logger.log_http_request(
-            enterprise_number=enterprise_number,
-            unique_id=uid,
-            method="POST",
-            url=f"http://localhost:8020/metadata/{enterprise_number}/enrich",
-            request_data={
-                "line_id": line_id,
-                "internal_phone": internal_phone,
-                "external_phone": external_phone,
-                "short_names": False
-            },
-            response_data=enriched_data,
-            status_code=200,
-            duration_ms=enrichment_duration
-        )
-        
-        logging.info(f"[process_dial] Enrichment successful: {enriched_data}")
-    except Exception as e:
-        # Логируем ошибку HTTP запроса
-        enrichment_duration = (time.time() - enrichment_start_time) * 1000
-        await call_logger.log_http_request(
-            enterprise_number=enterprise_number,
-            unique_id=uid,
-            method="POST",
-            url=f"http://localhost:8020/metadata/{enterprise_number}/enrich",
-            request_data={
-                "line_id": line_id,
-                "internal_phone": internal_phone,
-                "external_phone": external_phone,
-                "short_names": False
-            },
-            duration_ms=enrichment_duration,
-            error=str(e)
-        )
-        
-        logging.warning(f"[process_dial] Enrichment failed: {e}")
-        enriched_data = {}
+        # Логируем HTTP запрос (для этого chat_id, но запрос был сделан один раз)
+        try:
+            await call_logger.log_http_request(
+                enterprise_number=enterprise_number,
+                unique_id=uid,
+                method="POST",
+                url=f"http://localhost:8020/metadata/{enterprise_number}/enrich",
+                request_data={
+                    "line_id": line_id,
+                    "internal_phone": internal_phone,
+                    "external_phone": external_phone,
+                    "short_names": False
+                },
+                response_data=enriched_data,
+                status_code=200,
+                duration_ms=0  # Уже было сделано в main.py
+            )
+        except Exception as log_e:
+            logging.warning(f"[process_dial] Failed to log HTTP request: {log_e}")
+    else:
+        logging.warning(f"[process_dial] No pre-enriched data available")
     
     # ───────── Шаг 3. Формируем текст согласно Пояснению ─────────
     if is_int:

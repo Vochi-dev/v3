@@ -1,0 +1,531 @@
+2025-11-11 07:01:53,145 - asyncio - DEBUG - Using selector: EpollSelector
+2025-11-11 07:01:53,983 - uvicorn.error - INFO - Started server process [3349725]
+2025-11-11 07:01:53,983 - uvicorn.error - INFO - Waiting for application startup.
+2025-11-11 07:01:53,983 - uvicorn.error - INFO - Application startup complete.
+2025-11-11 07:01:53,984 - uvicorn.error - INFO - Uvicorn running on http://0.0.0.0:8026 (Press CTRL+C to quit)
+2025-11-11 07:01:54,568 - logger - INFO - Logged event bridge for call 1762844509.75 (chat_id: 374573193) (trace_id: 478048)
+2025-11-11 07:01:54,569 - uvicorn.access - INFO - 127.0.0.1:49054 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:01:54,804 - logger - INFO - Logged Telegram send for call 1762844440.355
+2025-11-11 07:01:54,805 - uvicorn.access - INFO - 127.0.0.1:49044 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:01:55,867 - logger - INFO - Logged event dial for call 1762844502.57 (chat_id: 374573193) (trace_id: 478044)
+2025-11-11 07:01:55,867 - uvicorn.access - INFO - 127.0.0.1:49062 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:01:56,205 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0349/enrich for call 1762844502.57
+2025-11-11 07:01:56,206 - uvicorn.access - INFO - 127.0.0.1:49064 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:01:56,665 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0379/enrich for call 1762844510.77
+2025-11-11 07:01:56,666 - uvicorn.access - INFO - 127.0.0.1:49074 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:01:57,103 - logger - INFO - Logged event dial for call 1762844510.77 (chat_id: 374573193) (trace_id: 478049)
+2025-11-11 07:01:57,104 - uvicorn.access - INFO - 127.0.0.1:49080 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:01:57,440 - logger - INFO - Logged Telegram send for call 1762844502.57
+2025-11-11 07:01:57,441 - uvicorn.access - INFO - 127.0.0.1:49084 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:01:58,019 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0103/enrich for call 1762844513.43
+2025-11-11 07:01:58,019 - uvicorn.access - INFO - 127.0.0.1:49100 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:01:58,429 - logger - INFO - Logged event dial for call 1762844513.43 (chat_id: 374573193) (trace_id: 478050)
+2025-11-11 07:01:58,429 - uvicorn.access - INFO - 127.0.0.1:49110 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:01:59,033 - logger - INFO - Logged Telegram send for call 1762844510.77
+2025-11-11 07:01:59,033 - uvicorn.access - INFO - 127.0.0.1:49126 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:01:59,420 - logger - INFO - Logged event hangup for call 1762844126.27 (chat_id: 374573193) (trace_id: 477890)
+2025-11-11 07:01:59,421 - uvicorn.access - INFO - 127.0.0.1:49138 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:01:59,447 - logger - INFO - Logged event start for call 1762844515.18 (chat_id: 374573193) (trace_id: 478051)
+2025-11-11 07:01:59,448 - uvicorn.access - INFO - 127.0.0.1:49152 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:01:59,658 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844502.57
+2025-11-11 07:01:59,659 - uvicorn.access - INFO - 127.0.0.1:49164 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:01:59,986 - logger - INFO - Logged event bridge for call 1762844502.57 (chat_id: 374573193) (trace_id: 478044)
+2025-11-11 07:01:59,986 - uvicorn.access - INFO - 127.0.0.1:49140 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:00,878 - logger - INFO - Logged Telegram send for call 1762844515.18
+2025-11-11 07:02:00,879 - uvicorn.access - INFO - 127.0.0.1:60438 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:00,880 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844510.77
+2025-11-11 07:02:00,880 - uvicorn.access - INFO - 127.0.0.1:60466 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:00,881 - logger - INFO - Logged Telegram send for call 1762844513.43
+2025-11-11 07:02:00,881 - uvicorn.access - INFO - 127.0.0.1:60452 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:00,954 - logger - INFO - Logged event start for call 1762844516.14 (chat_id: 374573193) (trace_id: 478052)
+2025-11-11 07:02:00,954 - uvicorn.access - INFO - 127.0.0.1:60462 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:01,319 - logger - INFO - Logged event bridge for call 1762844510.60 (chat_id: 374573193) (trace_id: 478044)
+2025-11-11 07:02:01,319 - uvicorn.access - INFO - 127.0.0.1:60454 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:01,451 - logger - INFO - Logged Telegram send for call 1762844502.57
+2025-11-11 07:02:01,452 - uvicorn.access - INFO - 127.0.0.1:60470 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:01,885 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0281/enrich for call 1762844514.205
+2025-11-11 07:02:01,886 - uvicorn.access - INFO - 127.0.0.1:60524 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:01,887 - logger - INFO - Logged Telegram send for call 1762844510.60
+2025-11-11 07:02:01,887 - uvicorn.access - INFO - 127.0.0.1:60500 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:01,888 - logger - INFO - Logged Telegram send for call 1762844516.14
+2025-11-11 07:02:01,888 - uvicorn.access - INFO - 127.0.0.1:60484 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:01,889 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844513.43
+2025-11-11 07:02:01,890 - uvicorn.access - INFO - 127.0.0.1:60512 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:02,261 - logger - INFO - Logged event dial for call 1762844514.205 (chat_id: 374573193) (trace_id: 478053)
+2025-11-11 07:02:02,262 - uvicorn.access - INFO - 127.0.0.1:60536 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:03,622 - logger - INFO - Logged Telegram send for call 1762844514.205
+2025-11-11 07:02:03,622 - uvicorn.access - INFO - 127.0.0.1:60538 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:03,871 - logger - INFO - Logged event hangup for call 1762844465.202 (chat_id: 374573193) (trace_id: 478038)
+2025-11-11 07:02:03,872 - uvicorn.access - INFO - 127.0.0.1:60548 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:04,077 - logger - INFO - Logged event dial for call 1762844515.18 (chat_id: 374573193) (trace_id: 478051)
+2025-11-11 07:02:04,078 - uvicorn.access - INFO - 127.0.0.1:60552 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:04,641 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0326/enrich for call 1762844515.18
+2025-11-11 07:02:04,642 - uvicorn.access - INFO - 127.0.0.1:60562 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:05,255 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844514.205
+2025-11-11 07:02:05,256 - uvicorn.access - INFO - 127.0.0.1:60578 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:06,164 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0388/enrich for call 1762844521.270
+2025-11-11 07:02:06,164 - uvicorn.access - INFO - 127.0.0.1:60602 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:06,274 - logger - INFO - Logged Telegram send for call 1762844465.202
+2025-11-11 07:02:06,274 - uvicorn.access - INFO - 127.0.0.1:60592 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:06,631 - logger - INFO - Logged event start for call 1762844522.29 (chat_id: 374573193) (trace_id: 478055)
+2025-11-11 07:02:06,632 - uvicorn.access - INFO - 127.0.0.1:60620 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:06,800 - logger - INFO - Logged event dial for call 1762844521.270 (chat_id: 374573193) (trace_id: 478054)
+2025-11-11 07:02:06,801 - uvicorn.access - INFO - 127.0.0.1:60610 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:07,125 - logger - INFO - Logged event dial for call 1762844516.14 (chat_id: 374573193) (trace_id: 478052)
+2025-11-11 07:02:07,126 - uvicorn.access - INFO - 127.0.0.1:60638 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:07,127 - logger - INFO - Logged Telegram send for call 1762844515.18
+2025-11-11 07:02:07,128 - uvicorn.access - INFO - 127.0.0.1:60632 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:07,525 - logger - INFO - Logged event bridge_create for call a9909e24-bf7a-440b-8f7a-0c8bffc1801d (chat_id: 374573193) (trace_id: 478056)
+2025-11-11 07:02:07,526 - uvicorn.access - INFO - 127.0.0.1:60654 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:08,002 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0280/enrich for call 1762844516.14
+2025-11-11 07:02:08,003 - uvicorn.access - INFO - 127.0.0.1:60680 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:08,241 - logger - INFO - Logged event bridge for call 1762844515.18 (chat_id: 374573193) (trace_id: 478051)
+2025-11-11 07:02:08,241 - uvicorn.access - INFO - 127.0.0.1:60662 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:08,243 - logger - INFO - Logged Telegram send for call 1762844522.29
+2025-11-11 07:02:08,243 - uvicorn.access - INFO - 127.0.0.1:60672 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:08,831 - logger - INFO - Logged event bridge for call 1762844515.19 (chat_id: 374573193) (trace_id: 478051)
+2025-11-11 07:02:08,832 - uvicorn.access - INFO - 127.0.0.1:60684 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:08,835 - logger - INFO - Logged event bridge_create for call a9909e24-bf7a-440b-8f7a-0c8bffc1801d (chat_id: 7889254605) (trace_id: 478056)
+2025-11-11 07:02:08,836 - uvicorn.access - INFO - 127.0.0.1:60696 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:09,896 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844515.18
+2025-11-11 07:02:09,898 - uvicorn.access - INFO - 127.0.0.1:60710 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:09,903 - logger - INFO - Logged Telegram send for call 1762844521.270
+2025-11-11 07:02:09,903 - uvicorn.access - INFO - 127.0.0.1:60700 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:10,413 - logger - INFO - Logged Telegram send for call 1762844516.14
+2025-11-11 07:02:10,414 - uvicorn.access - INFO - 127.0.0.1:60778 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:13,522 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844521.270
+2025-11-11 07:02:13,522 - uvicorn.access - INFO - 127.0.0.1:60812 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:13,524 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844516.14
+2025-11-11 07:02:13,524 - uvicorn.access - INFO - 127.0.0.1:60816 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:13,558 - logger - INFO - Logged Telegram send for call 1762844515.19
+2025-11-11 07:02:13,560 - uvicorn.access - INFO - 127.0.0.1:60802 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:13,769 - logger - INFO - Logged Telegram send for call 1762844515.18
+2025-11-11 07:02:13,769 - uvicorn.access - INFO - 127.0.0.1:60792 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:13,809 - logger - INFO - Logged event bridge for call 1762844513.43 (chat_id: 374573193) (trace_id: 478050)
+2025-11-11 07:02:13,810 - uvicorn.access - INFO - 127.0.0.1:60786 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:13,810 - logger - INFO - Logged event bridge for call 1762844521.270 (chat_id: 374573193) (trace_id: 478054)
+2025-11-11 07:02:13,811 - uvicorn.access - INFO - 127.0.0.1:60782 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:14,107 - logger - INFO - Logged event dial for call 1762844522.29 (chat_id: 374573193) (trace_id: 478055)
+2025-11-11 07:02:14,108 - uvicorn.access - INFO - 127.0.0.1:60818 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:15,698 - logger - INFO - Logged event bridge for call 1762844510.77 (chat_id: 374573193) (trace_id: 478049)
+2025-11-11 07:02:15,698 - uvicorn.access - INFO - 127.0.0.1:60828 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:15,699 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0111/enrich for call 1762844522.29
+2025-11-11 07:02:15,699 - uvicorn.access - INFO - 127.0.0.1:60872 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:15,700 - logger - INFO - Logged event bridge for call 1762844522.271 (chat_id: 374573193) (trace_id: 478054)
+2025-11-11 07:02:15,700 - uvicorn.access - INFO - 127.0.0.1:60836 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:16,029 - logger - INFO - Logged event bridge for call 1762844513.44 (chat_id: 374573193) (trace_id: 478050)
+2025-11-11 07:02:16,029 - uvicorn.access - INFO - 127.0.0.1:60840 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:16,032 - logger - INFO - Logged event bridge for call 1762844505.21 (chat_id: 374573193) (trace_id: 478056)
+2025-11-11 07:02:16,032 - uvicorn.access - INFO - 127.0.0.1:60862 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:16,661 - logger - INFO - Logged event bridge for call 1762844522.29 (chat_id: 374573193) (trace_id: 478055)
+2025-11-11 07:02:16,662 - uvicorn.access - INFO - 127.0.0.1:60888 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:16,665 - logger - INFO - Logged event bridge for call 1762844516.14 (chat_id: 374573193) (trace_id: 478052)
+2025-11-11 07:02:16,666 - uvicorn.access - INFO - 127.0.0.1:60882 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:16,876 - logger - INFO - Logged event bridge for call 1762844506.22 (chat_id: 374573193) (trace_id: 478056)
+2025-11-11 07:02:16,878 - uvicorn.access - INFO - 127.0.0.1:60854 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:17,095 - logger - INFO - Logged event bridge for call 1762844505.21 (chat_id: 7889254605) (trace_id: 478056)
+2025-11-11 07:02:17,096 - uvicorn.access - INFO - 127.0.0.1:60864 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:17,389 - logger - INFO - Logged Telegram send for call 1762844510.77
+2025-11-11 07:02:17,390 - uvicorn.access - INFO - 127.0.0.1:60894 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:17,985 - logger - INFO - Logged event bridge for call 1762844510.76 (chat_id: 374573193) (trace_id: 478057)
+2025-11-11 07:02:17,986 - uvicorn.access - INFO - 127.0.0.1:60940 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:18,226 - logger - INFO - Logged event bridge for call 1762844521.17 (chat_id: 374573193) (trace_id: 478052)
+2025-11-11 07:02:18,227 - uvicorn.access - INFO - 127.0.0.1:60918 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:18,227 - logger - INFO - Logged Telegram send for call 1762844522.29
+2025-11-11 07:02:18,228 - uvicorn.access - INFO - 127.0.0.1:60910 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:18,568 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0347/enrich for call 1762844532.370
+2025-11-11 07:02:18,568 - uvicorn.access - INFO - 127.0.0.1:60980 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:18,569 - logger - INFO - Logged event bridge for call 1762844514.205 (chat_id: 374573193) (trace_id: 478053)
+2025-11-11 07:02:18,569 - uvicorn.access - INFO - 127.0.0.1:60904 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:18,570 - logger - INFO - Logged Telegram send for call 1762844513.44
+2025-11-11 07:02:18,570 - uvicorn.access - INFO - 127.0.0.1:60944 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:18,584 - logger - INFO - Logged event bridge for call 1762844522.30 (chat_id: 374573193) (trace_id: 478055)
+2025-11-11 07:02:18,585 - uvicorn.access - INFO - 127.0.0.1:60934 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:18,591 - logger - INFO - Logged event bridge for call 1762844508.73 (chat_id: 374573193) (trace_id: 478057)
+2025-11-11 07:02:18,592 - uvicorn.access - INFO - 127.0.0.1:60966 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:18,595 - logger - INFO - Logged Telegram send for call 1762844506.22
+2025-11-11 07:02:18,595 - uvicorn.access - INFO - 127.0.0.1:60956 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:19,238 - logger - INFO - Logged event bridge for call 1762844511.78 (chat_id: 374573193) (trace_id: 478049)
+2025-11-11 07:02:19,239 - uvicorn.access - INFO - 127.0.0.1:32768 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:19,240 - logger - INFO - Logged Telegram send for call 1762844522.29
+2025-11-11 07:02:19,241 - uvicorn.access - INFO - 127.0.0.1:32784 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:19,241 - logger - INFO - Logged event dial for call 1762844532.370 (chat_id: 374573193) (trace_id: 478058)
+2025-11-11 07:02:19,242 - uvicorn.access - INFO - 127.0.0.1:60996 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:19,627 - logger - INFO - Logged Telegram send for call 1762844516.14
+2025-11-11 07:02:19,628 - uvicorn.access - INFO - 127.0.0.1:32792 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:20,879 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0388/enrich for call 1762844523.273
+2025-11-11 07:02:20,879 - uvicorn.access - INFO - 127.0.0.1:57718 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:21,131 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844522.29
+2025-11-11 07:02:21,131 - uvicorn.access - INFO - 127.0.0.1:57706 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:21,134 - logger - INFO - Logged event bridge for call 1762844515.206 (chat_id: 374573193) (trace_id: 478053)
+2025-11-11 07:02:21,134 - uvicorn.access - INFO - 127.0.0.1:57666 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:21,377 - logger - INFO - Logged event bridge for call 1762844506.22 (chat_id: 7889254605) (trace_id: 478056)
+2025-11-11 07:02:21,377 - uvicorn.access - INFO - 127.0.0.1:57676 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:21,378 - logger - INFO - Logged Telegram send for call 1762844522.30
+2025-11-11 07:02:21,378 - uvicorn.access - INFO - 127.0.0.1:57690 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:21,387 - logger - INFO - Logged Telegram send for call 1762844510.76
+2025-11-11 07:02:21,387 - uvicorn.access - INFO - 127.0.0.1:57652 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:21,547 - logger - INFO - Logged event dial for call 1762844523.273 (chat_id: 374573193) (trace_id: 478059)
+2025-11-11 07:02:21,547 - uvicorn.access - INFO - 127.0.0.1:57728 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:21,839 - logger - INFO - Logged event bridge for call 1762844532.370 (chat_id: 374573193) (trace_id: 478058)
+2025-11-11 07:02:21,840 - uvicorn.access - INFO - 127.0.0.1:57716 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:21,841 - logger - INFO - Logged Telegram send for call 1762844511.78
+2025-11-11 07:02:21,841 - uvicorn.access - INFO - 127.0.0.1:57748 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:21,842 - logger - INFO - Logged Telegram send for call 1762844521.17
+2025-11-11 07:02:21,842 - uvicorn.access - INFO - 127.0.0.1:57738 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:21,894 - logger - INFO - Logged Telegram send for call 1762844532.370
+2025-11-11 07:02:21,895 - uvicorn.access - INFO - 127.0.0.1:57740 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:22,307 - logger - INFO - Total call_events: 36, Unique events: 9
+2025-11-11 07:02:22,400 - uvicorn.access - INFO - 138.199.236.21:0 - "GET /call/0367/1762844198.0?token=d68409d67e3b4b87a6675e76dae74a85 HTTP/1.0" 200
+2025-11-11 07:02:22,803 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0281/enrich for call 1762844536.209
+2025-11-11 07:02:22,803 - uvicorn.access - INFO - 127.0.0.1:57756 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:23,260 - logger - INFO - Logged event dial for call 1762844536.209 (chat_id: 374573193) (trace_id: 478060)
+2025-11-11 07:02:23,261 - uvicorn.access - INFO - 127.0.0.1:57764 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:23,504 - logger - INFO - Logged Telegram send for call 1762844506.22
+2025-11-11 07:02:23,505 - uvicorn.access - INFO - 127.0.0.1:57772 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:23,505 - logger - INFO - Logged Telegram send for call 1762844515.206
+2025-11-11 07:02:23,506 - uvicorn.access - INFO - 127.0.0.1:57786 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:23,995 - logger - INFO - Logged event bridge for call 1762844533.371 (chat_id: 374573193) (trace_id: 478058)
+2025-11-11 07:02:23,996 - uvicorn.access - INFO - 127.0.0.1:57804 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:23,997 - logger - INFO - Logged Telegram send for call 1762844523.273
+2025-11-11 07:02:23,997 - uvicorn.access - INFO - 127.0.0.1:57802 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:24,057 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844532.370
+2025-11-11 07:02:24,058 - uvicorn.access - INFO - 127.0.0.1:57808 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:24,058 - logger - INFO - Logged event hangup for call 1762844437.127 (chat_id: 374573193) (trace_id: 478026)
+2025-11-11 07:02:24,059 - uvicorn.access - INFO - 127.0.0.1:57814 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:24,322 - logger - INFO - Logged event hangup for call 1762844522.29 (chat_id: 374573193) (trace_id: 478055)
+2025-11-11 07:02:24,324 - uvicorn.access - INFO - 127.0.0.1:57838 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:24,574 - logger - INFO - Logged event bridge for call 1762844536.209 (chat_id: 374573193) (trace_id: 478060)
+2025-11-11 07:02:24,575 - uvicorn.access - INFO - 127.0.0.1:57822 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:25,430 - logger - INFO - Logged Telegram send for call 1762844536.209
+2025-11-11 07:02:25,431 - uvicorn.access - INFO - 127.0.0.1:57840 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:25,497 - logger - INFO - Logged event hangup for call 1762844496.394 (chat_id: 374573193) (trace_id: 478043)
+2025-11-11 07:02:25,498 - uvicorn.access - INFO - 127.0.0.1:57854 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:25,901 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0347/enrich for call 1762844534.373
+2025-11-11 07:02:25,902 - uvicorn.access - INFO - 127.0.0.1:57874 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:26,123 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844523.273
+2025-11-11 07:02:26,124 - uvicorn.access - INFO - 127.0.0.1:57858 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:26,155 - logger - INFO - Logged event start for call 1762844541.138 (chat_id: 374573193) (trace_id: 478062)
+2025-11-11 07:02:26,156 - uvicorn.access - INFO - 127.0.0.1:57896 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:26,525 - logger - INFO - Logged event dial for call 1762844534.373 (chat_id: 374573193) (trace_id: 478061)
+2025-11-11 07:02:26,527 - uvicorn.access - INFO - 127.0.0.1:57882 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:26,528 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844536.209
+2025-11-11 07:02:26,529 - uvicorn.access - INFO - 127.0.0.1:57926 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:26,642 - logger - INFO - Logged event bridge for call 1762844537.210 (chat_id: 374573193) (trace_id: 478060)
+2025-11-11 07:02:26,643 - uvicorn.access - INFO - 127.0.0.1:57910 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:27,154 - logger - INFO - Logged Telegram send for call 1762844496.394
+2025-11-11 07:02:27,155 - uvicorn.access - INFO - 127.0.0.1:57932 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:27,486 - logger - INFO - Logged Telegram send for call 1762844534.373
+2025-11-11 07:02:27,487 - uvicorn.access - INFO - 127.0.0.1:57944 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:27,488 - logger - INFO - Logged event hangup for call 1762844513.43 (chat_id: 374573193) (trace_id: 478050)
+2025-11-11 07:02:27,489 - uvicorn.access - INFO - 127.0.0.1:57954 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:27,700 - logger - INFO - Total call_events: 36, Unique events: 9
+2025-11-11 07:02:27,716 - uvicorn.access - INFO - 138.199.236.21:0 - "GET /call/0367/1762844198.0?token=d68409d67e3b4b87a6675e76dae74a85 HTTP/1.0" 200
+2025-11-11 07:02:28,296 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0281/enrich for call 1762844538.212
+2025-11-11 07:02:28,297 - uvicorn.access - INFO - 127.0.0.1:57976 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:28,784 - logger - INFO - Logged event dial for call 1762844538.212 (chat_id: 374573193) (trace_id: 478063)
+2025-11-11 07:02:28,785 - uvicorn.access - INFO - 127.0.0.1:57990 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:29,134 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844534.373
+2025-11-11 07:02:29,134 - uvicorn.access - INFO - 127.0.0.1:57998 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:29,135 - logger - INFO - Logged event hangup for call 1762844440.130 (chat_id: 374573193) (trace_id: 478027)
+2025-11-11 07:02:29,135 - uvicorn.access - INFO - 127.0.0.1:57994 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:29,301 - logger - INFO - Logged Telegram send for call 1762844513.43
+2025-11-11 07:02:29,301 - uvicorn.access - INFO - 127.0.0.1:58000 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:29,852 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0286/enrich for call 1762844541.138
+2025-11-11 07:02:29,854 - uvicorn.access - INFO - 127.0.0.1:55128 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:29,993 - logger - INFO - Logged event dial for call 1762844541.138 (chat_id: 374573193) (trace_id: 478062)
+2025-11-11 07:02:29,994 - uvicorn.access - INFO - 127.0.0.1:55132 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:30,154 - logger - INFO - Logged Telegram send for call 1762844538.212
+2025-11-11 07:02:30,155 - uvicorn.access - INFO - 127.0.0.1:55148 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:30,489 - logger - INFO - Logged event bridge for call 1762844523.272 (chat_id: 374573193) (trace_id: 478064)
+2025-11-11 07:02:30,490 - uvicorn.access - INFO - 127.0.0.1:55170 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:30,578 - logger - INFO - Logged Telegram send for call 1762844440.130
+2025-11-11 07:02:30,579 - uvicorn.access - INFO - 127.0.0.1:55154 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:31,585 - logger - INFO - Logged event bridge for call 1762844541.139 (chat_id: 374573193) (trace_id: 478065)
+2025-11-11 07:02:31,585 - uvicorn.access - INFO - 127.0.0.1:55186 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:31,687 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844538.212
+2025-11-11 07:02:31,689 - uvicorn.access - INFO - 127.0.0.1:55172 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:32,097 - logger - INFO - Logged Telegram send for call 1762844541.138
+2025-11-11 07:02:32,098 - uvicorn.access - INFO - 127.0.0.1:55188 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:32,357 - logger - INFO - Logged Telegram send for call 1762844523.272
+2025-11-11 07:02:32,357 - uvicorn.access - INFO - 127.0.0.1:55194 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:32,604 - logger - INFO - Logged event bridge for call 1762844524.274 (chat_id: 374573193) (trace_id: 478066)
+2025-11-11 07:02:32,605 - uvicorn.access - INFO - 127.0.0.1:55222 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:33,147 - logger - INFO - Logged event bridge for call 1762844523.273 (chat_id: 374573193) (trace_id: 478059)
+2025-11-11 07:02:33,148 - uvicorn.access - INFO - 127.0.0.1:55210 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:33,705 - logger - INFO - Logged event bridge for call 1762844541.138 (chat_id: 374573193) (trace_id: 478065)
+2025-11-11 07:02:33,706 - uvicorn.access - INFO - 127.0.0.1:55228 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:33,804 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0351/enrich for call 1762844548.64
+2025-11-11 07:02:33,804 - uvicorn.access - INFO - 127.0.0.1:55238 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:34,311 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0361/enrich for call 1762844546.129
+2025-11-11 07:02:34,313 - uvicorn.access - INFO - 127.0.0.1:55266 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:34,328 - logger - INFO - Logged event dial for call 1762844548.64 (chat_id: 374573193) (trace_id: 478067)
+2025-11-11 07:02:34,328 - uvicorn.access - INFO - 127.0.0.1:55244 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:34,329 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844541.138
+2025-11-11 07:02:34,330 - uvicorn.access - INFO - 127.0.0.1:55248 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:34,401 - logger - INFO - Logged Telegram send for call 1762844541.139
+2025-11-11 07:02:34,402 - uvicorn.access - INFO - 127.0.0.1:55246 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:34,791 - logger - INFO - Logged event dial for call 1762844546.129 (chat_id: 374573193) (trace_id: 478068)
+2025-11-11 07:02:34,791 - uvicorn.access - INFO - 127.0.0.1:55282 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:34,792 - logger - INFO - Logged Telegram send for call 1762844523.273
+2025-11-11 07:02:34,792 - uvicorn.access - INFO - 127.0.0.1:55258 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:35,476 - logger - INFO - Logged Telegram send for call 1762844541.138
+2025-11-11 07:02:35,477 - uvicorn.access - INFO - 127.0.0.1:55308 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:35,483 - logger - INFO - Logged Telegram send for call 1762844524.274
+2025-11-11 07:02:35,483 - uvicorn.access - INFO - 127.0.0.1:55294 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:35,824 - logger - INFO - Logged Telegram send for call 1762844548.64
+2025-11-11 07:02:35,825 - uvicorn.access - INFO - 127.0.0.1:55326 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:35,826 - logger - INFO - Logged event bridge for call 1762844521.269 (chat_id: 374573193) (trace_id: 478064)
+2025-11-11 07:02:35,827 - uvicorn.access - INFO - 127.0.0.1:55312 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:35,828 - logger - INFO - Logged event hangup for call 1762844325.44 (chat_id: 374573193) (trace_id: 477980)
+2025-11-11 07:02:35,829 - uvicorn.access - INFO - 127.0.0.1:55322 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:36,047 - logger - INFO - Logged Telegram send for call 1762844546.129
+2025-11-11 07:02:36,048 - uvicorn.access - INFO - 127.0.0.1:55330 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:36,237 - logger - INFO - Logged event hangup for call 1762844325.44 (chat_id: 7889254605) (trace_id: 477980)
+2025-11-11 07:02:36,238 - uvicorn.access - INFO - 127.0.0.1:55336 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:38,121 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844548.64
+2025-11-11 07:02:38,121 - uvicorn.access - INFO - 127.0.0.1:55340 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:38,570 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844546.129
+2025-11-11 07:02:38,570 - uvicorn.access - INFO - 127.0.0.1:55350 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:38,758 - logger - INFO - Logged event bridge for call 1762844539.213 (chat_id: 374573193) (trace_id: 478069)
+2025-11-11 07:02:38,758 - uvicorn.access - INFO - 127.0.0.1:55366 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:38,911 - logger - INFO - Logged event bridge for call 1762844536.208 (chat_id: 374573193) (trace_id: 478070)
+2025-11-11 07:02:38,912 - uvicorn.access - INFO - 127.0.0.1:55376 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:39,697 - logger - INFO - Logged event bridge for call 1762844534.372 (chat_id: 374573193) (trace_id: 478071)
+2025-11-11 07:02:39,698 - uvicorn.access - INFO - 127.0.0.1:55396 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:39,992 - logger - INFO - Logged event bridge for call 1762844538.211 (chat_id: 374573193) (trace_id: 478070)
+2025-11-11 07:02:39,993 - uvicorn.access - INFO - 127.0.0.1:55382 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:40,234 - logger - INFO - Logged event bridge for call 1762844548.64 (chat_id: 374573193) (trace_id: 478067)
+2025-11-11 07:02:40,234 - uvicorn.access - INFO - 127.0.0.1:36492 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:41,902 - logger - INFO - Logged event bridge for call 1762844538.212 (chat_id: 374573193) (trace_id: 478069)
+2025-11-11 07:02:41,903 - uvicorn.access - INFO - 127.0.0.1:36508 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:41,904 - logger - INFO - Logged Telegram send for call 1762844538.211
+2025-11-11 07:02:41,904 - uvicorn.access - INFO - 127.0.0.1:36520 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:42,021 - logger - INFO - Logged Telegram send for call 1762844539.213
+2025-11-11 07:02:42,022 - uvicorn.access - INFO - 127.0.0.1:36528 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:42,424 - logger - INFO - Logged Telegram send for call 1762844534.372
+2025-11-11 07:02:42,425 - uvicorn.access - INFO - 127.0.0.1:36540 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:43,351 - logger - INFO - Logged event bridge for call 1762844549.65 (chat_id: 374573193) (trace_id: 478067)
+2025-11-11 07:02:43,352 - uvicorn.access - INFO - 127.0.0.1:36554 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:43,353 - logger - INFO - Logged event bridge for call 1762844532.369 (chat_id: 374573193) (trace_id: 478071)
+2025-11-11 07:02:43,354 - uvicorn.access - INFO - 127.0.0.1:36566 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:43,934 - logger - INFO - Logged event start for call 1762844558.27 (chat_id: 374573193) (trace_id: 478072)
+2025-11-11 07:02:43,935 - uvicorn.access - INFO - 127.0.0.1:36592 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:44,110 - logger - INFO - Logged Telegram send for call 1762844538.212
+2025-11-11 07:02:44,111 - uvicorn.access - INFO - 127.0.0.1:36578 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:44,113 - logger - INFO - Logged event bridge_leave for call 1762844505.21 (chat_id: 374573193) (trace_id: 478056)
+2025-11-11 07:02:44,113 - uvicorn.access - INFO - 127.0.0.1:36574 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:45,112 - logger - INFO - Logged event hangup for call 1762844521.270 (chat_id: 374573193) (trace_id: 478054)
+2025-11-11 07:02:45,113 - uvicorn.access - INFO - 127.0.0.1:36608 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:45,113 - logger - INFO - Logged event bridge_leave for call 1762844505.21 (chat_id: 7889254605) (trace_id: 478056)
+2025-11-11 07:02:45,114 - uvicorn.access - INFO - 127.0.0.1:36620 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:45,300 - logger - INFO - Logged event bridge for call 1762844534.373 (chat_id: 374573193) (trace_id: 478061)
+2025-11-11 07:02:45,301 - uvicorn.access - INFO - 127.0.0.1:36616 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:45,794 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0233/enrich for call 1762844558.2547
+2025-11-11 07:02:45,795 - uvicorn.access - INFO - 127.0.0.1:36632 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:45,795 - logger - INFO - Logged Telegram send for call 1762844558.27
+2025-11-11 07:02:45,796 - uvicorn.access - INFO - 127.0.0.1:36630 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:45,796 - logger - INFO - Logged event bridge_leave for call 1762844506.22 (chat_id: 374573193) (trace_id: 478056)
+2025-11-11 07:02:45,797 - uvicorn.access - INFO - 127.0.0.1:36626 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:46,389 - logger - INFO - Logged event bridge for call 1762844535.374 (chat_id: 374573193) (trace_id: 478061)
+2025-11-11 07:02:46,389 - uvicorn.access - INFO - 127.0.0.1:36638 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:46,390 - logger - INFO - Logged event dial for call 1762844558.2547 (chat_id: 7757573720) (trace_id: 478073)
+2025-11-11 07:02:46,391 - uvicorn.access - INFO - 127.0.0.1:36646 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:46,637 - logger - INFO - Logged event bridge_leave for call 1762844506.22 (chat_id: 7889254605) (trace_id: 478056)
+2025-11-11 07:02:46,638 - uvicorn.access - INFO - 127.0.0.1:36658 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:47,440 - logger - INFO - Logged event bridge_destroy for call a9909e24-bf7a-440b-8f7a-0c8bffc1801d (chat_id: 374573193) (trace_id: 478056)
+2025-11-11 07:02:47,440 - uvicorn.access - INFO - 127.0.0.1:36670 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:47,940 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0351/enrich for call 1762844554.67
+2025-11-11 07:02:47,940 - uvicorn.access - INFO - 127.0.0.1:36678 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:48,659 - logger - INFO - Logged event dial for call 1762844554.67 (chat_id: 374573193) (trace_id: 478074)
+2025-11-11 07:02:48,659 - uvicorn.access - INFO - 127.0.0.1:36716 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:48,661 - logger - INFO - Logged Telegram send for call 1762844534.373
+2025-11-11 07:02:48,662 - uvicorn.access - INFO - 127.0.0.1:36704 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:48,662 - logger - INFO - Logged event hangup for call 1762844514.205 (chat_id: 374573193) (trace_id: 478053)
+2025-11-11 07:02:48,663 - uvicorn.access - INFO - 127.0.0.1:36688 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:48,806 - logger - INFO - Logged event bridge_destroy for call a9909e24-bf7a-440b-8f7a-0c8bffc1801d (chat_id: 7889254605) (trace_id: 478056)
+2025-11-11 07:02:48,806 - uvicorn.access - INFO - 127.0.0.1:36730 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:49,185 - logger - INFO - Logged event bridge for call 1762844554.66 (chat_id: 374573193) (trace_id: 478075)
+2025-11-11 07:02:49,186 - uvicorn.access - INFO - 127.0.0.1:36754 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:49,292 - logger - INFO - Logged event start for call 1762844558.27 (chat_id: 7889254605) (trace_id: 478072)
+2025-11-11 07:02:49,293 - uvicorn.access - INFO - 127.0.0.1:36740 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:49,657 - logger - INFO - Logged Telegram send for call 1762844558.27
+2025-11-11 07:02:49,658 - uvicorn.access - INFO - 127.0.0.1:36768 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:49,670 - logger - INFO - Total call_events: 36, Unique events: 9
+2025-11-11 07:02:49,761 - uvicorn.access - INFO - 213.184.245.128:0 - "GET /call/0367/1762844198.0?token=d68409d67e3b4b87a6675e76dae74a85 HTTP/1.0" 200
+2025-11-11 07:02:50,019 - logger - INFO - Logged Telegram send for call 1762844558.2547
+2025-11-11 07:02:50,020 - uvicorn.access - INFO - 127.0.0.1:36774 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:50,635 - logger - INFO - Logged Telegram send for call 1762844535.374
+2025-11-11 07:02:50,636 - uvicorn.access - INFO - 127.0.0.1:34954 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:51,572 - logger - INFO - Logged event bridge for call 1762844559.2548 (chat_id: 7757573720) (trace_id: 478076)
+2025-11-11 07:02:51,572 - uvicorn.access - INFO - 127.0.0.1:34990 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:51,744 - logger - INFO - Logged event bridge for call 1762844554.67 (chat_id: 374573193) (trace_id: 478074)
+2025-11-11 07:02:51,745 - uvicorn.access - INFO - 127.0.0.1:34978 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:51,822 - logger - INFO - Logged Telegram send for call 1762844554.67
+2025-11-11 07:02:51,823 - uvicorn.access - INFO - 127.0.0.1:35000 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:51,996 - logger - INFO - Logged event dial for call 1762844558.27 (chat_id: 374573193) (trace_id: 478072)
+2025-11-11 07:02:51,996 - uvicorn.access - INFO - 127.0.0.1:35004 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:52,421 - logger - INFO - Logged event bridge for call 1762844559.2548 (chat_id: 374573193) (trace_id: 478076)
+2025-11-11 07:02:52,422 - uvicorn.access - INFO - 127.0.0.1:35010 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:52,616 - logger - INFO - Logged Telegram send for call 1762844514.205
+2025-11-11 07:02:52,617 - uvicorn.access - INFO - 127.0.0.1:35020 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:53,338 - logger - INFO - Logged Telegram send for call 1762844554.66
+2025-11-11 07:02:53,339 - uvicorn.access - INFO - 127.0.0.1:35022 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:53,340 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0233/enrich for call 1762844558.2547
+2025-11-11 07:02:53,340 - uvicorn.access - INFO - 127.0.0.1:35034 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:53,996 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844558.2547
+2025-11-11 07:02:53,996 - uvicorn.access - INFO - 127.0.0.1:35052 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:54,283 - logger - INFO - Logged event dial for call 1762844558.2547 (chat_id: 374573193) (trace_id: 478073)
+2025-11-11 07:02:54,284 - uvicorn.access - INFO - 127.0.0.1:35048 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:54,290 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0332/enrich for call 1762844558.27
+2025-11-11 07:02:54,291 - uvicorn.access - INFO - 127.0.0.1:35064 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:54,839 - logger - INFO - Logged Telegram send for call 1762844554.67
+2025-11-11 07:02:54,840 - uvicorn.access - INFO - 127.0.0.1:35084 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:55,009 - logger - INFO - Logged event bridge for call 1762844558.2547 (chat_id: 7757573720) (trace_id: 478076)
+2025-11-11 07:02:55,010 - uvicorn.access - INFO - 127.0.0.1:35062 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:55,088 - logger - INFO - Logged event hangup for call 1762844506.83 (chat_id: 374573193) (trace_id: 478077)
+2025-11-11 07:02:55,089 - uvicorn.access - INFO - 127.0.0.1:35098 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:55,157 - logger - INFO - Logged event bridge for call 1762844548.63 (chat_id: 374573193) (trace_id: 478075)
+2025-11-11 07:02:55,158 - uvicorn.access - INFO - 127.0.0.1:35092 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:55,159 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844554.67
+2025-11-11 07:02:55,159 - uvicorn.access - INFO - 127.0.0.1:35102 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:55,537 - logger - INFO - Logged event hangup for call 1762844523.273 (chat_id: 374573193) (trace_id: 478059)
+2025-11-11 07:02:55,538 - uvicorn.access - INFO - 127.0.0.1:35126 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:55,539 - logger - INFO - Logged event hangup for call 1762844436.2529 (chat_id: 7757573720) (trace_id: 478023)
+2025-11-11 07:02:55,540 - uvicorn.access - INFO - 127.0.0.1:35110 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:55,931 - logger - INFO - Logged event bridge for call 1762844558.2547 (chat_id: 374573193) (trace_id: 478076)
+2025-11-11 07:02:55,933 - uvicorn.access - INFO - 127.0.0.1:35074 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:56,129 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0388/enrich for call 1762844567.280
+2025-11-11 07:02:56,130 - uvicorn.access - INFO - 127.0.0.1:35140 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:56,778 - logger - INFO - Logged event dial for call 1762844567.280 (chat_id: 374573193) (trace_id: 478078)
+2025-11-11 07:02:56,779 - uvicorn.access - INFO - 127.0.0.1:35154 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:56,780 - logger - INFO - Logged Telegram send for call 1762844558.27
+2025-11-11 07:02:56,780 - uvicorn.access - INFO - 127.0.0.1:35166 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:56,781 - logger - INFO - Logged Telegram send for call 1762844558.2547
+2025-11-11 07:02:56,781 - uvicorn.access - INFO - 127.0.0.1:35156 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:57,035 - logger - INFO - Logged event hangup for call 1762844505.21 (chat_id: 374573193) (trace_id: 478056)
+2025-11-11 07:02:57,036 - uvicorn.access - INFO - 127.0.0.1:35190 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:57,038 - logger - INFO - Logged event hangup for call 1762844436.2529 (chat_id: 374573193) (trace_id: 478023)
+2025-11-11 07:02:57,039 - uvicorn.access - INFO - 127.0.0.1:35180 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:57,043 - logger - INFO - Logged event hangup for call 1762844567.280 (chat_id: 374573193) (trace_id: 478078)
+2025-11-11 07:02:57,044 - uvicorn.access - INFO - 127.0.0.1:35186 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:57,095 - logger - INFO - Logged Telegram send for call 1762844506.83
+2025-11-11 07:02:57,096 - uvicorn.access - INFO - 127.0.0.1:35196 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:57,251 - logger - INFO - Logged Telegram send for call 1762844523.273
+2025-11-11 07:02:57,252 - uvicorn.access - INFO - 127.0.0.1:35204 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:57,598 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0281/enrich for call 1762844562.215
+2025-11-11 07:02:57,599 - uvicorn.access - INFO - 127.0.0.1:35214 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:57,947 - logger - INFO - Logged event bridge for call 1762844555.68 (chat_id: 374573193) (trace_id: 478074)
+2025-11-11 07:02:57,948 - uvicorn.access - INFO - 127.0.0.1:35212 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:58,226 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0233/enrich for call 1762844561.2550
+2025-11-11 07:02:58,227 - uvicorn.access - INFO - 127.0.0.1:35238 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:58,310 - logger - INFO - Logged event dial for call 1762844562.215 (chat_id: 374573193) (trace_id: 478079)
+2025-11-11 07:02:58,311 - uvicorn.access - INFO - 127.0.0.1:35224 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:58,312 - logger - INFO - Logged Telegram send for call 1762844567.280
+2025-11-11 07:02:58,312 - uvicorn.access - INFO - 127.0.0.1:35234 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:58,671 - logger - INFO - Logged event dial for call 1762844561.2550 (chat_id: 7757573720) (trace_id: 478080)
+2025-11-11 07:02:58,672 - uvicorn.access - INFO - 127.0.0.1:35242 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:58,673 - logger - INFO - Logged Telegram send for call 1762844505.21
+2025-11-11 07:02:58,674 - uvicorn.access - INFO - 127.0.0.1:35246 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:02:59,788 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844558.2547
+2025-11-11 07:02:59,789 - uvicorn.access - INFO - 127.0.0.1:35262 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:02:59,790 - logger - INFO - Logged event dial for call 1762844558.27 (chat_id: 7889254605) (trace_id: 478072)
+2025-11-11 07:02:59,791 - uvicorn.access - INFO - 127.0.0.1:35254 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:02:59,904 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844558.27
+2025-11-11 07:02:59,905 - uvicorn.access - INFO - 127.0.0.1:35264 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:03:00,118 - logger - INFO - Logged event bridge for call 1762844558.29 (chat_id: 374573193) (trace_id: 478081)
+2025-11-11 07:03:00,119 - uvicorn.access - INFO - 127.0.0.1:35276 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:00,354 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0233/enrich for call 1762844561.2550
+2025-11-11 07:03:00,355 - uvicorn.access - INFO - 127.0.0.1:47262 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:03:00,504 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0332/enrich for call 1762844558.27
+2025-11-11 07:03:00,505 - uvicorn.access - INFO - 127.0.0.1:47286 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:03:00,505 - logger - INFO - Logged event dial for call 1762844561.2550 (chat_id: 7757573720) (trace_id: 478080)
+2025-11-11 07:03:00,506 - uvicorn.access - INFO - 127.0.0.1:47270 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:00,837 - logger - INFO - Logged event hangup for call 1762844506.83 (chat_id: 7757573720) (trace_id: 478077)
+2025-11-11 07:03:00,837 - uvicorn.access - INFO - 127.0.0.1:47306 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:01,072 - logger - INFO - Logged event bridge for call 1762844561.2550 (chat_id: 7757573720) (trace_id: 478080)
+2025-11-11 07:03:01,073 - uvicorn.access - INFO - 127.0.0.1:47294 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:01,306 - logger - INFO - Logged event hangup for call 1762844541.138 (chat_id: 374573193) (trace_id: 478065)
+2025-11-11 07:03:01,307 - uvicorn.access - INFO - 127.0.0.1:47308 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:01,950 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0233/enrich for call 1762844561.2550
+2025-11-11 07:03:01,950 - uvicorn.access - INFO - 127.0.0.1:47324 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:03:02,218 - logger - INFO - Logged event dial for call 1762844561.2550 (chat_id: 7757573720) (trace_id: 478080)
+2025-11-11 07:03:02,220 - uvicorn.access - INFO - 127.0.0.1:47336 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:02,419 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844567.280
+2025-11-11 07:03:02,420 - uvicorn.access - INFO - 127.0.0.1:47342 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:03:02,649 - logger - INFO - Logged Telegram send for call 1762844562.215
+2025-11-11 07:03:02,650 - uvicorn.access - INFO - 127.0.0.1:47344 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:03,147 - logger - INFO - Logged event bridge for call 1762844558.27 (chat_id: 374573193) (trace_id: 478081)
+2025-11-11 07:03:03,148 - uvicorn.access - INFO - 127.0.0.1:47338 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:03,149 - logger - INFO - Logged Telegram send for call 1762844561.2550
+2025-11-11 07:03:03,149 - uvicorn.access - INFO - 127.0.0.1:47354 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:03,389 - logger - INFO - Logged Telegram send for call 1762844555.68
+2025-11-11 07:03:03,390 - uvicorn.access - INFO - 127.0.0.1:47356 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:03,390 - logger - INFO - Logged event hangup for call 1762844445.2532 (chat_id: 7757573720) (trace_id: 478031)
+2025-11-11 07:03:03,391 - uvicorn.access - INFO - 127.0.0.1:47360 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:03,673 - logger - INFO - Logged event hangup for call 1762844505.21 (chat_id: 7889254605) (trace_id: 478056)
+2025-11-11 07:03:03,674 - uvicorn.access - INFO - 127.0.0.1:47372 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:03,676 - logger - INFO - Logged Telegram send for call 1762844558.27
+2025-11-11 07:03:03,677 - uvicorn.access - INFO - 127.0.0.1:47378 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:05,272 - logger - INFO - Logged event start for call 868664.106 (chat_id: 374573193) (trace_id: 478082)
+2025-11-11 07:03:05,273 - uvicorn.access - INFO - 127.0.0.1:47410 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:05,532 - logger - INFO - Logged Telegram send for call 1762844561.2550
+2025-11-11 07:03:05,533 - uvicorn.access - INFO - 127.0.0.1:47392 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:05,535 - logger - INFO - Logged event hangup for call 1762844532.370 (chat_id: 374573193) (trace_id: 478058)
+2025-11-11 07:03:05,535 - uvicorn.access - INFO - 127.0.0.1:47400 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:05,713 - logger - INFO - Logged Telegram send for call 1762844561.2550
+2025-11-11 07:03:05,714 - uvicorn.access - INFO - 127.0.0.1:47386 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:06,349 - logger - INFO - Logged Telegram send for call 1762844558.29
+2025-11-11 07:03:06,356 - uvicorn.access - INFO - 127.0.0.1:47422 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:06,357 - logger - INFO - Logged Telegram send for call 1762844506.83
+2025-11-11 07:03:06,357 - uvicorn.access - INFO - 127.0.0.1:47416 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:06,358 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844562.215
+2025-11-11 07:03:06,359 - uvicorn.access - INFO - 127.0.0.1:47438 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:03:06,524 - logger - INFO - Logged event bridge for call 1762844558.2546 (chat_id: 7757573720) (trace_id: 478083)
+2025-11-11 07:03:06,525 - uvicorn.access - INFO - 127.0.0.1:47450 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:07,058 - logger - INFO - Logged event bridge for call 1762844561.2549 (chat_id: 7757573720) (trace_id: 478083)
+2025-11-11 07:03:07,059 - uvicorn.access - INFO - 127.0.0.1:47460 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:07,316 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0233/enrich for call 1762844561.2550
+2025-11-11 07:03:07,317 - uvicorn.access - INFO - 127.0.0.1:47478 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:03:07,489 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844558.27
+2025-11-11 07:03:07,493 - uvicorn.access - INFO - 127.0.0.1:47524 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:03:07,500 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844561.2550
+2025-11-11 07:03:07,500 - uvicorn.access - INFO - 127.0.0.1:47510 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:03:07,895 - logger - INFO - Logged Telegram send for call 868664.106
+2025-11-11 07:03:07,895 - uvicorn.access - INFO - 127.0.0.1:47538 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:07,896 - logger - INFO - Logged event dial for call 1762844561.2550 (chat_id: 374573193) (trace_id: 478080)
+2025-11-11 07:03:07,897 - uvicorn.access - INFO - 127.0.0.1:47500 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:07,897 - logger - INFO - Logged event bridge for call 1762844558.2546 (chat_id: 374573193) (trace_id: 478083)
+2025-11-11 07:03:07,898 - uvicorn.access - INFO - 127.0.0.1:47474 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:08,275 - logger - INFO - Logged Telegram send for call 1762844561.2550
+2025-11-11 07:03:08,275 - uvicorn.access - INFO - 127.0.0.1:47486 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:08,282 - logger - INFO - Logged Telegram send for call 1762844558.27
+2025-11-11 07:03:08,283 - uvicorn.access - INFO - 127.0.0.1:47554 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:08,685 - logger - INFO - Logged event bridge for call 1762844563.216 (chat_id: 374573193) (trace_id: 478084)
+2025-11-11 07:03:08,686 - uvicorn.access - INFO - 127.0.0.1:47578 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:08,686 - logger - INFO - Logged HTTP POST http://localhost:8020/metadata/0233/enrich for call 1762844561.2550
+2025-11-11 07:03:08,686 - uvicorn.access - INFO - 127.0.0.1:47610 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:03:08,687 - logger - INFO - Logged Telegram send for call 1762844505.21
+2025-11-11 07:03:08,687 - uvicorn.access - INFO - 127.0.0.1:47564 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:08,957 - logger - INFO - Logged event bridge for call 1762844561.2550 (chat_id: 374573193) (trace_id: 478080)
+2025-11-11 07:03:08,958 - uvicorn.access - INFO - 127.0.0.1:47594 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:09,175 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844561.2550
+2025-11-11 07:03:09,175 - uvicorn.access - INFO - 127.0.0.1:47648 - "POST /log/http HTTP/1.1" 200
+2025-11-11 07:03:09,331 - logger - INFO - Logged event bridge for call 1762844558.29 (chat_id: 7889254605) (trace_id: 478081)
+2025-11-11 07:03:09,331 - uvicorn.access - INFO - 127.0.0.1:47630 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:09,332 - logger - INFO - Logged Telegram send for call 1762844445.2532
+2025-11-11 07:03:09,333 - uvicorn.access - INFO - 127.0.0.1:47642 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:09,336 - logger - INFO - Logged event dial for call 1762844561.2550 (chat_id: 374573193) (trace_id: 478080)
+2025-11-11 07:03:09,337 - uvicorn.access - INFO - 127.0.0.1:47626 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:09,609 - logger - INFO - Logged Telegram send for call 1762844561.2549
+2025-11-11 07:03:09,609 - uvicorn.access - INFO - 127.0.0.1:47660 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:10,053 - logger - INFO - Logged event bridge for call 1762844562.215 (chat_id: 374573193) (trace_id: 478084)
+2025-11-11 07:03:10,054 - uvicorn.access - INFO - 127.0.0.1:47658 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:10,420 - logger - INFO - Logged Telegram send for call 1762844561.2550
+2025-11-11 07:03:10,421 - uvicorn.access - INFO - 127.0.0.1:47662 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:10,698 - logger - INFO - Logged event bridge for call 1762844558.27 (chat_id: 7889254605) (trace_id: 478081)
+2025-11-11 07:03:10,698 - uvicorn.access - INFO - 127.0.0.1:49774 - "POST /log/event HTTP/1.1" 200
+2025-11-11 07:03:10,704 - logger - INFO - Logged Telegram send for call 1762844561.2550
+2025-11-11 07:03:10,704 - uvicorn.access - INFO - 127.0.0.1:49786 - "POST /log/telegram HTTP/1.1" 200
+2025-11-11 07:03:10,975 - logger - INFO - Logged HTTP POST http://localhost:8020/dispatch/call-event for call 1762844561.2550
+2025-11-11 07:03:10,976 - uvicorn.access - INFO - 127.0.0.1:49798 - "POST /log/http HTTP/1.1" 200

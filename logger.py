@@ -1035,24 +1035,49 @@ async def view_call_details(
             client_info = {"name": "Не определен", "phone": ""}
             manager_info = {"name": "Не определен", "phone": "", "extension": ""}
             duration_seconds = 0
+            call_direction = "unknown"
+            call_start_time = None
             
             if call_data.get('call_events'):
                 for event in call_data['call_events']:
                     event_type = event.get('event_type')
                     event_data = event.get('event_data', {})
                     
-                    # Ищем информацию о клиенте из dial события
+                    # Ищем информацию о клиенте и направлении из dial события
                     if event_type == 'dial' and event_data.get('Phone') and not client_info['phone']:
                         client_info['phone'] = event_data['Phone']
+                        
+                        # Определяем направление по CallType
+                        call_type = event_data.get('CallType')
+                        if call_type == 1:
+                            call_direction = "outgoing"
+                        elif call_type == 0:
+                            call_direction = "incoming"
+                        
+                        # Берем время начала из dial события
+                        if not call_start_time and event.get('event_timestamp'):
+                            try:
+                                from dateutil import parser
+                                call_start_time = parser.isoparse(event['event_timestamp'])
+                            except:
+                                pass
+                        
+                        # Извлекаем внутренний номер менеджера из Extensions
+                        extensions = event_data.get('Extensions', [])
+                        if extensions and len(extensions) > 0 and extensions[0]:
+                            manager_info['extension'] = extensions[0]
+                            manager_info['phone'] = extensions[0]
+                            manager_info['name'] = extensions[0]  # По умолчанию, будет перезаписано из enrichment
                     
                     # Ищем информацию о менеджере из bridge события
                     if event_type == 'bridge' and event_data.get('CallerIDNum'):
                         caller_id = event_data['CallerIDNum']
                         # Менеджер - это тот у кого короткий номер (внутренний)
                         if len(caller_id) <= 4 and caller_id.isdigit():
-                            manager_info['extension'] = caller_id
-                            manager_info['phone'] = caller_id
-                            manager_info['name'] = event_data.get('CallerIDName', caller_id)
+                            if not manager_info['extension']:  # Только если еще не установлено из dial
+                                manager_info['extension'] = caller_id
+                                manager_info['phone'] = caller_id
+                                manager_info['name'] = event_data.get('CallerIDName', caller_id)
                     
                     # Рассчитываем длительность из события hangup
                     if event_type == 'hangup' and not duration_seconds:
@@ -1118,6 +1143,8 @@ async def view_call_details(
                 "client_info": client_info,
                 "manager_info": manager_info,
                 "duration_seconds": duration_seconds,
+                "call_direction": call_direction,
+                "call_start_time": call_start_time,
                 "format_phone": format_phone,
                 "to_gmt3": to_gmt3,
                 "now": datetime.now
