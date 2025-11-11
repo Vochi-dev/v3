@@ -40,6 +40,7 @@ case "$1" in
         nohup /usr/bin/python3 /usr/local/bin/uvicorn $SERVICE_NAME:app \
             --host 0.0.0.0 \
             --port $SERVICE_PORT \
+            --workers 2 \
             --log-level info \
             --log-config log_config.json \
             > "$LOG_FILE" 2>&1 &
