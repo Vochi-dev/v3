@@ -74,7 +74,8 @@ class LoggerClient:
         response_data: Optional[Dict[str, Any]] = None,
         status_code: Optional[int] = None,
         duration_ms: Optional[float] = None,
-        error: Optional[str] = None
+        error: Optional[str] = None,
+        background: bool = False
     ) -> bool:
         """
         Логирование HTTP запроса
@@ -89,9 +90,10 @@ class LoggerClient:
             status_code: HTTP статус код
             duration_ms: Время выполнения в миллисекундах
             error: Текст ошибки если есть
+            background: Если True, отправка происходит в фоне без ожидания ответа
         
         Returns:
-            bool: True если успешно залогировано
+            bool: True если успешно залогировано (или запущено в фоне)
         """
         payload = {
             "enterprise_number": enterprise_number,
@@ -110,8 +112,11 @@ class LoggerClient:
             payload["duration_ms"] = duration_ms
         if error is not None:
             payload["error"] = error
-            
-        return await self._send_log("/log/http", payload)
+        
+        if background:
+            return await self._send_log_background("/log/http", payload)
+        else:
+            return await self._send_log("/log/http", payload)
     
     async def log_sql_query(
         self,

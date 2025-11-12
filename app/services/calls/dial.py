@@ -154,7 +154,8 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                 },
                 response_data=enriched_data,
                 status_code=200,
-                duration_ms=0  # Уже было сделано в main.py
+                duration_ms=0,  # Уже было сделано в main.py
+                background=True
             )
         except Exception as log_e:
             logging.warning(f"[process_dial] Failed to log HTTP request: {log_e}")
@@ -247,7 +248,8 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                 message_type="dial",
                 action="send",
                 message_id=sent.message_id,
-                message_text=safe_text
+                message_text=safe_text,
+                background=True
             )
             logging.info(f"[process_dial] Logged Telegram message to Call Logger: {sent.message_id}")
         except Exception as log_e:
@@ -263,7 +265,8 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                 message_type="dial",
                 action="send",
                 message_text=safe_text,
-                error=str(e)
+                error=str(e),
+                background=True
             )
         except Exception as log_e:
             logging.warning(f"[process_dial] Failed to log Telegram error: {log_e}")
@@ -329,7 +332,8 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                         url=gateway_url,
                         request_data=payload,
                         status_code=resp.status,
-                        duration_ms=gateway_duration
+                        duration_ms=gateway_duration,
+                        background=True
                     )
                     
                     logging.info(f"[process_dial] gateway dispatch done: uid={unique_id_for_gateway} status={resp.status}")
@@ -344,7 +348,8 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                     url=gateway_url,
                     request_data=payload if 'payload' in locals() else None,
                     duration_ms=gateway_duration,
-                    error=str(e)
+                    error=str(e),
+                    background=True
                 )
                 logging.warning(f"[process_dial] gateway dispatch error: {e}")
 

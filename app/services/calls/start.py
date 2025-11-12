@@ -168,7 +168,8 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
             message_type="start",
             action="send",
             message_id=sent.message_id,
-            message_text=safe_text
+            message_text=safe_text,
+            background=True
         )
     except Exception as e:
         logging.warning(f"[process_start] Failed to log telegram message: {e}")

@@ -775,7 +775,8 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
                 message_type="bridge",
                 action="send",
                 message_id=message_id,
-                message_text=text
+                message_text=text,
+                background=True
             )
         except Exception as e:
             logging.warning(f"[send_bridge_to_single_chat] Failed to log telegram message: {e}")
