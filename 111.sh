@@ -10,7 +10,7 @@ case "${1:-start}" in
     setsid uvicorn main:app \
       --host 0.0.0.0 \
       --port 8000 \
-      --workers 1 \
+      --workers 4 \
       --log-level debug \
       --log-config log_config.json &
 
