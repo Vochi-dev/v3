@@ -33,15 +33,6 @@ def get_recording_link_text(call_record_info):
         # Если ссылка недоступна, показываем обычный текст
         return f'\n🔉Запись разговора'
 
-def get_call_details_link_text(call_record_info):
-    """
-    Формирует кликабельную ссылку на детали звонка для Telegram
-    """
-    if call_record_info and call_record_info.get('call_url'):
-        call_url = call_record_info['call_url']
-        return f'\n📋<a href="{call_url}">Детали звонка</a>'
-    else:
-        return ""
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
@@ -492,6 +483,32 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             phone = format_phone_number(external_phone)
             display = phone if not phone.startswith("+000") else "Номер не определен"
             
+            # Получаем ВСЕ внутренние номера для текущего chat_id
+            try:
+                # Получаем chat_id владельца бота и secret предприятия
+                owner_chat_id = await get_bot_owner_chat_id(token)
+                enterprise_secret = await get_enterprise_secret(token)
+                
+                # Если текущий chat_id НЕ владелец - получаем ВСЕ его внутренние номера
+                if owner_chat_id != chat_id:
+                    user_internal_phones = await get_all_internal_phones_by_tg_id(
+                        enterprise_number=enterprise_number,
+                        telegram_tg_id=chat_id
+                    )
+                    logging.info(
+                        f"[process_hangup] User internal phones for chat_id={chat_id}: {user_internal_phones}"
+                    )
+                else:
+                    logging.info(
+                        f"[process_hangup] chat_id={chat_id} is bot owner, no callback buttons"
+                    )
+            except Exception as e:
+                logging.error(f"[process_hangup] Error getting user internal phones: {e}")
+            
+            # Очищаем external_phone от лишних символов для callback data
+            if user_internal_phones and enterprise_secret:
+                clean_phone = external_phone.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+            
             # Обогащаем номер клиента именем если есть
             if enriched_data.get("customer_name"):
                 display = f"{display} ({enriched_data['customer_name']})"
@@ -546,7 +563,6 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 if duration_text:
                     text += f"\n⌛ Длительность: {duration_text}"
                     text += get_recording_link_text(call_record_info)
-                    text += get_call_details_link_text(call_record_info)
             else:
                 # Неуспешный входящий звонок
                 text = f"❌ Мы не подняли трубку\n💰{display}"
@@ -691,7 +707,6 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 if duration_text:
                     text += f"\n⌛ Длительность: {duration_text}"
                     text += get_recording_link_text(call_record_info)
-                    text += get_call_details_link_text(call_record_info)
             else:
                 # Неуспешный исходящий звонок
                 text = f"❌ Абонент не поднял трубку"
