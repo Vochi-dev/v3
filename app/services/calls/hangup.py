@@ -795,7 +795,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             logging.error(f"[process_hangup] ❌ send_message failed: {e}. text={safe_text!r}")
             return {"status": "error", "error": str(e)}
         
-        # ───────── Шаг 8. HANGUP - ГЛАВНЫЙ КИЛЛЕР (удаляет dial/bridge, очищает кэш) ─────────
+        # ───────── Шаг 8. HANGUP - ГЛАВНЫЙ КИЛЛЕР (удаляет ВСЁ: start/dial/bridge) ─────────
         phone = get_phone_for_grouping(data)
         
         logging.info(f"[HANGUP] 🔍 START for {phone}:{chat_id}")
@@ -803,7 +803,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         try:
             import httpx
             async with httpx.AsyncClient(timeout=2.0) as client:
-                url = f"http://localhost:8020/telegram/last-message/{phone}/{chat_id}"
+                url = f"http://localhost:8020/telegram/messages/{phone}/{chat_id}"
                 logging.info(f"[HANGUP] 📞 GET {url}")
                 
                 try:
@@ -811,31 +811,33 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     logging.info(f"[HANGUP] 📥 status={resp.status_code}")
                     
                     if resp.status_code == 200:
-                        prev = resp.json()
-                        prev_msg_id = prev["message_id"]
-                        prev_type = prev["event_type"]
+                        cache_data = resp.json()
+                        messages = cache_data.get("messages", {})
                         
-                        logging.info(f"[HANGUP] ✅ Found {prev_type} msg={prev_msg_id}")
+                        logging.info(f"[HANGUP] ✅ Found {len(messages)} messages: {list(messages.keys())}")
                         
-                        # Удаляем из Telegram (dial или bridge - неважно!)
-                        logging.info(f"[HANGUP] 🗑️ Deleting {prev_type} msg={prev_msg_id}")
+                        # Удаляем ВСЁ: START, DIAL, BRIDGE
+                        for event_type in ["start", "dial", "bridge"]:
+                            if event_type in messages:
+                                msg_id = messages[event_type]
+                                logging.info(f"[HANGUP] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
+                                try:
+                                    await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                                    logging.info(f"[HANGUP] ✅ {event_type.upper()} deleted")
+                                except BadRequest as e:
+                                    logging.error(f"[HANGUP] ❌ BadRequest {event_type.upper()}: {e}")
+                                except Exception as e:
+                                    logging.error(f"[HANGUP] ❌ Delete {event_type.upper()} failed: {e}")
+                        
+                        # ОЧИЩАЕМ весь кэш для этого звонка
+                        logging.info(f"[HANGUP] 🧹 Clearing ALL cache for {phone}:{chat_id}")
                         try:
-                            await bot.delete_message(chat_id=chat_id, message_id=prev_msg_id)
-                            logging.info(f"[HANGUP] ✅ DELETED {prev_type} msg={prev_msg_id}")
-                        except BadRequest as e:
-                            logging.error(f"[HANGUP] ❌ BadRequest: {e}")
-                        except Exception as e:
-                            logging.error(f"[HANGUP] ❌ Delete failed: {e}")
-                        
-                        # ОЧИЩАЕМ кэш
-                        logging.info(f"[HANGUP] 🧹 Clearing cache for {phone}:{chat_id}")
-                        try:
-                            await client.delete(f"http://localhost:8020/telegram/last-message/{phone}/{chat_id}")
+                            await client.delete(url)
                             logging.info(f"[HANGUP] ✅ Cache cleared")
                         except Exception as e:
                             logging.error(f"[HANGUP] ❌ Clear failed: {e}")
                     else:
-                        logging.warning(f"[HANGUP] ⚠️ No prev msg (404)")
+                        logging.warning(f"[HANGUP] ⚠️ No prev messages (404)")
                 except Exception as e:
                     logging.error(f"[HANGUP] ❌ Error: {e}")
         except Exception as e:

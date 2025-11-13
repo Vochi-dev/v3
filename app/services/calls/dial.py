@@ -229,7 +229,38 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         reply_to_id = None
         logging.info(f"[process_dial] Previous message was deleted, sending as standalone message")
 
-    # ───────── Шаг 5. Отправляем сообщение в Telegram ─────────
+    # ───────── Шаг 5. DIAL удаляет START + предыдущий DIAL ─────────
+    phone = get_phone_for_grouping(data)
+    try:
+        import httpx
+        cache_url = f"http://localhost:8020/telegram/messages/{phone}/{chat_id}"
+        
+        async with httpx.AsyncClient(timeout=1.0) as client:
+            # Получаем ВСЕ сообщения для звонка
+            resp = await client.get(cache_url)
+            if resp.status_code == 200:
+                cache_data = resp.json()
+                messages = cache_data.get("messages", {})
+                
+                # Удаляем START и предыдущий DIAL
+                for event_type in ["start", "dial"]:
+                    if event_type in messages:
+                        msg_id = messages[event_type]
+                        logging.info(f"[DIAL] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
+                        try:
+                            await bot.delete_message(chat_id, msg_id)
+                            logging.info(f"[DIAL] ✅ {event_type.upper()} deleted")
+                        except BadRequest as e:
+                            logging.warning(f"[DIAL] ⚠️ Could not delete {event_type.upper()}: {e}")
+                
+                # Удаляем START и DIAL из кэша
+                await client.delete(f"{cache_url}?event_types=start&event_types=dial")
+            else:
+                logging.info(f"[DIAL] ℹ️ No previous messages in cache")
+    except Exception as e:
+        logging.warning(f"[DIAL] ⚠️ Failed to check/delete previous messages: {e}")
+    
+    # ───────── Шаг 6. Отправляем сообщение в Telegram ─────────
     try:
         if should_comment and reply_to_id:
             logging.info(f"[process_dial] Sending as comment to message {reply_to_id}")
@@ -245,7 +276,6 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         # Сохраняем message_id в централизованный кэш (phone:chat_id)
         try:
             import httpx
-            phone = get_phone_for_grouping(data)
             async with httpx.AsyncClient(timeout=1.0) as client:
                 await client.post("http://localhost:8020/telegram/message", json={
                     "phone": phone,

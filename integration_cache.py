@@ -21,8 +21,8 @@ import os
 import time
 import random
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Set, Any
-from fastapi import FastAPI, HTTPException, Request, Body
+from typing import Dict, Optional, Set, Any, List
+from fastapi import FastAPI, HTTPException, Request, Body, Query
 from fastapi.responses import JSONResponse
 import httpx
 
@@ -86,6 +86,10 @@ processed_hangups: Dict[str, float] = {}
 processed_dials: Dict[str, float] = {}
 HANGUP_DEDUP_TTL = 300  # 5 минут
 DIAL_DEDUP_TTL = 60     # 1 минута
+
+# ===== Telegram Message Cache (v2.2) =====
+telegram_message_cache: Dict[str, Dict[str, int]] = {}
+TELEGRAM_MESSAGE_TTL = 3600  # 1 час
 
 # ===== Вспомогательные функции =====
 
@@ -2397,6 +2401,111 @@ async def shutdown_event():
     if pg_pool:
         await pg_pool.close()
     logger.info("👋 Integration Cache Service stopped")
+
+# ===== Telegram Message Cache Endpoints (v2.2) =====
+
+@app.post("/telegram/message")
+async def save_telegram_message(
+    phone: str = Body(...),
+    chat_id: int = Body(...),
+    event_type: str = Body(...),  # "start", "dial", "bridge"
+    message_id: int = Body(...)
+):
+    """
+    Сохранить message_id Telegram сообщения для последующего удаления.
+    Структура: phone:chat_id -> {start: msg_id, dial: msg_id, bridge: msg_id}
+    """
+    cache_key = f"{phone}:{chat_id}"
+    
+    if cache_key not in telegram_message_cache:
+        telegram_message_cache[cache_key] = {}
+    
+    telegram_message_cache[cache_key][event_type] = message_id
+    
+    logger.info(f"[TG_CACHE] ✅ Saved {event_type} msg={message_id} for {cache_key}")
+    
+    return {
+        "status": "ok",
+        "cache_key": cache_key,
+        "event_type": event_type,
+        "message_id": message_id
+    }
+
+
+@app.get("/telegram/messages/{phone}/{chat_id}")
+async def get_telegram_messages(phone: str, chat_id: int):
+    """
+    Получить ВСЕ сохранённые сообщения для звонка (start, dial, bridge).
+    """
+    cache_key = f"{phone}:{chat_id}"
+    
+    if cache_key in telegram_message_cache:
+        messages = telegram_message_cache[cache_key]
+        logger.info(f"[TG_CACHE] 📥 Retrieved {len(messages)} messages for {cache_key}")
+        return {
+            "cache_key": cache_key,
+            "messages": messages
+        }
+    else:
+        logger.info(f"[TG_CACHE] ℹ️ No messages found for {cache_key}")
+        return JSONResponse(
+            status_code=404,
+            content={"error": "No messages found", "cache_key": cache_key}
+        )
+
+
+@app.delete("/telegram/messages/{phone}/{chat_id}")
+async def delete_telegram_messages(
+    phone: str,
+    chat_id: int,
+    event_types: Optional[List[str]] = Query(None)
+):
+    """
+    Удалить сообщения из кэша.
+    - Если event_types не указан - удаляет ВСЕ сообщения для звонка
+    - Если event_types указан - удаляет только указанные типы
+    
+    Примеры:
+    - DELETE /telegram/messages/375296254070/7889254605 - удалить всё
+    - DELETE /telegram/messages/375296254070/7889254605?event_types=start&event_types=dial - удалить start и dial
+    """
+    cache_key = f"{phone}:{chat_id}"
+    
+    if cache_key not in telegram_message_cache:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "No messages found", "cache_key": cache_key}
+        )
+    
+    if event_types:
+        # Удаляем только указанные типы
+        deleted = []
+        for event_type in event_types:
+            if event_type in telegram_message_cache[cache_key]:
+                del telegram_message_cache[cache_key][event_type]
+                deleted.append(event_type)
+        
+        # Если больше нет сообщений - удаляем весь ключ
+        if not telegram_message_cache[cache_key]:
+            del telegram_message_cache[cache_key]
+        
+        logger.info(f"[TG_CACHE] 🗑️ Deleted {deleted} for {cache_key}")
+        return {
+            "status": "deleted",
+            "cache_key": cache_key,
+            "deleted_types": deleted
+        }
+    else:
+        # Удаляем всё
+        deleted_types = list(telegram_message_cache[cache_key].keys())
+        del telegram_message_cache[cache_key]
+        logger.info(f"[TG_CACHE] 🗑️ Deleted ALL ({deleted_types}) for {cache_key}")
+        return {
+            "status": "deleted_all",
+            "cache_key": cache_key,
+            "deleted_types": deleted_types
+        }
+
 
 if __name__ == "__main__":
     import uvicorn

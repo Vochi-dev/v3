@@ -751,27 +751,31 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
             await asyncio.sleep(0.1)  # race condition fix
             
             async with httpx.AsyncClient(timeout=1.0) as client:
-                url = f"http://localhost:8020/telegram/last-message/{phone_for_grouping}/{chat_id}"
+                url = f"http://localhost:8020/telegram/messages/{phone_for_grouping}/{chat_id}"
                 logging.info(f"[BRIDGE] 📞 GET {url}")
                 
                 resp = await client.get(url)
                 logging.info(f"[BRIDGE] 📥 status={resp.status_code}")
                 
                 if resp.status_code == 200:
-                    prev = resp.json()
-                    prev_msg_id = prev["message_id"]
-                    prev_type = prev["event_type"]
-                    logging.info(f"[BRIDGE] ✅ Found {prev_type} msg={prev_msg_id}")
+                    cache_data = resp.json()
+                    messages = cache_data.get("messages", {})
                     
-                    # Удаляем из Telegram
-                    logging.info(f"[BRIDGE] 🗑️ Deleting {prev_type} msg={prev_msg_id}")
-                    try:
-                        await bot.delete_message(chat_id=chat_id, message_id=prev_msg_id)
-                        logging.info(f"[BRIDGE] ✅ DELETED {prev_type} msg={prev_msg_id}")
-                    except Exception as e:
-                        logging.error(f"[BRIDGE] ❌ Delete failed: {e}")
+                    # Удаляем START и DIAL
+                    for event_type in ["start", "dial"]:
+                        if event_type in messages:
+                            msg_id = messages[event_type]
+                            logging.info(f"[BRIDGE] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
+                            try:
+                                await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                                logging.info(f"[BRIDGE] ✅ {event_type.upper()} deleted")
+                            except Exception as e:
+                                logging.error(f"[BRIDGE] ❌ Delete {event_type.upper()} failed: {e}")
+                    
+                    # Удаляем START и DIAL из кэша
+                    await client.delete(f"{url}?event_types=start&event_types=dial")
                 else:
-                    logging.warning(f"[BRIDGE] ⚠️ No prev msg (404)")
+                    logging.warning(f"[BRIDGE] ⚠️ No prev messages (404)")
         except Exception as e:
             logging.error(f"[BRIDGE] ❌ Error: {e}")
         
