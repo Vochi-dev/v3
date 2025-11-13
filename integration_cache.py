@@ -2441,7 +2441,7 @@ async def get_telegram_messages(phone: str, chat_id: int):
     
     if cache_key in telegram_message_cache:
         messages = telegram_message_cache[cache_key]
-        logger.info(f"[TG_CACHE] 📥 Retrieved {len(messages)} messages for {cache_key}")
+        logger.info(f"[TG_CACHE] 📥 Retrieved {len(messages)} messages for {cache_key}: {list(messages.keys())}")
         return {
             "cache_key": cache_key,
             "messages": messages

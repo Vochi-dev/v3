@@ -90,15 +90,29 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
         # Входящий звонок - используем формат из Пояснения
         display = phone if (phone and not phone.startswith("+000")) else "Номер не определен"
         
+        # Обогащаем номер клиента именем если есть
+        enriched_data = data.get("_enriched_data", {})
+        if enriched_data and enriched_data.get("customer_name"):
+            display = f"{display} ({enriched_data['customer_name']})"
+        
         # Базовый формат для start события
         text = f"💰{display} ➡️ Приветствие"
         
-        # Добавляем информацию о линии, если есть Token
-        if token:
-            # Пытаемся определить название линии по токену
+        # Добавляем информацию о линии с обогащением
+        if enriched_data:
+            line_name = enriched_data.get("line_name", "")
+            if line_name:
+                text += f"\n📡{line_name}"
+            else:
+                # Fallback на сырой номер линии
+                trunk_info = data.get("Trunk", "")
+                if trunk_info:
+                    text += f"\n📡{trunk_info}"
+        else:
+            # Если нет обогащения, используем сырой номер линии
             trunk_info = data.get("Trunk", "")
             if trunk_info:
-                text += f"\nЛиния: {trunk_info}"
+                text += f"\n📡{trunk_info}"
         
         # Добавляем историю звонков
         last = get_last_call_info(raw_phone)
@@ -112,31 +126,9 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
     # ───────── Шаг 3a. Выводим сформированный текст ─────────
     logging.info(f"[process_start] => chat={chat_id}, text={safe_text!r}")
 
-    # ───────── Шаг 4. Проверяем, нужно ли отправить как комментарий ─────────
-    should_comment, reply_to_id = should_send_as_comment(phone_for_grouping, 'start', chat_id)
-    
-    # ───────── Шаг 5. Отправка в Telegram ─────────
+    # ───────── Шаг 4. Отправка в Telegram (БЕЗ REPLY, ПРОСТО ОТПРАВЛЯЕМ) ─────────
     try:
-        if should_comment and reply_to_id:
-            logging.info(f"[process_start] Sending as comment to message {reply_to_id}")
-            sent = await bot.send_message(
-                chat_id,
-                safe_text,
-                reply_to_message_id=reply_to_id,
-                parse_mode="HTML"
-            )
-        else:
-            # Проверяем старую логику reply_to для совместимости
-            reply_id = get_relevant_hangup_message_id(raw_phone, callee, is_int, chat_id)
-            if reply_id and not should_comment:
-                sent = await bot.send_message(
-                    chat_id,
-                    safe_text,
-                    reply_to_message_id=reply_id,
-                    parse_mode="HTML"
-                )
-            else:
-                sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+        sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
     except BadRequest as e:
         logging.error(f"[process_start] send_message failed: {e}. text={safe_text!r}")
         return {"status": "error", "error": str(e)}
@@ -175,4 +167,19 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
         logging.warning(f"[process_start] Failed to log telegram message: {e}")
 
     logging.info(f"[process_start] Successfully sent start message {sent.message_id} for {phone_for_grouping}")
+    
+    # Сохраняем message_id в централизованный кэш
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=1.0) as client:
+            await client.post("http://localhost:8020/telegram/message", json={
+                "phone": phone_for_grouping,
+                "chat_id": chat_id,
+                "event_type": "start",
+                "message_id": sent.message_id
+            })
+        logging.info(f"[START] ✅ Cached msg={sent.message_id} for {phone_for_grouping}:{chat_id}")
+    except Exception as cache_e:
+        logging.warning(f"[START] ❌ Cache failed: {cache_e}")
+    
     return {"status": "sent", "message_id": sent.message_id}

@@ -752,8 +752,8 @@ async def _dispatch_to_all(handler, body: dict):
         logger.info(f"Generated shared UUID token for hangup {unique_id}: {shared_uuid_token}")
     
     # 🎯 ОПТИМИЗАЦИЯ: Подготовка данных ДО цикла по подписчикам
-    # Для dial/bridge/hangup делаем enrichment ОДИН РАЗ
-    if event_type in ["dial", "bridge", "hangup"]:
+    # Для start/dial/bridge/hangup делаем enrichment ОДИН РАЗ
+    if event_type in ["start", "dial", "bridge", "hangup"]:
         try:
             from app.services.metadata_client import metadata_client, extract_line_id_from_exten
             from app.services.calls.utils import is_internal_number
@@ -767,7 +767,17 @@ async def _dispatch_to_all(handler, body: dict):
                 line_id = None
                 
                 # Извлекаем параметры в зависимости от типа события
-                if event_type == "dial":
+                if event_type == "start":
+                    # START: извлекаем линию и внешний номер для обогащения
+                    trunk = body.get("Trunk", "")
+                    line_id = extract_line_id_from_exten(trunk)
+                    
+                    # Извлекаем внешний номер для обогащения именем клиента
+                    raw_phone = body.get("Phone", "") or body.get("CallerIDNum", "") or ""
+                    if raw_phone and not is_internal_number(raw_phone):
+                        external_phone = raw_phone
+                
+                elif event_type == "dial":
                     call_type = int(body.get("CallType", 0))
                     raw_phone = body.get("Phone", "") or body.get("CallerIDNum", "") or ""
                     exts = body.get("Extensions", [])
@@ -898,7 +908,8 @@ async def _dispatch_to_all(handler, body: dict):
                                 logger.error(f"Error finding internal_phone for hangup: {e}")
                 
                 # Делаем enrichment ОДИН РАЗ для всех подписчиков
-                if internal_phone or external_phone:
+                # Для START достаточно только line_id
+                if internal_phone or external_phone or line_id:
                     enriched_data = await metadata_client.enrich_message_data(
                         enterprise_number=enterprise_number,
                         internal_phone=internal_phone,

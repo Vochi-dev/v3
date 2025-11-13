@@ -51,6 +51,12 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     exts = data.get("Extensions", [])
     call_type = int(data.get("CallType", 0))
     is_int = call_type == 2
+    external_initiated = data.get("ExternalInitiated", False)
+    
+    # ───────── ФИЛЬТР: Пропускаем внутренние звонки при внешней инициации ─────────
+    if is_int and external_initiated:
+        logging.info(f"[DIAL] ⏭️ Skipping internal dial (CallType=2) with ExternalInitiated=true for chat {chat_id}")
+        return {"status": "skipped", "reason": "internal_call_external_initiated"}
     callee = exts[0] if exts else ""
     token = data.get("Token", "")
     trunk_info = data.get("Trunk", "")
@@ -184,43 +190,108 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         # Определяем внутренний номер - из уже обработанных данных
         internal_num = internal_phone or ""
 
-        # Формируем сообщение: внутренний у ☎️, внешний у 💰
-        if internal_num:
-            # Обогащаем ФИО менеджера (если есть - показываем ФИО (номер), иначе - просто номер)
-            manager_name = enriched_data.get("manager_name", "")
-            if manager_name and not manager_name.startswith("Доб."):
-                # Есть ФИО менеджера - показываем "ФИО (номер)"
-                manager_display = f"{manager_name} ({internal_num})"
-            else:
-                # Нет ФИО - показываем просто номер без "Доб."
-                manager_display = internal_num
-            
-            # Заголовок зависит от CallType
-            if call_type == 1:  # Исходящий
+        # Формируем сообщение
+        if call_type == 1:  # Исходящий
+            # Для исходящего - один менеджер
+            if internal_num:
+                manager_name = enriched_data.get("manager_name", "")
+                if manager_name and not manager_name.startswith("Доб."):
+                    manager_display = f"{manager_name} ({internal_num})"
+                else:
+                    manager_display = internal_num
                 text = f"📞 Исходящий звонок\n☎️{manager_display} ➡️ 💰{display}"
-            else:  # Входящий
-                text = f"☎️{manager_display} ➡️ 💰{display}"
-        else:
+            else:
+                text = f"📞 Исходящий звонок\n💰{display}"
+        else:  # Входящий - показываем все номера из Extensions
+            text = f"📞 Входящий звонок\n💰{display} ➡️\n\n"
+            
+            # Получаем все внутренние номера из Extensions
+            if exts:
+                for ext in exts:
+                    if is_internal_number(ext):
+                        # Пытаемся получить имя менеджера для каждого номера
+                        try:
+                            import httpx
+                            async with httpx.AsyncClient(timeout=1.0) as client:
+                                resp = await client.get(f"http://localhost:8020/metadata/{enterprise_number}/manager/{ext}")
+                                if resp.status_code == 200:
+                                    mgr_data = resp.json()
+                                    mgr_name = mgr_data.get("full_name", "")
+                                    if mgr_name and not mgr_name.startswith("Доб."):
+                                        text += f"☎️{mgr_name} ({ext})\n"
+                                    else:
+                                        text += f"☎️({ext})\n"
+                                else:
+                                    text += f"☎️({ext})\n"
+                        except:
+                            text += f"☎️({ext})\n"
+            
+            if not exts or not any(is_internal_number(ext) for ext in exts):
+                # Если нет внутренних номеров, показываем просто входящий
+                text = f"📞 Входящий звонок\n💰{display}"
+            
+            # Добавляем информацию о линии (обогащённую) для входящих
+            if enriched_data.get("line_name"):
+                text += f"\n📡{enriched_data['line_name']}"
+            elif trunk_info:
+                text += f"\nЛиния: {trunk_info}"
+        
+        if not internal_num and call_type != 0:
             text = f"📞 ➡️ 💰{display}"
+            # Добавляем информацию о линии для этого случая
+            if enriched_data.get("line_name"):
+                text += f"\n📡{enriched_data['line_name']}"
+            elif trunk_info:
+                text += f"\nЛиния: {trunk_info}"
             
-        # Добавляем информацию о линии (обогащённую)
-        if enriched_data.get("line_name"):
-            text += f"\n📡{enriched_data['line_name']}"
-        elif trunk_info:
-            text += f"\nЛиния: {trunk_info}"
-            
-        # Добавляем историю звонков для входящих
-        if call_type != 1:  # Не для исходящих
-            last = get_last_call_info(raw_phone)
-            if last:
-                # Добавляем информацию в формате "Звонил: X раз, Последний раз: дата"
-                text += f"\n{last}"
+        # История звонков НЕ добавляется в DIAL (только в START)
+        # DIAL показывает только текущий дозвон без истории
 
     # Экранируем html-спецсимволы
     safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
     logging.info(f"[process_dial] => chat={chat_id}, text={safe_text!r}")
 
-    # ───────── Шаг 4. Проверяем, нужно ли отправить как комментарий ─────────
+    # ───────── Шаг 4. DIAL удаляет START + предыдущий DIAL ─────────
+    phone = get_phone_for_grouping(data)
+    try:
+        import httpx, asyncio
+        
+        # Задержка для предотвращения race condition (увеличена до 0.5s)
+        await asyncio.sleep(0.5)
+        
+        cache_url = f"http://localhost:8020/telegram/messages/{phone}/{chat_id}"
+        
+        # Получаем ВСЕ сообщения для звонка
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(cache_url)
+            if resp.status_code == 200:
+                cache_data = resp.json()
+                messages = cache_data.get("messages", {})
+                logging.info(f"[DIAL] 📥 Got cache: {list(messages.keys())}")
+            else:
+                logging.info(f"[DIAL] ℹ️ No previous messages in cache")
+                messages = {}
+        
+            # Удаляем START, предыдущий DIAL и предыдущий BRIDGE из Telegram
+            for event_type in ["start", "dial", "bridge"]:
+                if event_type in messages:
+                    msg_id = messages[event_type]
+                    logging.info(f"[DIAL] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
+                    try:
+                        await bot.delete_message(chat_id, msg_id)
+                        logging.info(f"[DIAL] ✅ {event_type.upper()} deleted")
+                    except BadRequest as e:
+                        logging.warning(f"[DIAL] ⚠️ Could not delete {event_type.upper()}: {e}")
+            
+            # Удаляем START, DIAL и BRIDGE из кэша
+            if messages:
+                async with httpx.AsyncClient(timeout=2.0) as client:
+                    await client.delete(f"{cache_url}?event_types=start&event_types=dial&event_types=bridge")
+                    logging.info(f"[DIAL] 🧹 Cleared cache")
+    except Exception as e:
+        logging.warning(f"[DIAL] ⚠️ Failed to check/delete previous messages: {e}")
+    
+    # ───────── Шаг 5. Проверяем, нужно ли отправить как комментарий ─────────
     should_comment, reply_to_id = should_send_as_comment(phone_for_grouping, 'dial', chat_id)
     
     # Если предыдущее сообщение было удалено, НЕ отправляем как комментарий
@@ -228,37 +299,6 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         should_comment = False
         reply_to_id = None
         logging.info(f"[process_dial] Previous message was deleted, sending as standalone message")
-
-    # ───────── Шаг 5. DIAL удаляет START + предыдущий DIAL ─────────
-    phone = get_phone_for_grouping(data)
-    try:
-        import httpx
-        cache_url = f"http://localhost:8020/telegram/messages/{phone}/{chat_id}"
-        
-        async with httpx.AsyncClient(timeout=1.0) as client:
-            # Получаем ВСЕ сообщения для звонка
-            resp = await client.get(cache_url)
-            if resp.status_code == 200:
-                cache_data = resp.json()
-                messages = cache_data.get("messages", {})
-                
-                # Удаляем START и предыдущий DIAL
-                for event_type in ["start", "dial"]:
-                    if event_type in messages:
-                        msg_id = messages[event_type]
-                        logging.info(f"[DIAL] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
-                        try:
-                            await bot.delete_message(chat_id, msg_id)
-                            logging.info(f"[DIAL] ✅ {event_type.upper()} deleted")
-                        except BadRequest as e:
-                            logging.warning(f"[DIAL] ⚠️ Could not delete {event_type.upper()}: {e}")
-                
-                # Удаляем START и DIAL из кэша
-                await client.delete(f"{cache_url}?event_types=start&event_types=dial")
-            else:
-                logging.info(f"[DIAL] ℹ️ No previous messages in cache")
-    except Exception as e:
-        logging.warning(f"[DIAL] ⚠️ Failed to check/delete previous messages: {e}")
     
     # ───────── Шаг 6. Отправляем сообщение в Telegram ─────────
     try:

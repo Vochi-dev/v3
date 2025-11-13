@@ -32,6 +32,16 @@ def get_recording_link_text(call_record_info):
     else:
         # Если ссылка недоступна, показываем обычный текст
         return f'\n🔉Запись разговора'
+
+def get_call_details_link_text(call_record_info):
+    """
+    Формирует кликабельную ссылку на детали звонка для Telegram
+    """
+    if call_record_info and call_record_info.get('call_url'):
+        call_url = call_record_info['call_url']
+        return f'\n📋<a href="{call_url}">Детали звонка</a>'
+    else:
+        return ""
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
@@ -283,6 +293,12 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         internal_phone = None
         external_phone = None
         
+        # Инициализируем переменные для кнопок (используются для всех типов звонков)
+        user_internal_phones = []
+        owner_chat_id = None
+        enterprise_secret = None
+        clean_phone = None
+        
         # Определяем внутренний и внешний номера в зависимости от типа звонка
         if call_direction == "incoming":
             external_phone = caller
@@ -471,7 +487,9 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         
         elif call_direction == "incoming":
             # Входящие звонки
-            phone = format_phone_number(caller)
+            # Используем _external_phone (уже обработан в main.py) или Phone или CallerIDNum
+            external_phone = data.get("_external_phone") or data.get("Phone") or caller
+            phone = format_phone_number(external_phone)
             display = phone if not phone.startswith("+000") else "Номер не определен"
             
             # Обогащаем номер клиента именем если есть
@@ -528,6 +546,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 if duration_text:
                     text += f"\n⌛ Длительность: {duration_text}"
                     text += get_recording_link_text(call_record_info)
+                    text += get_call_details_link_text(call_record_info)
             else:
                 # Неуспешный входящий звонок
                 text = f"❌ Мы не подняли трубку\n💰{display}"
@@ -597,11 +616,6 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             display = phone if not phone.startswith("+000") else "Номер не определен"
             
             # Получаем ВСЕ внутренние номера для текущего chat_id
-            user_internal_phones = []
-            owner_chat_id = None
-            enterprise_secret = None
-            clean_phone = None
-            
             try:
                 # Получаем chat_id владельца бота и secret предприятия
                 owner_chat_id = await get_bot_owner_chat_id(token)
@@ -677,6 +691,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 if duration_text:
                     text += f"\n⌛ Длительность: {duration_text}"
                     text += get_recording_link_text(call_record_info)
+                    text += get_call_details_link_text(call_record_info)
             else:
                 # Неуспешный исходящий звонок
                 text = f"❌ Абонент не поднял трубку"
@@ -793,7 +808,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 
         except BadRequest as e:
             logging.error(f"[process_hangup] ❌ send_message failed: {e}. text={safe_text!r}")
-            return {"status": "error", "error": str(e)}
+            # НЕ ВОЗВРАЩАЕМ ОШИБКУ - ПРОДОЛЖАЕМ УДАЛЯТЬ ПРЕДЫДУЩИЕ СООБЩЕНИЯ!
+            sent = None
         
         # ───────── Шаг 8. HANGUP - ГЛАВНЫЙ КИЛЛЕР (удаляет ВСЁ: start/dial/bridge) ─────────
         phone = get_phone_for_grouping(data)
@@ -894,37 +910,39 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             else:
                 callee = ""
             is_int = False
+        
+        # ───────── Шаг 9. Обновляем состояние системы (только если сообщение отправлено) ─────────
+        if sent:
+            update_call_pair_message(caller, callee, sent.message_id, is_int, chat_id)
+            update_hangup_message_map(caller, callee, sent.message_id, is_int, call_status, call_type, exts, chat_id=chat_id)
             
-        update_call_pair_message(caller, callee, sent.message_id, is_int, chat_id)
-        update_hangup_message_map(caller, callee, sent.message_id, is_int, call_status, call_type, exts, chat_id=chat_id)
-        
-        # Обновляем новый трекер для группировки
-        update_phone_tracker(phone_for_grouping, sent.message_id, 'hangup', data, chat_id)
+            # Обновляем новый трекер для группировки
+            update_phone_tracker(phone_for_grouping, sent.message_id, 'hangup', data, chat_id)
 
-        # ───────── Шаг 10. Сохраняем в БД ─────────
-        await save_telegram_message(
-            sent.message_id,
-            "hangup",
-            token,
-            caller,
-            callee,
-            is_int
-        )
-        
-        # ───────── Логируем отправленное Telegram сообщение ─────────
-        try:
-            await call_logger.log_telegram_message(
-                enterprise_number=enterprise_number,
-                unique_id=uid,
-                chat_id=chat_id,
-                message_type="hangup",
-                action="send",
-                message_id=sent.message_id,
-                message_text=safe_text,
-                background=True
+            # ───────── Шаг 10. Сохраняем в БД ─────────
+            await save_telegram_message(
+                sent.message_id,
+                "hangup",
+                token,
+                caller,
+                callee,
+                is_int
             )
-        except Exception as e:
-            logging.warning(f"[process_hangup] Failed to log telegram message: {e}")
+            
+            # ───────── Логируем отправленное Telegram сообщение ─────────
+            try:
+                await call_logger.log_telegram_message(
+                    enterprise_number=enterprise_number,
+                    unique_id=uid,
+                    chat_id=chat_id,
+                    message_type="hangup",
+                    action="send",
+                    message_id=sent.message_id,
+                    message_text=safe_text,
+                    background=True
+                )
+            except Exception as e:
+                logging.warning(f"[process_hangup] Failed to log telegram message: {e}")
         
         # ───────── Шаг 11. Уведомление U‑ON через 8020 (реальный звонок завершён) ─────────
         try:
@@ -939,7 +957,10 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         except Exception as e:
             logging.warning(f"[process_hangup] notify incoming failed: {e}")
 
-        logging.info(f"[process_hangup] Successfully sent hangup message {sent.message_id} for {phone_for_grouping}")
+        if sent:
+            logging.info(f"[process_hangup] Successfully sent hangup message {sent.message_id} for {phone_for_grouping}")
+        else:
+            logging.warning(f"[process_hangup] Hangup message was not sent for {phone_for_grouping}")
 
         # ───────── Fire-and-forget обновление customers ─────────
         try:

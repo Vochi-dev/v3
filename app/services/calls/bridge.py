@@ -532,11 +532,12 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     # Проверяем что это за звонок
     caller_internal = is_internal_number(caller)
     connected_internal = is_internal_number(connected)
+    external_initiated = data.get("ExternalInitiated", False)
     
     # ВАЖНО: В bridge роли могут быть перевернуты!
     # Для исходящих: CallerIDNum=внешний, ConnectedLineNum=внутренний
     # Для входящих: CallerIDNum=внешний, ConnectedLineNum=внутренний (так же!)
-    # Различаем по тому, кто инициатор
+    # Различаем по ExternalInitiated (если есть) или по тому, кто инициатор
     
     if caller_internal and connected_internal:
         call_direction = "internal"
@@ -545,8 +546,11 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     elif not caller_internal and connected_internal:
         # Внешний номер в caller, внутренний в connected
         # Это может быть как входящий, так и исходящий
-        # Предполагаем что это ИСХОДЯЩИЙ (т.к. ConnectedLineNum - это кто звонит)
-        call_direction = "outgoing" 
+        # Проверяем ExternalInitiated для точного определения
+        if external_initiated:
+            call_direction = "incoming"  # Внешний инициировал = входящий
+        else:
+            call_direction = "outgoing"  # Внутренний инициировал = исходящий
         internal_ext = connected  # внутренний номер менеджера
         external_phone = caller   # внешний номер клиента
     elif caller_internal and not connected_internal:
@@ -642,8 +646,13 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
             text = f"🔗 Идет исходящий разговор\n☎️{manager_display} 📞➡️ 💰{display_external}📞"
             if trunk_display:
                 text += f"\n{trunk_display}"
+        elif call_direction == "incoming":
+            # Заголовок для входящего
+            text = f"🔗 Идет входящий разговор\n💰{display_external}📞 ➡️ ☎️{manager_display}"
+            if trunk_display:
+                text += f"\n{trunk_display}"
         else:
-            # Для входящих оставляем старую логику
+            # Для неопределенных оставляем старую логику
             text = f"☎️{manager_display} 📞➡️ 💰{display_external}📞"
             if trunk_display:
                 text += f"\n{trunk_display}"
@@ -750,32 +759,37 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
             import httpx, asyncio
             await asyncio.sleep(0.1)  # race condition fix
             
-            async with httpx.AsyncClient(timeout=1.0) as client:
-                url = f"http://localhost:8020/telegram/messages/{phone_for_grouping}/{chat_id}"
+            # Получаем сообщения из кэша
+            url = f"http://localhost:8020/telegram/messages/{phone_for_grouping}/{chat_id}"
+            async with httpx.AsyncClient(timeout=2.0) as client:
                 logging.info(f"[BRIDGE] 📞 GET {url}")
-                
                 resp = await client.get(url)
                 logging.info(f"[BRIDGE] 📥 status={resp.status_code}")
                 
                 if resp.status_code == 200:
                     cache_data = resp.json()
                     messages = cache_data.get("messages", {})
-                    
-                    # Удаляем START и DIAL
-                    for event_type in ["start", "dial"]:
-                        if event_type in messages:
-                            msg_id = messages[event_type]
-                            logging.info(f"[BRIDGE] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
-                            try:
-                                await bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                                logging.info(f"[BRIDGE] ✅ {event_type.upper()} deleted")
-                            except Exception as e:
-                                logging.error(f"[BRIDGE] ❌ Delete {event_type.upper()} failed: {e}")
-                    
-                    # Удаляем START и DIAL из кэша
-                    await client.delete(f"{url}?event_types=start&event_types=dial")
+                    logging.info(f"[BRIDGE] 📥 Got cache: {list(messages.keys())}")
                 else:
                     logging.warning(f"[BRIDGE] ⚠️ No prev messages (404)")
+                    messages = {}
+            
+            # Удаляем START, DIAL и предыдущий BRIDGE из Telegram
+            for event_type in ["start", "dial", "bridge"]:
+                if event_type in messages:
+                    msg_id = messages[event_type]
+                    logging.info(f"[BRIDGE] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
+                    try:
+                        await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                        logging.info(f"[BRIDGE] ✅ {event_type.upper()} deleted")
+                    except Exception as e:
+                        logging.error(f"[BRIDGE] ❌ Delete {event_type.upper()} failed: {e}")
+            
+            # Удаляем START, DIAL и BRIDGE из кэша
+            if messages:
+                async with httpx.AsyncClient(timeout=2.0) as client:
+                    await client.delete(f"{url}?event_types=start&event_types=dial&event_types=bridge")
+                    logging.info(f"[BRIDGE] 🧹 Cleared cache")
         except Exception as e:
             logging.error(f"[BRIDGE] ❌ Error: {e}")
         
