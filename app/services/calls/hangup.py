@@ -795,8 +795,53 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             logging.error(f"[process_hangup] ❌ send_message failed: {e}. text={safe_text!r}")
             return {"status": "error", "error": str(e)}
         
-        # ───────── Шаг 8. ПОСЛЕ отправки hangup - удаляем bridge сообщения ─────────
-        # Удаляем bridge сообщения для этого звонка
+        # ───────── Шаг 8. HANGUP - ГЛАВНЫЙ КИЛЛЕР (удаляет dial/bridge, очищает кэш) ─────────
+        phone = get_phone_for_grouping(data)
+        
+        logging.info(f"[HANGUP] 🔍 START for {phone}:{chat_id}")
+        
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                url = f"http://localhost:8020/telegram/last-message/{phone}/{chat_id}"
+                logging.info(f"[HANGUP] 📞 GET {url}")
+                
+                try:
+                    resp = await client.get(url)
+                    logging.info(f"[HANGUP] 📥 status={resp.status_code}")
+                    
+                    if resp.status_code == 200:
+                        prev = resp.json()
+                        prev_msg_id = prev["message_id"]
+                        prev_type = prev["event_type"]
+                        
+                        logging.info(f"[HANGUP] ✅ Found {prev_type} msg={prev_msg_id}")
+                        
+                        # Удаляем из Telegram (dial или bridge - неважно!)
+                        logging.info(f"[HANGUP] 🗑️ Deleting {prev_type} msg={prev_msg_id}")
+                        try:
+                            await bot.delete_message(chat_id=chat_id, message_id=prev_msg_id)
+                            logging.info(f"[HANGUP] ✅ DELETED {prev_type} msg={prev_msg_id}")
+                        except BadRequest as e:
+                            logging.error(f"[HANGUP] ❌ BadRequest: {e}")
+                        except Exception as e:
+                            logging.error(f"[HANGUP] ❌ Delete failed: {e}")
+                        
+                        # ОЧИЩАЕМ кэш
+                        logging.info(f"[HANGUP] 🧹 Clearing cache for {phone}:{chat_id}")
+                        try:
+                            await client.delete(f"http://localhost:8020/telegram/last-message/{phone}/{chat_id}")
+                            logging.info(f"[HANGUP] ✅ Cache cleared")
+                        except Exception as e:
+                            logging.error(f"[HANGUP] ❌ Clear failed: {e}")
+                    else:
+                        logging.warning(f"[HANGUP] ⚠️ No prev msg (404)")
+                except Exception as e:
+                    logging.error(f"[HANGUP] ❌ Error: {e}")
+        except Exception as e:
+            logging.error(f"[HANGUP] ❌ Cache service error: {e}")
+        
+        # Старая логика для совместимости
         bridge_messages_to_delete = []
         
         # ИСПРАВЛЕНО: Используем правильные индивидуальные хранилища для chat_id

@@ -745,6 +745,50 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
         message_id = message.message_id
         logging.info(f"[send_bridge_to_single_chat] Sent bridge message {message_id}")
         
+        # ШАГ 1: Получаем и удаляем предыдущее сообщение (dial)
+        try:
+            import httpx, asyncio
+            await asyncio.sleep(0.1)  # race condition fix
+            
+            async with httpx.AsyncClient(timeout=1.0) as client:
+                url = f"http://localhost:8020/telegram/last-message/{phone_for_grouping}/{chat_id}"
+                logging.info(f"[BRIDGE] 📞 GET {url}")
+                
+                resp = await client.get(url)
+                logging.info(f"[BRIDGE] 📥 status={resp.status_code}")
+                
+                if resp.status_code == 200:
+                    prev = resp.json()
+                    prev_msg_id = prev["message_id"]
+                    prev_type = prev["event_type"]
+                    logging.info(f"[BRIDGE] ✅ Found {prev_type} msg={prev_msg_id}")
+                    
+                    # Удаляем из Telegram
+                    logging.info(f"[BRIDGE] 🗑️ Deleting {prev_type} msg={prev_msg_id}")
+                    try:
+                        await bot.delete_message(chat_id=chat_id, message_id=prev_msg_id)
+                        logging.info(f"[BRIDGE] ✅ DELETED {prev_type} msg={prev_msg_id}")
+                    except Exception as e:
+                        logging.error(f"[BRIDGE] ❌ Delete failed: {e}")
+                else:
+                    logging.warning(f"[BRIDGE] ⚠️ No prev msg (404)")
+        except Exception as e:
+            logging.error(f"[BRIDGE] ❌ Error: {e}")
+        
+        # ШАГ 2: Сохраняем свой message_id в кэш
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=1.0) as client:
+                await client.post("http://localhost:8020/telegram/message", json={
+                    "phone": phone_for_grouping,
+                    "chat_id": chat_id,
+                    "event_type": "bridge",
+                    "message_id": message_id
+                })
+            logging.info(f"[BRIDGE] ✅ Cached msg={message_id}")
+        except Exception as e:
+            logging.error(f"[BRIDGE] ❌ Cache failed: {e}")
+        
         # Сохраняем в трекер для последующих комментариев
         update_phone_tracker(phone_for_grouping, message_id, 'bridge', data, chat_id)
         

@@ -34,6 +34,9 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     - Правильно заменяет start сообщения или отправляет комментарии
     - Поддерживает сложные сценарии с несколькими Extensions
     """
+    
+    print(f"🔥🔥🔥 [DIAL] STARTED! UniqueId={data.get('UniqueId')}, chat_id={chat_id}")
+    logging.info(f"🔥🔥🔥 [DIAL] STARTED! UniqueId={data.get('UniqueId')}, chat_id={chat_id}")
 
     # Сохраняем лог в asterisk_logs
     await save_asterisk_log(data)
@@ -238,6 +241,21 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             )
         else:
             sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+        
+        # Сохраняем message_id в централизованный кэш (phone:chat_id)
+        try:
+            import httpx
+            phone = get_phone_for_grouping(data)
+            async with httpx.AsyncClient(timeout=1.0) as client:
+                await client.post("http://localhost:8020/telegram/message", json={
+                    "phone": phone,
+                    "chat_id": chat_id,
+                    "event_type": "dial",
+                    "message_id": sent.message_id
+                })
+            logging.info(f"[DIAL] ✅ Cached msg={sent.message_id} for {phone}:{chat_id}")
+        except Exception as cache_e:
+            logging.warning(f"[DIAL] ❌ Cache failed: {cache_e}")
         
         # Логируем отправку Telegram сообщения
         try:

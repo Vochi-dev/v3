@@ -730,8 +730,12 @@ async def _dispatch_to_all(handler, body: dict):
     from app.services.events import save_asterisk_event, mark_telegram_sent
     await save_asterisk_event(event_type, unique_id, token, body)
     
+    print(f"🔥 BEFORE _get_bot_and_recipients for token={token}")
+    logger.info(f"🔥 BEFORE _get_bot_and_recipients for token={token}")
+    
     try:
         bot_token, tg_ids = await _get_bot_and_recipients(token)
+        print(f"🔥 AFTER _get_bot_and_recipients: bot_token={bot_token}, tg_ids={tg_ids}")
         logger.info(f"Found bot_token: {bot_token}, tg_ids: {tg_ids}")
     except Exception as e:
         logger.error(f"Failed to get bot and recipients for token '{token}': {e}")
