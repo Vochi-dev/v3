@@ -4,9 +4,217 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Детали звонка #{{ unique_id }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Анимация для timeline */
+        /* ============================================
+           PLANFIX UI KIT - CSS VARIABLES
+           ============================================ */
+        :root {
+            /* Цвета */
+            --pf-primary: #6fa92e;
+            --pf-primary-dark: #5b951a;
+            --pf-blue: #3377C3;
+            --pf-success: #30AB50;
+            --pf-danger: #d9534f;
+            --pf-warning: #f59e0b;
+            --pf-gray-darkest: #343434;
+            --pf-gray-dark: #666666;
+            --pf-gray: #999999;
+            --pf-gray-light: #b3b3b3;
+            --pf-gray-lighter: #d0d0d0;
+            --pf-gray-lightest: #f5f5f5;
+            --pf-white: #ffffff;
+            
+            /* Типографика */
+            --pf-font-family: -apple-system, "system-ui", "Segoe UI", roboto, "Helvetica Neue", helvetica, arial, sans-serif;
+            --pf-font-size-base: 26px;
+            --pf-font-size-large: 30px;
+            --pf-font-size-h3: 30px;
+            --pf-font-size-h2: 36px;
+            --pf-font-size-h1: 48px;
+            
+            /* Отступы */
+            --pf-spacing-sm: 8px;
+            --pf-spacing-md: 12px;
+            --pf-spacing-lg: 16px;
+            --pf-spacing-xl: 20px;
+            --pf-spacing-xxl: 24px;
+            
+            /* Тени */
+            --pf-shadow-md: 0 1px 3px rgba(0, 0, 0, 0.1);
+            
+            /* Переходы */
+            --pf-transition-base: 0.2s ease;
+        }
+        
+        /* ============================================
+           БАЗОВЫЕ СТИЛИ
+           ============================================ */
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--pf-font-family);
+            font-size: var(--pf-font-size-base);
+            color: var(--pf-gray-darkest);
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+            background-color: var(--pf-gray-lightest);
+        }
+        
+        /* ============================================
+           ТИПОГРАФИКА
+           ============================================ */
+        h1 {
+            font-size: var(--pf-font-size-h1);
+            font-weight: 600;
+            color: var(--pf-gray-darkest);
+            margin: 0 0 var(--pf-spacing-md) 0;
+        }
+        
+        h2 {
+            font-size: var(--pf-font-size-h2);
+            font-weight: 600;
+            color: var(--pf-gray-darkest);
+            margin: 0 0 var(--pf-spacing-lg) 0;
+            padding-bottom: var(--pf-spacing-md);
+            border-bottom: 2px solid var(--pf-primary);
+        }
+        
+        /* ============================================
+           КАРТОЧКИ
+           ============================================ */
+        .pf-card {
+            background-color: var(--pf-white);
+            border-radius: 4px;
+            padding: var(--pf-spacing-xxl);
+            box-shadow: var(--pf-shadow-md);
+            margin-bottom: var(--pf-spacing-xxl);
+        }
+        
+        /* ============================================
+           КНОПКИ
+           ============================================ */
+        .pf-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            font-size: var(--pf-font-size-base);
+            font-weight: 400;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all var(--pf-transition-base);
+            text-decoration: none;
+        }
+        
+        .pf-btn-primary {
+            background-color: var(--pf-primary);
+            color: var(--pf-white);
+        }
+        
+        .pf-btn-primary:hover {
+            background-color: var(--pf-primary-dark);
+        }
+        
+        /* ============================================
+           СТАТУСЫ
+           ============================================ */
+        .status-success { color: var(--pf-success); }
+        .status-error { color: var(--pf-danger); }
+        .status-warning { color: var(--pf-warning); }
+        .status-info { color: var(--pf-blue); }
+        
+        /* ============================================
+           GRID & LAYOUT
+           ============================================ */
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: var(--pf-spacing-xxl);
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--pf-spacing-lg);
+        }
+        
+        .info-box {
+            background-color: var(--pf-gray-lightest);
+            padding: var(--pf-spacing-lg);
+            border-radius: 4px;
+        }
+        
+        .info-box-label {
+            font-size: 24px;
+            color: var(--pf-gray-dark);
+            margin-bottom: 4px;
+        }
+        
+        .info-box-value {
+            font-size: 36px;
+            font-weight: 600;
+            color: var(--pf-gray-darkest);
+        }
+        
+        /* ============================================
+           УЧАСТНИКИ
+           ============================================ */
+        .participant {
+            display: flex;
+            align-items: center;
+            gap: var(--pf-spacing-lg);
+            padding: var(--pf-spacing-lg);
+            border-radius: 4px;
+            margin-bottom: var(--pf-spacing-md);
+        }
+        
+        .participant-manager {
+            background-color: #fef2f2;
+        }
+        
+        .participant-client {
+            background-color: #f0fdf4;
+        }
+        
+        .participant-icon {
+            font-size: 64px;
+        }
+        
+        .participant-label {
+            font-size: 24px;
+            color: var(--pf-gray-dark);
+        }
+        
+        .participant-value {
+            font-size: 36px;
+            font-weight: 600;
+            color: var(--pf-gray-darkest);
+        }
+        
+        .arrow-down {
+            text-align: center;
+            font-size: 48px;
+            margin: var(--pf-spacing-md) 0;
+        }
+        
+        /* ============================================
+           TIMELINE
+           ============================================ */
+        .timeline {
+            position: relative;
+        }
+        
+        .timeline-item {
+            display: flex;
+            gap: var(--pf-spacing-lg);
+            margin-bottom: var(--pf-spacing-xl);
+            animation: slideIn 0.5s ease-out;
+        }
+        
         @keyframes slideIn {
             from {
                 opacity: 0;
@@ -18,17 +226,94 @@
             }
         }
         
-        .timeline-item {
-            animation: slideIn 0.5s ease-out;
+        .timeline-time {
+            flex-shrink: 0;
+            width: 160px;
+            font-size: 30px;
+            font-weight: 600;
+            color: var(--pf-gray-darkest);
         }
         
-        /* Кастомные цвета */
-        .status-success { color: #10b981; }
-        .status-error { color: #ef4444; }
-        .status-warning { color: #f59e0b; }
-        .status-info { color: #3b82f6; }
+        .timeline-badge {
+            flex-shrink: 0;
+            width: 80px;
+            height: 80px;
+            background-color: var(--pf-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--pf-white);
+            font-weight: 600;
+            font-size: 30px;
+            box-shadow: var(--pf-shadow-md);
+        }
         
-        /* Accordion */
+        .timeline-content {
+            flex: 1;
+            background-color: var(--pf-gray-lightest);
+            padding: var(--pf-spacing-lg);
+            border-radius: 4px;
+        }
+        
+        .timeline-title {
+            font-size: var(--pf-font-size-large);
+            font-weight: 600;
+            margin-bottom: var(--pf-spacing-sm);
+        }
+        
+        .timeline-subtitle {
+            font-size: var(--pf-font-size-large);
+            font-weight: 600;
+            color: var(--pf-gray-darkest);
+            margin-bottom: var(--pf-spacing-sm);
+        }
+        
+        .timeline-actions {
+            margin-top: var(--pf-spacing-lg);
+            padding-left: var(--pf-spacing-lg);
+            border-left: 4px solid var(--pf-primary);
+            background-color: rgba(111, 169, 46, 0.05);
+            padding: var(--pf-spacing-md);
+            border-radius: 4px;
+        }
+        
+        .timeline-actions-title {
+            font-size: var(--pf-font-size-large);
+            font-weight: 600;
+            color: var(--pf-primary-dark);
+            margin-bottom: var(--pf-spacing-sm);
+        }
+        
+        .timeline-connector {
+            margin-left: 220px;
+            border-left: 2px solid var(--pf-gray-lighter);
+            height: 48px;
+        }
+        
+        /* ============================================
+           ACCORDION
+           ============================================ */
+        .accordion-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--pf-spacing-lg);
+        }
+        
+        .accordion-toggle {
+            color: var(--pf-blue);
+            cursor: pointer;
+            font-size: var(--pf-font-size-base);
+            background: none;
+            border: none;
+            padding: 4px 8px;
+        }
+        
+        .accordion-toggle:hover {
+            text-decoration: underline;
+        }
+        
         .accordion-content {
             max-height: 0;
             overflow: hidden;
@@ -36,39 +321,119 @@
         }
         
         .accordion-content.active {
-            max-height: 2000px;
+            max-height: 5000px;
         }
         
-        /* Код блоки */
+        /* ============================================
+           DETAILS & CODE
+           ============================================ */
+        details {
+            margin-top: var(--pf-spacing-sm);
+        }
+        
+        summary {
+            cursor: pointer;
+            font-size: var(--pf-font-size-base);
+            color: var(--pf-blue);
+            padding: 4px 0;
+        }
+        
+        summary:hover {
+            text-decoration: underline;
+        }
+        
         pre {
             background: #1f2937;
             color: #e5e7eb;
-            padding: 1rem;
-            border-radius: 0.5rem;
+            padding: var(--pf-spacing-md);
+            border-radius: 4px;
             overflow-x: auto;
+            font-size: 24px;
+            margin: var(--pf-spacing-sm) 0;
+        }
+        
+        /* ============================================
+           LISTS
+           ============================================ */
+        .action-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .action-list li {
+            font-size: var(--pf-font-size-large);
+            font-weight: 600;
+            color: var(--pf-gray-darkest);
+            margin-bottom: var(--pf-spacing-sm);
+        }
+        
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .timeline-time {
+                width: 120px;
+                font-size: 26px;
+            }
+            
+            .timeline-badge {
+                width: 64px;
+                height: 64px;
+                font-size: 26px;
+            }
+            
+            .container {
+                padding: var(--pf-spacing-md);
+            }
+        }
+        
+        /* ============================================
+           HEADER
+           ============================================ */
+        .header-flex {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .header-subtitle {
+            color: var(--pf-gray-dark);
+            font-size: var(--pf-font-size-base);
+        }
+        
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .footer {
+            text-align: center;
+            color: var(--pf-gray);
+            font-size: 24px;
+            margin-top: var(--pf-spacing-xxl);
         }
     </style>
 </head>
-<body class="bg-gray-50">
-    <div class="min-h-screen py-8">
-        <div class="max-w-6xl mx-auto px-4">
+<body>
+    <div class="container">
             
             <!-- Заголовок -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <div class="flex items-center justify-between">
+            <div class="pf-card">
+                <div class="header-flex">
                     <div>
-                        <h1 class="text-3xl font-bold text-gray-900 mb-2">
-                            📞 Детали звонка
-                        </h1>
-                        <p class="text-gray-600">
+                        <h1>📞 Детали звонка</h1>
+                        <p class="header-subtitle">
                             Звонок #{{ unique_id[:15] }}... 
                             {% if enterprise_info %}
                             | 🏢 {{ enterprise_info.name }} ({{ enterprise_number }})
                             {% endif %}
                         </p>
                     </div>
-                    <div class="text-right">
-                        <button onclick="window.print()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                    <div>
+                        <button onclick="window.print()" class="pf-btn pf-btn-primary">
                             🖨️ Печать
                         </button>
                     </div>
@@ -76,12 +441,12 @@
             </div>
 
             <!-- Блок 1: Общая информация -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">📊 Общая информация</h2>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-600">Дата и время (GMT+3)</p>
-                        <p class="text-xl font-bold">
+            <div class="pf-card">
+                <h2>📊 Общая информация</h2>
+                <div class="grid-2">
+                    <div class="info-box">
+                        <p class="info-box-label">Дата и время (GMT+3)</p>
+                        <p class="info-box-value">
                             {% if call_start_time %}
                             {{ to_gmt3(call_start_time).strftime('%d.%m.%Y %H:%M:%S') }}
                             {% elif call_data.start_time %}
@@ -91,9 +456,9 @@
                             {% endif %}
                         </p>
                     </div>
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-600">Длительность</p>
-                        <p class="text-xl font-bold">
+                    <div class="info-box">
+                        <p class="info-box-label">Длительность</p>
+                        <p class="info-box-value">
                             {% if duration_seconds %}
                             {{ '%02d:%02d' % (duration_seconds // 60, duration_seconds % 60) }}
                             {% else %}
@@ -101,9 +466,9 @@
                             {% endif %}
                         </p>
                     </div>
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-600">Направление</p>
-                        <p class="text-xl font-bold">
+                    <div class="info-box">
+                        <p class="info-box-label">Направление</p>
+                        <p class="info-box-value">
                             {% if call_direction == 'incoming' %}
                             📞➡️ Входящий (к нам)
                             {% elif call_direction == 'outgoing' %}
@@ -115,9 +480,9 @@
                             {% endif %}
                         </p>
                     </div>
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-600">Статус</p>
-                        <p class="text-xl font-bold">
+                    <div class="info-box">
+                        <p class="info-box-label">Статус</p>
+                        <p class="info-box-value">
                             {% if call_data.call_status == 'ANSWERED' or call_data.call_status == '1' or call_data.call_status == 1 %}
                             <span class="status-success">✅ Отвечен</span>
                             {% elif call_data.call_status == 'completed' or call_data.call_status == '2' or call_data.call_status == 2 %}
@@ -133,15 +498,15 @@
             </div>
 
             <!-- Блок 2: Участники -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">👥 Участники звонка</h2>
-                <div class="space-y-4">
+            <div class="pf-card">
+                <h2>👥 Участники звонка</h2>
+                <div>
                     <!-- Менеджер (сверху для исходящего) -->
-                    <div class="flex items-center space-x-4 p-4 bg-red-50 rounded-lg">
-                        <div class="text-4xl">☎️</div>
+                    <div class="participant participant-manager">
+                        <div class="participant-icon">☎️</div>
                         <div>
-                            <p class="text-sm text-gray-600">Менеджер</p>
-                            <p class="text-2xl text-gray-900 font-bold">
+                            <p class="participant-label">Менеджер</p>
+                            <p class="participant-value">
                                 {% if manager_info.extension %}
                                 {{ manager_info.extension }}
                                 {% else %}
@@ -154,15 +519,13 @@
                         </div>
                     </div>
                     <!-- Стрелка вниз (от менеджера к клиенту) -->
-                    <div class="flex items-center justify-center">
-                        <div class="text-3xl">⬇️</div>
-                    </div>
+                    <div class="arrow-down">⬇️</div>
                     <!-- Клиент (снизу) -->
-                    <div class="flex items-center space-x-4 p-4 bg-green-50 rounded-lg">
-                        <div class="text-4xl">💰</div>
+                    <div class="participant participant-client">
+                        <div class="participant-icon">💰</div>
                         <div>
-                            <p class="text-sm text-gray-600">Клиент</p>
-                            <p class="text-2xl text-gray-900 font-bold">
+                            <p class="participant-label">Клиент</p>
+                            <p class="participant-value">
                                 {% if client_info.phone %}
                                 {{ format_phone(client_info.phone) }}
                                 {% endif %}
@@ -178,26 +541,26 @@
             </div>
 
             <!-- Блок 3: Timeline событий -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">⏱️ Хронология событий от хоста</h2>
-                <p class="text-lg text-gray-700 mb-4 font-medium">Показаны уникальные события, полученные от Asterisk</p>
+            <div class="pf-card">
+                <h2>⏱️ Хронология событий от хоста</h2>
+                <p style="font-size: 30px; color: var(--pf-gray-darkest); margin-bottom: var(--pf-spacing-lg); font-weight: 500;">Показаны уникальные события, полученные от Asterisk</p>
                 
                 {% if call_data.unique_events %}
-                <div class="space-y-6">
+                <div class="timeline">
                     {% for event in call_data.unique_events %}
-                    <div class="timeline-item flex items-start space-x-4">
-                        <div class="flex-shrink-0 w-32 text-xl text-gray-900 font-bold">
+                    <div class="timeline-item">
+                        <div class="timeline-time">
                             {% if event.event_timestamp_dt %}
                             {{ to_gmt3(event.event_timestamp_dt).strftime('%H:%M:%S') }}
                             {% elif event.event_timestamp %}
                             {{ event.event_timestamp.split('T')[1][:8] if 'T' in event.event_timestamp else event.event_timestamp[-8:] }}
                             {% endif %}
                         </div>
-                        <div class="flex-shrink-0 w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                        <div class="timeline-badge">
                             {{ loop.index }}
                         </div>
-                        <div class="flex-1 bg-gray-50 p-4 rounded-lg">
-                            <p class="font-bold text-xl mb-2">
+                        <div class="timeline-content">
+                            <p class="timeline-title">
                                 {% if event.event_type == 'start' %}
                                 🚀 Звонок инициирован
                                 {% elif event.event_type == 'dial' %}
@@ -219,7 +582,7 @@
                                 {% endif %}
                             </p>
                             {% if event.event_data %}
-                            <p class="text-xl font-bold text-gray-900 mb-2">
+                            <p class="timeline-subtitle">
                                 {% if event.event_type == 'dial' and event.event_data.Phone %}
                                 Номер: {{ event.event_data.Phone }}
                                 {% if event.event_data.Extensions %}
@@ -234,9 +597,9 @@
                             {% endif %}
                             
                             <!-- Что мы сделали с этим событием -->
-                            <div class="mt-4 pl-4 border-l-4 border-blue-200 bg-blue-50 p-3 rounded">
-                                <p class="text-xl font-bold text-blue-900 mb-2">📋 Что мы сделали:</p>
-                                <ul class="text-xl font-bold text-gray-900 space-y-2">
+                            <div class="timeline-actions">
+                                <p class="timeline-actions-title">📋 Что мы сделали:</p>
+                                <ul class="action-list">
                                     <li>
                                         <details>
                                             <summary class="cursor-pointer hover:text-blue-700">✅ Событие получено и обработано</summary>
@@ -343,20 +706,20 @@
                         </div>
                     </div>
                     {% if not loop.last %}
-                    <div class="ml-14 border-l-2 border-gray-300 h-6"></div>
+                    <div class="timeline-connector"></div>
                     {% endif %}
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-gray-500 text-center py-8">Нет данных о событиях</p>
+                <p style="color: var(--pf-gray); text-align: center; padding: var(--pf-spacing-xxl) 0; font-size: 26px;">Нет данных о событиях</p>
                 {% endif %}
             </div>
 
             <!-- Блок 4: Telegram уведомления -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-2xl font-bold text-gray-900">📱 Telegram уведомления</h2>
-                    <button onclick="toggleAccordion('telegram')" class="text-blue-600 hover:text-blue-800">
+            <div class="pf-card">
+                <div class="accordion-header">
+                    <h2>📱 Telegram уведомления</h2>
+                    <button onclick="toggleAccordion('telegram')" class="accordion-toggle">
                         <span id="telegram-icon">▼</span> Показать/Скрыть
                     </button>
                 </div>
@@ -389,10 +752,10 @@
             </div>
 
             <!-- Блок 5: SQL запросы -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-2xl font-bold text-gray-900">💾 Запросы к базе данных</h2>
-                    <button onclick="toggleAccordion('sql')" class="text-blue-600 hover:text-blue-800">
+            <div class="pf-card">
+                <div class="accordion-header">
+                    <h2>💾 Запросы к базе данных</h2>
+                    <button onclick="toggleAccordion('sql')" class="accordion-toggle">
                         <span id="sql-icon">▼</span> Показать/Скрыть
                     </button>
                 </div>
@@ -432,10 +795,10 @@
             </div>
 
             <!-- Блок 6: Интеграции -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-2xl font-bold text-gray-900">🔗 Запросы к интеграциям</h2>
-                    <button onclick="toggleAccordion('integrations')" class="text-blue-600 hover:text-blue-800">
+            <div class="pf-card">
+                <div class="accordion-header">
+                    <h2>🔗 Запросы к интеграциям</h2>
+                    <button onclick="toggleAccordion('integrations')" class="accordion-toggle">
                         <span id="integrations-icon">▼</span> Показать/Скрыть
                     </button>
                 </div>
@@ -489,10 +852,10 @@
             </div>
 
             <!-- Блок 7: HTTP запросы -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-2xl font-bold text-gray-900">🌐 HTTP запросы</h2>
-                    <button onclick="toggleAccordion('http')" class="text-blue-600 hover:text-blue-800">
+            <div class="pf-card">
+                <div class="accordion-header">
+                    <h2>🌐 HTTP запросы</h2>
+                    <button onclick="toggleAccordion('http')" class="accordion-toggle">
                         <span id="http-icon">▼</span> Показать/Скрыть
                     </button>
                 </div>
@@ -536,12 +899,11 @@
             </div>
 
             <!-- Footer -->
-            <div class="text-center text-gray-500 text-sm mt-8">
+            <div class="footer">
                 <p>Сгенерировано: {{ now().strftime('%d.%m.%Y %H:%M:%S') }}</p>
-                <p class="mt-2">🤖 Call Viewer Service v1.0</p>
+                <p style="margin-top: 8px;">🤖 Call Viewer Service v1.0</p>
             </div>
 
-        </div>
     </div>
 
     <script>
