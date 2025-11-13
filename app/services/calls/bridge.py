@@ -37,6 +37,10 @@ from app.utils.user_phones import (
 # Словарь для отслеживания активных мостов
 active_bridges = {}
 
+# Словарь для отслеживания уже отправленных bridge по BridgeUniqueid
+# Ключ: BridgeUniqueid, Значение: timestamp отправки
+sent_bridges = {}
+
 # ═══════════════════════════════════════════════════════════════════
 # ОСНОВНАЯ ФУНКЦИЯ ОБРАБОТКИ BRIDGE СОБЫТИЙ
 # ═══════════════════════════════════════════════════════════════════
@@ -386,14 +390,22 @@ def should_send_bridge(data: dict) -> bool:
     - Отправляем bridge если у него есть CallerIDNum и ConnectedLineNum
     - Пропускаем "пустые" или неполные bridge события
     - Пропускаем промежуточные bridge с ExternalInitiated=true (internal→external)
+    - Пропускаем дубликаты по BridgeUniqueid (если уже отправляли bridge с таким же BridgeUniqueid)
     """
     from .utils import is_internal_number
+    import time
     
     caller = data.get("CallerIDNum", "")
     connected = data.get("ConnectedLineNum", "")
     bridge_id = data.get("BridgeUniqueid", "")
     
     logging.info(f"[should_send_bridge] Checking bridge {bridge_id}: caller='{caller}', connected='{connected}'")
+    
+    # НОВАЯ ПРОВЕРКА: Пропускаем дубликаты по BridgeUniqueid
+    if bridge_id and bridge_id in sent_bridges:
+        time_since_sent = time.time() - sent_bridges[bridge_id]
+        logging.info(f"[should_send_bridge] Skipping bridge {bridge_id} - already sent {time_since_sent:.1f}s ago (duplicate)")
+        return False
     
     # Основное условие: должны быть и caller и connected
     if not caller or not connected:
@@ -419,6 +431,11 @@ def should_send_bridge(data: dict) -> bool:
             return False
         else:
             logging.info(f"[should_send_bridge] Allowing bridge {bridge_id} - ExternalInitiated=true but real conversation bridge (external→internal)")
+    
+    # ВАЖНО: Сохраняем BridgeUniqueid в sent_bridges ПЕРЕД отправкой
+    if bridge_id:
+        sent_bridges[bridge_id] = time.time()
+        logging.info(f"[should_send_bridge] Marked bridge {bridge_id} as sent")
     
     logging.info(f"[should_send_bridge] Bridge {bridge_id} is valid for sending")
     return True

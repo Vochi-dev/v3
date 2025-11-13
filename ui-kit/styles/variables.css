@@ -1,0 +1,210 @@
+/**
+ * PlanFix UI Kit - CSS Variables
+ * Версия: 1.0
+ * Дата: 13 ноября 2025
+ * 
+ * Этот файл содержит все CSS переменные из PlanFix
+ * для использования в вашем проекте.
+ */
+
+:root {
+  /* ============================================
+     ОСНОВНЫЕ ЦВЕТА
+     ============================================ */
+  
+  /* Зеленый (Primary) */
+  --pf-primary: #6fa92e;
+  --pf-primary-dark: #5b951a;
+  --pf-primary-darker: #478106;
+  --pf-primary-light: #b4cea1;
+  --pf-primary-lighter: #c5d8b7;
+  --pf-primary-lightest: #d4e2cb;
+  --pf-primary-fade: rgba(111, 169, 46, 0.25);
+  --pf-primary-transparent: rgba(111, 169, 46, 0.1);
+  
+  /* Синий (Links, Active) */
+  --pf-blue: #3377C3;
+  --pf-blue-dark: #2566a8;
+  --pf-blue-light: #5a9dd8;
+  
+  /* Бирюзовый (New tasks) */
+  --pf-cyan: #00b4b4;
+  
+  /* Зеленый успех */
+  --pf-success: #30AB50;
+  
+  /* Серый (Neutral) */
+  --pf-gray-darkest: #343434;
+  --pf-gray-darker: #53586b;
+  --pf-gray-dark: #666666;
+  --pf-gray: #999999;
+  --pf-gray-light: #b3b3b3;
+  --pf-gray-lighter: #d0d0d0;
+  --pf-gray-lightest: #f5f5f5;
+  
+  /* Красный (Danger) */
+  --pf-danger: #d9534f;
+  --pf-danger-dark: #c9302c;
+  --pf-danger-darker: #ac2925;
+  
+  /* Белый */
+  --pf-white: #ffffff;
+  
+  /* ============================================
+     СТАТУСЫ ЗАДАЧ
+     ============================================ */
+  
+  --pf-status-active: #6fa92e;
+  --pf-status-new: #00b4b4;
+  --pf-status-done: #30AB50;
+  --pf-status-canceled: #85878E;
+  --pf-status-draft: #3D3F46;
+  
+  /* ============================================
+     НАВИГАЦИЯ И МЕНЮ
+     ============================================ */
+  
+  /* Боковое меню */
+  --pf-menu-bg: #53586b;
+  --pf-menu-hover: #43495d;
+  --pf-menu-text: #dde0e2;
+  --pf-menu-icon: #ffffff;
+  --pf-menu-count: #a2b4bc;
+  
+  /* Нижнее меню */
+  --pf-bottom-bg: #3f4457;
+  --pf-bottom-item: #464b5d;
+  --pf-bottom-text: #ffffff;
+  --pf-bottom-border: rgb(43, 48, 67);
+  
+  /* Активные элементы */
+  --pf-active-bg: #6fa92e;
+  --pf-active-text: #ffffff;
+  --pf-inactive-text: #b3b3b3;
+  --pf-inactive-hover: #474b5b;
+  
+  /* ============================================
+     ТИПОГРАФИКА
+     ============================================ */
+  
+  --pf-font-family: -apple-system, "system-ui", "Segoe UI", roboto, "Helvetica Neue", helvetica, arial, sans-serif;
+  
+  /* Размеры */
+  --pf-font-size-tiny: 11px;
+  --pf-font-size-small: 12px;
+  --pf-font-size-base: 13px;
+  --pf-font-size-medium: 14px;
+  --pf-font-size-large: 15px;
+  --pf-font-size-h3: 15px;
+  --pf-font-size-h2: 18px;
+  --pf-font-size-h1: 24px;
+  
+  /* Веса */
+  --pf-font-weight-normal: 400;
+  --pf-font-weight-semibold: 600;
+  --pf-font-weight-bold: 700;
+  
+  /* Цвета текста */
+  --pf-text-primary: #343434;
+  --pf-text-secondary: #666666;
+  --pf-text-hint: #999999;
+  --pf-text-white: #ffffff;
+  --pf-text-link: #3377C3;
+  --pf-text-link-hover: #2566a8;
+  
+  /* ============================================
+     КОМПОНЕНТЫ
+     ============================================ */
+  
+  /* Кнопки */
+  --pf-btn-padding: 8px 16px;
+  --pf-btn-padding-sm: 6px 12px;
+  --pf-btn-padding-lg: 10px 20px;
+  --pf-btn-border-radius: 3px;
+  --pf-btn-height: 34px;
+  --pf-btn-height-sm: 28px;
+  --pf-btn-height-lg: 40px;
+  
+  /* Инпуты */
+  --pf-input-padding: 8px 12px;
+  --pf-input-border: 1px solid #d0d0d0;
+  --pf-input-border-focus: 1px solid #6fa92e;
+  --pf-input-border-radius: 3px;
+  --pf-input-height: 34px;
+  --pf-input-bg: #ffffff;
+  --pf-input-bg-disabled: #f5f5f5;
+  
+  /* Таблицы */
+  --pf-table-border: 1px solid #e0e0e0;
+  --pf-table-header-bg: #f5f5f5;
+  --pf-table-header-text: #666666;
+  --pf-table-row-hover: #f9f9f9;
+  --pf-table-padding: 10px 12px;
+  
+  /* Карточки */
+  --pf-card-bg: #ffffff;
+  --pf-card-border: 1px solid #e0e0e0;
+  --pf-card-border-radius: 4px;
+  --pf-card-padding: 16px;
+  --pf-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  
+  /* ============================================
+     ОТСТУПЫ И РАЗМЕРЫ
+     ============================================ */
+  
+  --pf-spacing-xs: 4px;
+  --pf-spacing-sm: 8px;
+  --pf-spacing-md: 12px;
+  --pf-spacing-lg: 16px;
+  --pf-spacing-xl: 20px;
+  --pf-spacing-xxl: 24px;
+  
+  /* ============================================
+     ТЕНИ
+     ============================================ */
+  
+  --pf-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --pf-shadow-md: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --pf-shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --pf-shadow-xl: 0 10px 15px rgba(0, 0, 0, 0.1);
+  
+  /* ============================================
+     ПЕРЕХОДЫ
+     ============================================ */
+  
+  --pf-transition-fast: 0.15s ease;
+  --pf-transition-base: 0.2s ease;
+  --pf-transition-slow: 0.3s ease;
+  
+  /* ============================================
+     Z-INDEX
+     ============================================ */
+  
+  --pf-z-dropdown: 1000;
+  --pf-z-sticky: 1020;
+  --pf-z-fixed: 1030;
+  --pf-z-modal-backdrop: 1040;
+  --pf-z-modal: 1050;
+  --pf-z-popover: 1060;
+  --pf-z-tooltip: 1070;
+}
+
+/* ============================================
+   ТЕМНАЯ ТЕМА (опционально)
+   ============================================ */
+
+[data-theme="dark"] {
+  --pf-text-primary: #e0e0e0;
+  --pf-text-secondary: #b3b3b3;
+  --pf-text-hint: #808080;
+  
+  --pf-card-bg: #2a2a2a;
+  --pf-card-border: 1px solid #404040;
+  
+  --pf-input-bg: #2a2a2a;
+  --pf-input-border: 1px solid #404040;
+  
+  --pf-table-header-bg: #2a2a2a;
+  --pf-table-row-hover: #333333;
+}
+

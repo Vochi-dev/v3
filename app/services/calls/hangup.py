@@ -186,7 +186,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
 
         # ───────── Шаг 1. Извлечение данных ─────────
         uid = data.get("UniqueId", "")
-        caller = data.get("CallerIDNum", "") or ""
+        # ВАЖНО: В старых HANGUP без ExternalInitiated нет CallerIDNum, используем Phone
+        caller = data.get("CallerIDNum", "") or data.get("Phone", "") or ""
         exts = data.get("Extensions", []) or []
         connected = data.get("ConnectedLineNum", "") or ""
         call_status = int(data.get("CallStatus", -1))
@@ -264,13 +265,24 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
 
         # ───────── Шаг 4. Определение типа звонка ─────────
         caller_is_internal = is_internal_number(caller)
+        external_initiated = data.get("ExternalInitiated", False)
         
-        # Для внутренних звонков
-        if call_type == 2 or (caller_is_internal and connected and is_internal_number(connected)):
+        # ВАЖНО: Если ExternalInitiated=true, то это ВСЕГДА внешний звонок (не внутренний)
+        # Даже если caller и connected оба внутренние (промежуточные bridge)
+        if external_initiated:
+            # Внешний звонок (определяем направление по CallType)
+            if call_type == 1:
+                call_direction = "outgoing"
+            elif call_type == 0:
+                call_direction = "incoming"
+            else:
+                call_direction = "unknown"
+        elif call_type == 2 or (caller_is_internal and connected and is_internal_number(connected)):
+            # Внутренний звонок (только если НЕ ExternalInitiated)
             call_direction = "internal"
             callee = connected or (exts[0] if exts and len(exts) > 0 else "")
         else:
-            # Внешние звонки
+            # Внешние звонки (без ExternalInitiated, определяем по CallType)
             if call_type == 1:
                 call_direction = "outgoing"
             elif call_type == 0:

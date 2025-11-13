@@ -1,0 +1,468 @@
+/**
+ * PlanFix UI Kit - Main Styles
+ * Версия: 1.0
+ * Дата: 13 ноября 2025
+ * 
+ * Подключите variables.css перед этим файлом!
+ */
+
+/* ============================================
+   БАЗОВЫЕ СТИЛИ
+   ============================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--pf-font-family);
+  font-size: var(--pf-font-size-base);
+  font-weight: var(--pf-font-weight-normal);
+  color: var(--pf-text-primary);
+  line-height: 1.5;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================
+   ТИПОГРАФИКА
+   ============================================ */
+
+.pf-h1 {
+  font-size: var(--pf-font-size-h1);
+  font-weight: var(--pf-font-weight-semibold);
+  color: var(--pf-text-primary);
+  line-height: 1.3;
+  margin: 0 0 16px 0;
+}
+
+.pf-h2 {
+  font-size: var(--pf-font-size-h2);
+  font-weight: var(--pf-font-weight-semibold);
+  color: var(--pf-text-primary);
+  line-height: 1.4;
+  margin: 0 0 12px 0;
+}
+
+.pf-h3 {
+  font-size: var(--pf-font-size-h3);
+  font-weight: var(--pf-font-weight-semibold);
+  color: var(--pf-text-primary);
+  line-height: 1.4;
+  margin: 0 0 8px 0;
+}
+
+.pf-text {
+  font-size: var(--pf-font-size-base);
+  color: var(--pf-text-primary);
+}
+
+.pf-text-small {
+  font-size: var(--pf-font-size-small);
+}
+
+.pf-text-tiny {
+  font-size: var(--pf-font-size-tiny);
+}
+
+.pf-text-secondary {
+  color: var(--pf-text-secondary);
+}
+
+.pf-text-hint {
+  color: var(--pf-text-hint);
+}
+
+.pf-link {
+  color: var(--pf-text-link);
+  text-decoration: none;
+  transition: color var(--pf-transition-base);
+}
+
+.pf-link:hover {
+  color: var(--pf-text-link-hover);
+  text-decoration: underline;
+}
+
+/* ============================================
+   КНОПКИ
+   ============================================ */
+
+.pf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--pf-btn-padding);
+  font-size: var(--pf-font-size-base);
+  font-weight: var(--pf-font-weight-normal);
+  font-family: var(--pf-font-family);
+  line-height: 1;
+  text-align: center;
+  text-decoration: none;
+  border: none;
+  border-radius: var(--pf-btn-border-radius);
+  cursor: pointer;
+  transition: all var(--pf-transition-base);
+  user-select: none;
+  white-space: nowrap;
+  height: var(--pf-btn-height);
+}
+
+.pf-btn:focus {
+  outline: 2px solid var(--pf-primary);
+  outline-offset: 2px;
+}
+
+/* Primary Button */
+.pf-btn-primary {
+  background-color: var(--pf-primary);
+  color: var(--pf-white);
+}
+
+.pf-btn-primary:hover {
+  background-color: var(--pf-primary-dark);
+}
+
+.pf-btn-primary:active {
+  background-color: var(--pf-primary-darker);
+}
+
+/* Secondary Button */
+.pf-btn-secondary {
+  background-color: var(--pf-white);
+  color: var(--pf-text-primary);
+  border: 1px solid var(--pf-gray-lighter);
+}
+
+.pf-btn-secondary:hover {
+  background-color: var(--pf-gray-lightest);
+  border-color: var(--pf-gray-light);
+}
+
+/* Danger Button */
+.pf-btn-danger {
+  background-color: var(--pf-danger);
+  color: var(--pf-white);
+}
+
+.pf-btn-danger:hover {
+  background-color: var(--pf-danger-dark);
+}
+
+/* Link Button */
+.pf-btn-link {
+  background-color: transparent;
+  color: var(--pf-text-link);
+  padding: 4px 8px;
+}
+
+.pf-btn-link:hover {
+  color: var(--pf-text-link-hover);
+  text-decoration: underline;
+}
+
+/* Icon Button */
+.pf-btn-icon {
+  background-color: transparent;
+  color: var(--pf-gray-dark);
+  padding: 6px;
+  width: 32px;
+  height: 32px;
+}
+
+.pf-btn-icon:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Button Sizes */
+.pf-btn-sm {
+  padding: var(--pf-btn-padding-sm);
+  font-size: var(--pf-font-size-small);
+  height: var(--pf-btn-height-sm);
+}
+
+.pf-btn-lg {
+  padding: var(--pf-btn-padding-lg);
+  font-size: var(--pf-font-size-medium);
+  height: var(--pf-btn-height-lg);
+}
+
+/* Disabled */
+.pf-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Button Group */
+.pf-btn-group {
+  display: inline-flex;
+  gap: var(--pf-spacing-sm);
+}
+
+/* ============================================
+   ФОРМЫ
+   ============================================ */
+
+.pf-input {
+  width: 100%;
+  padding: var(--pf-input-padding);
+  font-size: var(--pf-font-size-base);
+  font-family: var(--pf-font-family);
+  color: var(--pf-text-primary);
+  background-color: var(--pf-input-bg);
+  border: var(--pf-input-border);
+  border-radius: var(--pf-input-border-radius);
+  height: var(--pf-input-height);
+  transition: border-color var(--pf-transition-base);
+}
+
+.pf-input:focus {
+  outline: none;
+  border: var(--pf-input-border-focus);
+}
+
+.pf-input:disabled {
+  background-color: var(--pf-input-bg-disabled);
+  cursor: not-allowed;
+}
+
+.pf-input::placeholder {
+  color: var(--pf-text-hint);
+}
+
+/* Textarea */
+.pf-textarea {
+  width: 100%;
+  padding: var(--pf-input-padding);
+  font-size: var(--pf-font-size-base);
+  font-family: var(--pf-font-family);
+  color: var(--pf-text-primary);
+  background-color: var(--pf-input-bg);
+  border: var(--pf-input-border);
+  border-radius: var(--pf-input-border-radius);
+  min-height: 80px;
+  resize: vertical;
+  transition: border-color var(--pf-transition-base);
+}
+
+.pf-textarea:focus {
+  outline: none;
+  border: var(--pf-input-border-focus);
+}
+
+/* Select */
+.pf-select {
+  width: 100%;
+  padding: var(--pf-input-padding);
+  font-size: var(--pf-font-size-base);
+  font-family: var(--pf-font-family);
+  color: var(--pf-text-primary);
+  background-color: var(--pf-input-bg);
+  border: var(--pf-input-border);
+  border-radius: var(--pf-input-border-radius);
+  height: var(--pf-input-height);
+  cursor: pointer;
+  transition: border-color var(--pf-transition-base);
+}
+
+.pf-select:focus {
+  outline: none;
+  border: var(--pf-input-border-focus);
+}
+
+/* Label */
+.pf-label {
+  display: block;
+  font-size: var(--pf-font-size-small);
+  font-weight: var(--pf-font-weight-normal);
+  color: var(--pf-text-secondary);
+  margin-bottom: 4px;
+}
+
+/* Form Group */
+.pf-form-group {
+  margin-bottom: var(--pf-spacing-lg);
+}
+
+/* Checkbox */
+.pf-checkbox {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pf-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+/* ============================================
+   ТАБЛИЦЫ
+   ============================================ */
+
+.pf-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--pf-white);
+}
+
+.pf-table th {
+  padding: var(--pf-table-padding);
+  font-size: var(--pf-font-size-small);
+  font-weight: var(--pf-font-weight-semibold);
+  color: var(--pf-table-header-text);
+  text-align: left;
+  background-color: var(--pf-table-header-bg);
+  border-bottom: var(--pf-table-border);
+  text-transform: uppercase;
+}
+
+.pf-table td {
+  padding: var(--pf-table-padding);
+  font-size: var(--pf-font-size-base);
+  color: var(--pf-text-primary);
+  border-bottom: var(--pf-table-border);
+}
+
+.pf-table tr:hover {
+  background-color: var(--pf-table-row-hover);
+}
+
+/* ============================================
+   КАРТОЧКИ
+   ============================================ */
+
+.pf-card {
+  background-color: var(--pf-card-bg);
+  border: var(--pf-card-border);
+  border-radius: var(--pf-card-border-radius);
+  padding: var(--pf-card-padding);
+  box-shadow: var(--pf-card-shadow);
+}
+
+.pf-card-header {
+  font-size: var(--pf-font-size-large);
+  font-weight: var(--pf-font-weight-semibold);
+  margin-bottom: var(--pf-spacing-md);
+}
+
+.pf-card-body {
+  margin-bottom: var(--pf-spacing-md);
+}
+
+.pf-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--pf-spacing-sm);
+}
+
+/* ============================================
+   НАВИГАЦИЯ
+   ============================================ */
+
+.pf-sidebar {
+  background-color: var(--pf-menu-bg);
+  color: var(--pf-menu-text);
+  padding: var(--pf-spacing-md);
+  min-height: 100vh;
+}
+
+.pf-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--pf-spacing-sm);
+  padding: 10px 12px;
+  color: var(--pf-menu-text);
+  text-decoration: none;
+  border-radius: var(--pf-btn-border-radius);
+  transition: background-color var(--pf-transition-base);
+  cursor: pointer;
+}
+
+.pf-sidebar-item:hover {
+  background-color: var(--pf-menu-hover);
+}
+
+.pf-sidebar-item.active {
+  background-color: var(--pf-active-bg);
+  color: var(--pf-active-text);
+}
+
+/* ============================================
+   УТИЛИТЫ
+   ============================================ */
+
+/* Отступы */
+.pf-mt-xs { margin-top: var(--pf-spacing-xs); }
+.pf-mt-sm { margin-top: var(--pf-spacing-sm); }
+.pf-mt-md { margin-top: var(--pf-spacing-md); }
+.pf-mt-lg { margin-top: var(--pf-spacing-lg); }
+.pf-mt-xl { margin-top: var(--pf-spacing-xl); }
+
+.pf-mb-xs { margin-bottom: var(--pf-spacing-xs); }
+.pf-mb-sm { margin-bottom: var(--pf-spacing-sm); }
+.pf-mb-md { margin-bottom: var(--pf-spacing-md); }
+.pf-mb-lg { margin-bottom: var(--pf-spacing-lg); }
+.pf-mb-xl { margin-bottom: var(--pf-spacing-xl); }
+
+.pf-p-xs { padding: var(--pf-spacing-xs); }
+.pf-p-sm { padding: var(--pf-spacing-sm); }
+.pf-p-md { padding: var(--pf-spacing-md); }
+.pf-p-lg { padding: var(--pf-spacing-lg); }
+.pf-p-xl { padding: var(--pf-spacing-xl); }
+
+/* Текст */
+.pf-text-center { text-align: center; }
+.pf-text-left { text-align: left; }
+.pf-text-right { text-align: right; }
+
+.pf-text-bold { font-weight: var(--pf-font-weight-bold); }
+.pf-text-semibold { font-weight: var(--pf-font-weight-semibold); }
+
+/* Flex */
+.pf-flex { display: flex; }
+.pf-flex-center { display: flex; align-items: center; justify-content: center; }
+.pf-flex-between { display: flex; align-items: center; justify-content: space-between; }
+.pf-flex-column { display: flex; flex-direction: column; }
+
+.pf-gap-xs { gap: var(--pf-spacing-xs); }
+.pf-gap-sm { gap: var(--pf-spacing-sm); }
+.pf-gap-md { gap: var(--pf-spacing-md); }
+.pf-gap-lg { gap: var(--pf-spacing-lg); }
+
+/* Ширина */
+.pf-w-full { width: 100%; }
+.pf-w-auto { width: auto; }
+
+/* Тени */
+.pf-shadow-sm { box-shadow: var(--pf-shadow-sm); }
+.pf-shadow-md { box-shadow: var(--pf-shadow-md); }
+.pf-shadow-lg { box-shadow: var(--pf-shadow-lg); }
+
+/* Скругления */
+.pf-rounded { border-radius: var(--pf-btn-border-radius); }
+.pf-rounded-lg { border-radius: 8px; }
+.pf-rounded-full { border-radius: 9999px; }
+
+/* ============================================
+   АДАПТИВНОСТЬ
+   ============================================ */
+
+@media (max-width: 768px) {
+  .pf-btn {
+    width: 100%;
+  }
+  
+  .pf-btn-group {
+    flex-direction: column;
+  }
+  
+  .pf-table {
+    font-size: var(--pf-font-size-small);
+  }
+}
+
