@@ -701,11 +701,26 @@ async def search_traces(
             call_status,
             start_time,
             end_time,
-            jsonb_array_length(call_events) as events_count,
-            jsonb_array_length(http_requests) as http_count,
-            jsonb_array_length(sql_queries) as sql_count,
-            jsonb_array_length(telegram_messages) as tg_count,
-            jsonb_array_length(integration_responses) as int_count,
+            CASE 
+                WHEN jsonb_typeof(call_events) = 'array' THEN jsonb_array_length(call_events)
+                ELSE 0 
+            END as events_count,
+            CASE 
+                WHEN jsonb_typeof(http_requests) = 'array' THEN jsonb_array_length(http_requests)
+                ELSE 0 
+            END as http_count,
+            CASE 
+                WHEN jsonb_typeof(sql_queries) = 'array' THEN jsonb_array_length(sql_queries)
+                ELSE 0 
+            END as sql_count,
+            CASE 
+                WHEN jsonb_typeof(telegram_messages) = 'array' THEN jsonb_array_length(telegram_messages)
+                ELSE 0 
+            END as tg_count,
+            CASE 
+                WHEN jsonb_typeof(integration_responses) = 'array' THEN jsonb_array_length(integration_responses)
+                ELSE 0 
+            END as int_count,
             created_at,
             updated_at
         FROM call_traces
