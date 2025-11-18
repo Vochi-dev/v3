@@ -1,0 +1,73 @@
+--- logger.py.orig
++++ logger.py
+@@ -110,6 +110,68 @@
+     "password": "r/Yskqh/ZbZuvjb2b3ahfg=="
+ }
+ 
++# ═══════════════════════════════════════════════════════════════════
++# CONNECTION POOL И КЭШ
++# ═══════════════════════════════════════════════════════════════════
++
++# Connection pool (глобальный пул соединений)
++db_pool: Optional[asyncpg.Pool] = None
++
++# Кэш существующих партиций (в памяти)
++partition_cache = set()
++
++async def init_db_pool():
++    """Инициализация connection pool"""
++    global db_pool
++    if db_pool is None:
++        db_pool = await asyncpg.create_pool(
++            **DB_CONFIG,
++            min_size=5,  # Минимум 5 соединений
++            max_size=20,  # Максимум 20 соединений
++            command_timeout=60
++        )
++        logger.info("✅ Database connection pool initialized (5-20 connections)")
++    return db_pool
++
++async def close_db_pool():
++    """Закрытие connection pool"""
++    global db_pool
++    if db_pool:
++        await db_pool.close()
++        db_pool = None
++        logger.info("✅ Database connection pool closed")
++
++@app.on_event("startup")
++async def startup_event():
++    """Инициализация при запуске"""
++    await init_db_pool()
++    # Загружаем существующие партиции в кэш
++    await load_existing_partitions()
++
++@app.on_event("shutdown")
++async def shutdown_event():
++    """Очистка при остановке"""
++    await close_db_pool()
++
++async def load_existing_partitions():
++    """Загрузка списка существующих партиций в кэш"""
++    global partition_cache
++    try:
++        async with db_pool.acquire() as conn:
++            query = """
++            SELECT tablename FROM pg_tables 
++            WHERE schemaname = 'public' 
++            AND tablename ~ '^[0-9]{4}$'
++            """
++            rows = await conn.fetch(query)
++            partition_cache = {row['tablename'] for row in rows}
++            logger.info(f"✅ Loaded {len(partition_cache)} existing partitions into cache")
++    except Exception as e:
++        logger.error(f"❌ Error loading partitions into cache: {e}")
++
++# ═══════════════════════════════════════════════════════════════════
++# ФУНКЦИИ УПРАВЛЕНИЯ ПАРТИЦИЯМИ (ОПТИМИЗИРОВАННЫЕ)
++# ═══════════════════════════════════════════════════════════════════
++
+ # ═══════════════════════════════════════════════════════════════════
+ # ФУНКЦИИ УПРАВЛЕНИЯ ПАРТИЦИЯМИ
+ # ═══════════════════════════════════════════════════════════════════
+

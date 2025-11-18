@@ -110,49 +110,109 @@ DB_CONFIG = {
     "password": "r/Yskqh/ZbZuvjb2b3ahfg=="
 }
 
+# Connection pool (глобальный пул соединений)
+db_pool: Optional[asyncpg.Pool] = None
+
+# Кэш существующих партиций (в памяти) - чтобы не проверять каждый раз в БД
+partition_cache = set()
+
+async def init_db_pool():
+    """Инициализация connection pool при старте сервиса"""
+    global db_pool
+    if db_pool is None:
+        db_pool = await asyncpg.create_pool(
+            **DB_CONFIG,
+            min_size=5,
+            max_size=20,
+            command_timeout=60
+        )
+        logger.info("✅ Database connection pool initialized (5-20 connections)")
+    return db_pool
+
+async def close_db_pool():
+    """Закрытие connection pool при остановке сервиса"""
+    global db_pool
+    if db_pool:
+        await db_pool.close()
+        db_pool = None
+        logger.info("✅ Database connection pool closed")
+
+@app.on_event("startup")
+async def startup_event():
+    """Инициализация при запуске"""
+    await init_db_pool()
+    await load_existing_partitions()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Очистка при остановке"""
+    await close_db_pool()
+
+async def load_existing_partitions():
+    """Загрузка списка существующих партиций в кэш при старте"""
+    global partition_cache
+    try:
+        async with db_pool.acquire() as conn:
+            query = """
+            SELECT tablename FROM pg_tables 
+            WHERE schemaname = 'public' 
+            AND tablename ~ '^[0-9]{4}$'
+            """
+            rows = await conn.fetch(query)
+            partition_cache = {row['tablename'] for row in rows}
+            logger.info(f"✅ Loaded {len(partition_cache)} existing partitions into cache")
+    except Exception as e:
+        logger.error(f"❌ Error loading partitions into cache: {e}")
+
 # ═══════════════════════════════════════════════════════════════════
 # ФУНКЦИИ УПРАВЛЕНИЯ ПАРТИЦИЯМИ
 # ═══════════════════════════════════════════════════════════════════
 
 async def ensure_enterprise_partition(enterprise_number: str):
-    """Автоматически создает партицию для предприятия если её нет"""
-    try:
-        conn = await asyncpg.connect(**DB_CONFIG)
-        
-        # Проверяем существует ли партиция (новая схема - простые названия)
-        partition_name = enterprise_number
-        
-        check_query = """
-        SELECT EXISTS (
-            SELECT 1 FROM pg_tables 
-            WHERE tablename = $1 AND schemaname = 'public'
-        )
-        """
-        
-        exists = await conn.fetchval(check_query, partition_name)
-        
-        if not exists:
-            # Создаем LIST партицию с простым названием
-            create_query = f"""
-            CREATE TABLE "{partition_name}" PARTITION OF call_traces 
-            FOR VALUES IN ('{enterprise_number}')
-            """
-            
-            await conn.execute(create_query)
-            
-            # Добавляем UNIQUE constraint
-            constraint_query = f"""
-            ALTER TABLE "{partition_name}" 
-            ADD CONSTRAINT unique_call_trace_{enterprise_number} 
-            UNIQUE (unique_id, enterprise_number)
-            """
-            
-            await conn.execute(constraint_query)
-            
-            logger.info(f"✅ Created LIST partition {partition_name} for enterprise {enterprise_number}")
-        
-        await conn.close()
+    """Автоматически создает партицию для предприятия если её нет (с кэшем)"""
+    global partition_cache
+    
+    # ОПТИМИЗАЦИЯ: Быстрая проверка в кэше (без запроса к БД!)
+    if enterprise_number in partition_cache:
         return True
+    
+    try:
+        # Партиции нет в кэше - используем connection pool
+        async with db_pool.acquire() as conn:
+            partition_name = enterprise_number
+            
+            check_query = """
+            SELECT EXISTS (
+                SELECT 1 FROM pg_tables 
+                WHERE tablename = $1 AND schemaname = 'public'
+            )
+            """
+            
+            exists = await conn.fetchval(check_query, partition_name)
+            
+            if not exists:
+                # Создаем LIST партицию с простым названием
+                create_query = f"""
+                CREATE TABLE "{partition_name}" PARTITION OF call_traces 
+                FOR VALUES IN ('{enterprise_number}')
+                """
+                
+                await conn.execute(create_query)
+                
+                # Добавляем UNIQUE constraint
+                constraint_query = f"""
+                ALTER TABLE "{partition_name}" 
+                ADD CONSTRAINT unique_call_trace_{enterprise_number} 
+                UNIQUE (unique_id, enterprise_number)
+                """
+                
+                await conn.execute(constraint_query)
+                
+                logger.info(f"✅ Created LIST partition {partition_name} for enterprise {enterprise_number}")
+            
+            # Добавляем в кэш чтобы больше не проверять
+            partition_cache.add(enterprise_number)
+            return True
         
     except Exception as e:
         logger.error(f"❌ Error ensuring partition for enterprise {enterprise_number}: {e}")
@@ -161,18 +221,17 @@ async def ensure_enterprise_partition(enterprise_number: str):
 async def create_enterprise_partition_api(enterprise_number: str):
     """API функция для создания партиции предприятия"""
     try:
-        conn = await asyncpg.connect(**DB_CONFIG)
-        
-        partition_name = f"call_traces_{enterprise_number}"
-        remainder_val = int(enterprise_number)
-        
-        create_query = f"""
-        CREATE TABLE {partition_name} PARTITION OF call_traces 
-        FOR VALUES WITH (MODULUS 1000, REMAINDER {remainder_val})
-        """
-        
-        await conn.execute(create_query)
-        await conn.close()
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
+            partition_name = f"call_traces_{enterprise_number}"
+            remainder_val = int(enterprise_number)
+            
+            create_query = f"""
+            CREATE TABLE {partition_name} PARTITION OF call_traces 
+            FOR VALUES WITH (MODULUS 1000, REMAINDER {remainder_val})
+            """
+            
+            await conn.execute(create_query)
         
         logger.info(f"✅ Created partition {partition_name}")
         return {"status": "success", "partition": partition_name}
@@ -184,22 +243,20 @@ async def create_enterprise_partition_api(enterprise_number: str):
 async def drop_enterprise_partition_api(enterprise_number: str):
     """API функция для удаления партиции предприятия"""
     try:
-        conn = await asyncpg.connect(**DB_CONFIG)
-        
-        partition_name = f"call_traces_{enterprise_number}"
-        
-        # Сначала проверяем есть ли данные
-        count_query = f"SELECT COUNT(*) FROM {partition_name}"
-        count = await conn.fetchval(count_query)
-        
-        if count > 0:
-            await conn.close()
-            return {"status": "error", "message": f"Partition contains {count} records. Use force=true to delete anyway."}
-        
-        # Удаляем партицию
-        drop_query = f"DROP TABLE {partition_name}"
-        await conn.execute(drop_query)
-        await conn.close()
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
+            partition_name = f"call_traces_{enterprise_number}"
+            
+            # Сначала проверяем есть ли данные
+            count_query = f"SELECT COUNT(*) FROM {partition_name}"
+            count = await conn.fetchval(count_query)
+            
+            if count > 0:
+                return {"status": "error", "message": f"Partition contains {count} records. Use force=true to delete anyway."}
+            
+            # Удаляем партицию
+            drop_query = f"DROP TABLE {partition_name}"
+            await conn.execute(drop_query)
         
         logger.info(f"✅ Dropped partition {partition_name}")
         return {"status": "success", "partition": partition_name}
@@ -211,22 +268,21 @@ async def drop_enterprise_partition_api(enterprise_number: str):
 async def list_enterprise_partitions():
     """Список всех партиций предприятий"""
     try:
-        conn = await asyncpg.connect(**DB_CONFIG)
-        
-        query = """
-        SELECT 
-            tablename,
-            pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
-            (SELECT COUNT(*) FROM information_schema.tables t2 
-             WHERE t2.table_name = t.tablename) as record_count
-        FROM pg_tables t
-        WHERE tablename LIKE 'call_traces_%' 
-        AND tablename != 'call_traces_default'
-        ORDER BY tablename
-        """
-        
-        partitions = await conn.fetch(query)
-        await conn.close()
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
+            query = """
+            SELECT 
+                tablename,
+                pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
+                (SELECT COUNT(*) FROM information_schema.tables t2 
+                 WHERE t2.table_name = t.tablename) as record_count
+            FROM pg_tables t
+            WHERE tablename LIKE 'call_traces_%' 
+            AND tablename != 'call_traces_default'
+            ORDER BY tablename
+            """
+            
+            partitions = await conn.fetch(query)
         
         result = []
         for partition in partitions:
@@ -275,39 +331,36 @@ async def log_call_event(event: CallEvent):
         # Автоматически создаем партицию для предприятия если её нет
         await ensure_enterprise_partition(event.enterprise_number)
         
-        # Сохраняем событие в БД
-        conn = await asyncpg.connect(**DB_CONFIG)
-        
-        # Извлекаем номер телефона из данных события если есть
-        phone_number = event.phone_number
-        if not phone_number:
-            if 'Phone' in event.event_data:
-                phone_number = event.event_data['Phone']
-            elif 'phone' in event.event_data:
-                phone_number = event.event_data['phone']
-        
-        # Извлекаем BridgeUniqueid из данных события если не передан явно
-        bridge_unique_id = event.bridge_unique_id
-        if not bridge_unique_id and 'BridgeUniqueid' in event.event_data:
-            bridge_unique_id = event.event_data['BridgeUniqueid']
-        
-        # Добавляем chat_id в event_data для сохранения в JSONB
-        event_data_with_chat = event.event_data.copy()
-        if event.chat_id:
-            event_data_with_chat["_chat_id"] = event.chat_id
-        
-        # Добавляем событие через функцию БД (теперь с bridge_unique_id)
-        trace_id = await conn.fetchval(
-            "SELECT add_call_event($1, $2, $3, $4, $5, $6)",
-            event.unique_id,
-            event.enterprise_number, 
-            event.event_type,
-            json.dumps(event_data_with_chat),
-            phone_number,
-            bridge_unique_id
-        )
-        
-        await conn.close()
+        # ОПТИМИЗАЦИЯ: Используем connection pool вместо создания нового соединения
+        async with db_pool.acquire() as conn:
+            # Извлекаем номер телефона из данных события если есть
+            phone_number = event.phone_number
+            if not phone_number:
+                if 'Phone' in event.event_data:
+                    phone_number = event.event_data['Phone']
+                elif 'phone' in event.event_data:
+                    phone_number = event.event_data['phone']
+            
+            # Извлекаем BridgeUniqueid из данных события если не передан явно
+            bridge_unique_id = event.bridge_unique_id
+            if not bridge_unique_id and 'BridgeUniqueid' in event.event_data:
+                bridge_unique_id = event.event_data['BridgeUniqueid']
+            
+            # Добавляем chat_id в event_data для сохранения в JSONB
+            event_data_with_chat = event.event_data.copy()
+            if event.chat_id:
+                event_data_with_chat["_chat_id"] = event.chat_id
+            
+            # Добавляем событие через функцию БД (теперь с bridge_unique_id)
+            trace_id = await conn.fetchval(
+                "SELECT add_call_event($1, $2, $3, $4, $5, $6)",
+                event.unique_id,
+                event.enterprise_number, 
+                event.event_type,
+                json.dumps(event_data_with_chat),
+                phone_number,
+                bridge_unique_id
+            )
         
         chat_info = f" (chat_id: {event.chat_id})" if event.chat_id else ""
         logger.info(f"Logged event {event.event_type} for call {event.unique_id}{chat_info} (trace_id: {trace_id})")
@@ -329,22 +382,20 @@ async def log_http_request(request: HttpRequest):
         if not request.timestamp:
             request.timestamp = datetime.now()
         
-        conn = await asyncpg.connect(**DB_CONFIG)
-        
-        # Добавляем HTTP запрос через функцию БД
-        await conn.execute(
-            "SELECT add_http_request($1, $2, $3, $4, $5, $6, $7, $8)",
-            request.unique_id,
-            request.enterprise_number,
-            request.method,
-            request.url,
-            json.dumps(request.request_data) if request.request_data else None,
-            json.dumps(request.response_data) if request.response_data else None,
-            request.status_code,
-            request.duration_ms
-        )
-        
-        await conn.close()
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
+            # Добавляем HTTP запрос через функцию БД
+            await conn.execute(
+                "SELECT add_http_request($1, $2, $3, $4, $5, $6, $7, $8)",
+                request.unique_id,
+                request.enterprise_number,
+                request.method,
+                request.url,
+                json.dumps(request.request_data) if request.request_data else None,
+                json.dumps(request.response_data) if request.response_data else None,
+                request.status_code,
+                request.duration_ms
+            )
         
         logger.info(f"Logged HTTP {request.method} {request.url} for call {request.unique_id}")
         return {"status": "success", "message": "HTTP request logged"}
@@ -365,20 +416,18 @@ async def log_sql_query(query: SqlQuery):
         # Создаем партицию для предприятия, если её нет
         await ensure_enterprise_partition(query.enterprise_number)
 
-        conn = await asyncpg.connect(**DB_CONFIG)
-        
-        # Добавляем SQL запрос через функцию БД
-        await conn.execute(
-            "SELECT add_sql_query($1, $2, $3, $4, $5, $6)",
-            query.unique_id,
-            query.enterprise_number,
-            query.query,
-            json.dumps(query.parameters) if query.parameters else None,
-            json.dumps(query.result) if query.result else None,
-            query.duration_ms
-        )
-        
-        await conn.close()
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
+            # Добавляем SQL запрос через функцию БД
+            await conn.execute(
+                "SELECT add_sql_query($1, $2, $3, $4, $5, $6)",
+                query.unique_id,
+                query.enterprise_number,
+                query.query,
+                json.dumps(query.parameters) if query.parameters else None,
+                json.dumps(query.result) if query.result else None,
+                query.duration_ms
+            )
         
         logger.info(f"Logged SQL query for call {unique_id}")
         return {"status": "success", "message": "SQL query logged"}
@@ -399,22 +448,20 @@ async def log_telegram_message(message: TelegramMessage):
         # Создаем партицию для предприятия, если её нет
         await ensure_enterprise_partition(message.enterprise_number)
 
-        conn = await asyncpg.connect(**DB_CONFIG)
-        
-        # Добавляем Telegram сообщение через функцию БД
-        await conn.execute(
-            "SELECT add_telegram_message($1, $2, $3, $4, $5, $6, $7, $8)",
-            message.unique_id,
-            message.enterprise_number,
-            message.chat_id,
-            message.message_type,
-            message.action,
-            message.message_id,
-            message.message_text,
-            None  # error
-        )
-        
-        await conn.close()
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
+            # Добавляем Telegram сообщение через функцию БД
+            await conn.execute(
+                "SELECT add_telegram_message($1, $2, $3, $4, $5, $6, $7, $8)",
+                message.unique_id,
+                message.enterprise_number,
+                message.chat_id,
+                message.message_type,
+                message.action,
+                message.message_id,
+                message.message_text,
+                None  # error
+            )
         
         logger.info(f"Logged Telegram {message.action} for call {unique_id}")
         return {"status": "success", "message": "Telegram message logged"}
@@ -435,24 +482,22 @@ async def log_integration_response(response: IntegrationResponse):
         # Создаем партицию для предприятия, если её нет
         await ensure_enterprise_partition(response.enterprise_number)
 
-        conn = await asyncpg.connect(**DB_CONFIG)
-        
-        # Добавляем ответ интеграции через функцию БД
-        await conn.execute(
-            "SELECT add_integration_response($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-            response.unique_id,
-            response.enterprise_number,
-            response.integration,
-            response.endpoint,
-            response.method,
-            response.status,
-            json.dumps(response.request_data) if response.request_data else None,
-            json.dumps(response.response_data) if response.response_data else None,
-            response.duration_ms,
-            response.error
-        )
-        
-        await conn.close()
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
+            # Добавляем ответ интеграции через функцию БД
+            await conn.execute(
+                "SELECT add_integration_response($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+                response.unique_id,
+                response.enterprise_number,
+                response.integration,
+                response.endpoint,
+                response.method,
+                response.status,
+                json.dumps(response.request_data) if response.request_data else None,
+                json.dumps(response.response_data) if response.response_data else None,
+                response.duration_ms,
+                response.error
+            )
         
         logger.info(f"Logged integration response for call {unique_id}")
         return {"status": "success", "message": "Integration response logged"}
@@ -465,28 +510,25 @@ async def log_integration_response(response: IntegrationResponse):
 async def get_call_trace(unique_id: str):
     """Получение полного трейса звонка"""
     try:
-        conn = await asyncpg.connect(**DB_CONFIG)
-        
-        # Получаем основную информацию о трейсе
-        trace_info = await conn.fetchrow("""
-            SELECT id, unique_id, enterprise_number, phone_number, call_direction, 
-                   call_status, start_time, end_time, call_events,
-                   http_requests, sql_queries, telegram_messages, integration_responses,
-                   created_at, updated_at,
-                   CASE 
-                       WHEN end_time IS NOT NULL AND start_time IS NOT NULL 
-                       THEN EXTRACT(EPOCH FROM (end_time - start_time))
-                       ELSE NULL 
-                   END as duration_seconds
-            FROM call_traces 
-            WHERE unique_id = $1
-        """, unique_id)
-        
-        if not trace_info:
-            await conn.close()
-            raise HTTPException(status_code=404, detail="Call trace not found")
-        
-        await conn.close()
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
+            # Получаем основную информацию о трейсе
+            trace_info = await conn.fetchrow("""
+                SELECT id, unique_id, enterprise_number, phone_number, call_direction, 
+                       call_status, start_time, end_time, call_events,
+                       http_requests, sql_queries, telegram_messages, integration_responses,
+                       created_at, updated_at,
+                       CASE 
+                           WHEN end_time IS NOT NULL AND start_time IS NOT NULL 
+                           THEN EXTRACT(EPOCH FROM (end_time - start_time))
+                           ELSE NULL 
+                       END as duration_seconds
+                FROM call_traces 
+                WHERE unique_id = $1
+            """, unique_id)
+            
+            if not trace_info:
+                raise HTTPException(status_code=404, detail="Call trace not found")
         
         # Формируем единый timeline из всех типов логов
         timeline = []
@@ -659,79 +701,78 @@ async def search_traces(
 ):
     """Поиск трейсов звонков в БД"""
     try:
-        conn = await asyncpg.connect(**DB_CONFIG)
-        
-        # Строим WHERE условие
-        where_conditions = []
-        params = []
-        param_counter = 1
-        
-        if enterprise:
-            where_conditions.append(f"enterprise_number = ${param_counter}")
-            params.append(enterprise)
-            param_counter += 1
-        
-        if phone:
-            where_conditions.append(f"phone_number LIKE ${param_counter}")
-            params.append(f"%{phone}%")
-            param_counter += 1
-        
-        if date_from:
-            where_conditions.append(f"start_time >= ${param_counter}::timestamp")
-            params.append(date_from)
-            param_counter += 1
-        
-        if date_to:
-            where_conditions.append(f"start_time < ${param_counter}::timestamp + interval '1 day'")
-            params.append(date_to)
-            param_counter += 1
-        
-        if status:
-            where_conditions.append(f"call_status = ${param_counter}")
-            params.append(status)
-            param_counter += 1
-        
-        # Строим SQL запрос
-        where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
-        query = f"""
-        SELECT 
-            unique_id,
-            enterprise_number,
-            phone_number,
-            call_status,
-            start_time,
-            end_time,
-            CASE 
-                WHEN jsonb_typeof(call_events) = 'array' THEN jsonb_array_length(call_events)
-                ELSE 0 
-            END as events_count,
-            CASE 
-                WHEN jsonb_typeof(http_requests) = 'array' THEN jsonb_array_length(http_requests)
-                ELSE 0 
-            END as http_count,
-            CASE 
-                WHEN jsonb_typeof(sql_queries) = 'array' THEN jsonb_array_length(sql_queries)
-                ELSE 0 
-            END as sql_count,
-            CASE 
-                WHEN jsonb_typeof(telegram_messages) = 'array' THEN jsonb_array_length(telegram_messages)
-                ELSE 0 
-            END as tg_count,
-            CASE 
-                WHEN jsonb_typeof(integration_responses) = 'array' THEN jsonb_array_length(integration_responses)
-                ELSE 0 
-            END as int_count,
-            created_at,
-            updated_at
-        FROM call_traces
-        WHERE {where_clause}
-        ORDER BY start_time DESC
-        LIMIT ${param_counter}
-        """
-        params.append(limit)
-        
-        results = await conn.fetch(query, *params)
-        await conn.close()
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
+            # Строим WHERE условие
+            where_conditions = []
+            params = []
+            param_counter = 1
+            
+            if enterprise:
+                where_conditions.append(f"enterprise_number = ${param_counter}")
+                params.append(enterprise)
+                param_counter += 1
+            
+            if phone:
+                where_conditions.append(f"phone_number LIKE ${param_counter}")
+                params.append(f"%{phone}%")
+                param_counter += 1
+            
+            if date_from:
+                where_conditions.append(f"start_time >= ${param_counter}::timestamp")
+                params.append(date_from)
+                param_counter += 1
+            
+            if date_to:
+                where_conditions.append(f"start_time < ${param_counter}::timestamp + interval '1 day'")
+                params.append(date_to)
+                param_counter += 1
+            
+            if status:
+                where_conditions.append(f"call_status = ${param_counter}")
+                params.append(status)
+                param_counter += 1
+            
+            # Строим SQL запрос
+            where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+            query = f"""
+            SELECT 
+                unique_id,
+                enterprise_number,
+                phone_number,
+                call_status,
+                start_time,
+                end_time,
+                CASE 
+                    WHEN jsonb_typeof(call_events) = 'array' THEN jsonb_array_length(call_events)
+                    ELSE 0 
+                END as events_count,
+                CASE 
+                    WHEN jsonb_typeof(http_requests) = 'array' THEN jsonb_array_length(http_requests)
+                    ELSE 0 
+                END as http_count,
+                CASE 
+                    WHEN jsonb_typeof(sql_queries) = 'array' THEN jsonb_array_length(sql_queries)
+                    ELSE 0 
+                END as sql_count,
+                CASE 
+                    WHEN jsonb_typeof(telegram_messages) = 'array' THEN jsonb_array_length(telegram_messages)
+                    ELSE 0 
+                END as tg_count,
+                CASE 
+                    WHEN jsonb_typeof(integration_responses) = 'array' THEN jsonb_array_length(integration_responses)
+                    ELSE 0 
+                END as int_count,
+                created_at,
+                updated_at
+            FROM call_traces
+            WHERE {where_clause}
+            ORDER BY start_time DESC
+            LIMIT ${param_counter}
+            """
+            params.append(limit)
+            
+            results = await conn.fetch(query, *params)
         
         formatted_results = []
         for row in results:
@@ -827,11 +868,11 @@ async def delete_partition(enterprise_number: str, force: bool = False):
         
         if force:
             # Принудительное удаление с данными
-            conn = await asyncpg.connect(**DB_CONFIG)
-            partition_name = f"call_traces_{enterprise_number}"
-            drop_query = f"DROP TABLE IF EXISTS {partition_name} CASCADE"
-            await conn.execute(drop_query)
-            await conn.close()
+            # ОПТИМИЗАЦИЯ: Используем connection pool
+            async with db_pool.acquire() as conn:
+                partition_name = f"call_traces_{enterprise_number}"
+                drop_query = f"DROP TABLE IF EXISTS {partition_name} CASCADE"
+                await conn.execute(drop_query)
             
             logger.info(f"✅ Force dropped partition {partition_name}")
             return {"status": "success", "partition": partition_name, "forced": True}
@@ -853,41 +894,40 @@ async def delete_partition(enterprise_number: str, force: bool = False):
 async def get_partition_stats(enterprise_number: str):
     """Статистика по партиции предприятия"""
     try:
-        conn = await asyncpg.connect(**DB_CONFIG)
-        partition_name = f"call_traces_{enterprise_number}"
-        
-        # Проверяем существует ли партиция
-        exists_query = """
-        SELECT EXISTS (
-            SELECT 1 FROM pg_tables 
-            WHERE tablename = $1 AND schemaname = 'public'
-        )
-        """
-        exists = await conn.fetchval(exists_query, partition_name)
-        
-        if not exists:
-            await conn.close()
-            raise HTTPException(status_code=404, detail=f"Partition for enterprise {enterprise_number} not found")
-        
-        # Получаем статистику
-        stats_query = f"""
-        SELECT 
-            COUNT(*) as total_calls,
-            COUNT(CASE WHEN call_status = 'completed' THEN 1 END) as completed_calls,
-            COUNT(CASE WHEN call_status = 'failed' THEN 1 END) as failed_calls,
-            AVG(CASE 
-                WHEN end_time IS NOT NULL AND start_time IS NOT NULL 
-                THEN EXTRACT(EPOCH FROM (end_time - start_time))
-                ELSE NULL 
-            END) as avg_duration,
-            MIN(start_time) as first_call,
-            MAX(start_time) as last_call,
-            pg_size_pretty(pg_total_relation_size('"{partition_name}"')) as partition_size
-        FROM "{partition_name}"
-        """
-        
-        stats = await conn.fetchrow(stats_query)
-        await conn.close()
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
+            partition_name = f"call_traces_{enterprise_number}"
+            
+            # Проверяем существует ли партиция
+            exists_query = """
+            SELECT EXISTS (
+                SELECT 1 FROM pg_tables 
+                WHERE tablename = $1 AND schemaname = 'public'
+            )
+            """
+            exists = await conn.fetchval(exists_query, partition_name)
+            
+            if not exists:
+                raise HTTPException(status_code=404, detail=f"Partition for enterprise {enterprise_number} not found")
+            
+            # Получаем статистику
+            stats_query = f"""
+            SELECT 
+                COUNT(*) as total_calls,
+                COUNT(CASE WHEN call_status = 'completed' THEN 1 END) as completed_calls,
+                COUNT(CASE WHEN call_status = 'failed' THEN 1 END) as failed_calls,
+                AVG(CASE 
+                    WHEN end_time IS NOT NULL AND start_time IS NOT NULL 
+                    THEN EXTRACT(EPOCH FROM (end_time - start_time))
+                    ELSE NULL 
+                END) as avg_duration,
+                MIN(start_time) as first_call,
+                MAX(start_time) as last_call,
+                pg_size_pretty(pg_total_relation_size('"{partition_name}"')) as partition_size
+            FROM "{partition_name}"
+            """
+            
+            stats = await conn.fetchrow(stats_query)
         
         return {
             "status": "success",
@@ -936,8 +976,8 @@ async def view_call_details(
     
     try:
         # Проверяем права доступа
-        conn = await asyncpg.connect(**DB_CONFIG)
-        try:
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
             result = await conn.fetchrow(
                 "SELECT secret, name FROM enterprises WHERE number = $1",
                 enterprise_number
@@ -947,15 +987,12 @@ async def view_call_details(
                 raise HTTPException(status_code=403, detail="Access denied")
             
             enterprise_info = {"name": result['name'], "number": enterprise_number}
-            
-        finally:
-            await conn.close()
         
         # Получаем данные о звонке (партиция называется просто номером предприятия)
         partition_name = enterprise_number
         
-        conn = await asyncpg.connect(**DB_CONFIG)
-        try:
+        # ОПТИМИЗАЦИЯ: Используем connection pool
+        async with db_pool.acquire() as conn:
             # Ищем запись по Asterisk UniqueId в JSONB массиве call_events
             query = f"""
                 SELECT 
@@ -1123,9 +1160,6 @@ async def view_call_details(
                             if response_data.get('manager_personal_phone'):
                                 manager_info['personal_phone'] = response_data['manager_personal_phone']
                             break
-            
-        finally:
-            await conn.close()
         
         # Функция для конвертации времени в GMT+3
         def to_gmt3(dt):
