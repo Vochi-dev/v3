@@ -334,7 +334,7 @@ $$ LANGUAGE plpgsql;
 }
 ```
 
-### HttpRequest (HTTP запрос)
+### HttpRequest (HTTP запрос 1)
 ```json
 {
   "method": "GET|POST|PUT|DELETE",
