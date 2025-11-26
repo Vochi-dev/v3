@@ -36,8 +36,8 @@ case "$1" in
             exit 1
         fi
         
-        # Запускаем сервис
-        nohup /usr/bin/python3 /usr/local/bin/uvicorn $SERVICE_NAME:app \
+        # Запускаем сервис (setsid отвязывает от терминала)
+        setsid nohup /usr/bin/python3 /usr/local/bin/uvicorn $SERVICE_NAME:app \
             --host 0.0.0.0 \
             --port $SERVICE_PORT \
             --workers 2 \
