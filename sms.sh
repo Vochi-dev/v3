@@ -41,15 +41,22 @@ start() {
         echo "  ./sms.sh start"
         return 1
     fi
-    echo "Starting GoIP SMS Service in foreground on port $PORT..."
-    echo "Logs will be shown in this terminal. Press Ctrl+C to stop the service."
+    echo "Starting GoIP SMS Service on port $PORT..."
     
-    # Запускаем uvicorn напрямую в текущем терминале
-    # Вывод stdout и stderr пойдет в этот терминал
-    uvicorn "$APP_MODULE:$APP_INSTANCE" --host 0.0.0.0 --port "$PORT" --workers 1
+    # Запускаем uvicorn в фоне с setsid для отвязки от терминала
+    setsid nohup uvicorn "$APP_MODULE:$APP_INSTANCE" --host 0.0.0.0 --port "$PORT" --workers 1 >> "$LOG_FILE" 2>&1 &
     
-    # Эта строка будет достигнута только после остановки uvicorn (например, через Ctrl+C)
-    echo "GoIP SMS Service has been stopped."
+    # Сохраняем PID
+    echo $! > "$PID_FILE"
+    
+    sleep 2
+    if is_running; then
+        echo "GoIP SMS Service started successfully (PID: $(cat $PID_FILE))"
+        echo "Logs: $LOG_FILE"
+    else
+        echo "Failed to start GoIP SMS Service"
+        rm -f "$PID_FILE"
+    fi
 }
 
 stop() {

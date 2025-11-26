@@ -26,7 +26,7 @@ case "$1" in
         fi
         
         echo "🚀 Запуск $SERVICE_NAME на порту $SERVICE_PORT..."
-        nohup python3 "$SERVICE_FILE" > "$LOG_FILE" 2>&1 &
+        setsid nohup python3 "$SERVICE_FILE" > "$LOG_FILE" 2>&1 &
         echo $! > "$PID_FILE"
         
         # Проверяем запуск

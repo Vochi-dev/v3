@@ -58,7 +58,7 @@ function start() {
     
     # Запускаем сервис
     export PYTHONPATH="${SCRIPT_DIR}:${PYTHONPATH}"
-    python3 -u "$PYTHON_FILE" > "$LOG_FILE" 2>&1 &
+    setsid nohup python3 -u "$PYTHON_FILE" > "$LOG_FILE" 2>&1 &
     local pid=$!
     
     # Сохраняем PID

@@ -13,11 +13,17 @@ case "${1:-start}" in
   start)
     cd "$(dirname "$0")"
     if [[ -f "$PID_FILE" ]]; then
-      echo "Сервис уже запущен (PID=$(<"$PID_FILE"))"
-      exit 0
+      OLD_PID=$(<"$PID_FILE")
+      if ps -p "$OLD_PID" > /dev/null 2>&1; then
+        echo "Сервис уже запущен (PID=$OLD_PID)"
+        exit 0
+      else
+        echo "⚠️ PID файл существует, но процесс $OLD_PID не найден. Удаляем старый PID файл."
+        rm -f "$PID_FILE"
+      fi
     fi
     echo "🚀 Запускаем reboot.py на порту $PORT..."
-    nohup $PYTHON_BIN $APP >> "$LOG_FILE" 2>&1 &
+    setsid nohup $PYTHON_BIN $APP >> "$LOG_FILE" 2>&1 &
     REBOOT_PID=$!
     echo "$REBOOT_PID" > "$PID_FILE"
     echo "✅ reboot.py запущен (PID=${REBOOT_PID})"

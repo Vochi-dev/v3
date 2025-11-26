@@ -12,11 +12,11 @@ case "${1:-start}" in
     cd "$(dirname "$0")"
     echo "🚀 Запускаем uvicorn для сервиса записей разговоров..."
     # запускаем в отдельной сессии, чтобы потом убить всю группу
-    setsid uvicorn "$APP_MODULE" \
+    setsid nohup uvicorn "$APP_MODULE" \
       --host "$HOST" \
       --port "$PORT" \
       --log-level debug \
-      --log-config log_config.json &
+      --log-config log_config.json >> logs/call.log 2>&1 &
 
     UVICORN_PID=$!
     echo "$UVICORN_PID" > "$PID_FILE"

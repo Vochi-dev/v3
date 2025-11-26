@@ -18,7 +18,7 @@ start() {
     fi
     echo "Starting service on $HOST:$PORT..."
     # Запускаем uvicorn напрямую
-    nohup $UVICORN_PATH $APP_MODULE --host $HOST --port $PORT >> $LOG_FILE 2>&1 &
+    setsid nohup $UVICORN_PATH $APP_MODULE --host $HOST --port $PORT >> $LOG_FILE 2>&1 &
     echo $! > $PID_FILE
     echo "Service started."
 }

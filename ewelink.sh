@@ -17,7 +17,7 @@ case "${1:-start}" in
       exit 0
     fi
     echo "🚀 Запускаем ewelink_api.py на порту $PORT..."
-    nohup $PYTHON_BIN $APP >> "$LOG_FILE" 2>&1 &
+    setsid nohup $PYTHON_BIN $APP >> "$LOG_FILE" 2>&1 &
     EWELINK_PID=$!
     echo "$EWELINK_PID" > "$PID_FILE"
     echo "✅ ewelink_api.py запущен (PID=${EWELINK_PID})"

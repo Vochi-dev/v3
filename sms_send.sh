@@ -25,7 +25,7 @@ start() {
     fi
     
     echo "Запуск SMS Sending Service..."
-    nohup python3 "$PYTHON_SCRIPT" > "$LOG_FILE" 2>&1 &
+    setsid nohup python3 "$PYTHON_SCRIPT" > "$LOG_FILE" 2>&1 &
     PID=$!
     echo $PID > "$PID_FILE"
     echo "SMS Sending Service запущен (PID: $PID)"

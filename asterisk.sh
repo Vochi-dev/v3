@@ -13,7 +13,7 @@ case "${1:-start}" in
     cd "$(dirname "$0")"
     echo "🚀 Запускаем uvicorn для Asterisk Call Management сервиса..."
     # запускаем в отдельной сессии, чтобы потом убить всю группу
-    setsid uvicorn "$APP_MODULE" \
+    setsid nohup uvicorn "$APP_MODULE" \
       --host "$HOST" \
       --port "$PORT" \
       --log-level info \

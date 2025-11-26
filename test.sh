@@ -24,7 +24,7 @@ start() {
 
     mkdir -p logs
     echo "🚀 Starting Call Tester service..."
-    nohup uvicorn call_tester:app --host $HOST --port $PORT > $LOG_FILE 2>&1 &
+    setsid nohup uvicorn call_tester:app --host $HOST --port $PORT > $LOG_FILE 2>&1 &
     PID=$!
     echo $PID > $PID_FILE
     sleep 2

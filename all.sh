@@ -29,45 +29,27 @@ case "${1:-restart}" in
     echo "🔄 Запускаем все сервисы..."
     for service in "${SERVICES[@]}"; do
       echo "   ▶ Запускаем ${service}.sh..."
-      if [[ "$service" == "sms" ]]; then
-        # SMS-сервис: сначала останавливаем старый, потом запускаем новый
-        pkill -f "goip_sms_service" || true
-        pkill -f "deploy.py" || true
-        sleep 2
-        nohup uvicorn goip_sms_service:app --host 0.0.0.0 --port 8002 > logs/goip_service.log 2>&1 &
-        sleep 3
-        if netstat -tlnp | grep -q ":8002" && ps aux | grep -q "goip_sms_service" && ! ps aux | grep -q "deploy.py"; then
-          echo "   ✅ ${service} запущен"
-        else
-          echo "   ❌ Ошибка запуска ${service}"
-        fi
+      if ./${service}.sh start; then
+        echo "   ✅ ${service} запущен"
       else
-        if ./${service}.sh start; then
-          echo "   ✅ ${service} запущен"
-        else
-          echo "   ❌ Ошибка запуска ${service}"
-        fi
+        echo "   ❌ Ошибка запуска ${service}"
       fi
     done
     
-    # Запуск reboot.py (порт 8009)
-    echo "   ▶ Запускаем reboot.py (порт 8009)..."
-    nohup python3 reboot.py > reboot_service.log 2>&1 &
-    sleep 2
-    if netstat -tlnp | grep -q ":8009"; then
-      echo "   ✅ reboot.py запущен"
+    # Запуск reboot.py (порт 8009) через reboot.sh
+    echo "   ▶ Запускаем reboot.sh (порт 8009)..."
+    if ./reboot.sh start; then
+      echo "   ✅ reboot запущен"
     else
-      echo "   ❌ Ошибка запуска reboot.py"
+      echo "   ❌ Ошибка запуска reboot"
     fi
     
-    # Запуск ewelink_api.py (порт 8010)
-    echo "   ▶ Запускаем ewelink_api.py (порт 8010)..."
-    nohup uvicorn ewelink_api:app --host 0.0.0.0 --port 8010 > ewelink_service.log 2>&1 &
-    sleep 2
-    if netstat -tlnp | grep -q ":8010"; then
-      echo "   ✅ ewelink_api.py запущен"
+    # Запуск ewelink_api.py (порт 8010) через ewelink.sh
+    echo "   ▶ Запускаем ewelink.sh (порт 8010)..."
+    if ./ewelink.sh start; then
+      echo "   ✅ ewelink запущен"
     else
-      echo "   ❌ Ошибка запуска ewelink_api.py"
+      echo "   ❌ Ошибка запуска ewelink"
     fi
     
     # Ожидание готовности Telegram Auth сервиса
@@ -128,14 +110,14 @@ case "${1:-restart}" in
       fi
     done
     
-    # Остановка reboot.py
-    echo "   ▶ Останавливаем reboot.py..."
-    pkill -f reboot.py || true
+    # Остановка reboot.py через reboot.sh
+    echo "   ▶ Останавливаем reboot.sh..."
+    ./reboot.sh stop || true
     sleep 1
     
-    # Остановка ewelink_api.py
-    echo "   ▶ Останавливаем ewelink_api.py..."
-    pkill -f 'uvicorn.*ewelink_api' || true
+    # Остановка ewelink_api.py через ewelink.sh
+    echo "   ▶ Останавливаем ewelink.sh..."
+    ./ewelink.sh stop || true
     sleep 1
     
     echo "✅ Все сервисы остановлены"
@@ -182,46 +164,28 @@ case "${1:-restart}" in
     echo "🚀 Запускаем все сервисы..."
     for service in "${SERVICES[@]}"; do
       echo "   ▶ Запускаем ${service}.sh..."
-      if [[ "$service" == "sms" ]]; then
-        # SMS-сервис: сначала останавливаем старый, потом запускаем новый
-        pkill -f "goip_sms_service" || true
-        pkill -f "deploy.py" || true
-        sleep 2
-        nohup uvicorn goip_sms_service:app --host 0.0.0.0 --port 8002 > logs/goip_service.log 2>&1 &
-        sleep 3
-        if netstat -tlnp | grep -q ":8002" && ps aux | grep -q "goip_sms_service" && ! ps aux | grep -q "deploy.py"; then
-          echo "   ✅ ${service} запущен"
-        else
-          echo "   ❌ Ошибка запуска ${service}"
-        fi
+      if ./${service}.sh start; then
+        echo "   ✅ ${service} запущен"
       else
-        if ./${service}.sh start; then
-          echo "   ✅ ${service} запущен"
-        else
-          echo "   ❌ Ошибка запуска ${service}"
-        fi
+        echo "   ❌ Ошибка запуска ${service}"
       fi
       sleep 1  # Небольшая пауза между запусками
     done
     
-    # Запуск reboot.py (порт 8009)
-    echo "   ▶ Запускаем reboot.py (порт 8009)..."
-    nohup python3 reboot.py > reboot_service.log 2>&1 &
-    sleep 2
-    if netstat -tlnp | grep -q ":8009"; then
-      echo "   ✅ reboot.py запущен"
+    # Запуск reboot.py (порт 8009) через reboot.sh
+    echo "   ▶ Запускаем reboot.sh (порт 8009)..."
+    if ./reboot.sh start; then
+      echo "   ✅ reboot запущен"
     else
-      echo "   ❌ Ошибка запуска reboot.py"
+      echo "   ❌ Ошибка запуска reboot"
     fi
     
-    # Запуск ewelink_api.py (порт 8010)
-    echo "   ▶ Запускаем ewelink_api.py (порт 8010)..."
-    nohup uvicorn ewelink_api:app --host 0.0.0.0 --port 8010 > ewelink_service.log 2>&1 &
-    sleep 2
-    if netstat -tlnp | grep -q ":8010"; then
-      echo "   ✅ ewelink_api.py запущен"
+    # Запуск ewelink_api.py (порт 8010) через ewelink.sh
+    echo "   ▶ Запускаем ewelink.sh (порт 8010)..."
+    if ./ewelink.sh start; then
+      echo "   ✅ ewelink запущен"
     else
-      echo "   ❌ Ошибка запуска ewelink_api.py"
+      echo "   ❌ Ошибка запуска ewelink"
     fi
     
     # Запуск всех Telegram-ботов

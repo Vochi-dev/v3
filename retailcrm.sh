@@ -37,7 +37,7 @@ start() {
     source /root/asterisk-webhook/venv/bin/activate
     
     # Запускаем сервис в фоне с логированием
-    nohup /root/asterisk-webhook/venv/bin/python -m uvicorn "$APP_MODULE" \
+    setsid nohup /root/asterisk-webhook/venv/bin/python -m uvicorn "$APP_MODULE" \
       --host "$HOST" \
       --port "$PORT" \
       --log-level info \

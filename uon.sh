@@ -13,7 +13,7 @@ mkdir -p "$LOG_DIR"
 start() {
   stop || true
   echo "▶ Запуск ${NAME} на порту ${PORT}..."
-  nohup uvicorn uon:app --host 0.0.0.0 --port ${PORT} > "$LOG_FILE" 2>&1 &
+  setsid nohup uvicorn uon:app --host 0.0.0.0 --port ${PORT} > "$LOG_FILE" 2>&1 &
   echo $! > "$PID_FILE"
   sleep 2
   if netstat -tlnp | grep -q ":${PORT}"; then

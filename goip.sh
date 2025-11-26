@@ -18,7 +18,7 @@ start() {
     fi
     echo "Starting GoIP Service on $HOST:$PORT..."
     # Запускаем uvicorn напрямую
-    nohup $UVICORN_PATH $APP_MODULE --host $HOST --port $PORT >> $LOG_FILE 2>&1 &
+    setsid nohup $UVICORN_PATH $APP_MODULE --host $HOST --port $PORT >> $LOG_FILE 2>&1 &
     echo $! > $PID_FILE
     echo "GoIP Service started."
 }

@@ -27,7 +27,7 @@ enterprise_numbers=$(PGPASSWORD='r/Yskqh/ZbZuvjb2b3ahfg==' psql -U postgres -d p
 
 for number in $enterprise_numbers; do
   echo "[$(date)] Запуск бота для предприятия $number" >> "$LOG_FILE"
-  nohup env PYTHONPATH=/root/asterisk-webhook python3 "$BOT_SCRIPT" --enterprise "$number" >> "$LOG_FILE" 2>&1 &
+  setsid nohup env PYTHONPATH=/root/asterisk-webhook python3 "$BOT_SCRIPT" --enterprise "$number" >> "$LOG_FILE" 2>&1 &
 done
 
 sleep 3
