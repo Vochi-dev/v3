@@ -136,17 +136,21 @@ async def process_bridge_create(bot: Bot, chat_id: int, data: dict):
         logging.error(f"[process_bridge_create] Failed to resolve enterprise_number: {e}")
 
     try:
-        # Для bridge_create используем bridge_id как unique_id если uid пустой
-        log_uid = uid if uid else bridge_id
-        await call_logger.log_call_event(
-            enterprise_number=enterprise_number,
-            unique_id=log_uid,
-            event_type="bridge_create",
-            event_data=data,
-            chat_id=chat_id,
-            background=True
-        )
-        logging.info(f"[process_bridge_create] Queued bridge_create event to Call Logger: {log_uid}")
+        # ИСПРАВЛЕНО: Всегда используем Asterisk UniqueId, bridge_id передаём отдельно для группировки
+        # Если uid пустой - НЕ логируем событие (bridge_create без UniqueId бесполезен для трейса)
+        if uid:
+            await call_logger.log_call_event(
+                enterprise_number=enterprise_number,
+                unique_id=uid,
+                event_type="bridge_create",
+                event_data=data,
+                chat_id=chat_id,
+                bridge_unique_id=bridge_id,  # Передаём bridge_id для группировки
+                background=True
+            )
+            logging.info(f"[process_bridge_create] Queued bridge_create event to Call Logger: uid={uid}, bridge_id={bridge_id}")
+        else:
+            logging.info(f"[process_bridge_create] Skipping bridge_create logging - no UniqueId (bridge_id={bridge_id})")
     except Exception as e:
         logging.warning(f"[process_bridge_create] Failed to queue bridge_create event: {e}")
     
@@ -199,15 +203,20 @@ async def process_bridge_leave(bot: Bot, chat_id: int, data: dict):
         logging.error(f"[process_bridge_leave] Failed to resolve enterprise_number: {e}")
 
     try:
-        await call_logger.log_call_event(
-            enterprise_number=enterprise_number,
-            unique_id=uid,
-            event_type="bridge_leave",
-            event_data=data,
-            chat_id=chat_id,
-            background=True
-        )
-        logging.info(f"[process_bridge_leave] Queued bridge_leave event to Call Logger: {uid}")
+        # ИСПРАВЛЕНО: Логируем только если есть UniqueId
+        if uid:
+            await call_logger.log_call_event(
+                enterprise_number=enterprise_number,
+                unique_id=uid,
+                event_type="bridge_leave",
+                event_data=data,
+                chat_id=chat_id,
+                bridge_unique_id=bridge_id,  # Передаём bridge_id для группировки
+                background=True
+            )
+            logging.info(f"[process_bridge_leave] Queued bridge_leave event to Call Logger: uid={uid}, bridge_id={bridge_id}")
+        else:
+            logging.info(f"[process_bridge_leave] Skipping bridge_leave logging - no UniqueId (bridge_id={bridge_id})")
     except Exception as e:
         logging.warning(f"[process_bridge_leave] Failed to queue bridge_leave event: {e}")
     
@@ -261,18 +270,12 @@ async def process_bridge_destroy(bot: Bot, chat_id: int, data: dict):
         logging.error(f"[process_bridge_destroy] Failed to resolve enterprise_number: {e}")
 
     try:
-        # Для bridge_destroy используем bridge_id как unique_id
-        await call_logger.log_call_event(
-            enterprise_number=enterprise_number,
-            unique_id=bridge_id,
-            event_type="bridge_destroy",
-            event_data=data,
-            chat_id=chat_id,
-            background=True
-        )
-        logging.info(f"[process_bridge_destroy] Queued bridge_destroy event to Call Logger: {bridge_id}")
+        # ИСПРАВЛЕНО: bridge_destroy не имеет UniqueId, поэтому НЕ логируем его в call_traces
+        # Это событие уровня моста, а не звонка - оно не привязано к конкретному UniqueId
+        # Если нужно отслеживать разрушение мостов - это должна быть отдельная таблица
+        logging.info(f"[process_bridge_destroy] Skipping bridge_destroy logging - no UniqueId (bridge_id={bridge_id})")
     except Exception as e:
-        logging.warning(f"[process_bridge_destroy] Failed to queue bridge_destroy event: {e}")
+        logging.warning(f"[process_bridge_destroy] Failed to process bridge_destroy event: {e}")
     
     # Очищаем все связанные мосты из active_bridges
     bridges_to_remove = []
