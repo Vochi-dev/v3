@@ -14,9 +14,12 @@
         },
         "file": {
             "formatter": "default",
-            "class": "logging.FileHandler",
+            "class": "logging.handlers.TimedRotatingFileHandler",
             "filename": "debug.log",
-            "mode": "a"
+            "when": "midnight",
+            "interval": 1,
+            "backupCount": 3,
+            "encoding": "utf-8"
         }
     },
     "loggers": {
@@ -25,4 +28,4 @@
             "level": "DEBUG"
         }
     }
-} 
+}
