@@ -5,6 +5,7 @@ from telegram.error import BadRequest
 from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
 from app.utils.logger_client import call_logger
+from app.utils.call_tracer import log_telegram_event
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
@@ -129,6 +130,9 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
     # ───────── Шаг 4. Отправка в Telegram (БЕЗ REPLY, ПРОСТО ОТПРАВЛЯЕМ) ─────────
     try:
         sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+        # Логируем в call_tracer
+        ent_num = data.get("_enterprise_number", enterprise_number)
+        log_telegram_event(ent_num, "send", chat_id, "start", sent.message_id, uid, safe_text)
     except BadRequest as e:
         logging.error(f"[process_start] send_message failed: {e}. text={safe_text!r}")
         return {"status": "error", "error": str(e)}

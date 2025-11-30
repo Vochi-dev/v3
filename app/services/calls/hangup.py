@@ -16,6 +16,7 @@ from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 from app.utils.logger_client import call_logger
+from app.utils.call_tracer import log_telegram_event
 from app.utils.user_phones import (
     get_all_internal_phones_by_tg_id,
     get_bot_owner_chat_id,
@@ -811,6 +812,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             reply_markup = keyboard
         
         try:
+            ent_num = data.get("_enterprise_number", enterprise_number)
             if should_comment and reply_to_id:
                 logging.info(f"[process_hangup] Sending as comment to message {reply_to_id}")
                 sent = await bot.send_message(
@@ -821,6 +823,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     disable_web_page_preview=True,
                     reply_markup=reply_markup
                 )
+                log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, safe_text)
                 logging.info(f"[process_hangup] ✅ HANGUP COMMENT SENT: message_id={sent.message_id}")
             else:
                 logging.info(f"[process_hangup] Sending as standalone message")
@@ -831,6 +834,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     disable_web_page_preview=True,
                     reply_markup=reply_markup
                 )
+                log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, safe_text)
                 logging.info(f"[process_hangup] ✅ HANGUP MESSAGE SENT: message_id={sent.message_id}")
                 
         except BadRequest as e:
@@ -860,12 +864,14 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                         logging.info(f"[HANGUP] ✅ Found {len(messages)} messages: {list(messages.keys())}")
                         
                         # Удаляем ВСЁ: START, DIAL, BRIDGE
+                        ent_num = data.get("_enterprise_number", enterprise_number)
                         for event_type in ["start", "dial", "bridge"]:
                             if event_type in messages:
                                 msg_id = messages[event_type]
                                 logging.info(f"[HANGUP] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
                                 try:
                                     await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                                    log_telegram_event(ent_num, "delete", chat_id, event_type, msg_id, uid, "")
                                     logging.info(f"[HANGUP] ✅ {event_type.upper()} deleted")
                                 except BadRequest as e:
                                     logging.error(f"[HANGUP] ❌ BadRequest {event_type.upper()}: {e}")
@@ -912,9 +918,11 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 logging.info(f"[process_hangup] Found bridge message {bridge_msg_id} in phone_tracker for phone {phone_for_grouping}")
         
         # 3. Удаляем все найденные bridge сообщения
+        ent_num = data.get("_enterprise_number", enterprise_number)
         for bridge_msg_id in bridge_messages_to_delete:
             try:
                 await bot.delete_message(chat_id=chat_id, message_id=bridge_msg_id)
+                log_telegram_event(ent_num, "delete", chat_id, "bridge", bridge_msg_id, uid, "")
                 logging.info(f"[process_hangup] Deleted bridge message {bridge_msg_id} due to hangup")
             except BadRequest as e:
                 logging.warning(f"[process_hangup] Could not delete bridge message {bridge_msg_id}: {e}")

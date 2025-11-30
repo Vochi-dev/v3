@@ -11,6 +11,7 @@ from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 from app.utils.logger_client import call_logger
+from app.utils.call_tracer import log_telegram_event
 from .utils import (
     format_phone_number,
     bridge_store,
@@ -534,9 +535,11 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
             logging.info(f"[send_bridge_to_single_chat] Found bridge in store {old_bridge_msg} to delete for uid {uid}")
 
     # Удаляем старые сообщения
+    ent_num = data.get("_enterprise_number", "")
     for msg_id in messages_to_delete:
         try:
             await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            log_telegram_event(ent_num, "delete", chat_id, "bridge", msg_id, uid, "")
             logging.info(f"[send_bridge_to_single_chat] Deleted previous bridge message {msg_id}")
         except BadRequest as e:
             logging.warning(f"[send_bridge_to_single_chat] Could not delete message {msg_id}: {e}")
@@ -772,6 +775,9 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
             )
         
         message_id = message.message_id
+        # Логируем в call_tracer
+        ent_num = data.get("_enterprise_number", "")
+        log_telegram_event(ent_num, "send", chat_id, "bridge", message_id, uid, text)
         logging.info(f"[send_bridge_to_single_chat] Sent bridge message {message_id}")
         
         # ШАГ 1: Получаем и удаляем предыдущее сообщение (dial)
@@ -795,12 +801,14 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
                     messages = {}
             
             # Удаляем START, DIAL и предыдущий BRIDGE из Telegram
+            ent_num = data.get("_enterprise_number", "")
             for event_type in ["start", "dial", "bridge"]:
                 if event_type in messages:
                     msg_id = messages[event_type]
                     logging.info(f"[BRIDGE] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
                     try:
                         await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                        log_telegram_event(ent_num, "delete", chat_id, event_type, msg_id, uid, "")
                         logging.info(f"[BRIDGE] ✅ {event_type.upper()} deleted")
                     except Exception as e:
                         logging.error(f"[BRIDGE] ❌ Delete {event_type.upper()} failed: {e}")

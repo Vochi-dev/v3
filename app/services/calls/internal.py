@@ -7,6 +7,7 @@ from telegram.error import BadRequest
 from app.services.events import save_telegram_message
 from .hangup import create_call_record  # Импортируем функцию создания записи в calls
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
+from app.utils.call_tracer import log_telegram_event
 from .utils import (
     update_call_pair_message,
     update_hangup_message_map,
@@ -62,6 +63,9 @@ async def process_internal_start(bot: Bot, chat_id: int, data: dict):
         else:
             sent = await bot.send_message(chat_id, safe_text,
                                           parse_mode="HTML")
+        # Логируем в call_tracer
+        ent_num = data.get("_enterprise_number", enterprise_number)
+        log_telegram_event(ent_num, "send", chat_id, "start_internal", sent.message_id, uid, safe_text)
     except BadRequest as e:
         logging.error(f"[process_internal_start] {e}")
         return {"status": "error", "error": str(e)}
@@ -87,7 +91,11 @@ async def process_internal_bridge(bot: Bot, chat_id: int, data: dict):
     if uid in dial_cache:
         dial_cache.pop(uid, None)
         try:
-            await bot.delete_message(chat_id, bridge_store.get(uid,0))
+            msg_id = bridge_store.get(uid, 0)
+            if msg_id:
+                await bot.delete_message(chat_id, msg_id)
+                ent_num = data.get("_enterprise_number", "")
+                log_telegram_event(ent_num, "delete", chat_id, "dial_internal", msg_id, uid, "")
         except:
             pass
 
@@ -120,6 +128,9 @@ async def process_internal_bridge(bot: Bot, chat_id: int, data: dict):
 
     try:
         sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+        # Логируем в call_tracer
+        ent_num = data.get("_enterprise_number", enterprise_number)
+        log_telegram_event(ent_num, "send", chat_id, "bridge_internal", sent.message_id, uid, safe_text)
     except BadRequest as e:
         logging.error(f"[process_internal_bridge] {e}")
         return {"status":"error","error":str(e)}
@@ -208,6 +219,9 @@ async def process_internal_hangup(bot: Bot, chat_id: int, data: dict):
             )
         else:
             sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+        # Логируем в call_tracer
+        ent_num = data.get("_enterprise_number", enterprise_number)
+        log_telegram_event(ent_num, "send", chat_id, "hangup_internal", sent.message_id, uid, safe_text)
     except BadRequest as e:
         logging.error(f"[process_internal_hangup] {e}")
         return {"status":"error","error":str(e)}

@@ -9,6 +9,7 @@ from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 from app.utils.logger_client import call_logger
+from app.utils.call_tracer import log_telegram_event
 from .utils import (
     format_phone_number,
     get_relevant_hangup_message_id,
@@ -273,12 +274,14 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                 messages = {}
         
             # Удаляем START, предыдущий DIAL и предыдущий BRIDGE из Telegram
+            ent_num = data.get("_enterprise_number", enterprise_number)
             for event_type in ["start", "dial", "bridge"]:
                 if event_type in messages:
                     msg_id = messages[event_type]
                     logging.info(f"[DIAL] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
                     try:
                         await bot.delete_message(chat_id, msg_id)
+                        log_telegram_event(ent_num, "delete", chat_id, event_type, msg_id, uid, "")
                         logging.info(f"[DIAL] ✅ {event_type.upper()} deleted")
                     except BadRequest as e:
                         logging.warning(f"[DIAL] ⚠️ Could not delete {event_type.upper()}: {e}")
@@ -312,6 +315,10 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             )
         else:
             sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
+        
+        # Логируем в call_tracer
+        ent_num = data.get("_enterprise_number", enterprise_number)
+        log_telegram_event(ent_num, "send", chat_id, "dial", sent.message_id, uid, safe_text)
         
         # Сохраняем message_id в централизованный кэш (phone:chat_id)
         try:

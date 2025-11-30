@@ -48,6 +48,13 @@ from app.services.calls import (
     process_new_callerid
 )
 
+# Call Tracer для логирования событий в файлы
+from app.utils.call_tracer import (
+    get_call_tracer_logger as get_tracer_logger,
+    log_telegram_event,
+    log_asterisk_event
+)
+
 # ────────────────────────────────────────────────────────────────────────────────
 # TG-ID «главного» пользователя (чтобы он всегда получал уведомления)
 # ────────────────────────────────────────────────────────────────────────────────
@@ -116,38 +123,13 @@ test_logger.propagate = False  # Не передавать в родительс
 # ────────────────────────────────────────────────────────────────────────────────
 # Call Tracer - универсальное логирование событий для всех юнитов
 # Папка: call_tracer/{enterprise_number}/events.log (ротация 14 дней)
+# Функции импортированы из app.utils.call_tracer:
+#   - get_tracer_logger (alias для get_call_tracer_logger)
+#   - log_telegram_event
+#   - log_asterisk_event
 # ────────────────────────────────────────────────────────────────────────────────
 os.makedirs("call_tracer", exist_ok=True)
-_call_tracer_loggers: Dict[str, logging.Logger] = {}
 
-def get_call_tracer_logger(enterprise_number: str) -> logging.Logger:
-    """Возвращает логгер для юнита, создаёт папку и файл при необходимости."""
-    if enterprise_number in _call_tracer_loggers:
-        return _call_tracer_loggers[enterprise_number]
-    
-    # Создаём папку для юнита
-    log_dir = f"call_tracer/{enterprise_number}"
-    os.makedirs(log_dir, exist_ok=True)
-    
-    # Создаём логгер с ротацией по дням (14 дней)
-    handler = TimedRotatingFileHandler(
-        f"{log_dir}/events.log",
-        when="midnight",
-        interval=1,
-        backupCount=14,
-        encoding="utf-8"
-    )
-    handler.setFormatter(logging.Formatter("%(asctime)s|%(message)s"))
-    handler.suffix = "%Y-%m-%d"  # Формат даты в имени файла
-    
-    tracer_logger = logging.getLogger(f"call_tracer_{enterprise_number}")
-    tracer_logger.addHandler(handler)
-    tracer_logger.setLevel(logging.INFO)
-    tracer_logger.propagate = False
-    
-    _call_tracer_loggers[enterprise_number] = tracer_logger
-    logger.info(f"Created call_tracer logger for enterprise {enterprise_number}")
-    return tracer_logger
 
 # Настройка логгеров uvicorn
 uvicorn_logger = logging.getLogger("uvicorn")
@@ -753,10 +735,10 @@ async def _dispatch_to_all(handler, body: dict):
     try:
         enterprise_number = await _get_enterprise_number_by_token(token)
         if enterprise_number:
-            tracer = get_call_tracer_logger(enterprise_number)
-            # Формат: timestamp|event_type|unique_id|json_body
-            import json as json_module
-            tracer.info(f"{event_type}|{unique_id}|{json_module.dumps(body, ensure_ascii=False)}")
+            # Логируем AST событие через модуль call_tracer
+            log_asterisk_event(enterprise_number, event_type, unique_id, body)
+            # Передаём enterprise_number в body для использования в обработчиках
+            body["_enterprise_number"] = enterprise_number
     except Exception as e:
         logger.warning(f"Call tracer logging failed for token {token}: {e}")
     
