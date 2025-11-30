@@ -15,7 +15,7 @@ case "${1:-start}" in
     setsid nohup uvicorn "$APP_MODULE" \
       --host "$HOST" \
       --port "$PORT" \
-      --log-level debug \
+      --log-level info \
       --log-config log_config.json >> logs/call.log 2>&1 &
 
     UVICORN_PID=$!
