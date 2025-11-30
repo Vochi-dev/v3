@@ -6,7 +6,6 @@ from telegram import Bot
 from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
-from app.services.asterisk_logs import save_asterisk_log
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 from app.utils.call_tracer import log_telegram_event
 from .utils import (
@@ -37,9 +36,6 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     
     print(f"🔥🔥🔥 [DIAL] STARTED! UniqueId={data.get('UniqueId')}, chat_id={chat_id}")
     logging.info(f"🔥🔥🔥 [DIAL] STARTED! UniqueId={data.get('UniqueId')}, chat_id={chat_id}")
-
-    # Сохраняем лог в asterisk_logs
-    await save_asterisk_log(data)
 
     # Получаем номер для группировки событий
     phone_for_grouping = get_phone_for_grouping(data)

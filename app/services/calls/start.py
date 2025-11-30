@@ -3,7 +3,6 @@ from telegram import Bot
 from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
-from app.services.asterisk_logs import save_asterisk_log
 from app.utils.call_tracer import log_telegram_event
 from .utils import (
     format_phone_number,
@@ -27,9 +26,6 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
     - Применяет форматы сообщений из файла "Пояснение"
     - Поддерживает отправку комментариев к предыдущим сообщениям
     """
-
-    # Сохраняем лог в asterisk_logs
-    await save_asterisk_log(data)
 
     # Получаем номер для группировки событий
     phone_for_grouping = get_phone_for_grouping(data)

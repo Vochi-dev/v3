@@ -7,7 +7,6 @@ import asyncio
 from datetime import datetime, timedelta
 
 from app.services.events import save_telegram_message
-from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 from app.utils.call_tracer import log_telegram_event
@@ -94,9 +93,6 @@ async def process_bridge_create(bot: Bot, chat_id: int, data: dict):
     Обрабатывает событие BridgeCreate - создание моста между участниками.
     Логирует событие для анализа, но пока не отправляет уведомления в Telegram.
     """
-    # Сохраняем лог в asterisk_logs
-    await save_asterisk_log(data)
-    
     uid = data.get("UniqueId", "")
     bridge_id = data.get("BridgeUniqueid", "")
     bridge_type = data.get("BridgeType", "")
@@ -147,9 +143,6 @@ async def process_bridge_leave(bot: Bot, chat_id: int, data: dict):
     Обрабатывает событие BridgeLeave - участник покидает мост.
     Логирует событие для анализа динамики моста.
     """
-    # Сохраняем лог в asterisk_logs
-    await save_asterisk_log(data)
-    
     uid = data.get("UniqueId", "")
     bridge_id = data.get("BridgeUniqueid", "")
     channel = data.get("Channel", "")
@@ -199,9 +192,6 @@ async def process_bridge_destroy(bot: Bot, chat_id: int, data: dict):
     Обрабатывает событие BridgeDestroy - уничтожение моста.
     Очищает связанные ресурсы и логирует завершение моста.
     """
-    # Сохраняем лог в asterisk_logs
-    await save_asterisk_log(data)
-    
     bridge_id = data.get("BridgeUniqueid", "")
     bridge_type = data.get("BridgeType", "")
     
@@ -261,9 +251,6 @@ async def process_new_callerid(bot: Bot, chat_id: int, data: dict):
     Обрабатывает событие NewCallerid - изменение CallerID во время разговора.
     Может происходить при переводах звонков или изменении информации о вызывающем.
     """
-    # Сохраняем лог в asterisk_logs
-    await save_asterisk_log(data)
-    
     uid = data.get("UniqueId", "")
     channel = data.get("Channel", "")
     caller_id_num = data.get("CallerIDNum", "")
@@ -454,9 +441,6 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     """
     Отправляет bridge событие в телеграм (реальная обработка).
     """
-    # Сохраняем лог в asterisk_logs
-    await save_asterisk_log(data)
-
     # Получаем номер для группировки событий
     phone_for_grouping = get_phone_for_grouping(data)
     logging.info(f"[send_bridge_to_single_chat] Phone for grouping: {phone_for_grouping}")

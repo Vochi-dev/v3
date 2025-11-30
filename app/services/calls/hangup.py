@@ -12,7 +12,6 @@ from datetime import datetime
 from app.services.events import save_telegram_message
 from app.services.customers import upsert_customer_from_hangup
 from app.services.postgres import get_pool
-from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
 from app.utils.call_tracer import log_telegram_event
@@ -178,9 +177,6 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
     - Различает успешные/неуспешные звонки по CallStatus
     """
     try:
-        # Сохраняем лог в asterisk_logs
-        await save_asterisk_log(data)
-
         # Получаем номер для группировки событий
         phone_for_grouping = get_phone_for_grouping(data)
 
