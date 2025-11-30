@@ -48,14 +48,26 @@ RETAILCRM_CONFIG = {
 JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "vochi-retailcrm-secret-key-2025")
 JWT_ALGORITHM = "HS256"
 
-# Настройки логирования
+# Настройки логирования с ротацией (3 дня)
+from logging.handlers import TimedRotatingFileHandler
+
+_log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+_file_handler = TimedRotatingFileHandler(
+    '/root/asterisk-webhook/logs/retailcrm.log',
+    when='midnight',
+    interval=1,
+    backupCount=3,
+    encoding='utf-8'
+)
+_file_handler.setFormatter(_log_formatter)
+
+_console_handler = logging.StreamHandler(sys.stdout)
+_console_handler.setFormatter(_log_formatter)
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('/root/asterisk-webhook/logs/retailcrm.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=[_file_handler, _console_handler]
 )
 
 logger = logging.getLogger("RetailCRM")
