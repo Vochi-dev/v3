@@ -769,6 +769,20 @@ async def _dispatch_to_all(handler, body: dict):
         body["_shared_uuid_token"] = shared_uuid_token
         logger.info(f"Generated shared UUID token for hangup {unique_id}: {shared_uuid_token}")
     
+    # 🔗 Для bridge событий проверяем дубликаты по BridgeUniqueid ОДИН РАЗ
+    if event_type == "bridge":
+        from app.services.calls.bridge import sent_bridges
+        import time
+        bridge_id = body.get("BridgeUniqueid", "")
+        if bridge_id and bridge_id in sent_bridges:
+            time_since_sent = time.time() - sent_bridges[bridge_id]
+            logger.info(f"[_dispatch_to_all] Skipping bridge {bridge_id} - already sent {time_since_sent:.1f}s ago (duplicate)")
+            return {"delivered": [{"status": "skipped", "reason": "duplicate bridge"}]}
+        # Помечаем bridge как отправленный
+        if bridge_id:
+            sent_bridges[bridge_id] = time.time()
+            logger.info(f"[_dispatch_to_all] Marked bridge {bridge_id} as sent")
+    
     # 🎯 ОПТИМИЗАЦИЯ: Подготовка данных ДО цикла по подписчикам
     # Для start/dial/bridge/hangup делаем enrichment ОДИН РАЗ
     if event_type in ["start", "dial", "bridge", "hangup"]:
@@ -947,6 +961,9 @@ async def _dispatch_to_all(handler, body: dict):
     
     telegram_success = False
 
+    # Помечаем что вызов идёт из _dispatch_to_all (для корректной работы should_send_bridge)
+    body["_from_dispatch_to_all"] = True
+    
     for chat_id in tg_ids:
         try:
             result = await handler(bot, chat_id, body)

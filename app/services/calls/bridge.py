@@ -336,8 +336,10 @@ def should_send_bridge(data: dict) -> bool:
     
     logging.info(f"[should_send_bridge] Checking bridge {bridge_id}: caller='{caller}', connected='{connected}'")
     
-    # НОВАЯ ПРОВЕРКА: Пропускаем дубликаты по BridgeUniqueid
-    if bridge_id and bridge_id in sent_bridges:
+    # ПРИМЕЧАНИЕ: Проверка дубликатов по BridgeUniqueid перенесена на уровень _dispatch_to_all
+    # чтобы не блокировать отправку для всех chat_ids после первого
+    # Проверяем только если это вызов из send_bridge_to_telegram (не из _dispatch_to_all)
+    if bridge_id and bridge_id in sent_bridges and not data.get("_from_dispatch_to_all"):
         time_since_sent = time.time() - sent_bridges[bridge_id]
         logging.info(f"[should_send_bridge] Skipping bridge {bridge_id} - already sent {time_since_sent:.1f}s ago (duplicate)")
         return False
@@ -367,10 +369,11 @@ def should_send_bridge(data: dict) -> bool:
         else:
             logging.info(f"[should_send_bridge] Allowing bridge {bridge_id} - ExternalInitiated=true but real conversation bridge (external→internal)")
     
-    # ВАЖНО: Сохраняем BridgeUniqueid в sent_bridges ПЕРЕД отправкой
-    if bridge_id:
+    # ВАЖНО: Сохраняем BridgeUniqueid в sent_bridges только если это НЕ вызов из _dispatch_to_all
+    # При вызове из _dispatch_to_all, дубликаты контролируются на уровне _dispatch_to_all
+    if bridge_id and not data.get("_from_dispatch_to_all"):
         sent_bridges[bridge_id] = time.time()
-        logging.info(f"[should_send_bridge] Marked bridge {bridge_id} as sent")
+        logging.info(f"[should_send_bridge] Marked bridge {bridge_id} as sent (standalone call)")
     
     logging.info(f"[should_send_bridge] Bridge {bridge_id} is valid for sending")
     return True

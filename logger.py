@@ -1139,6 +1139,57 @@ async def view_call_details(
         ast_events.sort(key=lambda x: x.get('event_timestamp', ''))
         tg_events.sort(key=lambda x: x.get('timestamp', ''))
         
+        # ═══════════════════════════════════════════════════════════════════
+        # ОБОГАЩАЕМ TG СОБЫТИЯ ИНФОРМАЦИЕЙ О ПОЛЬЗОВАТЕЛЯХ
+        # ═══════════════════════════════════════════════════════════════════
+        # Собираем уникальные chat_id
+        unique_chat_ids = set()
+        for tg_ev in tg_events:
+            if tg_ev.get('chat_id'):
+                unique_chat_ids.add(tg_ev['chat_id'])
+        
+        # Получаем данные пользователей из БД
+        chat_id_to_user = {}
+        if unique_chat_ids:
+            try:
+                async with db_pool.acquire() as conn:
+                    # Получаем пользователей по telegram_tg_id
+                    rows = await conn.fetch("""
+                        SELECT telegram_tg_id::text as chat_id, first_name, last_name, email
+                        FROM users 
+                        WHERE enterprise_number = $1 
+                          AND telegram_tg_id::text = ANY($2::text[])
+                    """, enterprise_number, list(unique_chat_ids))
+                    
+                    for row in rows:
+                        chat_id_to_user[row['chat_id']] = {
+                            'name': f"{row['first_name']} {row['last_name']}".strip(),
+                            'email': row['email']
+                        }
+                    
+                    # Также проверяем chat_id предприятия (владелец)
+                    ent_row = await conn.fetchrow("""
+                        SELECT chat_id::text as chat_id FROM enterprises WHERE number = $1
+                    """, enterprise_number)
+                    if ent_row and ent_row['chat_id']:
+                        if ent_row['chat_id'] not in chat_id_to_user:
+                            chat_id_to_user[ent_row['chat_id']] = {
+                                'name': 'Владелец (предприятие)',
+                                'email': ''
+                            }
+            except Exception as e:
+                logger.warning(f"Failed to get user info for chat_ids: {e}")
+        
+        # Добавляем информацию о пользователях в tg_events
+        for tg_ev in tg_events:
+            chat_id = tg_ev.get('chat_id', '')
+            if chat_id in chat_id_to_user:
+                tg_ev['user_name'] = chat_id_to_user[chat_id]['name']
+                tg_ev['user_email'] = chat_id_to_user[chat_id]['email']
+            else:
+                tg_ev['user_name'] = f"ID: {chat_id}"
+                tg_ev['user_email'] = ''
+        
         # Формируем call_data структуру
         call_data = {
             'unique_id': unique_id,
