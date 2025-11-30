@@ -962,7 +962,8 @@ async def view_call_details(
     token: str = Query(..., description="Secret токен для авторизации")
 ):
     """
-    Просмотр детальной информации о звонке в красивом HTML формате
+    Просмотр детальной информации о звонке в красивом HTML формате.
+    НОВАЯ ВЕРСИЯ: Читает данные из файлов call_tracer/ вместо PostgreSQL.
     
     Args:
         enterprise_number: Номер предприятия (например, 0367)
@@ -972,11 +973,12 @@ async def view_call_details(
     Returns:
         HTML страница с детальной информацией о звонке
     """
-    import asyncpg
+    import glob
+    import os
+    from datetime import datetime as dt
     
     try:
         # Проверяем права доступа
-        # ОПТИМИЗАЦИЯ: Используем connection pool
         async with db_pool.acquire() as conn:
             result = await conn.fetchrow(
                 "SELECT secret, name FROM enterprises WHERE number = $1",
@@ -988,195 +990,209 @@ async def view_call_details(
             
             enterprise_info = {"name": result['name'], "number": enterprise_number}
         
-        # Получаем данные о звонке (партиция называется просто номером предприятия)
-        partition_name = enterprise_number
+        # ═══════════════════════════════════════════════════════════════════
+        # ЧИТАЕМ ДАННЫЕ ИЗ ФАЙЛОВ call_tracer/{enterprise_number}/events.log*
+        # ═══════════════════════════════════════════════════════════════════
+        log_dir = f"call_tracer/{enterprise_number}"
+        log_files = glob.glob(f"{log_dir}/events.log*")
         
-        # ОПТИМИЗАЦИЯ: Используем connection pool
-        async with db_pool.acquire() as conn:
-            # Ищем запись по Asterisk UniqueId в JSONB массиве call_events
-            query = f"""
-                SELECT 
-                    unique_id,
-                    enterprise_number,
-                    phone_number,
-                    call_direction,
-                    call_status,
-                    start_time,
-                    end_time,
-                    call_events,
-                    telegram_messages,
-                    http_requests,
-                    sql_queries,
-                    integration_responses,
-                    created_at,
-                    updated_at
-                FROM "{partition_name}"
-                WHERE call_events @> $1::jsonb
-                LIMIT 1
-            """
+        if not log_files:
+            raise HTTPException(status_code=404, detail=f"No log files found for enterprise {enterprise_number}")
+        
+        # Собираем все события для данного unique_id из всех файлов
+        ast_events = []  # События Asterisk
+        tg_events = []   # События Telegram
+        
+        for log_file in log_files:
+            try:
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if unique_id not in line:
+                            continue
+                        
+                        # Парсим строку лога
+                        # Формат: 2025-11-30 09:08:42,025|AST|hangup|1764493655.61|{...}
+                        # Или: 2025-11-30 09:08:44,283|TG|send|374573193|hangup|63157|1764493655.61|text
+                        parts = line.strip().split('|', 7)  # Максимум 8 частей
+                        if len(parts) < 4:
+                            continue
+                        
+                        timestamp_str = parts[0]
+                        record_type = parts[1]  # AST или TG
+                        
+                        if record_type == 'AST' and len(parts) >= 5:
+                            # AST|event_type|unique_id|json_body
+                            event_type = parts[2]
+                            event_uid = parts[3]
+                            json_body = parts[4] if len(parts) > 4 else '{}'
+                            
+                            if event_uid == unique_id or unique_id in json_body:
+                                try:
+                                    event_data = json.loads(json_body)
+                                except:
+                                    event_data = {}
+                                
+                                ast_events.append({
+                                    'event_timestamp': timestamp_str,
+                                    'event_type': event_type,
+                                    'event_data': event_data
+                                })
+                        
+                        elif record_type == 'TG' and len(parts) >= 7:
+                            # TG|action|chat_id|msg_type|msg_id|unique_id|text
+                            action = parts[2]
+                            chat_id = parts[3]
+                            msg_type = parts[4]
+                            msg_id = parts[5]
+                            event_uid = parts[6]
+                            text = parts[7] if len(parts) > 7 else ''
+                            
+                            if event_uid == unique_id:
+                                tg_events.append({
+                                    'timestamp': timestamp_str,
+                                    'action': action,
+                                    'chat_id': chat_id,
+                                    'message_type': msg_type,
+                                    'message_id': msg_id,
+                                    'text': text
+                                })
+            except Exception as e:
+                logger.warning(f"Error reading log file {log_file}: {e}")
+                continue
+        
+        if not ast_events:
+            raise HTTPException(status_code=404, detail=f"Call {unique_id} not found in logs")
+        
+        # Сортируем события по времени
+        ast_events.sort(key=lambda x: x.get('event_timestamp', ''))
+        tg_events.sort(key=lambda x: x.get('timestamp', ''))
+        
+        # Формируем call_data структуру
+        call_data = {
+            'unique_id': unique_id,
+            'enterprise_number': enterprise_number,
+            'call_events': ast_events,
+            'telegram_messages': tg_events,
+            'unique_events': ast_events  # Для совместимости с шаблоном
+        }
+        
+        # Конвертируем timestamp строки в datetime для шаблона
+        from dateutil import parser as date_parser
+        for event in ast_events:
+            if event.get('event_timestamp'):
+                try:
+                    ts_str = event['event_timestamp'].replace(',', '.')
+                    event['event_timestamp_dt'] = dt.strptime(ts_str, '%Y-%m-%d %H:%M:%S.%f')
+                except:
+                    try:
+                        event['event_timestamp_dt'] = dt.strptime(event['event_timestamp'][:19], '%Y-%m-%d %H:%M:%S')
+                    except:
+                        pass
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # ИЗВЛЕКАЕМ ИНФОРМАЦИЮ ИЗ СОБЫТИЙ
+        # ═══════════════════════════════════════════════════════════════════
+        client_info = {"name": "Не определен", "phone": ""}
+        manager_info = {"name": "Не определен", "phone": "", "extension": ""}
+        duration_seconds = 0
+        call_direction = "unknown"
+        call_start_time = None
+        
+        for event in ast_events:
+            event_type = event.get('event_type')
+            event_data = event.get('event_data', {})
             
-            # Ищем событие с Asterisk UniqueId
-            search_pattern = json.dumps([{"event_data": {"UniqueId": unique_id}}])
-            call_data = await conn.fetchrow(query, search_pattern)
-            
-            if not call_data:
-                raise HTTPException(status_code=404, detail="Call not found")
-            
-            # Преобразуем в dict
-            call_data = dict(call_data)
-            
-            # Парсим JSONB поля если они строки
-            if isinstance(call_data.get('call_events'), str):
-                call_data['call_events'] = json.loads(call_data['call_events'])
-            if isinstance(call_data.get('telegram_messages'), str):
-                call_data['telegram_messages'] = json.loads(call_data['telegram_messages'])
-            if isinstance(call_data.get('http_requests'), str):
-                call_data['http_requests'] = json.loads(call_data['http_requests'])
-            if isinstance(call_data.get('sql_queries'), str):
-                call_data['sql_queries'] = json.loads(call_data['sql_queries'])
-            if isinstance(call_data.get('integration_responses'), str):
-                call_data['integration_responses'] = json.loads(call_data['integration_responses'])
-            
-            # Группируем события - убираем дубли по chat_id
-            # Группируем по: тип события + UniqueId (для событий с UniqueId)
-            unique_events = []
-            seen_events = set()
-            
-            if call_data.get('call_events'):
-                for event in call_data['call_events']:
-                    event_data = event.get('event_data', {})
-                    unique_id = event_data.get('UniqueId', '')
-                    
-                    # Для событий с UniqueId - группируем по типу + UniqueId
-                    # Для событий без UniqueId (bridge_create, bridge_destroy) - только по типу
-                    if unique_id:
-                        event_key = (event.get('event_type'), unique_id)
-                    else:
-                        # Для событий без UniqueId берем первое вхождение
-                        event_key = (event.get('event_type'), 'no_uid')
-                    
-                    if event_key not in seen_events:
-                        seen_events.add(event_key)
-                        unique_events.append(event)
+            # Ищем информацию о клиенте и направлении из dial/start события
+            if event_type in ('dial', 'start') and event_data.get('Phone') and not client_info['phone']:
+                client_info['phone'] = event_data['Phone']
                 
-                # Сортируем по времени
-                unique_events.sort(key=lambda x: x.get('event_timestamp', ''))
+                # Определяем направление по CallType
+                call_type = event_data.get('CallType')
+                if call_type == 1:
+                    call_direction = "outgoing"
+                elif call_type == 0:
+                    call_direction = "incoming"
                 
-                # Конвертируем timestamp строки в datetime для шаблона
-                from datetime import datetime as dt
-                from dateutil import parser
-                for event in unique_events:
-                    if event.get('event_timestamp'):
-                        try:
-                            # Парсим ISO формат с timezone
-                            ts_str = event['event_timestamp']
-                            event['event_timestamp_dt'] = parser.isoparse(ts_str)
-                        except:
-                            # Fallback - пробуем без timezone
-                            try:
-                                if '+' in ts_str:
-                                    ts_str = ts_str.split('+')[0]
-                                event['event_timestamp_dt'] = dt.fromisoformat(ts_str.replace('Z', ''))
-                            except:
-                                pass
+                # Берем время начала
+                if not call_start_time and event.get('event_timestamp_dt'):
+                    call_start_time = event['event_timestamp_dt']
                 
-                call_data['unique_events'] = unique_events
-                logger.info(f"Total call_events: {len(call_data['call_events'])}, Unique events: {len(unique_events)}")
+                # Извлекаем внутренний номер менеджера из Extensions
+                extensions = event_data.get('Extensions', [])
+                if extensions and len(extensions) > 0 and extensions[0]:
+                    manager_info['extension'] = extensions[0]
+                    manager_info['phone'] = extensions[0]
+                    manager_info['name'] = extensions[0]
             
-            # Извлекаем информацию об участниках из call_events
-            client_info = {"name": "Не определен", "phone": ""}
-            manager_info = {"name": "Не определен", "phone": "", "extension": ""}
-            duration_seconds = 0
-            call_direction = "unknown"
-            call_start_time = None
+            # Ищем информацию о менеджере из bridge события
+            if event_type == 'bridge' and event_data.get('CallerIDNum'):
+                caller_id = event_data['CallerIDNum']
+                if len(caller_id) <= 4 and caller_id.isdigit():
+                    if not manager_info['extension']:
+                        manager_info['extension'] = caller_id
+                        manager_info['phone'] = caller_id
+                        manager_info['name'] = event_data.get('CallerIDName', caller_id)
             
-            if call_data.get('call_events'):
-                for event in call_data['call_events']:
-                    event_type = event.get('event_type')
-                    event_data = event.get('event_data', {})
-                    
-                    # Ищем информацию о клиенте и направлении из dial события
-                    if event_type == 'dial' and event_data.get('Phone') and not client_info['phone']:
-                        client_info['phone'] = event_data['Phone']
-                        
-                        # Определяем направление по CallType
-                        call_type = event_data.get('CallType')
-                        if call_type == 1:
-                            call_direction = "outgoing"
-                        elif call_type == 0:
-                            call_direction = "incoming"
-                        
-                        # Берем время начала из dial события
-                        if not call_start_time and event.get('event_timestamp'):
-                            try:
-                                from dateutil import parser
-                                call_start_time = parser.isoparse(event['event_timestamp'])
-                            except:
-                                pass
-                        
-                        # Извлекаем внутренний номер менеджера из Extensions
-                        extensions = event_data.get('Extensions', [])
-                        if extensions and len(extensions) > 0 and extensions[0]:
-                            manager_info['extension'] = extensions[0]
-                            manager_info['phone'] = extensions[0]
-                            manager_info['name'] = extensions[0]  # По умолчанию, будет перезаписано из enrichment
-                    
-                    # Ищем информацию о менеджере из bridge события
-                    if event_type == 'bridge' and event_data.get('CallerIDNum'):
-                        caller_id = event_data['CallerIDNum']
-                        # Менеджер - это тот у кого короткий номер (внутренний)
-                        if len(caller_id) <= 4 and caller_id.isdigit():
-                            if not manager_info['extension']:  # Только если еще не установлено из dial
-                                manager_info['extension'] = caller_id
-                                manager_info['phone'] = caller_id
-                                manager_info['name'] = event_data.get('CallerIDName', caller_id)
-                    
-                    # Рассчитываем длительность из события hangup
-                    if event_type == 'hangup' and not duration_seconds:
-                        start_time_str = event_data.get('StartTime')
-                        end_time_str = event_data.get('EndTime')
-                        
-                        if start_time_str and end_time_str:
-                            try:
-                                from datetime import datetime as dt
-                                start = dt.strptime(start_time_str, '%Y-%m-%d %H:%M:%S')
-                                end = dt.strptime(end_time_str, '%Y-%m-%d %H:%M:%S')
-                                duration_seconds = int((end - start).total_seconds())
-                            except Exception as e:
-                                logger.warning(f"Failed to calculate duration: {e}")
-            
-            # Обогащаем имена из HTTP запросов (metadata/enrich)
-            if call_data.get('http_requests'):
-                for req in call_data['http_requests']:
-                    if 'metadata' in req.get('url', '') and 'enrich' in req.get('url', ''):
-                        response_data = req.get('response_data', {})
-                        if response_data:
-                            # Имя клиента
-                            if response_data.get('customer_name') and client_info['name'] == "Не определен":
-                                client_info['name'] = response_data['customer_name']
-                            # Имя менеджера (перезаписываем даже если было "151")
-                            if response_data.get('manager_name'):
-                                manager_info['name'] = response_data['manager_name']
-                            if response_data.get('manager_personal_phone'):
-                                manager_info['personal_phone'] = response_data['manager_personal_phone']
-                            break
+            # Рассчитываем длительность из события hangup
+            if event_type == 'hangup' and not duration_seconds:
+                start_time_str = event_data.get('StartTime')
+                end_time_str = event_data.get('EndTime')
+                
+                if start_time_str and end_time_str:
+                    try:
+                        start = dt.strptime(start_time_str, '%Y-%m-%d %H:%M:%S')
+                        end = dt.strptime(end_time_str, '%Y-%m-%d %H:%M:%S')
+                        duration_seconds = int((end - start).total_seconds())
+                    except Exception as e:
+                        logger.warning(f"Failed to calculate duration: {e}")
+                
+                # Также обновляем call_direction и call_status из hangup
+                call_type = event_data.get('CallType')
+                if call_type == 1:
+                    call_direction = "outgoing"
+                elif call_type == 0:
+                    call_direction = "incoming"
+                
+                call_status = event_data.get('CallStatus')
+                call_data['call_status'] = call_status
+        
+        # Получаем имена из metadata сервиса (если есть)
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                # Пробуем получить данные о клиенте
+                if client_info['phone']:
+                    phone_digits = ''.join(filter(str.isdigit, client_info['phone']))
+                    resp = await client.get(f"http://localhost:8020/metadata/{enterprise_number}/customer/{phone_digits}")
+                    if resp.status_code == 200:
+                        cust_data = resp.json()
+                        if cust_data.get('full_name'):
+                            client_info['name'] = cust_data['full_name']
+                
+                # Пробуем получить данные о менеджере
+                if manager_info['extension']:
+                    resp = await client.get(f"http://localhost:8020/metadata/{enterprise_number}/manager/{manager_info['extension']}")
+                    if resp.status_code == 200:
+                        mgr_data = resp.json()
+                        if mgr_data.get('full_name'):
+                            manager_info['name'] = mgr_data['full_name']
+        except Exception as e:
+            logger.warning(f"Failed to enrich names from metadata: {e}")
         
         # Функция для конвертации времени в GMT+3
-        def to_gmt3(dt):
-            if dt is None:
+        def to_gmt3(dt_obj):
+            if dt_obj is None:
                 return None
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt.astimezone(timezone(timedelta(hours=3)))
+            if dt_obj.tzinfo is None:
+                dt_obj = dt_obj.replace(tzinfo=timezone.utc)
+            return dt_obj.astimezone(timezone(timedelta(hours=3)))
         
-        # Функция для форматирования телефона с префиксами
+        # Функция для форматирования телефона
         def format_phone(phone):
             if not phone:
                 return ""
-            # Убираем все кроме цифр
             digits = ''.join(filter(str.isdigit, str(phone)))
             if len(digits) == 12 and digits.startswith('375'):
-                # Формат: +375 (XX) XXX-XX-XX
                 return f"+{digits[0:3]} ({digits[3:5]}) {digits[5:8]}-{digits[8:10]}-{digits[10:12]}"
             return phone
         
