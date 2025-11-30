@@ -4,7 +4,6 @@ from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
-from app.utils.logger_client import call_logger
 from app.utils.call_tracer import log_telegram_event
 from .utils import (
     format_phone_number,
@@ -67,21 +66,6 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
                     logging.warning(f"[process_start] Enterprise not found for Token '{token}'")
     except Exception as e:
         logging.error(f"[process_start] Failed to resolve enterprise_number: {e}")
-
-    # ───────── Логирование start события в Call Logger (ФОНОВО) ─────────
-    try:
-        await call_logger.log_call_event(
-            enterprise_number=enterprise_number,
-            unique_id=uid,
-            event_type="start",
-            event_data=data,
-            phone_number=phone,
-            chat_id=chat_id,
-            background=True
-        )
-        logging.info(f"[process_start] Queued start event to Call Logger: {uid}")
-    except Exception as e:
-        logging.warning(f"[process_start] Failed to queue start event: {e}")
 
     # ───────── Шаг 3. Формируем текст согласно Пояснению ─────────
     if is_int:
@@ -154,21 +138,6 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
         callee,
         is_int
     )
-
-    # ───────── Шаг 8. Логируем отправленное Telegram сообщение ─────────
-    try:
-        await call_logger.log_telegram_message(
-            enterprise_number=enterprise_number,
-            unique_id=uid,
-            chat_id=chat_id,
-            message_type="start",
-            action="send",
-            message_id=sent.message_id,
-            message_text=safe_text,
-            background=True
-        )
-    except Exception as e:
-        logging.warning(f"[process_start] Failed to log telegram message: {e}")
 
     logging.info(f"[process_start] Successfully sent start message {sent.message_id} for {phone_for_grouping}")
     

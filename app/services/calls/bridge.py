@@ -10,7 +10,6 @@ from app.services.events import save_telegram_message
 from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
-from app.utils.logger_client import call_logger
 from app.utils.call_tracer import log_telegram_event
 from .utils import (
     format_phone_number,
@@ -76,20 +75,6 @@ async def process_bridge(bot: Bot, chat_id: int, data: dict):
                     logging.warning(f"[process_bridge] Enterprise not found for Token '{token}'")
     except Exception as e:
         logging.error(f"[process_bridge] Failed to resolve enterprise_number: {e}")
-
-    # ───────── Логирование bridge события в Call Logger (ФОНОВО) ─────────
-    try:
-        await call_logger.log_call_event(
-            enterprise_number=enterprise_number,
-            unique_id=uid,
-            event_type="bridge",
-            event_data=data,
-            chat_id=chat_id,
-            background=True
-        )
-        logging.info(f"[process_bridge] Queued bridge event to Call Logger: {uid}")
-    except Exception as e:
-        logging.warning(f"[process_bridge] Failed to queue bridge event: {e}")
     
     # Проверяем нужно ли отправлять этот bridge
     if should_send_bridge(data):
@@ -137,23 +122,9 @@ async def process_bridge_create(bot: Bot, chat_id: int, data: dict):
         logging.error(f"[process_bridge_create] Failed to resolve enterprise_number: {e}")
 
     try:
-        # ИСПРАВЛЕНО: Всегда используем Asterisk UniqueId, bridge_id передаём отдельно для группировки
-        # Если uid пустой - НЕ логируем событие (bridge_create без UniqueId бесполезен для трейса)
-        if uid:
-            await call_logger.log_call_event(
-                enterprise_number=enterprise_number,
-                unique_id=uid,
-                event_type="bridge_create",
-                event_data=data,
-                chat_id=chat_id,
-                bridge_unique_id=bridge_id,  # Передаём bridge_id для группировки
-                background=True
-            )
-            logging.info(f"[process_bridge_create] Queued bridge_create event to Call Logger: uid={uid}, bridge_id={bridge_id}")
-        else:
-            logging.info(f"[process_bridge_create] Skipping bridge_create logging - no UniqueId (bridge_id={bridge_id})")
+        logging.info(f"[process_bridge_create] bridge_create event: uid={uid}, bridge_id={bridge_id}")
     except Exception as e:
-        logging.warning(f"[process_bridge_create] Failed to queue bridge_create event: {e}")
+        logging.warning(f"[process_bridge_create] Failed to process bridge_create event: {e}")
     
     # Пока просто логируем событие без отправки Telegram сообщений
     # В будущем можно добавить логику отправки уведомлений
@@ -203,23 +174,7 @@ async def process_bridge_leave(bot: Bot, chat_id: int, data: dict):
     except Exception as e:
         logging.error(f"[process_bridge_leave] Failed to resolve enterprise_number: {e}")
 
-    try:
-        # ИСПРАВЛЕНО: Логируем только если есть UniqueId
-        if uid:
-            await call_logger.log_call_event(
-                enterprise_number=enterprise_number,
-                unique_id=uid,
-                event_type="bridge_leave",
-                event_data=data,
-                chat_id=chat_id,
-                bridge_unique_id=bridge_id,  # Передаём bridge_id для группировки
-                background=True
-            )
-            logging.info(f"[process_bridge_leave] Queued bridge_leave event to Call Logger: uid={uid}, bridge_id={bridge_id}")
-        else:
-            logging.info(f"[process_bridge_leave] Skipping bridge_leave logging - no UniqueId (bridge_id={bridge_id})")
-    except Exception as e:
-        logging.warning(f"[process_bridge_leave] Failed to queue bridge_leave event: {e}")
+    logging.info(f"[process_bridge_leave] bridge_leave event: uid={uid}, bridge_id={bridge_id}")
     
     # Обновляем active_bridges - удаляем участника если мост пустеет
     if uid in active_bridges:
@@ -340,18 +295,7 @@ async def process_new_callerid(bot: Bot, chat_id: int, data: dict):
     except Exception as e:
         logging.error(f"[process_new_callerid] Failed to resolve enterprise_number: {e}")
 
-    try:
-        await call_logger.log_call_event(
-            enterprise_number=enterprise_number,
-            unique_id=uid,
-            event_type="new_callerid",
-            event_data=data,
-            chat_id=chat_id,
-            background=True
-        )
-        logging.info(f"[process_new_callerid] Queued new_callerid event to Call Logger: {uid}")
-    except Exception as e:
-        logging.warning(f"[process_new_callerid] Failed to queue new_callerid event: {e}")
+    logging.info(f"[process_new_callerid] new_callerid event: uid={uid}")
     
     # Обновляем активные мосты с новой информацией о CallerID
     if uid in active_bridges:
@@ -855,21 +799,6 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
             callee=callee,
             is_internal=is_internal
         )
-        
-        # ───────── Логируем отправленное Telegram сообщение ─────────
-        try:
-            await call_logger.log_telegram_message(
-                enterprise_number=enterprise_number,
-                unique_id=uid,
-                chat_id=chat_id,
-                message_type="bridge",
-                action="send",
-                message_id=message_id,
-                message_text=text,
-                background=True
-            )
-        except Exception as e:
-            logging.warning(f"[send_bridge_to_single_chat] Failed to log telegram message: {e}")
         
         logging.info(f"[send_bridge_to_single_chat] Successfully sent bridge message {message_id} for {phone_for_grouping}")
         

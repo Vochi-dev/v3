@@ -15,7 +15,6 @@ from app.services.postgres import get_pool
 from app.services.asterisk_logs import save_asterisk_log
 from app.services.postgres import get_pool
 from app.services.metadata_client import metadata_client, extract_internal_phone_from_channel, extract_line_id_from_exten
-from app.utils.logger_client import call_logger
 from app.utils.call_tracer import log_telegram_event
 from app.utils.user_phones import (
     get_all_internal_phones_by_tg_id,
@@ -214,20 +213,6 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         logging.info(f"[process_hangup] Phone for grouping: {phone_for_grouping}")
         logging.info(f"[process_hangup] Status: {call_status}, Type: {call_type}")
         logging.info(f"[process_hangup] DEBUG: caller='{caller}', exts={exts}, connected='{connected}'")
-
-        # ───────── Логирование hangup события в Call Logger (ФОНОВО) ─────────
-        try:
-            await call_logger.log_call_event(
-                enterprise_number=enterprise_number,
-                unique_id=uid,
-                event_type="hangup",
-                event_data=data,
-                chat_id=chat_id,
-                background=True
-            )
-            logging.info(f"[process_hangup] Queued hangup event to Call Logger: {uid}")
-        except Exception as e:
-            logging.warning(f"[process_hangup] Failed to queue hangup event: {e}")
 
         # БЕЗОПАСНАЯ ПРОВЕРКА МАССИВОВ
         try:
@@ -964,21 +949,6 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 is_int
             )
             
-            # ───────── Логируем отправленное Telegram сообщение ─────────
-            try:
-                await call_logger.log_telegram_message(
-                    enterprise_number=enterprise_number,
-                    unique_id=uid,
-                    chat_id=chat_id,
-                    message_type="hangup",
-                    action="send",
-                    message_id=sent.message_id,
-                    message_text=safe_text,
-                    background=True
-                )
-            except Exception as e:
-                logging.warning(f"[process_hangup] Failed to log telegram message: {e}")
-        
         # ───────── Шаг 11. Уведомление U‑ON через 8020 (реальный звонок завершён) ─────────
         try:
             ext_for_notify = exts[0] if exts else (connected or "")

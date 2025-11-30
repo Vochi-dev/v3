@@ -46,3 +46,4 @@ test_s3_temp*
 
 # System files
 .DS_Store
+call_tracer/
