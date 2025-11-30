@@ -999,66 +999,138 @@ async def view_call_details(
         if not log_files:
             raise HTTPException(status_code=404, detail=f"No log files found for enterprise {enterprise_number}")
         
-        # Собираем все события для данного unique_id из всех файлов
-        ast_events = []  # События Asterisk
-        tg_events = []   # События Telegram
+        # ═══════════════════════════════════════════════════════════════════
+        # ДВУХПРОХОДНЫЙ АЛГОРИТМ:
+        # 1. Первый проход: находим BridgeUniqueid для нашего звонка
+        # 2. Второй проход: собираем ВСЕ события с этим BridgeUniqueid
+        # ═══════════════════════════════════════════════════════════════════
         
+        # Сначала собираем все строки из всех файлов
+        all_lines = []
         for log_file in log_files:
             try:
                 with open(log_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        if unique_id not in line:
-                            continue
-                        
-                        # Парсим строку лога
-                        # Формат: 2025-11-30 09:08:42,025|AST|hangup|1764493655.61|{...}
-                        # Или: 2025-11-30 09:08:44,283|TG|send|374573193|hangup|63157|1764493655.61|text
-                        parts = line.strip().split('|', 7)  # Максимум 8 частей
-                        if len(parts) < 4:
-                            continue
-                        
-                        timestamp_str = parts[0]
-                        record_type = parts[1]  # AST или TG
-                        
-                        if record_type == 'AST' and len(parts) >= 5:
-                            # AST|event_type|unique_id|json_body
-                            event_type = parts[2]
-                            event_uid = parts[3]
-                            json_body = parts[4] if len(parts) > 4 else '{}'
-                            
-                            if event_uid == unique_id or unique_id in json_body:
-                                try:
-                                    event_data = json.loads(json_body)
-                                except:
-                                    event_data = {}
-                                
-                                ast_events.append({
-                                    'event_timestamp': timestamp_str,
-                                    'event_type': event_type,
-                                    'event_data': event_data
-                                })
-                        
-                        elif record_type == 'TG' and len(parts) >= 7:
-                            # TG|action|chat_id|msg_type|msg_id|unique_id|text
-                            action = parts[2]
-                            chat_id = parts[3]
-                            msg_type = parts[4]
-                            msg_id = parts[5]
-                            event_uid = parts[6]
-                            text = parts[7] if len(parts) > 7 else ''
-                            
-                            if event_uid == unique_id:
-                                tg_events.append({
-                                    'timestamp': timestamp_str,
-                                    'action': action,
-                                    'chat_id': chat_id,
-                                    'message_type': msg_type,
-                                    'message_id': msg_id,
-                                    'text': text
-                                })
+                    all_lines.extend(f.readlines())
             except Exception as e:
                 logger.warning(f"Error reading log file {log_file}: {e}")
                 continue
+        
+        # Первый проход: находим BridgeUniqueid и Phone для нашего unique_id
+        bridge_unique_id = None
+        call_phone = None  # Номер телефона клиента
+        related_unique_ids = {unique_id}  # Множество связанных UniqueId
+        
+        for line in all_lines:
+            if unique_id not in line:
+                continue
+            
+            parts = line.strip().split('|', 7)
+            if len(parts) < 5:
+                continue
+            
+            record_type = parts[1]
+            if record_type == 'AST':
+                json_body = parts[4] if len(parts) > 4 else '{}'
+                try:
+                    event_data = json.loads(json_body)
+                    # Ищем BridgeUniqueid
+                    if event_data.get('BridgeUniqueid') and not bridge_unique_id:
+                        bridge_unique_id = event_data['BridgeUniqueid']
+                        logger.info(f"Found BridgeUniqueid: {bridge_unique_id} for call {unique_id}")
+                    # Ищем Phone (номер клиента)
+                    if event_data.get('Phone') and not call_phone:
+                        call_phone = event_data['Phone']
+                        logger.info(f"Found Phone: {call_phone} for call {unique_id}")
+                except:
+                    pass
+        
+        # Второй проход: собираем все UniqueId связанные с этим BridgeUniqueid
+        for line in all_lines:
+            if bridge_unique_id and bridge_unique_id in line:
+                parts = line.strip().split('|', 7)
+                if len(parts) >= 5 and parts[1] == 'AST':
+                    event_uid = parts[3]
+                    if event_uid:
+                        related_unique_ids.add(event_uid)
+        
+        logger.info(f"Related UniqueIds for call {unique_id}: {related_unique_ids}")
+        
+        # Второй проход: собираем ВСЕ события связанные с этим звонком
+        ast_events = []  # События Asterisk
+        tg_events = []   # События Telegram
+        
+        for line in all_lines:
+            parts = line.strip().split('|', 7)
+            if len(parts) < 4:
+                continue
+            
+            timestamp_str = parts[0]
+            record_type = parts[1]
+            
+            if record_type == 'AST' and len(parts) >= 5:
+                event_type = parts[2]
+                event_uid = parts[3]
+                json_body = parts[4] if len(parts) > 4 else '{}'
+                
+                try:
+                    event_data = json.loads(json_body)
+                except:
+                    event_data = {}
+                
+                # Проверяем, относится ли событие к нашему звонку
+                is_related = False
+                
+                # 1. Прямое совпадение UniqueId
+                if event_uid == unique_id:
+                    is_related = True
+                
+                # 2. UniqueId в списке связанных (найденных через BridgeUniqueid)
+                if event_uid in related_unique_ids:
+                    is_related = True
+                
+                # 3. Совпадение по BridgeUniqueid
+                if bridge_unique_id and event_data.get('BridgeUniqueid') == bridge_unique_id:
+                    is_related = True
+                
+                # 4. Событие содержит наш unique_id в JSON
+                if unique_id in json_body:
+                    is_related = True
+                
+                # 5. new_callerid с тем же номером телефона (CallerIDNum)
+                if event_type == 'new_callerid' and call_phone:
+                    caller_id_num = event_data.get('CallerIDNum', '')
+                    if caller_id_num == call_phone:
+                        is_related = True
+                        if event_uid:
+                            related_unique_ids.add(event_uid)
+                
+                if is_related:
+                    ast_events.append({
+                        'event_timestamp': timestamp_str,
+                        'event_type': event_type,
+                        'event_data': event_data,
+                        'unique_id': event_uid
+                    })
+            
+            elif record_type == 'TG' and len(parts) >= 7:
+                # TG|action|chat_id|msg_type|msg_id|unique_id|text
+                action = parts[2]
+                chat_id = parts[3]
+                msg_type = parts[4]
+                msg_id = parts[5]
+                event_uid = parts[6]
+                text = parts[7] if len(parts) > 7 else ''
+                
+                # TG события связываем по всем related_unique_ids
+                if event_uid in related_unique_ids:
+                    tg_events.append({
+                        'timestamp': timestamp_str,
+                        'action': action,
+                        'chat_id': chat_id,
+                        'message_type': msg_type,
+                        'message_id': msg_id,
+                        'text': text
+                    })
         
         if not ast_events:
             raise HTTPException(status_code=404, detail=f"Call {unique_id} not found in logs")

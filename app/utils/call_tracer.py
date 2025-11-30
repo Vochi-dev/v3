@@ -15,12 +15,8 @@ _call_tracer_loggers: Dict[str, logging.Logger] = {}
 _module_logger = logging.getLogger("call_tracer")
 
 
-def get_call_tracer_logger(enterprise_number: str) -> logging.Logger:
-    """Возвращает логгер для юнита, создаёт папку и файл при необходимости."""
-    if enterprise_number in _call_tracer_loggers:
-        return _call_tracer_loggers[enterprise_number]
-    
-    # Создаём папку для юнита
+def _create_call_tracer_logger(enterprise_number: str) -> logging.Logger:
+    """Создаёт новый логгер для юнита."""
     log_dir = f"call_tracer/{enterprise_number}"
     os.makedirs(log_dir, exist_ok=True)
     
@@ -36,13 +32,26 @@ def get_call_tracer_logger(enterprise_number: str) -> logging.Logger:
     handler.suffix = "%Y-%m-%d"  # Формат даты в имени файла
     
     tracer_logger = logging.getLogger(f"call_tracer_{enterprise_number}")
+    # Удаляем старые handlers если есть
+    for h in tracer_logger.handlers[:]:
+        tracer_logger.removeHandler(h)
+        h.close()
     tracer_logger.addHandler(handler)
     tracer_logger.setLevel(logging.INFO)
     tracer_logger.propagate = False
     
-    _call_tracer_loggers[enterprise_number] = tracer_logger
     _module_logger.info(f"Created call_tracer logger for enterprise {enterprise_number}")
     return tracer_logger
+
+
+def get_call_tracer_logger(enterprise_number: str) -> logging.Logger:
+    """Возвращает логгер для юнита. Создаёт новый если нет в кэше."""
+    if enterprise_number in _call_tracer_loggers:
+        return _call_tracer_loggers[enterprise_number]
+    
+    # Создаём новый логгер
+    _call_tracer_loggers[enterprise_number] = _create_call_tracer_logger(enterprise_number)
+    return _call_tracer_loggers[enterprise_number]
 
 
 def log_telegram_event(

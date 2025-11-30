@@ -584,14 +584,19 @@
                             {% if event.event_data %}
                             <p class="timeline-subtitle">
                                 {% if event.event_type == 'dial' and event.event_data.Phone %}
-                                Номер: {{ event.event_data.Phone }}
-                                {% if event.event_data.Extensions %}
-                                → Добавочный: {{ event.event_data.Extensions|join(', ') }}
-                                {% endif %}
+                                    {% if event.event_data.CallType == 1 %}
+                                    {# Исходящий: менеджер → клиент #}
+                                    ☎️ {{ event.event_data.Extensions|join(', ') if event.event_data.Extensions else 'Менеджер' }} → 💰 {{ format_phone(event.event_data.Phone) }}
+                                    {% else %}
+                                    {# Входящий: клиент → менеджер #}
+                                    💰 {{ format_phone(event.event_data.Phone) }} → ☎️ {{ event.event_data.Extensions|join(', ') if event.event_data.Extensions else 'Менеджер' }}
+                                    {% endif %}
                                 {% elif event.event_type == 'bridge' and event.event_data.CallerIDNum %}
-                                Участник: {{ event.event_data.CallerIDName or event.event_data.CallerIDNum }} ({{ event.event_data.CallerIDNum }})
+                                Участник: {{ event.event_data.CallerIDName or event.event_data.CallerIDNum }} ({{ format_phone(event.event_data.CallerIDNum) if event.event_data.CallerIDNum|length > 4 else event.event_data.CallerIDNum }})
                                 {% elif event.event_type == 'hangup' and event.event_data.CallStatus %}
                                 Статус: {{ event.event_data.CallStatus }}
+                                {% elif event.event_type == 'new_callerid' and event.event_data.CallerIDNum %}
+                                CallerID: {{ format_phone(event.event_data.CallerIDNum) }}
                                 {% endif %}
                             </p>
                             {% endif %}

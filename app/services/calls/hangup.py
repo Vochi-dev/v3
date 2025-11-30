@@ -794,6 +794,11 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         
         try:
             ent_num = data.get("_enterprise_number", enterprise_number)
+            # Формируем текст для лога с URL деталей звонка
+            log_text = safe_text
+            if enterprise_secret and uid:
+                log_text = f"{safe_text} | URL: {details_url}"
+            
             if should_comment and reply_to_id:
                 logging.info(f"[process_hangup] Sending as comment to message {reply_to_id}")
                 sent = await bot.send_message(
@@ -804,7 +809,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     disable_web_page_preview=True,
                     reply_markup=reply_markup
                 )
-                log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, safe_text)
+                log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, log_text)
                 logging.info(f"[process_hangup] ✅ HANGUP COMMENT SENT: message_id={sent.message_id}")
             else:
                 logging.info(f"[process_hangup] Sending as standalone message")
@@ -815,7 +820,7 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     disable_web_page_preview=True,
                     reply_markup=reply_markup
                 )
-                log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, safe_text)
+                log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, log_text)
                 logging.info(f"[process_hangup] ✅ HANGUP MESSAGE SENT: message_id={sent.message_id}")
                 
         except BadRequest as e:
