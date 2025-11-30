@@ -1056,8 +1056,9 @@ async def view_call_details(
         logger.info(f"Related UniqueIds for call {unique_id}: {related_unique_ids}")
         
         # Второй проход: собираем ВСЕ события связанные с этим звонком
-        ast_events = []  # События Asterisk
-        tg_events = []   # События Telegram
+        ast_events = []   # События Asterisk
+        tg_events = []    # События Telegram
+        http_events = []  # HTTP запросы
         
         for line in all_lines:
             parts = line.strip().split('|', 7)
@@ -1131,6 +1132,35 @@ async def view_call_details(
                         'message_id': msg_id,
                         'text': text
                     })
+            
+            elif record_type == 'HTTP' and len(parts) >= 7:
+                # HTTP|unique_id|method|url|status_code|request_json|response_json
+                event_uid = parts[2]
+                method = parts[3]
+                url = parts[4]
+                status_code = parts[5]
+                req_json = parts[6] if len(parts) > 6 else '{}'
+                resp_json = parts[7] if len(parts) > 7 else '{}'
+                
+                # HTTP события связываем по unique_id
+                if event_uid in related_unique_ids:
+                    try:
+                        req_data = json.loads(req_json) if req_json else {}
+                    except:
+                        req_data = {"raw": req_json}
+                    try:
+                        resp_data = json.loads(resp_json) if resp_json else {}
+                    except:
+                        resp_data = {"raw": resp_json}
+                    
+                    http_events.append({
+                        'timestamp': timestamp_str,
+                        'method': method,
+                        'url': url,
+                        'status_code': int(status_code) if status_code.isdigit() else 0,
+                        'request': req_data,
+                        'response': resp_data
+                    })
         
         if not ast_events:
             raise HTTPException(status_code=404, detail=f"Call {unique_id} not found in logs")
@@ -1196,6 +1226,7 @@ async def view_call_details(
             'enterprise_number': enterprise_number,
             'call_events': ast_events,
             'telegram_messages': tg_events,
+            'http_requests': http_events,
             'unique_events': ast_events  # Для совместимости с шаблоном
         }
         

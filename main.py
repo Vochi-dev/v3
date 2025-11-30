@@ -947,7 +947,8 @@ async def _dispatch_to_all(handler, body: dict):
                         internal_phone=internal_phone,
                         external_phone=external_phone,
                         line_id=line_id,
-                        short_names=False
+                        short_names=False,
+                        unique_id=unique_id  # Для логирования HTTP запросов
                     )
                     body["_enriched_data"] = enriched_data
                     body["_internal_phone"] = internal_phone

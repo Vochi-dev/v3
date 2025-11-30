@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Детали звонка #{{ unique_id }}</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
     <style>
         /* ============================================
            PLANFIX UI KIT - CSS VARIABLES
@@ -621,44 +625,6 @@
                                     {% set event_timestamp = event.event_timestamp %}
                                     {% set has_actions = false %}
                                     
-                                    {# Проверяем HTTP запросы - группируем одинаковые #}
-                                    {% if call_data.http_requests %}
-                                        {% set seen_http = {} %}
-                                        {% for req in call_data.http_requests %}
-                                            {% if req.timestamp and event_timestamp and 
-                                                 (req.timestamp[:19] == event_timestamp[:19] or 
-                                                  (req.timestamp[:16] == event_timestamp[:16])) %}
-                                                {% set req_key = req.method ~ '|' ~ req.url %}
-                                                {% if req_key not in seen_http %}
-                                                    {% set _ = seen_http.update({req_key: req}) %}
-                                                    {% set has_actions = true %}
-                                                    <li>
-                                                        <details>
-                                                            <summary class="cursor-pointer hover:text-blue-700">
-                                                                🌐 HTTP: {{ req.method }} → {{ req.url }}
-                                                                {% if req.status_code %}
-                                                                <span class="{% if req.status_code == 200 %}text-green-600{% else %}text-red-600{% endif %}">
-                                                                    ({{ req.status_code }})
-                                                                </span>
-                                                                {% endif %}
-                                                            </summary>
-                                                            <div class="mt-2 ml-6 bg-white p-3 rounded border border-gray-300">
-                                                                {% if req.request_body %}
-                                                                <p class="text-xl font-bold text-gray-900 mb-1">Запрос:</p>
-                                                                <pre class="text-xl font-bold text-gray-900 bg-gray-100 p-2 rounded overflow-x-auto mb-3">{{ req.request_body|tojson(indent=2) if req.request_body is not string else req.request_body }}</pre>
-                                                                {% endif %}
-                                                                {% if req.response_data %}
-                                                                <p class="text-xl font-bold text-gray-900 mb-1">Ответ:</p>
-                                                                <pre class="text-xl font-bold text-gray-900 bg-gray-100 p-2 rounded overflow-x-auto">{{ req.response_data|tojson(indent=2) if req.response_data is not string else req.response_data }}</pre>
-                                                                {% endif %}
-                                                            </div>
-                                                        </details>
-                                                    </li>
-                                                {% endif %}
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% endif %}
-                                    
                                     {# Проверяем Telegram сообщения - сопоставляем по типу события, показываем только для первого события данного типа #}
                                     {% if call_data.telegram_messages and event.event_type not in shown_tg_types %}
                                         {% for msg in call_data.telegram_messages %}
@@ -693,28 +659,34 @@
                                         {% endfor %}
                                     {% endif %}
                                     
-                                    {# Проверяем SQL запросы #}
-                                    {% if call_data.sql_queries %}
-                                        {% for sql in call_data.sql_queries %}
-                                            {% if sql.timestamp and event_timestamp and 
-                                                 (sql.timestamp[:19] == event_timestamp[:19] or 
-                                                  (sql.timestamp[:16] == event_timestamp[:16])) %}
-                                                {% set has_actions = true %}
-                                                <li>💾 SQL: {{ sql.query[:50] }}...</li>
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% endif %}
-                                    
-                                    {# Проверяем интеграции #}
-                                    {% if call_data.integration_responses %}
-                                        {% for integ in call_data.integration_responses %}
-                                            {% if integ.timestamp and event_timestamp and 
-                                                 (integ.timestamp[:19] == event_timestamp[:19] or 
-                                                  (integ.timestamp[:16] == event_timestamp[:16])) %}
-                                                {% set has_actions = true %}
-                                                <li>🔗 Интеграция: {{ integ.integration_name }}</li>
-                                            {% endif %}
-                                        {% endfor %}
+                                    {# HTTP запросы - один раскрывающийся блок со всеми запросами внутри #}
+                                    {% if call_data.http_requests and event.event_type == 'dial' and loop.first %}
+                                        {% set has_actions = true %}
+                                        <li>
+                                            <details>
+                                                <summary class="cursor-pointer hover:text-blue-700">
+                                                    🌐 HTTP запросы ({{ call_data.http_requests|length }})
+                                                </summary>
+                                                <div class="mt-2 ml-6">
+                                                    {% for http in call_data.http_requests %}
+                                                    <div class="mb-2 p-2 bg-white rounded border border-gray-200">
+                                                        <details>
+                                                            <summary class="cursor-pointer text-sm">
+                                                                {{ http.method }} {{ http.url }}
+                                                                <span class="{% if http.status_code == 200 %}text-green-600{% else %}text-red-600{% endif %}">
+                                                                    ({{ http.status_code }})
+                                                                </span>
+                                                            </summary>
+                                                            <div class="mt-2 text-sm">
+                                                                <p class="text-gray-600">Запрос: {{ http.request|tojson }}</p>
+                                                                <p class="text-gray-800 mt-1">Ответ: {{ http.response|tojson }}</p>
+                                                            </div>
+                                                        </details>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </details>
+                                        </li>
                                     {% endif %}
                                 </ul>
                             </div>
@@ -729,189 +701,6 @@
                 {% else %}
                 <p style="color: var(--pf-gray); text-align: center; padding: var(--pf-spacing-xxl) 0; font-size: 26px;">Нет данных о событиях</p>
                 {% endif %}
-            </div>
-
-            <!-- Блок 4: Telegram уведомления -->
-            <div class="pf-card">
-                <div class="accordion-header">
-                    <h2>📱 Telegram уведомления</h2>
-                    <button onclick="toggleAccordion('telegram')" class="accordion-toggle">
-                        <span id="telegram-icon">▼</span> Показать/Скрыть
-                    </button>
-                </div>
-                
-                <div id="telegram-content" class="accordion-content">
-                    {% if call_data.telegram_messages %}
-                    <div class="space-y-4">
-                        {% for msg in call_data.telegram_messages %}
-                        <div class="border-l-4 border-blue-500 pl-4 py-2 bg-blue-50 rounded">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm text-gray-600">
-                                    Chat ID: {{ msg.chat_id }} | Message ID: {{ msg.message_id }}
-                                </span>
-                                <span class="text-xs text-gray-500">{{ msg.sent_at }}</span>
-                            </div>
-                            <p class="text-gray-800">{{ msg.message_text }}</p>
-                            {% if msg.has_buttons %}
-                            <p class="text-xs text-gray-600 mt-2">🔘 С кнопками</p>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <p class="mt-4 text-sm text-gray-600">
-                        Всего отправлено: <strong>{{ call_data.telegram_messages|length }}</strong> сообщений
-                    </p>
-                    {% else %}
-                    <p class="text-gray-500 text-center py-4">Нет отправленных сообщений</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Блок 5: SQL запросы -->
-            <div class="pf-card">
-                <div class="accordion-header">
-                    <h2>💾 Запросы к базе данных</h2>
-                    <button onclick="toggleAccordion('sql')" class="accordion-toggle">
-                        <span id="sql-icon">▼</span> Показать/Скрыть
-                    </button>
-                </div>
-                
-                <div id="sql-content" class="accordion-content">
-                    {% if call_data.sql_queries %}
-                    <div class="space-y-4">
-                        {% for query in call_data.sql_queries %}
-                        <div class="border-l-4 border-purple-500 pl-4 py-2 bg-purple-50 rounded">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-semibold">{{ query.query_type or 'SQL' }}</span>
-                                <span class="text-xs">
-                                    ⏱️ {{ query.execution_time_ms }}ms
-                                    {% if query.success %}
-                                    <span class="status-success">✅</span>
-                                    {% else %}
-                                    <span class="status-error">❌</span>
-                                    {% endif %}
-                                </span>
-                            </div>
-                            <details>
-                                <summary class="cursor-pointer text-sm text-purple-600 hover:text-purple-800">
-                                    Показать запрос
-                                </summary>
-                                <pre class="mt-2 text-xs">{{ query.query_text }}</pre>
-                            </details>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <p class="mt-4 text-sm text-gray-600">
-                        Всего выполнено: <strong>{{ call_data.sql_queries|length }}</strong> запросов
-                    </p>
-                    {% else %}
-                    <p class="text-gray-500 text-center py-4">Нет данных о SQL запросах</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Блок 6: Интеграции -->
-            <div class="pf-card">
-                <div class="accordion-header">
-                    <h2>🔗 Запросы к интеграциям</h2>
-                    <button onclick="toggleAccordion('integrations')" class="accordion-toggle">
-                        <span id="integrations-icon">▼</span> Показать/Скрыть
-                    </button>
-                </div>
-                
-                <div id="integrations-content" class="accordion-content">
-                    {% if call_data.integration_responses %}
-                    <div class="space-y-4">
-                        {% for integration in call_data.integration_responses %}
-                        <div class="border-l-4 border-green-500 pl-4 py-2 bg-green-50 rounded">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-semibold">
-                                    {{ integration.integration_name or 'Интеграция' }}
-                                </span>
-                                <span class="text-xs">
-                                    ⏱️ {{ integration.response_time_ms }}ms
-                                    {% if integration.status_code == 200 %}
-                                    <span class="status-success">✅ {{ integration.status_code }}</span>
-                                    {% else %}
-                                    <span class="status-error">❌ {{ integration.status_code }}</span>
-                                    {% endif %}
-                                </span>
-                            </div>
-                            <p class="text-sm text-gray-700 mb-2">
-                                {{ integration.method }} {{ integration.url }}
-                            </p>
-                            <details>
-                                <summary class="cursor-pointer text-sm text-green-600 hover:text-green-800">
-                                    Показать запрос и ответ
-                                </summary>
-                                <div class="mt-2 space-y-2">
-                                    <div>
-                                        <p class="text-xs font-semibold mb-1">Запрос:</p>
-                                        <pre class="text-xs">{{ integration.request_body|default('N/A')|tojson(indent=2) if integration.request_body else 'N/A' }}</pre>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs font-semibold mb-1">Ответ:</p>
-                                        <pre class="text-xs">{{ integration.response_body|default('N/A')|tojson(indent=2) if integration.response_body else 'N/A' }}</pre>
-                                    </div>
-                                </div>
-                            </details>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <p class="mt-4 text-sm text-gray-600">
-                        Всего запросов: <strong>{{ call_data.integration_responses|length }}</strong>
-                    </p>
-                    {% else %}
-                    <p class="text-gray-500 text-center py-4">Нет запросов к интеграциям</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Блок 7: HTTP запросы -->
-            <div class="pf-card">
-                <div class="accordion-header">
-                    <h2>🌐 HTTP запросы</h2>
-                    <button onclick="toggleAccordion('http')" class="accordion-toggle">
-                        <span id="http-icon">▼</span> Показать/Скрыть
-                    </button>
-                </div>
-                
-                <div id="http-content" class="accordion-content">
-                    {% if call_data.http_requests %}
-                    <div class="space-y-4">
-                        {% for req in call_data.http_requests %}
-                        <div class="border-l-4 border-orange-500 pl-4 py-2 bg-orange-50 rounded">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-semibold">{{ req.method }} {{ req.url }}</span>
-                                <span class="text-xs">
-                                    ⏱️ {{ req.duration_ms|default('N/A') }}ms
-                                    {% if req.status_code is defined and req.status_code is number %}
-                                        {% if req.status_code >= 200 and req.status_code < 300 %}
-                                        <span class="status-success">✅ {{ req.status_code }}</span>
-                                        {% else %}
-                                        <span class="status-error">❌ {{ req.status_code }}</span>
-                                        {% endif %}
-                                    {% elif req.status_code is defined %}
-                                        <span class="text-gray-500">{{ req.status_code }}</span>
-                                    {% endif %}
-                                </span>
-                            </div>
-                            <details>
-                                <summary class="cursor-pointer text-sm text-orange-600 hover:text-orange-800">
-                                    Показать детали
-                                </summary>
-                                <pre class="mt-2 text-xs">{{ req|tojson(indent=2) }}</pre>
-                            </details>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <p class="mt-4 text-sm text-gray-600">
-                        Всего запросов: <strong>{{ call_data.http_requests|length }}</strong>
-                    </p>
-                    {% else %}
-                    <p class="text-gray-500 text-center py-4">Нет HTTP запросов</p>
-                    {% endif %}
-                </div>
             </div>
 
             <!-- Footer -->

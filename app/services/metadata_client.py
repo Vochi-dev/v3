@@ -183,7 +183,7 @@ class MetadataClient:
     
     async def enrich_message_data(self, enterprise_number: str, line_id: Optional[str] = None,
                                   internal_phone: Optional[str] = None, external_phone: Optional[str] = None,
-                                  short_names: bool = False) -> Dict[str, Any]:
+                                  short_names: bool = False, unique_id: str = "") -> Dict[str, Any]:
         """
         Обогатить данные сообщения метаданными
         
@@ -193,6 +193,7 @@ class MetadataClient:
             internal_phone: Внутренний номер
             external_phone: Внешний номер
             short_names: Использовать короткие имена менеджеров
+            unique_id: UniqueId звонка для логирования
             
         Returns:
             Словарь с обогащенными данными:
@@ -202,18 +203,25 @@ class MetadataClient:
             - manager_personal_phone: Личный номер менеджера
             - customer_name: Имя клиента
         """
+        from app.utils.call_tracer import log_http_request
+        
         enriched_data = {}
         
         # Обогащаем данными линии
         if line_id:
             try:
+                url = f"{self.base_url}/metadata/{enterprise_number}/line/{line_id}"
                 async with httpx.AsyncClient() as client:
-                    response = await client.get(
-                        f"{self.base_url}/metadata/{enterprise_number}/line/{line_id}",
-                        timeout=5.0
+                    response = await client.get(url, timeout=5.0)
+                    line_data = response.json() if response.status_code == 200 else {}
+                    
+                    # Логируем HTTP запрос
+                    log_http_request(
+                        enterprise_number, unique_id, "GET", url,
+                        response.status_code, {"line_id": line_id}, line_data
                     )
+                    
                     if response.status_code == 200:
-                        line_data = response.json()
                         enriched_data["line_name"] = line_data.get("name", f"Линия {line_id}")
                         enriched_data["line_operator"] = line_data.get("operator", "Unknown")
                     else:
@@ -227,13 +235,18 @@ class MetadataClient:
         # Обогащаем данными менеджера
         if internal_phone:
             try:
+                url = f"{self.base_url}/metadata/{enterprise_number}/manager/{internal_phone}"
                 async with httpx.AsyncClient() as client:
-                    response = await client.get(
-                        f"{self.base_url}/metadata/{enterprise_number}/manager/{internal_phone}",
-                        timeout=5.0
+                    response = await client.get(url, timeout=5.0)
+                    manager_data = response.json() if response.status_code == 200 else {}
+                    
+                    # Логируем HTTP запрос
+                    log_http_request(
+                        enterprise_number, unique_id, "GET", url,
+                        response.status_code, {"internal_phone": internal_phone}, manager_data
                     )
+                    
                     if response.status_code == 200:
-                        manager_data = response.json()
                         if short_names:
                             enriched_data["manager_name"] = manager_data.get("short_name", f"Доб.{internal_phone}")
                         else:
@@ -250,13 +263,18 @@ class MetadataClient:
         # Обогащаем данными клиента
         if external_phone:
             try:
+                url = f"{self.base_url}/customer-name/{enterprise_number}/{external_phone}"
                 async with httpx.AsyncClient() as client:
-                    response = await client.get(
-                        f"{self.base_url}/customer-name/{enterprise_number}/{external_phone}",
-                        timeout=5.0
+                    response = await client.get(url, timeout=5.0)
+                    customer_data = response.json() if response.status_code == 200 else {}
+                    
+                    # Логируем HTTP запрос
+                    log_http_request(
+                        enterprise_number, unique_id, "GET", url,
+                        response.status_code, {"phone": external_phone}, customer_data
                     )
+                    
                     if response.status_code == 200:
-                        customer_data = response.json()
                         enriched_data["customer_name"] = customer_data.get("name", "Неизвестный")
                     else:
                         enriched_data["customer_name"] = "Неизвестный"

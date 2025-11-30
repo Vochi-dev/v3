@@ -48,8 +48,8 @@ def log_telegram_event(
     try:
         if not enterprise_number:
             return
-        # Обрезаем текст до 200 символов и убираем переносы строк
-        text_truncated = text[:200].replace('\n', ' ').replace('\r', '') if text else ""
+        # Обрезаем текст до 1000 символов и убираем переносы строк
+        text_truncated = text[:1000].replace('\n', ' ').replace('\r', '') if text else ""
         message = f"TG|{action}|{chat_id}|{message_type}|{message_id}|{unique_id}|{text_truncated}"
         _write_to_log(enterprise_number, message)
     except Exception as e:
@@ -73,4 +73,57 @@ def log_asterisk_event(
         _write_to_log(enterprise_number, message)
     except Exception as e:
         _module_logger.warning(f"Failed to log asterisk event: {e}")
+
+
+def log_http_request(
+    enterprise_number: str,
+    unique_id: str,
+    method: str,
+    url: str,
+    status_code: int,
+    request_data: dict = None,
+    response_data: dict = None
+):
+    """
+    Логирует HTTP запрос в call_tracer.
+    Формат: timestamp|HTTP|unique_id|method|url|status_code|request_json|response_json
+    """
+    try:
+        if not enterprise_number:
+            return
+        req_json = json.dumps(request_data, ensure_ascii=False) if request_data else "{}"
+        resp_json = json.dumps(response_data, ensure_ascii=False) if response_data else "{}"
+        # Обрезаем длинные ответы
+        if len(resp_json) > 500:
+            resp_json = resp_json[:500] + "..."
+        message = f"HTTP|{unique_id}|{method}|{url}|{status_code}|{req_json}|{resp_json}"
+        _write_to_log(enterprise_number, message)
+    except Exception as e:
+        _module_logger.warning(f"Failed to log http request: {e}")
+
+
+def log_sql_query(
+    enterprise_number: str,
+    unique_id: str,
+    query_type: str,      # SELECT, INSERT, UPDATE, etc.
+    table: str,
+    params: dict = None,
+    result: dict = None
+):
+    """
+    Логирует SQL запрос в call_tracer.
+    Формат: timestamp|SQL|unique_id|query_type|table|params_json|result_json
+    """
+    try:
+        if not enterprise_number:
+            return
+        params_json = json.dumps(params, ensure_ascii=False) if params else "{}"
+        result_json = json.dumps(result, ensure_ascii=False) if result else "{}"
+        # Обрезаем длинные результаты
+        if len(result_json) > 500:
+            result_json = result_json[:500] + "..."
+        message = f"SQL|{unique_id}|{query_type}|{table}|{params_json}|{result_json}"
+        _write_to_log(enterprise_number, message)
+    except Exception as e:
+        _module_logger.warning(f"Failed to log sql query: {e}")
 
