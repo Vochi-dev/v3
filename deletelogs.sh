@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Скрипт для ПОЛНОЙ очистки логов Call Logger для конкретного предприятия
-# Включает очистку партиции в PostgreSQL И ВСЕХ логов на хосте Asterisk
+# Включает очистку файлов в call_tracer/ И ВСЕХ логов на хосте Asterisk
 #
 # Использование: ./deletelogs.sh 0367
 #
 # Что делает скрипт:
-# 1. Очищает партицию предприятия в PostgreSQL (call_traces)
+# 1. Очищает файлы логов в call_tracer/{enterprise}/ 
 # 2. Подключается к хосту Asterisk по SSH
 # 3. Удаляет SQLite файл Listen_AMI_*.db (основной лог AMI)
 # 4. Очищает Master.csv (CDR записи)
@@ -32,6 +32,9 @@ SSH_PASS="5atx9Ate@pbx"
 ASTERISK_LOG_DIR="/var/log/asterisk"
 ASTERISK_SERVICE="listen_AMI_python.service"
 
+# Директория call_tracer
+CALL_TRACER_DIR="/root/asterisk-webhook/call_tracer"
+
 # Проверка аргументов
 if [ $# -eq 0 ]; then
     echo -e "${RED}❌ Ошибка: не указан номер предприятия${NC}"
@@ -43,7 +46,7 @@ if [ $# -eq 0 ]; then
     echo "  ./deletelogs.sh 0280    # Очистить логи предприятия 0280"
     echo ""
     echo "Скрипт выполняет ПОЛНУЮ очистку:"
-    echo "  1. PostgreSQL: партиция call_traces"
+    echo "  1. call_tracer/{enterprise}/events.log* (файловые логи)"
     echo "  2. Хост Asterisk:"
     echo "     - Listen_AMI_*.db (SQLite лог AMI событий)"
     echo "     - Master.csv (CDR записи)"
@@ -63,7 +66,7 @@ if ! [[ $ENTERPRISE =~ ^[0-9]{4}$ ]]; then
     exit 1
 fi
 
-# Чтение конфигурации БД
+# Чтение конфигурации БД (для получения IP хоста)
 if [ ! -f "db_readme.txt" ]; then
     echo -e "${RED}❌ Ошибка: файл db_readme.txt не найден${NC}"
     exit 1
@@ -114,40 +117,32 @@ echo -e "  IP хоста:    ${YELLOW}$HOST_IP${NC}"
 echo ""
 
 # ═══════════════════════════════════════════════════════════════════
-# ЭТАП 2: Очистка партиции в PostgreSQL
+# ЭТАП 2: Очистка файлов логов в call_tracer/
 # ═══════════════════════════════════════════════════════════════════
 
-echo -e "${CYAN}🗄️  Этап 2: Очистка партиции в PostgreSQL...${NC}"
+echo -e "${CYAN}📁 Этап 2: Очистка файлов логов в call_tracer/$ENTERPRISE/...${NC}"
 
-# Проверяем существование партиции
-PARTITION_EXISTS=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "
-    SELECT COUNT(*) 
-    FROM pg_tables 
-    WHERE schemaname = 'public' 
-    AND tablename = '$ENTERPRISE';
-" | xargs)
+TRACER_PATH="$CALL_TRACER_DIR/$ENTERPRISE"
 
-if [ "$PARTITION_EXISTS" -eq 0 ]; then
-    echo -e "${YELLOW}⚠️  Партиция \"$ENTERPRISE\" не существует в PostgreSQL${NC}"
-    echo -e "  (Это нормально, если предприятие ещё не делало звонков)"
-else
-    # Получаем статистику перед удалением
-    RECORDS_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "
-        SELECT COUNT(*) FROM \"$ENTERPRISE\";
-    " | xargs)
-
-    if [ "$RECORDS_COUNT" -eq 0 ]; then
-        echo -e "${YELLOW}⚠️  Партиция \"$ENTERPRISE\" уже пуста${NC}"
+if [ -d "$TRACER_PATH" ]; then
+    # Подсчитываем файлы и их размер
+    FILE_COUNT=$(find "$TRACER_PATH" -name "events.log*" 2>/dev/null | wc -l)
+    TOTAL_SIZE=$(du -sh "$TRACER_PATH" 2>/dev/null | awk '{print $1}')
+    
+    if [ "$FILE_COUNT" -gt 0 ]; then
+        echo -e "  Найдено файлов: ${YELLOW}$FILE_COUNT${NC}"
+        echo -e "  Общий размер:   ${YELLOW}$TOTAL_SIZE${NC}"
+        
+        # Удаляем все файлы логов
+        rm -f "$TRACER_PATH"/events.log*
+        
+        echo -e "${GREEN}  ✅ Все файлы логов удалены${NC}"
     else
-        echo -e "  Записей в партиции: ${YELLOW}$RECORDS_COUNT${NC}"
-        
-        # Выполняем очистку
-        psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "
-            DELETE FROM \"$ENTERPRISE\";
-        " > /dev/null
-        
-        echo -e "${GREEN}  ✅ Удалено записей: $RECORDS_COUNT${NC}"
+        echo -e "${YELLOW}  ⚠️  Файлы логов не найдены${NC}"
     fi
+else
+    echo -e "${YELLOW}  ⚠️  Директория $TRACER_PATH не существует${NC}"
+    echo -e "  (Это нормально, если предприятие ещё не делало звонков)"
 fi
 echo ""
 
@@ -273,7 +268,7 @@ echo -e "${GREEN}✅ ПОЛНАЯ ОЧИСТКА ЗАВЕРШЕНА УСПЕШН
 echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
 echo ""
 echo -e "📊 Итоги очистки:"
-echo -e "  • PostgreSQL партиция \"$ENTERPRISE\": ${GREEN}очищена${NC}"
+echo -e "  • call_tracer/$ENTERPRISE/: ${GREEN}очищен${NC}"
 echo -e "  • Хост $HOST_IP:"
 echo -e "    - Listen_AMI_*.db (SQLite): ${GREEN}удалён${NC}"
 echo -e "    - Master.csv (CDR): ${GREEN}очищен${NC}"
