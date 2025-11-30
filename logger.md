@@ -2680,3 +2680,758 @@ LIMIT 1;
 ---
 
 **Версия методологии**: 1.0 (создано 2025-11-29)
+
+---
+
+## 🔬 АНАЛИЗ ПАТТЕРНА СВЯЗИ СОБЫТИЙ (2025-11-29)
+
+### 🎯 Цель анализа
+
+Определить **единственный правильный способ** связи всех событий одного звонка в **ОДНУ запись** в базе данных.
+
+### 📊 Исходные данные
+
+**Тестовый звонок:** Юнит 0367 (10.88.10.19)
+
+**Источник:** SQLite база на хосте `/var/log/asterisk/Listen_AMI_2025-11-29.db`, таблица `AlternativeAPIlogs`
+
+### 📝 Последовательность событий
+
+| # | Событие | UniqueId | Ключевые поля |
+|---|---------|----------|---------------|
+| 1 | `dial` | 1764424555.78 | Phone: 375296254070 |
+| 2 | `new_callerid` | 1764424556.79 | CallerIDNum: 375296254070, Exten: 375296254070 |
+| 3 | `bridge_create` | - | BridgeUniqueid: появится здесь |
+| 4 | `bridge` | 1764424555.78 | BridgeUniqueid: xxx |
+| 5 | `bridge` | 1764424556.79 | BridgeUniqueid: xxx |
+| 6 | `bridge_leave` | 1764424555.78 | BridgeUniqueid: xxx |
+| 7 | `bridge_leave` | 1764424556.79 | BridgeUniqueid: xxx |
+| 8 | `bridge_destroy` | - | BridgeUniqueid: xxx |
+| 9 | `hangup` | 1764424555.78 | - |
+| 10 | `hangup` | 1764424556.79 | - |
+
+### 🔑 КЛЮЧЕВОЕ ОТКРЫТИЕ: Общий идентификатор
+
+**Событие 1 (dial):**
+```json
+{
+    "Token": "375293332255",
+    "CallType": 1,
+    "UniqueId": "1764424555.78",
+    "Trunk": "0001363",
+    "Extensions": ["151"],
+    "Phone": "375296254070"  ← ОБЩИЙ ИДЕНТИФИКАТОР
+}
+```
+
+**Событие 2 (new_callerid):**
+```json
+{
+    "Exten": "375296254070",       ← СОВПАДАЕТ!
+    "Token": "375293332255",
+    "UniqueId": "1764424556.79",   ← ДРУГОЙ UniqueId!
+    "CallerIDNum": "375296254070", ← СОВПАДАЕТ!
+    "ConnectedLineNum": "151",
+    "Channel": "SIP/0001363-00000035",
+    "ConnectedLineName": "151",
+    "CallerIDName": "<unknown>",
+    "Context": "from-out-office"
+}
+```
+
+### ✅ ВЫВОД: Phone - связующий идентификатор
+
+**До появления `BridgeUniqueid`** (события `dial`, `new_callerid`) единственный способ связать события - это поле **`Phone`** (внешний номер телефона):
+
+- Событие `dial`: `Phone` = `375296254070`
+- Событие `new_callerid`: `CallerIDNum` = `375296254070` и `Exten` = `375296254070`
+
+### 📐 АЛГОРИТМ СВЯЗИ СОБЫТИЙ
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ОДИН ЗВОНОК = ОДНА ЗАПИСЬ                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ЭТАП 1: До появления BridgeUniqueid                           │
+│  ─────────────────────────────────────                          │
+│  Связующий ключ: Phone (внешний номер)                         │
+│                                                                 │
+│  dial (UniqueId: .78, Phone: 375296254070)                     │
+│       ↓                                                         │
+│  new_callerid (UniqueId: .79, CallerIDNum: 375296254070)       │
+│       ↓                                                         │
+│  [Оба события связаны через Phone = 375296254070]              │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ЭТАП 2: После появления BridgeUniqueid                        │
+│  ──────────────────────────────────────                         │
+│  Связующий ключ: BridgeUniqueid (UUID моста)                   │
+│                                                                 │
+│  bridge_create (BridgeUniqueid: abc-123)                       │
+│       ↓                                                         │
+│  bridge (UniqueId: .78, BridgeUniqueid: abc-123)               │
+│  bridge (UniqueId: .79, BridgeUniqueid: abc-123)               │
+│       ↓                                                         │
+│  [Все UniqueId связаны через BridgeUniqueid = abc-123]         │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ЭТАП 3: Финализация (hangup)                                  │
+│  ────────────────────────────                                   │
+│  Связь: UniqueId уже в related_unique_ids                      │
+│                                                                 │
+│  hangup (UniqueId: .78) → Ищем запись где .78 в related_uids   │
+│  hangup (UniqueId: .79) → Ищем запись где .79 в related_uids   │
+│                                                                 │
+│  [Оба hangup добавляются в ту же запись]                       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 🔧 РЕАЛИЗАЦИЯ В ФУНКЦИИ add_call_event
+
+**Текущая проблема:** Функция ищет записи только по `unique_id` и `bridge_unique_id`, но НЕ по `Phone`.
+
+**Решение:** Добавить поиск по `Phone` для событий `dial` и `new_callerid`:
+
+```sql
+-- Шаг 1: Ищем по UniqueId
+SELECT id INTO v_trace_id FROM call_traces 
+WHERE unique_id = p_unique_id AND enterprise_number = p_enterprise_number;
+
+-- Шаг 2: Если не нашли и это dial/new_callerid - ищем по Phone
+IF v_trace_id IS NULL AND p_event_type IN ('dial', 'new_callerid') THEN
+    SELECT id INTO v_trace_id FROM call_traces 
+    WHERE phone_number = p_phone_number 
+      AND enterprise_number = p_enterprise_number
+      AND created_at > NOW() - INTERVAL '5 minutes'  -- В пределах 5 минут
+    ORDER BY created_at DESC
+    LIMIT 1;
+END IF;
+
+-- Шаг 3: Если не нашли и есть BridgeUniqueid - ищем по нему
+IF v_trace_id IS NULL AND p_bridge_unique_id IS NOT NULL THEN
+    SELECT id INTO v_trace_id FROM call_traces 
+    WHERE bridge_unique_id = p_bridge_unique_id 
+      AND enterprise_number = p_enterprise_number;
+END IF;
+
+-- Шаг 4: Если не нашли - ищем в related_unique_ids
+IF v_trace_id IS NULL THEN
+    SELECT id INTO v_trace_id FROM call_traces 
+    WHERE related_unique_ids @> to_jsonb(p_unique_id)
+      AND enterprise_number = p_enterprise_number;
+END IF;
+
+-- Шаг 5: Если всё ещё не нашли - создаём новую запись
+IF v_trace_id IS NULL THEN
+    INSERT INTO call_traces (...) VALUES (...);
+ELSE
+    -- Обновляем существующую запись
+    UPDATE call_traces SET ... WHERE id = v_trace_id;
+END IF;
+```
+
+### 📊 Ожидаемый результат
+
+**БЫЛО (2 записи):**
+```sql
+| id | unique_id        | phone_number   | events |
+|----|------------------|----------------|--------|
+| 1  | 1764424555.78    | 375296254070   | 5      |
+| 2  | 1764424556.79    | 375296254070   | 3      |
+```
+
+**СТАНЕТ (1 запись):**
+```sql
+| id | unique_id        | phone_number   | related_unique_ids              | events |
+|----|------------------|----------------|----------------------------------|--------|
+| 1  | 1764424555.78    | 375296254070   | ["1764424555.78","1764424556.79"]| 8      |
+```
+
+### 🎯 Приоритет поиска записи
+
+1. **По `unique_id`** - точное совпадение UniqueId
+2. **По `phone_number`** - для `dial`/`new_callerid` (в пределах 5 минут)
+3. **По `bridge_unique_id`** - для событий с мостом
+4. **По `related_unique_ids`** - для `hangup` и поздних событий
+5. **Создание новой записи** - если ничего не найдено
+
+### 📝 ДЕТАЛЬНЫЙ РАЗБОР КАЖДОГО СОБЫТИЯ
+
+#### Событие 1: `dial`
+```json
+{
+    "Token": "375293332255",
+    "CallType": 1,
+    "UniqueId": "1764424555.78",
+    "Trunk": "0001363",
+    "Extensions": ["151"],
+    "Phone": "375296254070"
+}
+```
+**Статус:** Первое событие звонка. Создаём новую запись.
+**Связующий ключ:** `Phone` = `375296254070`
+
+---
+
+#### Событие 2: `new_callerid`
+```json
+{
+    "Exten": "375296254070",
+    "Token": "375293332255",
+    "UniqueId": "1764424556.79",
+    "CallerIDNum": "375296254070",
+    "ConnectedLineNum": "151",
+    "Channel": "SIP/0001363-00000035",
+    "ConnectedLineName": "151",
+    "CallerIDName": "<unknown>",
+    "Context": "from-out-office"
+}
+```
+**Статус:** Второй канал звонка. **ДРУГОЙ UniqueId!**
+**Связующий ключ:** `CallerIDNum` = `375296254070` (совпадает с Phone из события 1)
+**Действие:** Ищем запись по `Phone`, добавляем `.79` в `related_unique_ids`
+
+---
+
+#### Событие 3: `bridge_create`
+```json
+{
+    "Token": "375293332255",
+    "BridgeNumChannels": "0",
+    "UniqueId": "",
+    "BridgeType": "",
+    "BridgeTechnology": "simple_bridge",
+    "BridgeName": "<unknown>",
+    "BridgeUniqueid": "07ce4ad4-d382-456f-8890-94d789896c9f",
+    "BridgeCreator": "<unknown>"
+}
+```
+**Статус:** Событие-"сирота". Создание моста.
+**Проблема:** `UniqueId` **пустой**, `Phone` **отсутствует**
+**Связующий ключ:** Только `Token` (предприятие)
+**Действие:** Временно сохраняем. Ждём события `bridge` которое свяжет `BridgeUniqueid` с конкретным `UniqueId`.
+
+---
+
+#### Событие 4: `bridge`
+```json
+{
+    "Exten": "375296254070",
+    "Token": "375293332255",
+    "UniqueId": "1764424555.78",
+    "CallerIDNum": "151",
+    "CallerIDName": "151",
+    "Channel": "SIP/151-00000034",
+    "ConnectedLineName": "<unknown>",
+    "BridgeUniqueid": "07ce4ad4-d382-456f-8890-94d789896c9f",
+    "ConnectedLineNum": "<unknown>"
+}
+```
+**Статус:** КЛЮЧЕВОЕ СОБЫТИЕ! Связывает канал с мостом.
+**Связи:**
+- `UniqueId` = `1764424555.78` → тот же что в событии 1 (`dial`)
+- `BridgeUniqueid` = `07ce4ad4-...` → тот же что в событии 3 (`bridge_create`)
+- `Exten` = `375296254070` → тот же `Phone`
+
+**Действие:** 
+1. Находим запись по `UniqueId` `.78` (или по `Phone`)
+2. Устанавливаем `bridge_unique_id` = `07ce4ad4-...`
+3. Теперь `BridgeUniqueid` становится **главным связующим идентификатором**
+
+---
+
+#### Событие 5: `bridge`
+```json
+{
+    "Exten": "",
+    "Token": "375293332255",
+    "UniqueId": "1764424556.79",
+    "CallerIDNum": "375296254070",
+    "CallerIDName": "",
+    "Channel": "SIP/0001363-00000035",
+    "ConnectedLineName": "151",
+    "BridgeUniqueid": "07ce4ad4-d382-456f-8890-94d789896c9f",
+    "ConnectedLineNum": "151"
+}
+```
+**Статус:** Второй канал присоединился к мосту.
+**Связи:**
+- `UniqueId` = `1764424556.79` → тот же что в событии 2 (`new_callerid`)
+- `BridgeUniqueid` = `07ce4ad4-...` → тот же мост
+- `CallerIDNum` = `375296254070` → тот же `Phone`
+
+**Действие:** 
+1. Находим запись по `BridgeUniqueid` (уже установлен в событии 4)
+2. Добавляем `.79` в `related_unique_ids` (если ещё нет)
+3. Добавляем событие в `call_events`
+
+**ИТОГ после 5 событий:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ОДНА ЗАПИСЬ В БД:                                          │
+│  ─────────────────                                          │
+│  unique_id: 1764424555.78                                   │
+│  bridge_unique_id: 07ce4ad4-d382-456f-8890-94d789896c9f    │
+│  phone_number: 375296254070                                 │
+│  related_unique_ids: [".78", ".79"]                         │
+│  call_events: [dial, new_callerid, bridge_create,          │
+│                bridge(.78), bridge(.79)]                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 🔗 СХЕМА СВЯЗЕЙ СОБЫТИЙ
+
+```
+Событие 1 (dial)          Событие 2 (new_callerid)
+UniqueId: .78             UniqueId: .79
+Phone: 375296254070       CallerIDNum: 375296254070
+        │                         │
+        └────────┬────────────────┘
+                 │
+            Phone = 375296254070
+                 │
+                 ▼
+        Событие 3 (bridge_create)
+        BridgeUniqueid: 07ce4ad4-...
+        UniqueId: ПУСТОЙ
+                 │
+                 ▼
+   ┌─────────────┴─────────────┐
+   │                           │
+Событие 4 (bridge)      Событие 5 (bridge)
+UniqueId: .78           UniqueId: .79
+BridgeUniqueid: 07ce4ad4   BridgeUniqueid: 07ce4ad4
+   │                           │
+   └─────────────┬─────────────┘
+                 │
+        BridgeUniqueid = 07ce4ad4-...
+                 │
+                 ▼
+        ВСЕ СОБЫТИЯ СВЯЗАНЫ
+```
+
+---
+
+#### Событие 6: `bridge_leave`
+```json
+{
+    "Token": "375293332255",
+    "BridgeNumChannels": "1",
+    "UniqueId": "1764424556.79",
+    "CallerIDNum": "375296254070",
+    "CallerIDName": "<unknown>",
+    "Channel": "SIP/0001363-00000035",
+    "ConnectedLineName": "151",
+    "BridgeUniqueid": "07ce4ad4-d382-456f-8890-94d789896c9f",
+    "ConnectedLineNum": "151"
+}
+```
+**Связующие идентификаторы:**
+- `BridgeUniqueid` = `07ce4ad4-...` ✅ (главный ключ)
+- `UniqueId` = `.79` ✅ (уже в `related_unique_ids`)
+- `CallerIDNum` = `375296254070` ✅ (Phone)
+
+**Действие:** Найти запись по `BridgeUniqueid`, добавить событие.
+
+---
+
+#### Событие 7: `bridge_leave`
+```json
+{
+    "Token": "375293332255",
+    "BridgeNumChannels": "0",
+    "UniqueId": "1764424555.78",
+    "CallerIDNum": "151",
+    "CallerIDName": "151",
+    "Channel": "SIP/151-00000034",
+    "ConnectedLineName": "<unknown>",
+    "BridgeUniqueid": "07ce4ad4-d382-456f-8890-94d789896c9f",
+    "ConnectedLineNum": "<unknown>"
+}
+```
+**Связующие идентификаторы:**
+- `BridgeUniqueid` = `07ce4ad4-...` ✅ (главный ключ)
+- `UniqueId` = `.78` ✅ (основной unique_id записи)
+
+**Действие:** Найти запись по `BridgeUniqueid`, добавить событие.
+
+---
+
+#### Событие 8: `bridge_destroy`
+```json
+{
+    "Token": "375293332255",
+    "BridgeNumChannels": "0",
+    "UniqueId": "",
+    "BridgeType": "",
+    "BridgeTechnology": "simple_bridge",
+    "BridgeName": "<unknown>",
+    "BridgeUniqueid": "07ce4ad4-d382-456f-8890-94d789896c9f",
+    "BridgeCreator": "<unknown>"
+}
+```
+**Связующие идентификаторы:**
+- `BridgeUniqueid` = `07ce4ad4-...` ✅ (единственный ключ!)
+- `UniqueId` = **пустой** ❌
+- `Phone` = **отсутствует** ❌
+
+**Действие:** Найти запись по `BridgeUniqueid`, добавить событие.
+
+---
+
+#### Событие 9: `hangup` (ФИНАЛЬНОЕ)
+```json
+{
+    "CallStatus": "2",
+    "Token": "375293332255",
+    "CallType": 1,
+    "UniqueId": "1764424555.78",
+    "Trunk": "0001363",
+    "Extensions": [""],
+    "StartTime": "2025-11-29 16:55:56",
+    "EndTime": "2025-11-29 16:56:12",
+    "DateReceived": "2025-11-29 16:55:55",
+    "Phone": "375296254070"
+}
+```
+**Связующие идентификаторы:**
+- `UniqueId` = `.78` ✅ (основной unique_id записи)
+- `Phone` = `375296254070` ✅
+- `BridgeUniqueid` = **отсутствует** ❌
+
+**Важные данные для записи:**
+- `StartTime` = `2025-11-29 16:55:56` → в поле `start_time`
+- `EndTime` = `2025-11-29 16:56:12` → в поле `end_time`
+- `CallStatus` = `2` → `call_status` = `completed`
+
+**Действие:** Найти запись по `UniqueId` или `related_unique_ids`, обновить `start_time`, `end_time`, `call_status`.
+
+---
+
+### 📊 ПОЛНАЯ ТАБЛИЦА СВЯЗЕЙ (9 СОБЫТИЙ)
+
+| # | Событие | UniqueId | BridgeUniqueid | Phone | Как искать запись |
+|---|---------|----------|----------------|-------|-------------------|
+| 1 | `dial` | `.78` | ❌ | `375296254070` | **Создать новую** |
+| 2 | `new_callerid` | `.79` | ❌ | `375296254070` | По `Phone` |
+| 3 | `bridge_create` | ❌ | `07ce4ad4-...` | ❌ | Временно сохранить |
+| 4 | `bridge` | `.78` | `07ce4ad4-...` | `375296254070` | По `UniqueId` или `Phone` |
+| 5 | `bridge` | `.79` | `07ce4ad4-...` | `375296254070` | По `BridgeUniqueid` |
+| 6 | `bridge_leave` | `.79` | `07ce4ad4-...` | `375296254070` | По `BridgeUniqueid` |
+| 7 | `bridge_leave` | `.78` | `07ce4ad4-...` | ❌ | По `BridgeUniqueid` |
+| 8 | `bridge_destroy` | ❌ | `07ce4ad4-...` | ❌ | По `BridgeUniqueid` |
+| 9 | `hangup` | `.78` | ❌ | `375296254070` | По `UniqueId` или `related_unique_ids` |
+
+---
+
+### 🔑 АЛГОРИТМ ПОИСКА ЗАПИСИ (приоритет)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ПОРЯДОК ПОИСКА ЗАПИСИ ДЛЯ КАЖДОГО СОБЫТИЯ:                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. По BridgeUniqueid (если есть)                              │
+│     SELECT * FROM call_traces                                   │
+│     WHERE bridge_unique_id = $1                                 │
+│       AND enterprise_number = $2                                │
+│                                                                 │
+│  2. По UniqueId (если есть и не нашли по bridge)               │
+│     SELECT * FROM call_traces                                   │
+│     WHERE unique_id = $1                                        │
+│       AND enterprise_number = $2                                │
+│                                                                 │
+│  3. По UniqueId в related_unique_ids                           │
+│     SELECT * FROM call_traces                                   │
+│     WHERE related_unique_ids @> to_jsonb($1)                   │
+│       AND enterprise_number = $2                                │
+│                                                                 │
+│  4. По Phone + временное окно (для dial/new_callerid)          │
+│     SELECT * FROM call_traces                                   │
+│     WHERE phone_number = $1                                     │
+│       AND enterprise_number = $2                                │
+│       AND created_at > NOW() - INTERVAL '5 minutes'            │
+│     ORDER BY created_at DESC LIMIT 1                           │
+│                                                                 │
+│  5. Создать новую запись (если ничего не найдено)              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 🔄 ЖИЗНЕННЫЙ ЦИКЛ ЗАПИСИ В БД
+
+```
+СОБЫТИЕ 1 (dial)
+─────────────────
+Phone: 375296254070, UniqueId: .78
+→ Создаём запись:
+  unique_id: .78
+  phone_number: 375296254070
+  related_unique_ids: [".78"]
+  bridge_unique_id: NULL
+  call_events: [dial]
+
+СОБЫТИЕ 2 (new_callerid)
+────────────────────────
+Phone: 375296254070, UniqueId: .79
+→ Ищем по Phone → НАШЛИ
+→ Обновляем:
+  related_unique_ids: [".78", ".79"]
+  call_events: [dial, new_callerid]
+
+СОБЫТИЕ 3 (bridge_create)
+─────────────────────────
+BridgeUniqueid: 07ce4ad4-..., UniqueId: ПУСТОЙ
+→ Ищем по BridgeUniqueid → НЕ НАШЛИ
+→ Ищем по UniqueId → ПУСТОЙ
+→ Временно сохраняем как "сироту" или игнорируем
+  (связь установится в событии 4)
+
+СОБЫТИЕ 4 (bridge)
+──────────────────
+UniqueId: .78, BridgeUniqueid: 07ce4ad4-...
+→ Ищем по BridgeUniqueid → НЕ НАШЛИ
+→ Ищем по UniqueId .78 → НАШЛИ
+→ Обновляем:
+  bridge_unique_id: 07ce4ad4-...
+  call_events: [dial, new_callerid, bridge]
+
+СОБЫТИЕ 5 (bridge)
+──────────────────
+UniqueId: .79, BridgeUniqueid: 07ce4ad4-...
+→ Ищем по BridgeUniqueid → НАШЛИ (установлен в событии 4)
+→ Обновляем:
+  call_events: [dial, new_callerid, bridge, bridge]
+
+СОБЫТИЕ 6 (bridge_leave)
+────────────────────────
+UniqueId: .79, BridgeUniqueid: 07ce4ad4-...
+→ Ищем по BridgeUniqueid → НАШЛИ
+→ Обновляем:
+  call_events: [..., bridge_leave]
+
+СОБЫТИЕ 7 (bridge_leave)
+────────────────────────
+UniqueId: .78, BridgeUniqueid: 07ce4ad4-...
+→ Ищем по BridgeUniqueid → НАШЛИ
+→ Обновляем:
+  call_events: [..., bridge_leave]
+
+СОБЫТИЕ 8 (bridge_destroy)
+──────────────────────────
+UniqueId: ПУСТОЙ, BridgeUniqueid: 07ce4ad4-...
+→ Ищем по BridgeUniqueid → НАШЛИ
+→ Обновляем:
+  call_events: [..., bridge_destroy]
+
+СОБЫТИЕ 9 (hangup) - ФИНАЛЬНОЕ
+──────────────────────────────
+UniqueId: .78, Phone: 375296254070, StartTime, EndTime
+→ Ищем по BridgeUniqueid → НЕТ в событии
+→ Ищем по UniqueId .78 → НАШЛИ
+→ Обновляем:
+  start_time: 2025-11-29 16:55:56
+  end_time: 2025-11-29 16:56:12
+  call_status: completed
+  call_events: [..., hangup]
+
+ИТОГОВАЯ ЗАПИСЬ:
+────────────────
+{
+  "id": 1,
+  "unique_id": "1764424555.78",
+  "bridge_unique_id": "07ce4ad4-d382-456f-8890-94d789896c9f",
+  "phone_number": "375296254070",
+  "related_unique_ids": ["1764424555.78", "1764424556.79"],
+  "call_direction": "outgoing",
+  "call_status": "completed",
+  "start_time": "2025-11-29 16:55:56",
+  "end_time": "2025-11-29 16:56:12",
+  "call_events": [9 событий]
+}
+```
+
+---
+
+### ⚠️ ОСОБЫЕ СЛУЧАИ
+
+#### 1. Событие `bridge_create` (событие-"сирота")
+- Приходит **ДО** связи с каналами
+- `UniqueId` = пустой
+- `Phone` = отсутствует
+- **Решение:** Игнорировать или временно сохранять. Связь установится в следующем событии `bridge`.
+
+#### 2. Событие `bridge_destroy`
+- `UniqueId` = пустой
+- Есть только `BridgeUniqueid`
+- **Решение:** Искать только по `BridgeUniqueid`
+
+#### 3. Событие `hangup`
+- `BridgeUniqueid` = отсутствует
+- Есть `UniqueId` и `Phone`
+- **Решение:** Искать по `UniqueId` или `related_unique_ids`
+
+---
+
+### 📝 ИЗМЕНЕНИЯ В ФУНКЦИИ add_call_event
+
+```sql
+CREATE OR REPLACE FUNCTION add_call_event(
+    p_unique_id VARCHAR,
+    p_enterprise_number VARCHAR,
+    p_event_type VARCHAR,
+    p_event_data JSONB,
+    p_phone_number VARCHAR DEFAULT NULL,
+    p_bridge_unique_id VARCHAR DEFAULT NULL
+) RETURNS BIGINT AS $$
+DECLARE
+    v_trace_id BIGINT;
+BEGIN
+    -- Извлекаем BridgeUniqueid из event_data если не передан
+    IF p_bridge_unique_id IS NULL THEN
+        p_bridge_unique_id := p_event_data->>'BridgeUniqueid';
+    END IF;
+    
+    -- Извлекаем Phone из разных полей event_data
+    IF p_phone_number IS NULL THEN
+        p_phone_number := COALESCE(
+            p_event_data->>'Phone',
+            p_event_data->>'CallerIDNum',
+            p_event_data->>'Exten'
+        );
+        -- Исключаем внутренние номера (3 цифры)
+        IF p_phone_number IS NOT NULL AND length(p_phone_number) <= 4 THEN
+            p_phone_number := NULL;
+        END IF;
+    END IF;
+
+    -- ШАГ 1: Ищем по BridgeUniqueid (приоритет!)
+    IF p_bridge_unique_id IS NOT NULL AND p_bridge_unique_id != '' THEN
+        SELECT id INTO v_trace_id FROM call_traces 
+        WHERE bridge_unique_id = p_bridge_unique_id 
+          AND enterprise_number = p_enterprise_number
+        LIMIT 1;
+    END IF;
+    
+    -- ШАГ 2: Ищем по UniqueId
+    IF v_trace_id IS NULL AND p_unique_id IS NOT NULL AND p_unique_id != '' THEN
+        SELECT id INTO v_trace_id FROM call_traces 
+        WHERE unique_id = p_unique_id 
+          AND enterprise_number = p_enterprise_number
+        LIMIT 1;
+    END IF;
+    
+    -- ШАГ 3: Ищем по UniqueId в related_unique_ids
+    IF v_trace_id IS NULL AND p_unique_id IS NOT NULL AND p_unique_id != '' THEN
+        SELECT id INTO v_trace_id FROM call_traces 
+        WHERE related_unique_ids @> to_jsonb(p_unique_id)
+          AND enterprise_number = p_enterprise_number
+        LIMIT 1;
+    END IF;
+    
+    -- ШАГ 4: Ищем по Phone (для dial/new_callerid) в пределах 5 минут
+    IF v_trace_id IS NULL 
+       AND p_phone_number IS NOT NULL 
+       AND p_event_type IN ('dial', 'new_callerid') THEN
+        SELECT id INTO v_trace_id FROM call_traces 
+        WHERE phone_number = p_phone_number 
+          AND enterprise_number = p_enterprise_number
+          AND created_at > NOW() - INTERVAL '5 minutes'
+        ORDER BY created_at DESC
+        LIMIT 1;
+    END IF;
+    
+    -- ШАГ 5: Создаём или обновляем запись
+    IF v_trace_id IS NOT NULL THEN
+        -- Обновляем существующую запись
+        UPDATE call_traces SET
+            bridge_unique_id = COALESCE(bridge_unique_id, p_bridge_unique_id),
+            phone_number = COALESCE(phone_number, p_phone_number),
+            related_unique_ids = CASE 
+                WHEN p_unique_id IS NOT NULL 
+                     AND p_unique_id != '' 
+                     AND NOT (COALESCE(related_unique_ids, '[]'::jsonb) @> to_jsonb(p_unique_id))
+                THEN COALESCE(related_unique_ids, '[]'::jsonb) || to_jsonb(p_unique_id)
+                ELSE related_unique_ids
+            END,
+            call_events = COALESCE(call_events, '[]'::jsonb) || jsonb_build_array(
+                jsonb_build_object(
+                    'event_sequence', COALESCE(jsonb_array_length(call_events), 0) + 1,
+                    'event_type', p_event_type,
+                    'event_timestamp', NOW(),
+                    'unique_id', p_unique_id,
+                    'event_data', p_event_data
+                )
+            ),
+            -- Обновляем start_time/end_time из hangup
+            start_time = CASE 
+                WHEN p_event_type = 'hangup' AND p_event_data ? 'StartTime'
+                THEN (p_event_data->>'StartTime')::timestamptz
+                ELSE start_time
+            END,
+            end_time = CASE 
+                WHEN p_event_type = 'hangup' AND p_event_data ? 'EndTime'
+                THEN (p_event_data->>'EndTime')::timestamptz
+                ELSE end_time
+            END,
+            call_status = CASE 
+                WHEN p_event_type = 'hangup' THEN 'completed'
+                ELSE call_status
+            END,
+            updated_at = NOW()
+        WHERE id = v_trace_id;
+    ELSE
+        -- Создаём новую запись (только если есть UniqueId)
+        IF p_unique_id IS NOT NULL AND p_unique_id != '' THEN
+            INSERT INTO call_traces (
+                unique_id, enterprise_number, phone_number, 
+                bridge_unique_id, related_unique_ids,
+                call_direction, call_status, call_events
+            ) VALUES (
+                p_unique_id, p_enterprise_number, p_phone_number,
+                p_bridge_unique_id, 
+                jsonb_build_array(p_unique_id),
+                CASE WHEN p_event_type IN ('dial', 'start') THEN 'outgoing' ELSE NULL END,
+                'active',
+                jsonb_build_array(jsonb_build_object(
+                    'event_sequence', 1,
+                    'event_type', p_event_type,
+                    'event_timestamp', NOW(),
+                    'unique_id', p_unique_id,
+                    'event_data', p_event_data
+                ))
+            )
+            RETURNING id INTO v_trace_id;
+        END IF;
+    END IF;
+
+    RETURN v_trace_id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+### ✅ ИТОГ: ОДИН ЗВОНОК = ОДНА ЗАПИСЬ
+
+**Входные данные:** 9 событий с 2 разными UniqueId
+
+**Результат:** 1 запись в БД со всеми данными:
+- `unique_id`: первый UniqueId из `dial`
+- `bridge_unique_id`: UUID моста
+- `related_unique_ids`: массив всех UniqueId каналов
+- `phone_number`: внешний номер
+- `start_time` / `end_time`: из события `hangup`
+- `call_events`: массив из 9 событий
+
+---
+
+**Версия анализа**: 2.0 (полный анализ 2025-11-29)

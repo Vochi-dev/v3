@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 import os
 import json
 from functools import wraps
@@ -112,6 +112,42 @@ test_logger = logging.getLogger("test_enterprise_0367")
 test_logger.addHandler(test_enterprise_handler)
 test_logger.setLevel(logging.DEBUG)
 test_logger.propagate = False  # Не передавать в родительский логгер
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Call Tracer - универсальное логирование событий для всех юнитов
+# Папка: call_tracer/{enterprise_number}/events.log (ротация 14 дней)
+# ────────────────────────────────────────────────────────────────────────────────
+os.makedirs("call_tracer", exist_ok=True)
+_call_tracer_loggers: Dict[str, logging.Logger] = {}
+
+def get_call_tracer_logger(enterprise_number: str) -> logging.Logger:
+    """Возвращает логгер для юнита, создаёт папку и файл при необходимости."""
+    if enterprise_number in _call_tracer_loggers:
+        return _call_tracer_loggers[enterprise_number]
+    
+    # Создаём папку для юнита
+    log_dir = f"call_tracer/{enterprise_number}"
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Создаём логгер с ротацией по дням (14 дней)
+    handler = TimedRotatingFileHandler(
+        f"{log_dir}/events.log",
+        when="midnight",
+        interval=1,
+        backupCount=14,
+        encoding="utf-8"
+    )
+    handler.setFormatter(logging.Formatter("%(asctime)s|%(message)s"))
+    handler.suffix = "%Y-%m-%d"  # Формат даты в имени файла
+    
+    tracer_logger = logging.getLogger(f"call_tracer_{enterprise_number}")
+    tracer_logger.addHandler(handler)
+    tracer_logger.setLevel(logging.INFO)
+    tracer_logger.propagate = False
+    
+    _call_tracer_loggers[enterprise_number] = tracer_logger
+    logger.info(f"Created call_tracer logger for enterprise {enterprise_number}")
+    return tracer_logger
 
 # Настройка логгеров uvicorn
 uvicorn_logger = logging.getLogger("uvicorn")
@@ -711,17 +747,18 @@ async def _dispatch_to_all(handler, body: dict):
         event_type = "start"
     logger.info(f"Detected event_type: {event_type} from handler: {handler_name}")
     
-    # Специальное логирование для тестового предприятия 0367 (june)
-    TEST_TOKEN = "375293332255"  # Token для предприятия 0367/june
-    if token == TEST_TOKEN:
-        test_logger_0367 = logging.getLogger("test_enterprise_0367")
-        test_logger_0367.info(f"🧪 TEST EVENT: {event_type}")
-        test_logger_0367.info(f"📋 Token: {token}, UniqueId: {unique_id}")
-        try:
-            test_logger_0367.info(f"📦 Full Body: {json.dumps(body, ensure_ascii=False, indent=2)}")
-        except Exception as e:
-            test_logger_0367.error(f"❌ Failed to serialize body: {e}")
-            test_logger_0367.error(f"Body type: {type(body)}, Body keys: {list(body.keys()) if isinstance(body, dict) else 'not a dict'}")
+    # ────────────────────────────────────────────────────────────────────────────────
+    # Call Tracer: Универсальное логирование событий для ВСЕХ юнитов
+    # ────────────────────────────────────────────────────────────────────────────────
+    try:
+        enterprise_number = await _get_enterprise_number_by_token(token)
+        if enterprise_number:
+            tracer = get_call_tracer_logger(enterprise_number)
+            # Формат: timestamp|event_type|unique_id|json_body
+            import json as json_module
+            tracer.info(f"{event_type}|{unique_id}|{json_module.dumps(body, ensure_ascii=False)}")
+    except Exception as e:
+        logger.warning(f"Call tracer logging failed for token {token}: {e}")
     
     # Нормализуем номер по правилу на линии (если задано)
     await _apply_incoming_transform_if_any(body)
