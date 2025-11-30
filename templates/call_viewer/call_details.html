@@ -562,21 +562,21 @@
                         <div class="timeline-content">
                             <p class="timeline-title">
                                 {% if event.event_type == 'start' %}
-                                🚀 Звонок инициирован
+                                🚀 Звонок инициирован <span style="color: var(--pf-gray); font-weight: normal;">(start)</span>
                                 {% elif event.event_type == 'dial' %}
-                                📞 Набор номера
+                                📞 Набор номера <span style="color: var(--pf-gray); font-weight: normal;">(dial)</span>
                                 {% elif event.event_type == 'bridge' %}
-                                🔗 Соединение установлено
+                                🔗 Соединение установлено <span style="color: var(--pf-gray); font-weight: normal;">(bridge)</span>
                                 {% elif event.event_type == 'bridge_create' %}
-                                🌉 Создан мост для соединения
+                                🌉 Создан мост для соединения <span style="color: var(--pf-gray); font-weight: normal;">(bridge_create)</span>
                                 {% elif event.event_type == 'bridge_leave' %}
-                                👋 Участник покинул мост
+                                👋 Участник покинул мост <span style="color: var(--pf-gray); font-weight: normal;">(bridge_leave)</span>
                                 {% elif event.event_type == 'bridge_destroy' %}
-                                💥 Мост разрушен
+                                💥 Мост разрушен <span style="color: var(--pf-gray); font-weight: normal;">(bridge_destroy)</span>
                                 {% elif event.event_type == 'new_callerid' %}
-                                🆔 Обновлен CallerID
+                                🆔 Обновлен CallerID <span style="color: var(--pf-gray); font-weight: normal;">(new_callerid)</span>
                                 {% elif event.event_type == 'hangup' %}
-                                ❌ Звонок завершен
+                                ❌ Звонок завершен <span style="color: var(--pf-gray); font-weight: normal;">(hangup)</span>
                                 {% else %}
                                 {{ event.event_type|upper }}
                                 {% endif %}
@@ -700,14 +700,6 @@
                                 </ul>
                             </div>
                             
-                            {% if event.event_data %}
-                            <details class="mt-2">
-                                <summary class="cursor-pointer text-sm text-blue-600 hover:text-blue-800">
-                                    Показать детали события
-                                </summary>
-                                <pre class="mt-2 text-xs bg-gray-100 p-2 rounded">{{ event.event_data|tojson(indent=2) }}</pre>
-                            </details>
-                            {% endif %}
                         </div>
                     </div>
                     {% if not loop.last %}

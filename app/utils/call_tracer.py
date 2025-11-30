@@ -1,57 +1,35 @@
 """
 Call Tracer - логирование событий в файлы для каждого юнита.
 Используется для логирования Asterisk и Telegram событий.
+
+ВАЖНО: Пишем напрямую в файл (append mode) без кэширования логгеров,
+чтобы избежать проблем с несколькими воркерами uvicorn.
 """
 
 import os
-import logging
-from logging.handlers import TimedRotatingFileHandler
-from typing import Dict
-
-# Словарь логгеров для call_tracer (по enterprise_number)
-_call_tracer_loggers: Dict[str, logging.Logger] = {}
+import json
+from datetime import datetime
 
 # Основной логгер для отладки
+import logging
 _module_logger = logging.getLogger("call_tracer")
 
 
-def _create_call_tracer_logger(enterprise_number: str) -> logging.Logger:
-    """Создаёт новый логгер для юнита."""
+def _write_to_log(enterprise_number: str, message: str):
+    """Пишет сообщение напрямую в файл лога."""
     log_dir = f"call_tracer/{enterprise_number}"
+    log_file = f"{log_dir}/events.log"
+    
+    # Создаём директорию если нет
     os.makedirs(log_dir, exist_ok=True)
     
-    # Создаём логгер с ротацией по дням (14 дней)
-    handler = TimedRotatingFileHandler(
-        f"{log_dir}/events.log",
-        when="midnight",
-        interval=1,
-        backupCount=14,
-        encoding="utf-8"
-    )
-    handler.setFormatter(logging.Formatter("%(asctime)s|%(message)s"))
-    handler.suffix = "%Y-%m-%d"  # Формат даты в имени файла
+    # Формируем строку с timestamp
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+    line = f"{timestamp}|{message}\n"
     
-    tracer_logger = logging.getLogger(f"call_tracer_{enterprise_number}")
-    # Удаляем старые handlers если есть
-    for h in tracer_logger.handlers[:]:
-        tracer_logger.removeHandler(h)
-        h.close()
-    tracer_logger.addHandler(handler)
-    tracer_logger.setLevel(logging.INFO)
-    tracer_logger.propagate = False
-    
-    _module_logger.info(f"Created call_tracer logger for enterprise {enterprise_number}")
-    return tracer_logger
-
-
-def get_call_tracer_logger(enterprise_number: str) -> logging.Logger:
-    """Возвращает логгер для юнита. Создаёт новый если нет в кэше."""
-    if enterprise_number in _call_tracer_loggers:
-        return _call_tracer_loggers[enterprise_number]
-    
-    # Создаём новый логгер
-    _call_tracer_loggers[enterprise_number] = _create_call_tracer_logger(enterprise_number)
-    return _call_tracer_loggers[enterprise_number]
+    # Пишем в файл (append mode)
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(line)
 
 
 def log_telegram_event(
@@ -70,10 +48,10 @@ def log_telegram_event(
     try:
         if not enterprise_number:
             return
-        tracer = get_call_tracer_logger(enterprise_number)
         # Обрезаем текст до 200 символов и убираем переносы строк
         text_truncated = text[:200].replace('\n', ' ').replace('\r', '') if text else ""
-        tracer.info(f"TG|{action}|{chat_id}|{message_type}|{message_id}|{unique_id}|{text_truncated}")
+        message = f"TG|{action}|{chat_id}|{message_type}|{message_id}|{unique_id}|{text_truncated}"
+        _write_to_log(enterprise_number, message)
     except Exception as e:
         _module_logger.warning(f"Failed to log telegram event: {e}")
 
@@ -91,9 +69,8 @@ def log_asterisk_event(
     try:
         if not enterprise_number:
             return
-        import json
-        tracer = get_call_tracer_logger(enterprise_number)
-        tracer.info(f"AST|{event_type}|{unique_id}|{json.dumps(body, ensure_ascii=False)}")
+        message = f"AST|{event_type}|{unique_id}|{json.dumps(body, ensure_ascii=False)}"
+        _write_to_log(enterprise_number, message)
     except Exception as e:
         _module_logger.warning(f"Failed to log asterisk event: {e}")
 

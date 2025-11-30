@@ -50,7 +50,6 @@ from app.services.calls import (
 
 # Call Tracer для логирования событий в файлы
 from app.utils.call_tracer import (
-    get_call_tracer_logger as get_tracer_logger,
     log_telegram_event,
     log_asterisk_event
 )
