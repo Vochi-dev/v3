@@ -801,16 +801,29 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             
             if should_comment and reply_to_id:
                 logging.info(f"[process_hangup] Sending as comment to message {reply_to_id}")
-                sent = await bot.send_message(
-                    chat_id,
-                    safe_text,
-                    reply_to_message_id=reply_to_id,
-                    parse_mode="HTML",
-                    disable_web_page_preview=True,
-                    reply_markup=reply_markup
-                )
-                log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, log_text)
-                logging.info(f"[process_hangup] ✅ HANGUP COMMENT SENT: message_id={sent.message_id}")
+                try:
+                    sent = await bot.send_message(
+                        chat_id,
+                        safe_text,
+                        reply_to_message_id=reply_to_id,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
+                        reply_markup=reply_markup
+                    )
+                    log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, log_text)
+                    logging.info(f"[process_hangup] ✅ HANGUP COMMENT SENT: message_id={sent.message_id}")
+                except BadRequest as e:
+                    # Если reply не удался (сообщение удалено), отправляем без reply
+                    logging.warning(f"[process_hangup] Reply failed: {e}, sending without reply")
+                    sent = await bot.send_message(
+                        chat_id, 
+                        safe_text, 
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
+                        reply_markup=reply_markup
+                    )
+                    log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, log_text)
+                    logging.info(f"[process_hangup] ✅ HANGUP MESSAGE SENT (no reply): message_id={sent.message_id}")
             else:
                 logging.info(f"[process_hangup] Sending as standalone message")
                 sent = await bot.send_message(
@@ -967,6 +980,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             logging.info(f"[process_hangup] Successfully sent hangup message {sent.message_id} for {phone_for_grouping}")
         else:
             logging.warning(f"[process_hangup] Hangup message was not sent for {phone_for_grouping}")
+            # Возвращаем ошибку если сообщение не было отправлено
+            return {"status": "error", "error": "Message was not sent"}
 
         # ───────── Fire-and-forget обновление customers ─────────
         try:

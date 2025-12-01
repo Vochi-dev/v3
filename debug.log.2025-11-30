@@ -1,0 +1,67 @@
+2025-12-01 11:42:35,625 - logger - INFO - Found Phone: 375447034448 for call 1764589297.74
+2025-12-01 11:42:35,628 - logger - INFO - Found BridgeUniqueid: 1fd62dd2-059b-4584-9c22-c9801a99dc76 for call 1764589297.74
+2025-12-01 11:42:35,629 - logger - INFO - Related UniqueIds for call 1764589297.74: {'1764589297.74', '1764589298.75'}
+2025-12-01 11:42:35,721 - httpcore.connection - DEBUG - connect_tcp.started host='localhost' port=8020 local_address=None timeout=2.0 socket_options=None
+2025-12-01 11:42:35,725 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fb84a869330>
+2025-12-01 11:42:35,725 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-01 11:42:35,726 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-01 11:42:35,726 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-01 11:42:35,726 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-01 11:42:35,726 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-01 11:42:35,729 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 404, b'Not Found', [(b'date', b'Mon, 01 Dec 2025 11:42:35 GMT'), (b'server', b'uvicorn'), (b'content-length', b'22'), (b'content-type', b'application/json')])
+2025-12-01 11:42:35,731 - httpx - INFO - HTTP Request: GET http://localhost:8020/metadata/0367/customer/375447034448 "HTTP/1.1 404 Not Found"
+2025-12-01 11:42:35,732 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-01 11:42:35,732 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-01 11:42:35,733 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-01 11:42:35,733 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-01 11:42:35,736 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-01 11:42:35,737 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-01 11:42:35,738 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-01 11:42:35,738 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-01 11:42:35,739 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-01 11:42:35,741 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'date', b'Mon, 01 Dec 2025 11:42:35 GMT'), (b'server', b'uvicorn'), (b'content-length', b'253'), (b'content-type', b'application/json')])
+2025-12-01 11:42:35,742 - httpx - INFO - HTTP Request: GET http://localhost:8020/metadata/0367/manager/151 "HTTP/1.1 200 OK"
+2025-12-01 11:42:35,742 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-01 11:42:35,743 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-01 11:42:35,743 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-01 11:42:35,744 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-01 11:42:35,744 - httpcore.connection - DEBUG - close.started
+2025-12-01 11:42:35,744 - httpcore.connection - DEBUG - close.complete
+2025-12-01 11:42:35,751 - uvicorn.access - INFO - 213.184.245.128:0 - "GET /call/0367/1764589297.74?token=d68409d67e3b4b87a6675e76dae74a85 HTTP/1.0" 200
+2025-12-01 11:45:37,668 - logger - INFO - Found Phone: 375447034448 for call 1764589297.74
+2025-12-01 11:45:37,669 - logger - INFO - Found BridgeUniqueid: 1fd62dd2-059b-4584-9c22-c9801a99dc76 for call 1764589297.74
+2025-12-01 11:45:37,669 - logger - INFO - Related UniqueIds for call 1764589297.74: {'1764589297.74', '1764589298.75'}
+2025-12-01 11:45:37,771 - httpcore.connection - DEBUG - connect_tcp.started host='localhost' port=8020 local_address=None timeout=2.0 socket_options=None
+2025-12-01 11:45:37,774 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7fb84a86bc40>
+2025-12-01 11:45:37,774 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-01 11:45:37,775 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-01 11:45:37,775 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-01 11:45:37,775 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-01 11:45:37,775 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-01 11:45:37,778 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 404, b'Not Found', [(b'date', b'Mon, 01 Dec 2025 11:45:37 GMT'), (b'server', b'uvicorn'), (b'content-length', b'22'), (b'content-type', b'application/json')])
+2025-12-01 11:45:37,778 - httpx - INFO - HTTP Request: GET http://localhost:8020/metadata/0367/customer/375447034448 "HTTP/1.1 404 Not Found"
+2025-12-01 11:45:37,779 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-01 11:45:37,780 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-01 11:45:37,780 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-01 11:45:37,780 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-01 11:45:37,782 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-01 11:45:37,783 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-01 11:45:37,783 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-01 11:45:37,784 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-01 11:45:37,784 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-01 11:45:37,786 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'date', b'Mon, 01 Dec 2025 11:45:37 GMT'), (b'server', b'uvicorn'), (b'content-length', b'253'), (b'content-type', b'application/json')])
+2025-12-01 11:45:37,787 - httpx - INFO - HTTP Request: GET http://localhost:8020/metadata/0367/manager/151 "HTTP/1.1 200 OK"
+2025-12-01 11:45:37,787 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-01 11:45:37,787 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-01 11:45:37,788 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-01 11:45:37,788 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-01 11:45:37,788 - httpcore.connection - DEBUG - close.started
+2025-12-01 11:45:37,788 - httpcore.connection - DEBUG - close.complete
+2025-12-01 11:45:37,792 - uvicorn.access - INFO - 3.237.84.11:0 - "GET /call/0367/1764589297.74?token=d68409d67e3b4b87a6675e76dae74a85 HTTP/1.0" 200
+2025-12-01 11:48:28,638 - uvicorn.error - INFO - Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2025-12-01 11:48:28,638 - uvicorn.error - INFO - Started parent process [616055]
+2025-12-01 11:48:28,782 - uvicorn.error - INFO - Shutting down
+2025-12-01 11:48:28,885 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-12-01 11:48:28,896 - logger - INFO - ✅ Database connection pool closed
+2025-12-01 11:48:28,897 - uvicorn.error - INFO - Application shutdown complete.
+2025-12-01 11:48:28,897 - uvicorn.error - INFO - Finished server process [3388584]

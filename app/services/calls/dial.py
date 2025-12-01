@@ -163,6 +163,12 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                 text = f"📞 Исходящий звонок\n☎️{manager_display} ➡️ 💰{display}"
             else:
                 text = f"📞 Исходящий звонок\n💰{display}"
+            
+            # Добавляем информацию о линии для исходящих
+            if enriched_data.get("line_name"):
+                text += f"\n📡{enriched_data['line_name']}"
+            elif trunk_info:
+                text += f"\nЛиния: {trunk_info}"
         else:  # Входящий - показываем все номера из Extensions
             text = f"📞 Входящий звонок\n💰{display} ➡️\n\n"
             

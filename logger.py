@@ -1097,13 +1097,9 @@ async def view_call_details(
                 if unique_id in json_body:
                     is_related = True
                 
-                # 5. new_callerid с тем же номером телефона (CallerIDNum)
-                if event_type == 'new_callerid' and call_phone:
-                    caller_id_num = event_data.get('CallerIDNum', '')
-                    if caller_id_num == call_phone:
-                        is_related = True
-                        if event_uid:
-                            related_unique_ids.add(event_uid)
+                # 5. new_callerid - связываем ТОЛЬКО если есть общий BridgeUniqueid
+                # НЕ связываем просто по номеру телефона - это приводит к смешиванию разных звонков!
+                # Вместо этого полагаемся на BridgeUniqueid для связывания событий
                 
                 if is_related:
                     ast_events.append({

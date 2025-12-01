@@ -770,18 +770,33 @@ async def _dispatch_to_all(handler, body: dict):
         logger.info(f"Generated shared UUID token for hangup {unique_id}: {shared_uuid_token}")
     
     # 🔗 Для bridge событий проверяем дубликаты по BridgeUniqueid ОДИН РАЗ
+    # НО: помечаем как sent ТОЛЬКО если данные валидны для отправки!
     if event_type == "bridge":
         from app.services.calls.bridge import sent_bridges
+        from app.services.calls.utils import is_internal_number
         import time
         bridge_id = body.get("BridgeUniqueid", "")
+        caller = body.get("CallerIDNum", "")
+        connected = body.get("ConnectedLineNum", "")
+        
+        # Проверяем валидность данных ПЕРЕД проверкой дубликатов
+        is_valid_bridge = (
+            caller and connected and 
+            caller not in ["", "unknown", "<unknown>"] and 
+            connected not in ["", "unknown", "<unknown>"]
+        )
+        
         if bridge_id and bridge_id in sent_bridges:
             time_since_sent = time.time() - sent_bridges[bridge_id]
             logger.info(f"[_dispatch_to_all] Skipping bridge {bridge_id} - already sent {time_since_sent:.1f}s ago (duplicate)")
             return {"delivered": [{"status": "skipped", "reason": "duplicate bridge"}]}
-        # Помечаем bridge как отправленный
-        if bridge_id:
+        
+        # Помечаем bridge как отправленный ТОЛЬКО если данные валидны
+        if bridge_id and is_valid_bridge:
             sent_bridges[bridge_id] = time.time()
-            logger.info(f"[_dispatch_to_all] Marked bridge {bridge_id} as sent")
+            logger.info(f"[_dispatch_to_all] Marked bridge {bridge_id} as sent (valid data: caller={caller}, connected={connected})")
+        elif bridge_id and not is_valid_bridge:
+            logger.info(f"[_dispatch_to_all] NOT marking bridge {bridge_id} as sent - invalid data: caller={caller}, connected={connected}")
     
     # 🎯 ОПТИМИЗАЦИЯ: Подготовка данных ДО цикла по подписчикам
     # Для start/dial/bridge/hangup делаем enrichment ОДИН РАЗ
