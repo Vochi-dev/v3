@@ -282,9 +282,16 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         else:
             sent = await bot.send_message(chat_id, safe_text, parse_mode="HTML")
         
+        # Добавляем message_id к сообщению для отладки
+        debug_text = f"{safe_text}\n🔖 msg:{sent.message_id}"
+        try:
+            await bot.edit_message_text(debug_text, chat_id, sent.message_id, parse_mode="HTML")
+        except Exception as e:
+            logging.warning(f"[process_dial] Failed to add message_id to text: {e}")
+        
         # Логируем в call_tracer
         ent_num = data.get("_enterprise_number", enterprise_number)
-        log_telegram_event(ent_num, "send", chat_id, "dial", sent.message_id, uid, safe_text)
+        log_telegram_event(ent_num, "send", chat_id, "dial", sent.message_id, uid, debug_text)
         
         # Сохраняем message_id в централизованный кэш (phone:chat_id)
         try:

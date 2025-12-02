@@ -810,7 +810,13 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                         disable_web_page_preview=True,
                         reply_markup=reply_markup
                     )
-                    log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, log_text)
+                    # Добавляем message_id к сообщению для отладки
+                    debug_text = f"{safe_text}\n🔖 msg:{sent.message_id}"
+                    try:
+                        await bot.edit_message_text(debug_text, chat_id, sent.message_id, parse_mode="HTML", disable_web_page_preview=True, reply_markup=reply_markup)
+                    except Exception as e:
+                        logging.warning(f"[process_hangup] Failed to add message_id to text: {e}")
+                    log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, debug_text if 'debug_text' in dir() else log_text)
                     logging.info(f"[process_hangup] ✅ HANGUP COMMENT SENT: message_id={sent.message_id}")
                 except BadRequest as e:
                     # Если reply не удался (сообщение удалено), отправляем без reply
@@ -822,7 +828,13 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                         disable_web_page_preview=True,
                         reply_markup=reply_markup
                     )
-                    log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, log_text)
+                    # Добавляем message_id к сообщению для отладки
+                    debug_text = f"{safe_text}\n🔖 msg:{sent.message_id}"
+                    try:
+                        await bot.edit_message_text(debug_text, chat_id, sent.message_id, parse_mode="HTML", disable_web_page_preview=True, reply_markup=reply_markup)
+                    except Exception as e:
+                        logging.warning(f"[process_hangup] Failed to add message_id to text: {e}")
+                    log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, debug_text if 'debug_text' in dir() else log_text)
                     logging.info(f"[process_hangup] ✅ HANGUP MESSAGE SENT (no reply): message_id={sent.message_id}")
             else:
                 logging.info(f"[process_hangup] Sending as standalone message")
@@ -833,7 +845,13 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     disable_web_page_preview=True,
                     reply_markup=reply_markup
                 )
-                log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, log_text)
+                # Добавляем message_id к сообщению для отладки
+                debug_text = f"{safe_text}\n🔖 msg:{sent.message_id}"
+                try:
+                    await bot.edit_message_text(debug_text, chat_id, sent.message_id, parse_mode="HTML", disable_web_page_preview=True, reply_markup=reply_markup)
+                except Exception as e:
+                    logging.warning(f"[process_hangup] Failed to add message_id to text: {e}")
+                log_telegram_event(ent_num, "send", chat_id, "hangup", sent.message_id, uid, debug_text if 'debug_text' in dir() else log_text)
                 logging.info(f"[process_hangup] ✅ HANGUP MESSAGE SENT: message_id={sent.message_id}")
                 
         except BadRequest as e:

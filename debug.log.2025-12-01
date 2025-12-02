@@ -1,0 +1,175 @@
+2025-12-02 02:12:22,245 - uvicorn.access - INFO - 35.203.211.171:49907 - "GET / HTTP/1.0" 200
+2025-12-02 02:12:29,079 - uvicorn.access - INFO - 35.203.211.171:62488 - "GET / HTTP/1.1" 200
+2025-12-02 04:45:07,168 - uvicorn.error - WARNING - Invalid HTTP request received.
+2025-12-02 08:12:46,674 - httpcore.connection - DEBUG - connect_tcp.started host='127.0.0.1' port=8020 local_address=None timeout=3.0 socket_options=None
+2025-12-02 08:12:46,676 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9b86860>
+2025-12-02 08:12:46,676 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-02 08:12:46,677 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-02 08:12:46,677 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-02 08:12:46,677 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-02 08:12:46,677 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-02 08:12:46,684 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'date', b'Tue, 02 Dec 2025 08:12:46 GMT'), (b'server', b'uvicorn'), (b'content-length', b'931'), (b'content-type', b'application/json')])
+2025-12-02 08:12:46,685 - httpx - INFO - HTTP Request: GET http://127.0.0.1:8020/config/0367/ms "HTTP/1.1 200 OK"
+2025-12-02 08:12:46,685 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-02 08:12:46,685 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-02 08:12:46,686 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-02 08:12:46,686 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-02 08:12:46,686 - MoySklad - INFO - ✅ MS config from CACHE service for 0367: enabled=True
+2025-12-02 08:12:46,687 - httpcore.connection - DEBUG - close.started
+2025-12-02 08:12:46,687 - httpcore.connection - DEBUG - close.complete
+2025-12-02 08:12:46,754 - httpcore.connection - DEBUG - connect_tcp.started host='api.moysklad.ru' port=443 local_address=None timeout=5 socket_options=None
+2025-12-02 08:12:46,773 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc99f2fb0>
+2025-12-02 08:12:46,774 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7f3fc9a00c40> server_hostname='api.moysklad.ru' timeout=5
+2025-12-02 08:12:46,947 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9a9a350>
+2025-12-02 08:12:46,948 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-02 08:12:46,949 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-02 08:12:46,949 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-02 08:12:46,950 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-02 08:12:46,950 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-02 08:12:47,046 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'Angie'), (b'Date', b'Tue, 02 Dec 2025 08:12:47 GMT'), (b'Content-Type', b'application/json;charset=utf-8'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Vary', b'Accept-Encoding'), (b'Cache-Control', b'no-cache'), (b'X-Lognex-Reset', b'0'), (b'X-Lognex-Retry-After', b'0'), (b'X-Lognex-Retry-TimeInterval', b'3000'), (b'X-RateLimit-Remaining', b'44'), (b'X-RateLimit-Limit', b'45'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip')])
+2025-12-02 08:12:47,047 - httpx - INFO - HTTP Request: GET https://api.moysklad.ru/api/remap/1.2/entity/counterparty?filter=phone~375296254070&limit=10 "HTTP/1.1 200 OK"
+2025-12-02 08:12:47,048 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-02 08:12:47,049 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-02 08:12:47,050 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-02 08:12:47,050 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-02 08:12:47,051 - httpcore.connection - DEBUG - close.started
+2025-12-02 08:12:47,052 - httpcore.connection - DEBUG - close.complete
+2025-12-02 08:12:47,052 - MoySklad - INFO - 🔍 MS customer-name: phone=+375296254070, name=None
+2025-12-02 08:12:47,053 - uvicorn.access - INFO - 127.0.0.1:46706 - "GET /internal/ms/customer-name?phone=%2B375296254070&enterprise_number=0367 HTTP/1.1" 200
+2025-12-02 08:12:51,070 - MoySklad - INFO - 📞 Received incoming call from integration_cache: {'enterprise_number': '0367', 'phone': '+375296254070', 'extension': '151', 'direction': 'out', 'event_type': 'dial', 'unique_id': '1764663164.0', 'raw': {'ExtPhone': '', 'CallType': 1, 'ExtTrunk': '', 'Token': '375293332255', 'Extensions': ['151'], 'Phone': '375296254070', 'Trunk': '0001363', 'UniqueId': '1764663164.0', '_enterprise_number': '0367', '_enriched_data': {'line_name': 'A1 1', 'line_operator': 'A1', 'manager_name': 'Новембровый Тимлид', 'manager_personal_phone': '+375291778885', 'customer_name': 'Тестовый покупатель'}, '_internal_phone': '151', '_external_phone': '375296254070', '_line_id': '0001363', '_from_dispatch_to_all': True}}
+2025-12-02 08:12:51,171 - MoySklad - INFO - 📞 Outgoing call from Extensions[0]: 151
+2025-12-02 08:12:51,171 - MoySklad - INFO - 🔧 outgoing_call_actions: {'create_order': 'always', 'order_source': 'Исходящий звонок', 'create_client': True}
+2025-12-02 08:12:51,172 - MoySklad - INFO - 🔧 Auto-create setting for outgoing: True
+2025-12-02 08:12:51,172 - MoySklad - INFO - 🔍 Searching for contact with phone: +375296254070
+2025-12-02 08:12:51,279 - httpcore.connection - DEBUG - connect_tcp.started host='api.moysklad.ru' port=443 local_address=None timeout=5.0 socket_options=None
+2025-12-02 08:12:51,295 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9a0bfd0>
+2025-12-02 08:12:51,295 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7f3fc9a00b40> server_hostname='api.moysklad.ru' timeout=5.0
+2025-12-02 08:12:51,348 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9a09270>
+2025-12-02 08:12:51,349 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-02 08:12:51,350 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-02 08:12:51,350 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-02 08:12:51,351 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-02 08:12:51,351 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-02 08:12:51,436 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'Angie'), (b'Date', b'Tue, 02 Dec 2025 08:12:51 GMT'), (b'Content-Type', b'application/json;charset=utf-8'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Vary', b'Accept-Encoding'), (b'Cache-Control', b'no-cache'), (b'X-Lognex-Reset', b'0'), (b'X-Lognex-Retry-After', b'0'), (b'X-Lognex-Retry-TimeInterval', b'3000'), (b'X-RateLimit-Remaining', b'44'), (b'X-RateLimit-Limit', b'45'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip')])
+2025-12-02 08:12:51,437 - httpx - INFO - HTTP Request: GET https://api.moysklad.ru/api/remap/1.2/entity/counterparty?filter=phone~%2B375296254070 "HTTP/1.1 200 OK"
+2025-12-02 08:12:51,438 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-02 08:12:51,439 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-02 08:12:51,439 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-02 08:12:51,440 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-02 08:12:51,441 - MoySklad - INFO - 📞 Contact search response: status=200
+2025-12-02 08:12:51,441 - MoySklad - INFO - 📋 Found 1 contacts
+2025-12-02 08:12:51,441 - MoySklad - INFO - ✅ Contact found: +375296254070 (+375296254070)
+2025-12-02 08:12:51,442 - httpcore.connection - DEBUG - close.started
+2025-12-02 08:12:51,442 - httpcore.connection - DEBUG - close.complete
+2025-12-02 08:12:51,443 - MoySklad - INFO - ✅ Existing contact found: +375296254070 (+375296254070)
+2025-12-02 08:12:51,539 - MoySklad - INFO - 📋 Creating call without counterparty info for +375296254070 (debugging)
+2025-12-02 08:12:51,540 - MoySklad - INFO - 📞 Creating MS call with data: {'from': '+375296254070', 'number': '+375296254070', 'externalId': 'webhook-1764663171-375296254070-151', 'isIncoming': False, 'startTime': '2025-12-02 11:12:51'}
+2025-12-02 08:12:51,541 - httpcore.connection - DEBUG - connect_tcp.started host='api.moysklad.ru' port=443 local_address=None timeout=10.0 socket_options=None
+2025-12-02 08:12:51,557 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9a0b730>
+2025-12-02 08:12:51,557 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7f3fc9b07b40> server_hostname='api.moysklad.ru' timeout=10.0
+2025-12-02 08:12:51,574 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9a0b220>
+2025-12-02 08:12:51,575 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-12-02 08:12:51,576 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-02 08:12:51,576 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-12-02 08:12:51,576 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-02 08:12:51,577 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-12-02 08:12:51,682 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'Angie'), (b'Date', b'Tue, 02 Dec 2025 08:12:51 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'X-Lognex-Reset', b'0'), (b'X-Lognex-Content-Timezone', b'Tue, 02 Dec 2025 11:12:51 +0300'), (b'X-Lognex-Retry-After', b'0'), (b'X-Lognex-Retry-TimeInterval', b'5000'), (b'X-RateLimit-Remaining', b'99'), (b'X-RateLimit-Limit', b'100'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip')])
+2025-12-02 08:12:51,684 - httpx - INFO - HTTP Request: POST https://api.moysklad.ru/api/phone/1.0/call "HTTP/1.1 200 OK"
+2025-12-02 08:12:51,684 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-12-02 08:12:51,685 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-02 08:12:51,686 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-02 08:12:51,686 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-02 08:12:51,687 - MoySklad - INFO - 📞 MS call creation response: status=200
+2025-12-02 08:12:51,687 - MoySklad - INFO - ✅ MS call created successfully: b26c5d09-cf56-11f0-0a80-055d00004d36
+2025-12-02 08:12:51,687 - MoySklad - INFO - 💾 Saved call mapping: +375296254070:151:1764663171 -> b26c5d09-cf56-11f0-0a80-055d00004d36
+2025-12-02 08:12:51,687 - MoySklad - DEBUG - 💾 Saved additional mapping: +375296254070:150:1764663171 -> b26c5d09-cf56-11f0-0a80-055d00004d36
+2025-12-02 08:12:51,687 - MoySklad - DEBUG - 💾 Saved additional mapping: +375296254070:151:1764663171 -> b26c5d09-cf56-11f0-0a80-055d00004d36
+2025-12-02 08:12:51,688 - MoySklad - DEBUG - 💾 Saved additional mapping: +375296254070:152:1764663171 -> b26c5d09-cf56-11f0-0a80-055d00004d36
+2025-12-02 08:12:51,688 - httpcore.connection - DEBUG - close.started
+2025-12-02 08:12:51,688 - httpcore.connection - DEBUG - close.complete
+2025-12-02 08:12:51,760 - httpcore.connection - DEBUG - connect_tcp.started host='api.moysklad.ru' port=443 local_address=None timeout=5.0 socket_options=None
+2025-12-02 08:12:51,776 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9b85720>
+2025-12-02 08:12:51,777 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7f3fc9a01c40> server_hostname='api.moysklad.ru' timeout=5.0
+2025-12-02 08:12:51,790 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9a0ace0>
+2025-12-02 08:12:51,791 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-12-02 08:12:51,792 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-02 08:12:51,792 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-12-02 08:12:51,792 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-02 08:12:51,792 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-12-02 08:12:51,848 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 204, b'No Content', [(b'Server', b'Angie'), (b'Date', b'Tue, 02 Dec 2025 08:12:51 GMT'), (b'Connection', b'keep-alive'), (b'X-Lognex-Reset', b'0'), (b'X-Lognex-Content-Timezone', b'Tue, 02 Dec 2025 11:12:51 +0300'), (b'X-Lognex-Retry-After', b'0'), (b'X-Lognex-Retry-TimeInterval', b'5000'), (b'X-RateLimit-Remaining', b'99'), (b'X-RateLimit-Limit', b'100'), (b'Strict-Transport-Security', b'max-age=15552000')])
+2025-12-02 08:12:51,850 - httpx - INFO - HTTP Request: POST https://api.moysklad.ru/api/phone/1.0/call/b26c5d09-cf56-11f0-0a80-055d00004d36/event "HTTP/1.1 204 No Content"
+2025-12-02 08:12:51,851 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-12-02 08:12:51,851 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-02 08:12:51,852 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-02 08:12:51,852 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-02 08:12:51,853 - MoySklad - INFO - MS popup sent successfully: SHOW to extension 151
+2025-12-02 08:12:51,853 - httpcore.connection - DEBUG - close.started
+2025-12-02 08:12:51,854 - httpcore.connection - DEBUG - close.complete
+2025-12-02 08:12:51,854 - MoySklad - INFO - ✅ МойСклад outgoing popup sent ONLY to calling extension 151 (Тимлидовый С.)
+2025-12-02 08:12:51,857 - uvicorn.access - INFO - 127.0.0.1:58500 - "POST /internal/ms/incoming-call HTTP/1.1" 200
+2025-12-02 08:12:56,196 - MoySklad - DEBUG - 🎯 MS config from LOCAL cache for 0367
+2025-12-02 08:12:56,268 - httpcore.connection - DEBUG - connect_tcp.started host='api.moysklad.ru' port=443 local_address=None timeout=5 socket_options=None
+2025-12-02 08:12:56,283 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9b87580>
+2025-12-02 08:12:56,283 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7f3fc9a00cc0> server_hostname='api.moysklad.ru' timeout=5
+2025-12-02 08:12:56,296 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9a08820>
+2025-12-02 08:12:56,296 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-02 08:12:56,297 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-02 08:12:56,297 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-02 08:12:56,297 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-02 08:12:56,298 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-02 08:12:56,365 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 412, b'Precondition Failed', [(b'Server', b'Angie'), (b'Date', b'Tue, 02 Dec 2025 08:12:56 GMT'), (b'Content-Type', b'application/json;charset=utf-8'), (b'Content-Length', b'304'), (b'Connection', b'keep-alive'), (b'Cache-Control', b'max-age=0, no-cache'), (b'X-Lognex-Reset', b'0'), (b'X-Lognex-Retry-After', b'0'), (b'X-Lognex-Retry-TimeInterval', b'3000'), (b'X-RateLimit-Remaining', b'44'), (b'X-RateLimit-Limit', b'45')])
+2025-12-02 08:12:56,366 - httpx - INFO - HTTP Request: GET https://api.moysklad.ru/api/remap/1.2/entity/counterparty?filter=phone~&limit=10 "HTTP/1.1 412 Precondition Failed"
+2025-12-02 08:12:56,367 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-02 08:12:56,368 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-02 08:12:56,368 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-02 08:12:56,369 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-02 08:12:56,371 - MoySklad - WARNING - MS customer search failed: 412 - {
+  "errors" : [ {
+    "error" : "Ошибка фильтрации: Оператор '~' поля фильтрации 'phone' несовместим со значением этого поля",
+    "code" : 1034,
+    "moreInfo" : "https://dev.moysklad.ru/doc/api/remap/1.2/#/errors#error_1034"
+  } ]
+}
+2025-12-02 08:12:56,371 - httpcore.connection - DEBUG - close.started
+2025-12-02 08:12:56,372 - httpcore.connection - DEBUG - close.complete
+2025-12-02 08:12:56,373 - uvicorn.access - INFO - 127.0.0.1:58512 - "GET /internal/ms/customer-name?phone=%3Cunknown%3E&enterprise_number=0367 HTTP/1.1" 200
+2025-12-02 08:12:56,467 - MoySklad - DEBUG - 🎯 MS config from LOCAL cache for 0367
+2025-12-02 08:12:56,553 - httpcore.connection - DEBUG - connect_tcp.started host='api.moysklad.ru' port=443 local_address=None timeout=5 socket_options=None
+2025-12-02 08:12:56,569 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc99f0280>
+2025-12-02 08:12:56,570 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7f3fc9a01f40> server_hostname='api.moysklad.ru' timeout=5
+2025-12-02 08:12:56,585 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9a0bfa0>
+2025-12-02 08:12:56,586 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-02 08:12:56,587 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-02 08:12:56,587 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-02 08:12:56,588 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-02 08:12:56,588 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-02 08:12:56,672 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'Angie'), (b'Date', b'Tue, 02 Dec 2025 08:12:56 GMT'), (b'Content-Type', b'application/json;charset=utf-8'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Vary', b'Accept-Encoding'), (b'Cache-Control', b'no-cache'), (b'X-Lognex-Reset', b'0'), (b'X-Lognex-Retry-After', b'0'), (b'X-Lognex-Retry-TimeInterval', b'3000'), (b'X-RateLimit-Remaining', b'44'), (b'X-RateLimit-Limit', b'45'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip')])
+2025-12-02 08:12:56,673 - httpx - INFO - HTTP Request: GET https://api.moysklad.ru/api/remap/1.2/entity/counterparty?filter=phone~375296254070&limit=10 "HTTP/1.1 200 OK"
+2025-12-02 08:12:56,674 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-02 08:12:56,674 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-02 08:12:56,675 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-02 08:12:56,675 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-02 08:12:56,675 - httpcore.connection - DEBUG - close.started
+2025-12-02 08:12:56,676 - httpcore.connection - DEBUG - close.complete
+2025-12-02 08:12:56,676 - MoySklad - INFO - 🔍 MS customer-name: phone=+375296254070, name=None
+2025-12-02 08:12:56,676 - uvicorn.access - INFO - 127.0.0.1:58528 - "GET /internal/ms/customer-name?phone=%2B375296254070&enterprise_number=0367 HTTP/1.1" 200
+2025-12-02 08:13:06,638 - MoySklad - DEBUG - 🎯 MS config from LOCAL cache for 0367
+2025-12-02 08:13:06,714 - httpcore.connection - DEBUG - connect_tcp.started host='api.moysklad.ru' port=443 local_address=None timeout=5 socket_options=None
+2025-12-02 08:13:06,730 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc99f1480>
+2025-12-02 08:13:06,730 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7f3fc9a000c0> server_hostname='api.moysklad.ru' timeout=5
+2025-12-02 08:13:06,742 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f3fc9a0b130>
+2025-12-02 08:13:06,743 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-02 08:13:06,743 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-12-02 08:13:06,743 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-02 08:13:06,744 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-12-02 08:13:06,744 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-02 08:13:06,838 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Server', b'Angie'), (b'Date', b'Tue, 02 Dec 2025 08:13:06 GMT'), (b'Content-Type', b'application/json;charset=utf-8'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Vary', b'Accept-Encoding'), (b'Cache-Control', b'no-cache'), (b'X-Lognex-Reset', b'0'), (b'X-Lognex-Retry-After', b'0'), (b'X-Lognex-Retry-TimeInterval', b'3000'), (b'X-RateLimit-Remaining', b'44'), (b'X-RateLimit-Limit', b'45'), (b'Strict-Transport-Security', b'max-age=15552000'), (b'Content-Encoding', b'gzip')])
+2025-12-02 08:13:06,839 - httpx - INFO - HTTP Request: GET https://api.moysklad.ru/api/remap/1.2/entity/counterparty?filter=phone~375296254070&limit=10 "HTTP/1.1 200 OK"
+2025-12-02 08:13:06,840 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-02 08:13:06,840 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-12-02 08:13:06,840 - httpcore.http11 - DEBUG - response_closed.started
+2025-12-02 08:13:06,841 - httpcore.http11 - DEBUG - response_closed.complete
+2025-12-02 08:13:06,841 - httpcore.connection - DEBUG - close.started
+2025-12-02 08:13:06,842 - httpcore.connection - DEBUG - close.complete
+2025-12-02 08:13:06,842 - MoySklad - INFO - 🔍 MS customer-name: phone=+375296254070, name=None
+2025-12-02 08:13:06,842 - uvicorn.access - INFO - 127.0.0.1:54422 - "GET /internal/ms/customer-name?phone=%2B375296254070&enterprise_number=0367 HTTP/1.1" 200

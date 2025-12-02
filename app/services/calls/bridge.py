@@ -706,9 +706,17 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
             )
         
         message_id = message.message_id
+        
+        # Добавляем message_id к сообщению для отладки
+        debug_text = f"{text}\n🔖 msg:{message_id}"
+        try:
+            await bot.edit_message_text(debug_text, chat_id, message_id, parse_mode="HTML", reply_markup=reply_markup)
+        except Exception as e:
+            logging.warning(f"[send_bridge_to_single_chat] Failed to add message_id to text: {e}")
+        
         # Логируем в call_tracer
         ent_num = data.get("_enterprise_number", "")
-        log_telegram_event(ent_num, "send", chat_id, "bridge", message_id, uid, text)
+        log_telegram_event(ent_num, "send", chat_id, "bridge", message_id, uid, debug_text)
         logging.info(f"[send_bridge_to_single_chat] Sent bridge message {message_id}")
         
         # ШАГ 1: Получаем и удаляем предыдущее сообщение (dial)
