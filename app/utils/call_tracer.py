@@ -4,21 +4,52 @@ Call Tracer - логирование событий в файлы для каж�
 
 ВАЖНО: Пишем напрямую в файл (append mode) без кэширования логгеров,
 чтобы избежать проблем с несколькими воркерами uvicorn.
+
+Ротация: логи хранятся 14 дней, файлы именуются events_YYYY-MM-DD.log
 """
 
 import os
 import json
-from datetime import datetime
+import glob
+from datetime import datetime, timedelta
 
 # Основной логгер для отладки
 import logging
 _module_logger = logging.getLogger("call_tracer")
 
+# Количество дней хранения логов
+LOG_RETENTION_DAYS = 14
+
+
+def _cleanup_old_logs(log_dir: str):
+    """Удаляет логи старше LOG_RETENTION_DAYS дней."""
+    try:
+        cutoff_date = datetime.now() - timedelta(days=LOG_RETENTION_DAYS)
+        pattern = os.path.join(log_dir, "events_*.log")
+        
+        for log_file in glob.glob(pattern):
+            # Извлекаем дату из имени файла events_YYYY-MM-DD.log
+            filename = os.path.basename(log_file)
+            try:
+                date_str = filename.replace("events_", "").replace(".log", "")
+                file_date = datetime.strptime(date_str, "%Y-%m-%d")
+                if file_date < cutoff_date:
+                    os.remove(log_file)
+                    _module_logger.info(f"Removed old log file: {log_file}")
+            except ValueError:
+                # Не удалось распарсить дату - пропускаем
+                pass
+    except Exception as e:
+        _module_logger.warning(f"Failed to cleanup old logs: {e}")
+
 
 def _write_to_log(enterprise_number: str, message: str):
-    """Пишет сообщение напрямую в файл лога."""
+    """Пишет сообщение напрямую в файл лога с ротацией по дням."""
     log_dir = f"call_tracer/{enterprise_number}"
-    log_file = f"{log_dir}/events.log"
+    
+    # Файл с датой: events_2025-12-02.log
+    today = datetime.now().strftime("%Y-%m-%d")
+    log_file = f"{log_dir}/events_{today}.log"
     
     # Создаём директорию если нет
     os.makedirs(log_dir, exist_ok=True)
@@ -30,6 +61,14 @@ def _write_to_log(enterprise_number: str, message: str):
     # Пишем в файл (append mode)
     with open(log_file, "a", encoding="utf-8") as f:
         f.write(line)
+    
+    # Периодически чистим старые логи (раз в ~1000 записей, чтобы не делать это каждый раз)
+    # Используем простую проверку по размеру файла
+    try:
+        if os.path.getsize(log_file) < 1000:  # Только в начале дня (маленький файл)
+            _cleanup_old_logs(log_dir)
+    except:
+        pass
 
 
 def log_telegram_event(

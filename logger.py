@@ -991,10 +991,16 @@ async def view_call_details(
             enterprise_info = {"name": result['name'], "number": enterprise_number}
         
         # ═══════════════════════════════════════════════════════════════════
-        # ЧИТАЕМ ДАННЫЕ ИЗ ФАЙЛОВ call_tracer/{enterprise_number}/events.log*
+        # ЧИТАЕМ ДАННЫЕ ИЗ ФАЙЛОВ call_tracer/{enterprise_number}/events_*.log
+        # Поддерживаем оба формата: старый events.log* и новый events_YYYY-MM-DD.log
         # ═══════════════════════════════════════════════════════════════════
         log_dir = f"call_tracer/{enterprise_number}"
-        log_files = glob.glob(f"{log_dir}/events.log*")
+        # Новый формат: events_2025-12-02.log
+        log_files = glob.glob(f"{log_dir}/events_*.log")
+        # Старый формат: events.log, events.log.2025-11-29
+        log_files.extend(glob.glob(f"{log_dir}/events.log*"))
+        # Убираем дубликаты
+        log_files = list(set(log_files))
         
         if not log_files:
             raise HTTPException(status_code=404, detail=f"No log files found for enterprise {enterprise_number}")

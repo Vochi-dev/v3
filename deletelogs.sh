@@ -125,16 +125,17 @@ echo -e "${CYAN}📁 Этап 2: Очистка файлов логов в call_
 TRACER_PATH="$CALL_TRACER_DIR/$ENTERPRISE"
 
 if [ -d "$TRACER_PATH" ]; then
-    # Подсчитываем файлы и их размер
-    FILE_COUNT=$(find "$TRACER_PATH" -name "events.log*" 2>/dev/null | wc -l)
+    # Подсчитываем файлы и их размер (оба формата: events.log* и events_*.log)
+    FILE_COUNT=$(find "$TRACER_PATH" \( -name "events.log*" -o -name "events_*.log" \) 2>/dev/null | wc -l)
     TOTAL_SIZE=$(du -sh "$TRACER_PATH" 2>/dev/null | awk '{print $1}')
     
     if [ "$FILE_COUNT" -gt 0 ]; then
         echo -e "  Найдено файлов: ${YELLOW}$FILE_COUNT${NC}"
         echo -e "  Общий размер:   ${YELLOW}$TOTAL_SIZE${NC}"
         
-        # Удаляем все файлы логов
+        # Удаляем все файлы логов (оба формата)
         rm -f "$TRACER_PATH"/events.log*
+        rm -f "$TRACER_PATH"/events_*.log
         
         echo -e "${GREEN}  ✅ Все файлы логов удалены${NC}"
     else
