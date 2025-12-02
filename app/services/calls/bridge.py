@@ -500,11 +500,13 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     elif not caller_internal and connected_internal:
         # Внешний номер в caller, внутренний в connected
         # Это может быть как входящий, так и исходящий
-        # Проверяем ExternalInitiated для точного определения
+        # ExternalInitiated=true = звонок через CRM = ИСХОДЯЩИЙ
+        # ExternalInitiated=false = обычный исходящий (первый bridge) = тоже ИСХОДЯЩИЙ
+        # Входящие звонки обрабатываются отдельно
         if external_initiated:
-            call_direction = "incoming"  # Внешний инициировал = входящий
+            call_direction = "outgoing"  # Звонок через CRM = исходящий
         else:
-            call_direction = "outgoing"  # Внутренний инициировал = исходящий
+            call_direction = "outgoing"  # Обычный исходящий (первый bridge)
         internal_ext = connected  # внутренний номер менеджера
         external_phone = caller   # внешний номер клиента
     elif caller_internal and not connected_internal:
