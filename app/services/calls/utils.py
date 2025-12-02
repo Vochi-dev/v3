@@ -184,8 +184,8 @@ def should_replace_previous_message(phone: str, event_type: str, chat_id: int = 
     if event_type == 'bridge' and last_event in ['dial', 'bridge']:
         return True, tracker['message_id']
     
-    # Dial заменяет start (существующая логика)
-    if event_type == 'dial' and last_event == 'start':
+    # Dial заменяет start или предыдущий dial (когда линия занята и переключается на другую)
+    if event_type == 'dial' and last_event in ['start', 'dial']:
         return True, tracker['message_id']
     
     return False, None
