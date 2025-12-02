@@ -252,6 +252,10 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         # ВАЖНО: Если ExternalInitiated=true, то это ВСЕГДА внешний звонок (не внутренний)
         # Даже если caller и connected оба внутренние (промежуточные bridge)
         if external_initiated:
+            # ExternalInitiated=true + CallType=2 — это промежуточная нога к менеджеру, ПРОПУСКАЕМ
+            if call_type == 2:
+                logging.info(f"[process_hangup] Skipping intermediate hangup (ExternalInitiated=true, CallType=2) uid={uid}")
+                return {"status": "skipped", "reason": "intermediate_leg_hangup"}
             # Внешний звонок (определяем направление по CallType)
             if call_type == 1:
                 call_direction = "outgoing"
