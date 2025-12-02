@@ -57,6 +57,12 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     token = data.get("Token", "")
     trunk_info = data.get("Trunk", "")
     
+    # Сохраняем trunk в кэш для использования в bridge
+    from .utils import save_trunk_for_call
+    if trunk_info:
+        save_trunk_for_call(uid, raw_phone, trunk_info)
+        logging.info(f"[process_dial] Saved trunk '{trunk_info}' for uid={uid}, phone={raw_phone}")
+    
     # Получаем номер предприятия из БД по Token (name2)
     from app.services.postgres import get_pool
     enterprise_number = "0000"  # fallback

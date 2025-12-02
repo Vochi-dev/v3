@@ -27,6 +27,12 @@ phone_message_tracker_by_chat = defaultdict(dict)
 # Структура для отслеживания состояния звонков
 call_state_tracker = defaultdict(dict)
 
+# ─────── Кэш trunk по UniqueId и внешнему номеру ───────
+# Используется для передачи trunk из dial в bridge
+# Структура: {unique_id: trunk} и {external_phone: trunk}
+trunk_cache_by_uid = {}
+trunk_cache_by_phone = {}
+
 # ===== ОБРАТНАЯ СОВМЕСТИМОСТЬ =====
 # Для старого кода, который ещё использует глобальные переменные
 # Будем использовать значения для суперюзера 374573193
@@ -43,18 +49,24 @@ phone_message_tracker = phone_message_tracker_by_chat[SUPERUSER_CHAT_ID]
 def get_phone_for_grouping(data: dict) -> str:
     """
     Определяет номер телефона для группировки событий.
-    ИСПРАВЛЕНО: Улучшенная логика для bridge событий
+    ИСПРАВЛЕНО: Улучшенная логика для bridge событий с учётом Exten
     """
     # Для bridge событий нужна особая логика
     if "BridgeUniqueid" in data:
         # Это bridge событие
         caller = data.get("CallerIDNum", "")
         connected = data.get("ConnectedLineNum", "")
+        exten = data.get("Exten", "")
+        
+        # Для обычного исходящего: caller=internal, connected=<unknown>, Exten=external
+        # Используем Exten если это внешний номер (10+ цифр)
+        if exten and len(exten) >= 10 and exten.isdigit():
+            return exten
         
         # Определяем внешний номер для группировки
         if caller and not is_internal_number(caller):
             return caller
-        elif connected and not is_internal_number(connected):
+        elif connected and connected not in ["", "unknown", "<unknown>"] and not is_internal_number(connected):
             return connected
         else:
             # Если оба внутренние, берем первый
@@ -177,6 +189,40 @@ def should_replace_previous_message(phone: str, event_type: str, chat_id: int = 
         return True, tracker['message_id']
     
     return False, None
+
+# ───────── Кэш trunk для передачи между событиями ─────────
+def save_trunk_for_call(unique_id: str, external_phone: str, trunk: str):
+    """
+    Сохраняет trunk из dial события для использования в bridge.
+    """
+    if trunk and unique_id:
+        trunk_cache_by_uid[unique_id] = trunk
+        logging.debug(f"[save_trunk_for_call] Saved trunk '{trunk}' for uid '{unique_id}'")
+    if trunk and external_phone:
+        trunk_cache_by_phone[external_phone] = trunk
+        logging.debug(f"[save_trunk_for_call] Saved trunk '{trunk}' for phone '{external_phone}'")
+    
+    # Очистка старых записей (держим не более 500)
+    if len(trunk_cache_by_uid) > 500:
+        # Удаляем первые 100 записей
+        keys_to_remove = list(trunk_cache_by_uid.keys())[:100]
+        for k in keys_to_remove:
+            del trunk_cache_by_uid[k]
+    if len(trunk_cache_by_phone) > 500:
+        keys_to_remove = list(trunk_cache_by_phone.keys())[:100]
+        for k in keys_to_remove:
+            del trunk_cache_by_phone[k]
+
+def get_trunk_for_call(unique_id: str = None, external_phone: str = None) -> str:
+    """
+    Получает trunk для звонка из кэша.
+    Сначала ищет по unique_id, потом по external_phone.
+    """
+    if unique_id and unique_id in trunk_cache_by_uid:
+        return trunk_cache_by_uid[unique_id]
+    if external_phone and external_phone in trunk_cache_by_phone:
+        return trunk_cache_by_phone[external_phone]
+    return ""
 
 # ───────── Утилиты для номеров ─────────
 def is_internal_number(number: str) -> bool:

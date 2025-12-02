@@ -770,33 +770,23 @@ async def _dispatch_to_all(handler, body: dict):
         logger.info(f"Generated shared UUID token for hangup {unique_id}: {shared_uuid_token}")
     
     # 🔗 Для bridge событий проверяем дубликаты по BridgeUniqueid ОДИН РАЗ
-    # НО: помечаем как sent ТОЛЬКО если данные валидны для отправки!
+    # ВАЖНО: НЕ помечаем как sent здесь! Это делается в should_send_bridge после валидации
+    # Причина: два bridge события с одним BridgeUniqueid могут иметь разные данные,
+    # и только второй (external→internal) должен быть отправлен
     if event_type == "bridge":
-        from app.services.calls.bridge import sent_bridges
+        from app.services.calls.bridge import sent_bridges, should_send_bridge
         from app.services.calls.utils import is_internal_number
         import time
         bridge_id = body.get("BridgeUniqueid", "")
-        caller = body.get("CallerIDNum", "")
-        connected = body.get("ConnectedLineNum", "")
         
-        # Проверяем валидность данных ПЕРЕД проверкой дубликатов
-        is_valid_bridge = (
-            caller and connected and 
-            caller not in ["", "unknown", "<unknown>"] and 
-            connected not in ["", "unknown", "<unknown>"]
-        )
-        
+        # Проверяем дубликаты - но ТОЛЬКО если bridge уже был реально отправлен
         if bridge_id and bridge_id in sent_bridges:
             time_since_sent = time.time() - sent_bridges[bridge_id]
             logger.info(f"[_dispatch_to_all] Skipping bridge {bridge_id} - already sent {time_since_sent:.1f}s ago (duplicate)")
             return {"delivered": [{"status": "skipped", "reason": "duplicate bridge"}]}
         
-        # Помечаем bridge как отправленный ТОЛЬКО если данные валидны
-        if bridge_id and is_valid_bridge:
-            sent_bridges[bridge_id] = time.time()
-            logger.info(f"[_dispatch_to_all] Marked bridge {bridge_id} as sent (valid data: caller={caller}, connected={connected})")
-        elif bridge_id and not is_valid_bridge:
-            logger.info(f"[_dispatch_to_all] NOT marking bridge {bridge_id} as sent - invalid data: caller={caller}, connected={connected}")
+        # НЕ помечаем здесь! Пометка происходит в should_send_bridge после полной валидации
+        logger.info(f"[_dispatch_to_all] Bridge {bridge_id} not in sent_bridges, proceeding to validation")
     
     # 🎯 ОПТИМИЗАЦИЯ: Подготовка данных ДО цикла по подписчикам
     # Для start/dial/bridge/hangup делаем enrichment ОДИН РАЗ
@@ -848,26 +838,48 @@ async def _dispatch_to_all(handler, body: dict):
                 elif event_type == "bridge":
                     caller = body.get("CallerIDNum", "")
                     connected = body.get("ConnectedLineNum", "")
+                    exten = body.get("Exten", "")
                     
                     caller_internal = is_internal_number(caller)
-                    connected_internal = is_internal_number(connected)
+                    connected_internal = is_internal_number(connected) if connected and connected not in ["", "unknown", "<unknown>"] else False
+                    exten_is_external = len(exten) >= 10 and exten.isdigit()
                     
-                    if caller_internal:
+                    # Определяем internal и external номера
+                    if caller_internal and exten_is_external:
+                        # ОБЫЧНЫЙ ИСХОДЯЩИЙ: caller=internal, Exten=external
                         internal_phone = caller
-                        external_phone = connected if not connected_internal else None
+                        external_phone = exten
+                    elif caller_internal:
+                        internal_phone = caller
+                        external_phone = connected if connected and connected not in ["", "unknown", "<unknown>"] and not connected_internal else None
                     elif connected_internal:
                         internal_phone = connected
                         external_phone = caller
                     
-                    # Извлекаем trunk
+                    # Извлекаем trunk:
+                    # 1. Из body["Trunk"]
+                    # 2. Из кэша (сохранённый из dial события)
+                    # 3. Из Channel (но не внутренние номера!)
+                    from app.services.calls.utils import get_trunk_for_call
+                    
                     trunk = body.get("Trunk", "")
+                    if not trunk:
+                        # Пробуем получить из кэша
+                        uid = body.get("UniqueId", "")
+                        trunk = get_trunk_for_call(unique_id=uid, external_phone=external_phone)
+                        if trunk:
+                            logger.info(f"[_dispatch_to_all] Got trunk '{trunk}' from cache for bridge uid={uid}")
+                    
                     if not trunk:
                         channel = body.get("Channel", "")
                         if channel and "/" in channel and "-" in channel:
                             parts = channel.split("/")
                             if len(parts) > 1:
-                                trunk = parts[1].split("-")[0]
-                    line_id = trunk
+                                extracted = parts[1].split("-")[0]
+                                # Не используем внутренние номера как trunk
+                                if not is_internal_number(extracted):
+                                    trunk = extracted
+                    line_id = trunk if trunk else None
                 
                 elif event_type == "hangup":
                     call_type = int(body.get("CallType", 0))

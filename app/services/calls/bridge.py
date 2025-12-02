@@ -321,11 +321,19 @@ def should_send_bridge(data: dict) -> bool:
     """
     Определяет нужно ли отправлять данный bridge в Telegram.
     
-    Логика:
-    - Отправляем bridge если у него есть CallerIDNum и ConnectedLineNum
-    - Пропускаем "пустые" или неполные bridge события
-    - Пропускаем промежуточные bridge с ExternalInitiated=true (internal→external)
-    - Пропускаем дубликаты по BridgeUniqueid (если уже отправляли bridge с таким же BridgeUniqueid)
+    КОМПЛЕКСНАЯ ЛОГИКА ДЛЯ ТРЁХ ТИПОВ ЗВОНКОВ:
+    
+    1. ОБЫЧНЫЙ ИСХОДЯЩИЙ (ExternalInitiated=false):
+       - Bridge #1: caller=internal, connected=<unknown>, Exten=external → ОТПРАВЛЯЕМ
+       - Bridge #2: caller=external, connected=internal, Exten="" → ПРОПУСКАЕМ
+       
+    2. CRM ИСХОДЯЩИЙ (ExternalInitiated=true, CallType=1):
+       - Bridge #1: caller=internal, connected=external → ПРОПУСКАЕМ (промежуточный)
+       - Bridge #2: caller=external, connected=internal → ОТПРАВЛЯЕМ
+       
+    3. ВХОДЯЩИЙ (ExternalInitiated=true ошибочно, CallType=0):
+       - Bridge #1: caller=internal, connected=external → ПРОПУСКАЕМ (промежуточный)
+       - Bridge #2: caller=external, connected=internal, Exten=trunk → ОТПРАВЛЯЕМ
     """
     from .utils import is_internal_number
     import time
@@ -333,50 +341,72 @@ def should_send_bridge(data: dict) -> bool:
     caller = data.get("CallerIDNum", "")
     connected = data.get("ConnectedLineNum", "")
     bridge_id = data.get("BridgeUniqueid", "")
+    exten = data.get("Exten", "")
+    external_initiated = data.get("ExternalInitiated", False)
     
-    logging.info(f"[should_send_bridge] Checking bridge {bridge_id}: caller='{caller}', connected='{connected}'")
+    logging.info(f"[should_send_bridge] Checking bridge {bridge_id}: caller='{caller}', connected='{connected}', exten='{exten}', external_initiated={external_initiated}")
     
-    # ПРИМЕЧАНИЕ: Проверка дубликатов по BridgeUniqueid перенесена на уровень _dispatch_to_all
-    # чтобы не блокировать отправку для всех chat_ids после первого
-    # Проверяем только если это вызов из send_bridge_to_telegram (не из _dispatch_to_all)
+    # Проверка дубликатов по BridgeUniqueid
     if bridge_id and bridge_id in sent_bridges and not data.get("_from_dispatch_to_all"):
         time_since_sent = time.time() - sent_bridges[bridge_id]
         logging.info(f"[should_send_bridge] Skipping bridge {bridge_id} - already sent {time_since_sent:.1f}s ago (duplicate)")
         return False
     
-    # Основное условие: должны быть и caller и connected
-    if not caller or not connected:
-        logging.info(f"[should_send_bridge] Skipping bridge - missing caller or connected")
+    # Должен быть caller
+    if not caller or caller in ["", "unknown", "<unknown>"]:
+        logging.info(f"[should_send_bridge] Skipping bridge - invalid caller")
         return False
     
-    # Пропускаем bridge с пустыми или некорректными номерами
-    if caller in ["", "unknown", "<unknown>"] or connected in ["", "unknown", "<unknown>"]:
-        logging.info(f"[should_send_bridge] Skipping bridge - invalid numbers")
-        return False
+    # Определяем типы номеров
+    caller_is_internal = is_internal_number(caller)
+    connected_is_internal = is_internal_number(connected) if connected and connected not in ["", "unknown", "<unknown>"] else False
+    exten_is_external = len(exten) >= 10 and exten.isdigit()  # Внешний номер: 10+ цифр
+    exten_is_trunk = len(exten) == 7 and exten.isdigit()  # Trunk: 7 цифр (например 0001363)
     
-    # НОВОЕ ПРАВИЛО: Пропускаем ПРОМЕЖУТОЧНЫЕ bridge события с ExternalInitiated=true
-    # Промежуточный bridge: внутренний номер → внешний номер (после bridge_create из CRM)
-    # Настоящий bridge: внешний номер → внутренний номер (реальный разговор)
-    external_initiated = data.get("ExternalInitiated", False)
-    if external_initiated:
-        # Определяем направление: если CallerIDNum внутренний, а ConnectedLineNum внешний - это промежуточный bridge
-        caller_is_internal = is_internal_number(caller)
-        connected_is_external = not is_internal_number(connected)
+    logging.info(f"[should_send_bridge] Analysis: caller_internal={caller_is_internal}, connected_internal={connected_is_internal}, exten_external={exten_is_external}, exten_trunk={exten_is_trunk}")
+    
+    # ═══════════════════════════════════════════════════════════════════
+    # СЛУЧАЙ 1: ОБЫЧНЫЙ ИСХОДЯЩИЙ (ExternalInitiated=false)
+    # ═══════════════════════════════════════════════════════════════════
+    if not external_initiated:
+        # Bridge #1: caller=internal, connected=<unknown>, Exten=external → ОТПРАВЛЯЕМ
+        if caller_is_internal and exten_is_external:
+            logging.info(f"[should_send_bridge] ✅ REGULAR OUTGOING: internal caller with external Exten - SEND")
+            if bridge_id and not data.get("_from_dispatch_to_all"):
+                sent_bridges[bridge_id] = time.time()
+            return True
         
-        if caller_is_internal and connected_is_external:
-            logging.info(f"[should_send_bridge] Skipping bridge {bridge_id} - ExternalInitiated=true intermediate bridge (internal→external)")
+        # Bridge #2: caller=external, connected=internal, Exten="" → ПРОПУСКАЕМ
+        if not caller_is_internal and connected_is_internal and not exten_is_external:
+            logging.info(f"[should_send_bridge] ⏭️ REGULAR OUTGOING: external→internal without Exten - SKIP (waiting for bridge with Exten)")
             return False
-        else:
-            logging.info(f"[should_send_bridge] Allowing bridge {bridge_id} - ExternalInitiated=true but real conversation bridge (external→internal)")
+        
+        # Fallback для обычных звонков
+        if not caller_is_internal and connected_is_internal:
+            logging.info(f"[should_send_bridge] ✅ REGULAR: external→internal - SEND")
+            if bridge_id and not data.get("_from_dispatch_to_all"):
+                sent_bridges[bridge_id] = time.time()
+            return True
     
-    # ВАЖНО: Сохраняем BridgeUniqueid в sent_bridges только если это НЕ вызов из _dispatch_to_all
-    # При вызове из _dispatch_to_all, дубликаты контролируются на уровне _dispatch_to_all
-    if bridge_id and not data.get("_from_dispatch_to_all"):
-        sent_bridges[bridge_id] = time.time()
-        logging.info(f"[should_send_bridge] Marked bridge {bridge_id} as sent (standalone call)")
+    # ═══════════════════════════════════════════════════════════════════
+    # СЛУЧАЙ 2 и 3: ExternalInitiated=true (CRM исходящий ИЛИ входящий)
+    # ═══════════════════════════════════════════════════════════════════
+    if external_initiated:
+        # Промежуточный bridge: internal → external → ПРОПУСКАЕМ
+        if caller_is_internal and not connected_is_internal:
+            logging.info(f"[should_send_bridge] ⏭️ ExternalInitiated: internal→external - SKIP (intermediate)")
+            return False
+        
+        # Основной bridge: external → internal → ОТПРАВЛЯЕМ
+        if not caller_is_internal and connected_is_internal:
+            logging.info(f"[should_send_bridge] ✅ ExternalInitiated: external→internal - SEND (real conversation)")
+            if bridge_id and not data.get("_from_dispatch_to_all"):
+                sent_bridges[bridge_id] = time.time()
+            return True
     
-    logging.info(f"[should_send_bridge] Bridge {bridge_id} is valid for sending")
-    return True
+    # Fallback: если ничего не подошло, пропускаем
+    logging.info(f"[should_send_bridge] ⏭️ No matching pattern - SKIP")
+    return False
 
 # ═══════════════════════════════════════════════════════════════════
 # ОТПРАВКА BRIDGE СООБЩЕНИЙ В ТЕЛЕГРАМ  
@@ -482,43 +512,67 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     # ───────── Шаг 3. Определяем тип звонка ─────────
     caller = data.get("CallerIDNum", "")
     connected = data.get("ConnectedLineNum", "")
+    exten = data.get("Exten", "")
+    external_initiated = data.get("ExternalInitiated", False)
     
     # Проверяем что это за звонок
     caller_internal = is_internal_number(caller)
-    connected_internal = is_internal_number(connected)
-    external_initiated = data.get("ExternalInitiated", False)
+    connected_internal = is_internal_number(connected) if connected and connected not in ["", "unknown", "<unknown>"] else False
+    exten_is_external = len(exten) >= 10 and exten.isdigit()  # Внешний номер
+    exten_is_trunk = len(exten) == 7 and exten.isdigit()  # Trunk (7 цифр)
     
-    # ВАЖНО: В bridge роли могут быть перевернуты!
-    # Для исходящих: CallerIDNum=внешний, ConnectedLineNum=внутренний
-    # Для входящих: CallerIDNum=внешний, ConnectedLineNum=внутренний (так же!)
-    # Различаем по ExternalInitiated (если есть) или по тому, кто инициатор
+    logging.info(f"[send_bridge_to_single_chat] Analyzing: caller={caller}, connected={connected}, exten={exten}")
+    logging.info(f"[send_bridge_to_single_chat] Flags: caller_internal={caller_internal}, connected_internal={connected_internal}, exten_external={exten_is_external}, exten_trunk={exten_is_trunk}")
+    
+    # ═══════════════════════════════════════════════════════════════════
+    # КОМПЛЕКСНАЯ ЛОГИКА ОПРЕДЕЛЕНИЯ ТИПА ЗВОНКА
+    # ═══════════════════════════════════════════════════════════════════
     
     if caller_internal and connected_internal:
+        # Внутренний звонок
         call_direction = "internal"
         internal_ext = caller or connected
         external_phone = None
-    elif not caller_internal and connected_internal:
-        # Внешний номер в caller, внутренний в connected
-        # Это может быть как входящий, так и исходящий
-        # ExternalInitiated=true = звонок через CRM = ИСХОДЯЩИЙ
-        # ExternalInitiated=false = обычный исходящий (первый bridge) = тоже ИСХОДЯЩИЙ
-        # Входящие звонки обрабатываются отдельно
-        if external_initiated:
-            call_direction = "outgoing"  # Звонок через CRM = исходящий
-        else:
-            call_direction = "outgoing"  # Обычный исходящий (первый bridge)
-        internal_ext = connected  # внутренний номер менеджера
-        external_phone = caller   # внешний номер клиента
-    elif caller_internal and not connected_internal:
+        
+    elif caller_internal and exten_is_external:
+        # ОБЫЧНЫЙ ИСХОДЯЩИЙ: caller=internal, Exten=external
+        # Bridge #1: caller=151, connected=<unknown>, Exten=375447034448
         call_direction = "outgoing"
         internal_ext = caller
-        external_phone = connected
+        external_phone = exten  # Берём из Exten!
+        logging.info(f"[send_bridge_to_single_chat] REGULAR OUTGOING: internal caller, external from Exten")
+        
+    elif not caller_internal and connected_internal:
+        # external → internal
+        # Это может быть:
+        # - CRM ИСХОДЯЩИЙ (ExternalInitiated=true, Exten="" или Exten=external)
+        # - ВХОДЯЩИЙ (ExternalInitiated=true ошибочно, Exten=trunk)
+        
+        if exten_is_trunk:
+            # ВХОДЯЩИЙ: Exten содержит trunk (7 цифр)
+            call_direction = "incoming"
+            internal_ext = connected
+            external_phone = caller
+            logging.info(f"[send_bridge_to_single_chat] INCOMING: external caller, trunk in Exten")
+        else:
+            # CRM ИСХОДЯЩИЙ или обычный
+            call_direction = "outgoing"
+            internal_ext = connected
+            external_phone = caller
+            logging.info(f"[send_bridge_to_single_chat] CRM/REGULAR OUTGOING: external→internal")
+        
+    elif caller_internal and not connected_internal:
+        # internal → external (промежуточный, не должен сюда попасть)
+        call_direction = "outgoing"
+        internal_ext = caller
+        external_phone = connected if connected not in ["", "unknown", "<unknown>"] else exten
+        
     else:
         call_direction = "unknown"
         internal_ext = caller or connected
-        external_phone = connected or caller
+        external_phone = connected or caller or exten
 
-    logging.info(f"[send_bridge_to_single_chat] Bridge: {caller} <-> {connected}, call_direction={call_direction}")
+    logging.info(f"[send_bridge_to_single_chat] Result: call_direction={call_direction}, internal={internal_ext}, external={external_phone}")
 
     # ───────── Шаг 3.5. Получаем обогащённые метаданные ─────────
     token = data.get("Token", "")
@@ -538,17 +592,33 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     # Обогащаем метаданными для bridge
     enriched_data = {}
     
-    # Извлекаем trunk из Channel (например: "SIP/0001363-00000001" → "0001363")
+    # Извлекаем trunk:
+    # 1. Сначала из data["Trunk"]
+    # 2. Потом из кэша (сохранённый из dial события)
+    # 3. Потом из Channel (но не внутренние номера!)
+    from .utils import get_trunk_for_call
+    
     trunk = data.get("Trunk", "")
+    if not trunk:
+        # Пробуем получить из кэша (сохранён из dial)
+        uid = data.get("UniqueId", "")
+        trunk = get_trunk_for_call(unique_id=uid, external_phone=external_phone)
+        if trunk:
+            logging.info(f"[send_bridge_to_single_chat] Got trunk '{trunk}' from cache for uid={uid}, phone={external_phone}")
+    
     if not trunk:
         channel = data.get("Channel", "")
         if channel and "/" in channel and "-" in channel:
-            # Формат: SIP/0001363-00000001
+            # Формат: SIP/0001363-00000001 или SIP/151-00000001
             parts = channel.split("/")
             if len(parts) > 1:
                 trunk_part = parts[1].split("-")[0]
-                trunk = trunk_part
-                logging.info(f"[send_bridge_to_single_chat] Extracted trunk '{trunk}' from Channel '{channel}'")
+                # Проверяем что это не внутренний номер (3-4 цифры)
+                if not is_internal_number(trunk_part):
+                    trunk = trunk_part
+                    logging.info(f"[send_bridge_to_single_chat] Extracted trunk '{trunk}' from Channel '{channel}'")
+                else:
+                    logging.info(f"[send_bridge_to_single_chat] Skipping internal number '{trunk_part}' as trunk from Channel '{channel}'")
     
     # Используем pre-enriched данные (уже сделано в main.py)
     enriched_data = data.get("_enriched_data", {})
