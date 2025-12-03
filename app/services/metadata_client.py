@@ -22,7 +22,7 @@ class MetadataClient:
         # In-memory кэши: {cache_key: (data, timestamp)}
         self._line_cache: Dict[str, Tuple[Dict, float]] = {}
         self._manager_cache: Dict[str, Tuple[Dict, float]] = {}
-        self._customer_cache: Dict[str, Tuple[str, float]] = {}
+        self._customer_cache: Dict[str, Tuple[Any, float]] = {}  # value может быть str или "__NOT_FOUND__"
         
         # Shared HTTP client (будет создан при первом использовании)
         self._http_client: Optional[httpx.AsyncClient] = None
@@ -96,15 +96,15 @@ class MetadataClient:
             logger.error(f"Error fetching manager data: {e}")
             return {}
     
-    async def _get_customer_name_cached(self, enterprise_number: str, phone: str) -> str:
-        """Получить имя клиента с кэшированием"""
+    async def _get_customer_name_cached(self, enterprise_number: str, phone: str) -> Optional[str]:
+        """Получить имя клиента с кэшированием. Возвращает None если не найден."""
         cache_key = f"{enterprise_number}:{phone}"
         
-        # Проверяем кэш
+        # Проверяем кэш (используем специальный маркер для "не найден")
         cached = self._cache_get(self._customer_cache, cache_key, self.CUSTOMER_CACHE_TTL)
         if cached is not None:
             logger.debug(f"[CACHE HIT] customer {cache_key}")
-            return cached
+            return cached if cached != "__NOT_FOUND__" else None
         
         # Запрашиваем с сервера
         try:
@@ -112,17 +112,25 @@ class MetadataClient:
             response = await client.get(f"{self.base_url}/customer-name/{enterprise_number}/{phone}")
             if response.status_code == 200:
                 data = response.json()
-                name = data.get("name", "Неизвестный")
+                name = data.get("name")  # None если не найден
+                if name and name != "Неизвестный":
+                    # Сохраняем в кэш только если найден
+                    self._cache_set(self._customer_cache, cache_key, name)
+                    logger.debug(f"[CACHE MISS] customer {cache_key} - found: {name}")
+                    return name
+                else:
+                    # Кэшируем "не найден" чтобы не запрашивать повторно
+                    self._cache_set(self._customer_cache, cache_key, "__NOT_FOUND__")
+                    logger.debug(f"[CACHE MISS] customer {cache_key} - not found")
+                    return None
             else:
-                name = "Неизвестный"
-            
-            # Сохраняем в кэш
-            self._cache_set(self._customer_cache, cache_key, name)
-            logger.debug(f"[CACHE MISS] customer {cache_key} - fetched from server")
-            return name
+                # Кэшируем "не найден"
+                self._cache_set(self._customer_cache, cache_key, "__NOT_FOUND__")
+                logger.debug(f"[CACHE MISS] customer {cache_key} - not found (status {response.status_code})")
+                return None
         except Exception as e:
             logger.error(f"Error fetching customer name: {e}")
-            return "Неизвестный"
+            return None
         
     async def get_line_name(self, enterprise_number: str, line_id: Optional[str]) -> str:
         """Получить название линии (с кэшированием)"""
@@ -174,10 +182,10 @@ class MetadataClient:
         
         return await self._get_manager_data(enterprise_number, internal_phone)
     
-    async def get_customer_name(self, enterprise_number: str, phone: Optional[str]) -> str:
-        """Получить имя клиента (с кэшированием)"""
+    async def get_customer_name(self, enterprise_number: str, phone: Optional[str]) -> Optional[str]:
+        """Получить имя клиента (с кэшированием). Возвращает None если не найден."""
         if not phone:
-            return "Неизвестный"
+            return None
         
         return await self._get_customer_name_cached(enterprise_number, phone)
     
@@ -263,8 +271,11 @@ class MetadataClient:
                         enriched_data["manager_name"] = result.get("full_name", f"Доб.{internal_phone}")
                     enriched_data["manager_personal_phone"] = result.get("personal_phone")
                 
-                elif task_name == "customer" and isinstance(result, str):
-                    enriched_data["customer_name"] = result
+                elif task_name == "customer":
+                    # result может быть str или None
+                    if result:
+                        enriched_data["customer_name"] = result
+                    # Если None - не добавляем в enriched_data
         
         # Заполняем значения по умолчанию для отсутствующих данных
         if line_id and "line_name" not in enriched_data:
@@ -275,8 +286,7 @@ class MetadataClient:
             enriched_data["manager_name"] = f"Доб.{internal_phone}"
             enriched_data["manager_personal_phone"] = None
         
-        if external_phone and "customer_name" not in enriched_data:
-            enriched_data["customer_name"] = "Неизвестный"
+        # Если customer_name не найден - не добавляем в enriched_data (оставляем пустым)
         
         return enriched_data
 
