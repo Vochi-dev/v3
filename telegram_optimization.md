@@ -34,15 +34,15 @@ POST /telegram/message                   - для каждого события
 
 ## TODO: Оптимизация
 
-### 1. [ ] Кэширование metadata (Приоритет: ВЫСОКИЙ)
+### 1. [x] Кэширование metadata (Приоритет: ВЫСОКИЙ) ✅ DONE 03.12.2025
 **Файл:** `app/services/metadata_client.py`
 
-- [ ] Добавить in-memory кэш для `line` данных (TTL: 5 минут)
-- [ ] Добавить in-memory кэш для `manager` данных (TTL: 5 минут)
-- [ ] Добавить in-memory кэш для `customer-name` (TTL: 1 минута)
-- [ ] Использовать `cachetools.TTLCache` или простой dict с timestamp
+- [x] Добавить in-memory кэш для `line` данных (TTL: 5 минут)
+- [x] Добавить in-memory кэш для `manager` данных (TTL: 5 минут)
+- [x] Добавить in-memory кэш для `customer-name` (TTL: 1 минута)
+- [x] Использовать простой dict с timestamp
 
-**Ожидаемый эффект:** -50% HTTP запросов
+**Результат:** Кэширование работает, видны CACHE HIT в логах
 
 ### 2. [ ] Убрать дублирующиеся запросы (Приоритет: ВЫСОКИЙ)
 **Файл:** `main.py`
@@ -53,19 +53,15 @@ POST /telegram/message                   - для каждого события
 
 **Ожидаемый эффект:** -30% HTTP запросов
 
-### 3. [ ] Параллельные HTTP запросы (Приоритет: СРЕДНИЙ)
-**Файлы:** `main.py`, `app/services/metadata_client.py`
+### 3. [x] Параллельные HTTP запросы (Приоритет: СРЕДНИЙ) ✅ DONE 03.12.2025
+**Файлы:** `app/services/metadata_client.py`
 
-- [ ] Использовать `asyncio.gather()` для параллельных запросов:
-  ```python
-  line_task = metadata_client.get_line(enterprise, trunk)
-  manager_task = metadata_client.get_manager(enterprise, ext)
-  customer_task = metadata_client.get_customer(enterprise, phone)
-  line, manager, customer = await asyncio.gather(line_task, manager_task, customer_task)
-  ```
-- [ ] Batch запрос для extensions (один запрос вместо 20)
+- [x] Использовать `asyncio.gather()` для параллельных запросов в `enrich_message_data()`
+- [ ] Batch запрос для extensions (один запрос вместо 20) - TODO
 
-**Ожидаемый эффект:** -60% времени enrichment
+**Результат:** 
+- Line, manager, customer запрашиваются параллельно вместо последовательно
+- Shared HTTP client вместо создания нового для каждого запроса
 
 ### 4. [ ] Убрать `/incoming-transform` запросы (Приоритет: СРЕДНИЙ)
 **Файл:** `main.py`
