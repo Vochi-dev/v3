@@ -133,7 +133,8 @@ def should_send_as_comment(phone: str, event_type: str, chat_id: int = None) -> 
 
 def update_phone_tracker(phone: str, message_id: int, event_type: str, data: dict, chat_id: int = None):
     """
-    Обновляет трекер сообщений для номера телефона
+    Обновляет трекер сообщений для номера телефона.
+    Переводит статус из 'pending' в 'sent'.
     ОБНОВЛЕНО: теперь индивидуально для каждого chat_id + защита от race condition
     """
     if not phone or phone == "Номер не определен":
@@ -149,7 +150,8 @@ def update_phone_tracker(phone: str, message_id: int, event_type: str, data: dic
             'event_type': event_type,
             'timestamp': datetime.now().isoformat(),
             'unique_id': data.get('UniqueId', ''),
-            'call_type': data.get('CallType', 0)
+            'call_type': data.get('CallType', 0),
+            'status': 'sent'  # Сообщение отправлено
         }
         
         # Ограничиваем размер кеша для этого chat_id
@@ -168,6 +170,9 @@ def should_replace_previous_message(phone: str, event_type: str, chat_id: int = 
     Определяет, нужно ли заменить предыдущее сообщение (удалить + отправить новое).
     ОБНОВЛЕНО: теперь индивидуально для каждого chat_id + защита от race condition
     
+    ВАЖНО: Эта функция также РЕЗЕРВИРУЕТ слот для нового сообщения,
+    чтобы следующий вызов для того же phone знал о pending сообщении.
+    
     Согласно Пояснению:
     - bridge события заменяют dial события
     - каждое следующее bridge событие заменяет предыдущее bridge
@@ -184,18 +189,60 @@ def should_replace_previous_message(phone: str, event_type: str, chat_id: int = 
     # Используем lock для предотвращения race condition
     with _phone_tracker_lock:
         tracker = phone_message_tracker_by_chat[chat_id].get(phone)
+        
         if not tracker:
+            # Нет предыдущего сообщения - резервируем слот с pending статусом
+            phone_message_tracker_by_chat[chat_id][phone] = {
+                'message_id': None,  # Будет заполнено после отправки
+                'event_type': event_type,
+                'timestamp': datetime.now().isoformat(),
+                'unique_id': '',
+                'call_type': 0,
+                'status': 'pending'  # Отмечаем что сообщение в процессе отправки
+            }
             return False, None
         
+        # Если предыдущее сообщение в статусе pending - значит другой dial уже в процессе
+        if tracker.get('status') == 'pending':
+            # Всё равно заменяем - возвращаем None для message_id, но резервируем слот
+            phone_message_tracker_by_chat[chat_id][phone] = {
+                'message_id': None,
+                'event_type': event_type,
+                'timestamp': datetime.now().isoformat(),
+                'unique_id': '',
+                'call_type': 0,
+                'status': 'pending'
+            }
+            return False, None  # Нечего удалять, т.к. предыдущий ещё не отправлен
+        
         last_event = tracker['event_type']
+        message_to_delete = tracker['message_id']
         
         # Bridge заменяет dial или предыдущий bridge
         if event_type == 'bridge' and last_event in ['dial', 'bridge']:
-            return True, tracker['message_id']
+            # Резервируем слот
+            phone_message_tracker_by_chat[chat_id][phone] = {
+                'message_id': None,
+                'event_type': event_type,
+                'timestamp': datetime.now().isoformat(),
+                'unique_id': '',
+                'call_type': 0,
+                'status': 'pending'
+            }
+            return True, message_to_delete
         
         # Dial заменяет start или предыдущий dial (когда линия занята и переключается на другую)
         if event_type == 'dial' and last_event in ['start', 'dial']:
-            return True, tracker['message_id']
+            # Резервируем слот
+            phone_message_tracker_by_chat[chat_id][phone] = {
+                'message_id': None,
+                'event_type': event_type,
+                'timestamp': datetime.now().isoformat(),
+                'unique_id': '',
+                'call_type': 0,
+                'status': 'pending'
+            }
+            return True, message_to_delete
         
         return False, None
 
