@@ -847,7 +847,16 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
             logging.error(f"[BRIDGE] ❌ Cache failed: {e}")
         
         # Сохраняем в трекер для последующих комментариев
-        update_phone_tracker(phone_for_grouping, message_id, 'bridge', data, chat_id)
+        # ВАЖНО: update_phone_tracker возвращает message_id для отложенного удаления
+        prev_msg_to_delete = update_phone_tracker(phone_for_grouping, message_id, 'bridge', data, chat_id)
+        
+        # Отложенное удаление предыдущего сообщения (dial или bridge)
+        if prev_msg_to_delete:
+            try:
+                await bot.delete_message(chat_id, prev_msg_to_delete)
+                logging.info(f"[send_bridge_to_single_chat] Deleted previous message {prev_msg_to_delete} (deferred)")
+            except Exception as e:
+                logging.warning(f"[send_bridge_to_single_chat] Failed to delete previous message {prev_msg_to_delete}: {e}")
         
         # Сохраняем в bridge_store
         bridge_store_by_chat[chat_id][uid] = message_id
