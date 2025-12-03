@@ -1,0 +1,16 @@
+2025-12-03 08:31:59,211 - uvicorn.error - WARNING - Invalid HTTP request received.
+2025-12-03 08:34:15,210 - uvicorn.access - INFO - 3.130.96.91:50600 - "GET / HTTP/1.1" 200
+2025-12-03 08:35:53,972 - uvicorn.access - INFO - 3.130.96.91:36560 - "GET / HTTP/1.1" 200
+2025-12-03 08:37:40,578 - uvicorn.error - WARNING - Invalid HTTP request received.
+2025-12-03 08:41:27,371 - uvicorn.error - WARNING - Invalid HTTP request received.
+2025-12-03 09:04:05,394 - uvicorn.error - WARNING - Invalid HTTP request received.
+2025-12-03 09:04:05,853 - uvicorn.access - INFO - 66.132.153.134:53286 - "GET / HTTP/1.1" 200
+2025-12-03 09:04:06,109 - uvicorn.access - INFO - 66.132.153.134:53292 - "PRI %2A HTTP/2.0" 404
+2025-12-03 09:04:06,111 - uvicorn.error - WARNING - Invalid HTTP request received.
+2025-12-03 09:04:06,537 - uvicorn.access - INFO - 66.132.153.134:53294 - "GET /static/favicon.ico HTTP/1.1" 200
+2025-12-03 09:04:06,858 - uvicorn.access - INFO - 66.132.153.134:53310 - "GET /static/favicon-32x32.png HTTP/1.1" 200
+2025-12-03 09:04:07,249 - uvicorn.access - INFO - 66.132.153.134:53318 - "GET /static/favicon-16x16.png HTTP/1.1" 200
+2025-12-03 09:04:07,493 - uvicorn.access - INFO - 66.132.153.134:53334 - "GET /static/apple-touch-icon.png HTTP/1.1" 200
+2025-12-03 09:04:07,896 - uvicorn.access - INFO - 66.132.153.134:41206 - "GET /favicon.ico HTTP/1.1" 404
+2025-12-03 09:04:11,629 - uvicorn.error - WARNING - Invalid HTTP request received.
+2025-12-03 09:04:11,872 - uvicorn.access - INFO - 66.132.153.134:41254 - "GET /.well-known/security.txt HTTP/1.1" 404
