@@ -176,28 +176,16 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             elif trunk_info:
                 text += f"\nЛиния: {trunk_info}"
         else:  # Входящий - показываем все номера из Extensions
-            text = f"📞 Входящий звонок\n💰{display} ➡️\n\n"
+            text = f"📞 Входящий звонок\n💰{display} ➡️ "
             
-            # Получаем все внутренние номера из Extensions
+            # Получаем все внутренние номера из Extensions (ОПТИМИЗИРОВАНО: используем кэш)
             if exts:
-                for ext in exts:
-                    if is_internal_number(ext):
-                        # Пытаемся получить имя менеджера для каждого номера
-                        try:
-                            import httpx
-                            async with httpx.AsyncClient(timeout=1.0) as client:
-                                resp = await client.get(f"http://localhost:8020/metadata/{enterprise_number}/manager/{ext}")
-                                if resp.status_code == 200:
-                                    mgr_data = resp.json()
-                                    mgr_name = mgr_data.get("full_name", "")
-                                    if mgr_name and not mgr_name.startswith("Доб."):
-                                        text += f"☎️{mgr_name} ({ext})\n"
-                                    else:
-                                        text += f"☎️({ext})\n"
-                                else:
-                                    text += f"☎️({ext})\n"
-                        except:
-                            text += f"☎️({ext})\n"
+                internal_exts = [ext for ext in exts if is_internal_number(ext)]
+                if internal_exts:
+                    # Показываем только номера extensions без запросов имён
+                    # (имена менеджеров редко настроены, и это экономит 15-20 HTTP запросов)
+                    ext_list = " ".join([f"☎️({ext})" for ext in internal_exts])
+                    text += ext_list
             
             if not exts or not any(is_internal_number(ext) for ext in exts):
                 # Если нет внутренних номеров, показываем просто входящий
