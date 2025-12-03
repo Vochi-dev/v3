@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import threading
 from datetime import datetime
 from collections import defaultdict
 import re
@@ -9,6 +10,9 @@ import phonenumbers
 from telegram.error import BadRequest
 
 from app.services.events import save_telegram_message
+
+# Lock для предотвращения race condition при обновлении phone_message_tracker
+_phone_tracker_lock = threading.Lock()
 
 # ───────── In-memory stores (ИНДИВИДУАЛЬНЫЕ ДЛЯ КАЖДОГО CHAT_ID) ─────────
 # Структура: {chat_id: {uid: data}}
@@ -130,36 +134,39 @@ def should_send_as_comment(phone: str, event_type: str, chat_id: int = None) -> 
 def update_phone_tracker(phone: str, message_id: int, event_type: str, data: dict, chat_id: int = None):
     """
     Обновляет трекер сообщений для номера телефона
-    ОБНОВЛЕНО: теперь индивидуально для каждого chat_id
+    ОБНОВЛЕНО: теперь индивидуально для каждого chat_id + защита от race condition
     """
     if not phone or phone == "Номер не определен":
         return
     
     if chat_id is None:
         chat_id = SUPERUSER_CHAT_ID
-        
-    phone_message_tracker_by_chat[chat_id][phone] = {
-        'message_id': message_id,
-        'event_type': event_type,
-        'timestamp': datetime.now().isoformat(),
-        'unique_id': data.get('UniqueId', ''),
-        'call_type': data.get('CallType', 0)
-    }
     
-    # Ограничиваем размер кеша
-    if len(phone_message_tracker) > 1000:
-        # Удаляем самые старые записи
-        sorted_phones = sorted(
-            phone_message_tracker.items(),
-            key=lambda x: x[1]['timestamp']
-        )
-        for phone_to_remove, _ in sorted_phones[:100]:
-            del phone_message_tracker[phone_to_remove]
+    # Используем lock для предотвращения race condition
+    with _phone_tracker_lock:
+        phone_message_tracker_by_chat[chat_id][phone] = {
+            'message_id': message_id,
+            'event_type': event_type,
+            'timestamp': datetime.now().isoformat(),
+            'unique_id': data.get('UniqueId', ''),
+            'call_type': data.get('CallType', 0)
+        }
+        
+        # Ограничиваем размер кеша для этого chat_id
+        tracker = phone_message_tracker_by_chat[chat_id]
+        if len(tracker) > 1000:
+            # Удаляем самые старые записи
+            sorted_phones = sorted(
+                tracker.items(),
+                key=lambda x: x[1]['timestamp']
+            )
+            for phone_to_remove, _ in sorted_phones[:100]:
+                del tracker[phone_to_remove]
 
 def should_replace_previous_message(phone: str, event_type: str, chat_id: int = None) -> tuple[bool, int]:
     """
     Определяет, нужно ли заменить предыдущее сообщение (удалить + отправить новое).
-    ОБНОВЛЕНО: теперь индивидуально для каждого chat_id
+    ОБНОВЛЕНО: теперь индивидуально для каждого chat_id + защита от race condition
     
     Согласно Пояснению:
     - bridge события заменяют dial события
@@ -173,22 +180,24 @@ def should_replace_previous_message(phone: str, event_type: str, chat_id: int = 
     
     if chat_id is None:
         chat_id = SUPERUSER_CHAT_ID
+    
+    # Используем lock для предотвращения race condition
+    with _phone_tracker_lock:
+        tracker = phone_message_tracker_by_chat[chat_id].get(phone)
+        if not tracker:
+            return False, None
         
-    tracker = phone_message_tracker_by_chat[chat_id].get(phone)
-    if not tracker:
+        last_event = tracker['event_type']
+        
+        # Bridge заменяет dial или предыдущий bridge
+        if event_type == 'bridge' and last_event in ['dial', 'bridge']:
+            return True, tracker['message_id']
+        
+        # Dial заменяет start или предыдущий dial (когда линия занята и переключается на другую)
+        if event_type == 'dial' and last_event in ['start', 'dial']:
+            return True, tracker['message_id']
+        
         return False, None
-    
-    last_event = tracker['event_type']
-    
-    # Bridge заменяет dial или предыдущий bridge
-    if event_type == 'bridge' and last_event in ['dial', 'bridge']:
-        return True, tracker['message_id']
-    
-    # Dial заменяет start или предыдущий dial (когда линия занята и переключается на другую)
-    if event_type == 'dial' and last_event in ['start', 'dial']:
-        return True, tracker['message_id']
-    
-    return False, None
 
 # ───────── Кэш trunk для передачи между событиями ─────────
 def save_trunk_for_call(unique_id: str, external_phone: str, trunk: str):
