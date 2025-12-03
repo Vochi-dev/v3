@@ -30,7 +30,14 @@ from app.services.postgres import init_pool, close_pool, get_pool
 
 from telegram import Bot
 from telegram.error import TelegramError
+import time
 
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Кэш для incoming-transform (TTL: 5 минут)
+# ────────────────────────────────────────────────────────────────────────────────
+_incoming_transform_cache: Dict[str, tuple] = {}  # {enterprise_number: (data, timestamp)}
+INCOMING_TRANSFORM_TTL = 300  # 5 минут
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -656,6 +663,33 @@ async def _get_enterprise_number_by_token(asterisk_token: str) -> Optional[str]:
         )
         return row["number"] if row else None
 
+async def _get_incoming_transform_cached(enterprise_number: str) -> dict:
+    """Получить incoming-transform с кэшированием (TTL: 5 минут)"""
+    global _incoming_transform_cache
+    
+    # Проверяем кэш
+    if enterprise_number in _incoming_transform_cache:
+        data, timestamp = _incoming_transform_cache[enterprise_number]
+        if time.time() - timestamp < INCOMING_TRANSFORM_TTL:
+            logger.debug(f"[CACHE HIT] incoming-transform {enterprise_number}")
+            return data
+    
+    # Запрашиваем с сервера
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=1.5) as client:
+            r = await client.get(f"http://127.0.0.1:8020/incoming-transform/{enterprise_number}")
+            if r.status_code == 200:
+                data = (r.json() or {}).get("map") or {}
+                _incoming_transform_cache[enterprise_number] = (data, time.time())
+                logger.debug(f"[CACHE MISS] incoming-transform {enterprise_number} - fetched")
+                return data
+    except Exception as e:
+        logger.warning(f"Failed to get incoming-transform for {enterprise_number}: {e}")
+    
+    return {}
+
+
 async def _apply_incoming_transform_if_any(body: dict) -> None:
     """Нормализует внешний номер по правилу incoming_transform для линии.
     Модифицирует body на месте (Phone/CallerIDNum/ConnectedLineNum)."""
@@ -667,32 +701,32 @@ async def _apply_incoming_transform_if_any(body: dict) -> None:
         enterprise_number = await _get_enterprise_number_by_token(token)
         if not enterprise_number:
             return
-        import httpx
-        async with httpx.AsyncClient(timeout=1.5) as client:
-            r = await client.get(f"http://127.0.0.1:8020/incoming-transform/{enterprise_number}")
-            if r.status_code != 200:
-                return
-            m = (r.json() or {}).get("map") or {}
-            rule = m.get(f"sip:{trunk}") or m.get(f"gsm:{trunk}")
-            if not (isinstance(rule, str) and "{" in rule and "}" in rule):
-                return
-            pref = rule.split("{")[0]
-            try:
-                n = int(rule.split("{")[1].split("}")[0])
-            except Exception:
-                return
-            # Берём внешний номер из полей события
-            candidate = str(body.get("Phone") or body.get("CallerIDNum") or body.get("ConnectedLineNum") or "")
-            digits = ''.join(ch for ch in candidate if ch.isdigit())
-            if not (n and len(digits) >= n):
-                return
-            normalized = f"{pref}{digits[-n:]}"
-            # Обновляем основные поля, чтобы все обработчики видели нормализованный номер
-            body["Phone"] = normalized
-            # Если CallerIDNum выглядел как внешний, тоже обновим
-            if body.get("CallerIDNum") and not str(body.get("CallerIDNum")).isdigit():
-                body["CallerIDNum"] = normalized
-            # ConnectedLineNum оставляем как есть (это чаще внутренний)
+        
+        # Используем кэшированные данные
+        m = await _get_incoming_transform_cached(enterprise_number)
+        if not m:
+            return
+        
+        rule = m.get(f"sip:{trunk}") or m.get(f"gsm:{trunk}")
+        if not (isinstance(rule, str) and "{" in rule and "}" in rule):
+            return
+        pref = rule.split("{")[0]
+        try:
+            n = int(rule.split("{")[1].split("}")[0])
+        except Exception:
+            return
+        # Берём внешний номер из полей события
+        candidate = str(body.get("Phone") or body.get("CallerIDNum") or body.get("ConnectedLineNum") or "")
+        digits = ''.join(ch for ch in candidate if ch.isdigit())
+        if not (n and len(digits) >= n):
+            return
+        normalized = f"{pref}{digits[-n:]}"
+        # Обновляем основные поля, чтобы все обработчики видели нормализованный номер
+        body["Phone"] = normalized
+        # Если CallerIDNum выглядел как внешний, тоже обновим
+        if body.get("CallerIDNum") and not str(body.get("CallerIDNum")).isdigit():
+            body["CallerIDNum"] = normalized
+        # ConnectedLineNum оставляем как есть (это чаще внутренний)
     except Exception as e:
         logger.warning(f"incoming_transform normalize failed: {e}")
 
