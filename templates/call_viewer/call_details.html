@@ -490,7 +490,13 @@
                             {% if call_data.call_status == 'ANSWERED' or call_data.call_status == '1' or call_data.call_status == 1 %}
                             <span class="status-success">✅ Отвечен</span>
                             {% elif call_data.call_status == 'completed' or call_data.call_status == '2' or call_data.call_status == 2 %}
-                            <span class="status-success">✅ Успешный исходящий звонок</span>
+                                {% if call_direction == 'incoming' %}
+                                <span class="status-success">✅ Успешный входящий звонок</span>
+                                {% elif call_direction == 'outgoing' %}
+                                <span class="status-success">✅ Успешный исходящий звонок</span>
+                                {% else %}
+                                <span class="status-success">✅ Успешный звонок</span>
+                                {% endif %}
                             {% elif call_data.call_status == 'NO ANSWER' or call_data.call_status == '0' or call_data.call_status == 0 %}
                             <span class="status-error">❌ Не отвечен</span>
                             {% else %}
@@ -505,11 +511,29 @@
             <div class="pf-card">
                 <h2>👥 Участники звонка</h2>
                 <div>
-                    <!-- Менеджер (сверху для исходящего) -->
+                    {% if call_direction == 'incoming' %}
+                    <!-- Входящий: Клиент (сверху) звонит Менеджеру (снизу) -->
+                    <div class="participant participant-client">
+                        <div class="participant-icon">💰</div>
+                        <div>
+                            <p class="participant-label">Клиент (звонит)</p>
+                            <p class="participant-value">
+                                {% if client_info.phone %}
+                                {{ format_phone(client_info.phone) }}
+                                {% endif %}
+                                {% if client_info.name and client_info.name != 'Не определен' and client_info.name != 'Неизвестный' %}
+                                {{ client_info.name }}
+                                {% elif not client_info.phone %}
+                                Не определен
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="arrow-down">⬇️</div>
                     <div class="participant participant-manager">
                         <div class="participant-icon">☎️</div>
                         <div>
-                            <p class="participant-label">Менеджер</p>
+                            <p class="participant-label">Менеджер (принимает)</p>
                             <p class="participant-value">
                                 {% if manager_info.extension %}
                                 {{ manager_info.extension }}
@@ -522,25 +546,42 @@
                             </p>
                         </div>
                     </div>
-                    <!-- Стрелка вниз (от менеджера к клиенту) -->
+                    {% else %}
+                    <!-- Исходящий/Внутренний: Менеджер (сверху) звонит Клиенту (снизу) -->
+                    <div class="participant participant-manager">
+                        <div class="participant-icon">☎️</div>
+                        <div>
+                            <p class="participant-label">Менеджер (звонит)</p>
+                            <p class="participant-value">
+                                {% if manager_info.extension %}
+                                {{ manager_info.extension }}
+                                {% else %}
+                                Не определен
+                                {% endif %}
+                                {% if manager_info.name and manager_info.name != 'Не определен' %}
+                                {{ manager_info.name }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
                     <div class="arrow-down">⬇️</div>
-                    <!-- Клиент (снизу) -->
                     <div class="participant participant-client">
                         <div class="participant-icon">💰</div>
                         <div>
-                            <p class="participant-label">Клиент</p>
+                            <p class="participant-label">Клиент (принимает)</p>
                             <p class="participant-value">
                                 {% if client_info.phone %}
                                 {{ format_phone(client_info.phone) }}
                                 {% endif %}
-                                {% if client_info.name and client_info.name != 'Не определен' %}
+                                {% if client_info.name and client_info.name != 'Не определен' and client_info.name != 'Неизвестный' %}
                                 {{ client_info.name }}
-                                {% else %}
+                                {% elif not client_info.phone %}
                                 Не определен
                                 {% endif %}
                             </p>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
             </div>
 

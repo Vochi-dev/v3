@@ -47,3 +47,9 @@ test_s3_temp*
 # System files
 .DS_Store
 call_tracer/
+
+# Debug logs with dates
+debug.log.*
+
+# PID files
+pids/

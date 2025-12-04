@@ -1315,19 +1315,19 @@ async def view_call_details(
         # Получаем имена из metadata сервиса (если есть)
         try:
             import httpx
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                # Пробуем получить данные о клиенте
+            async with httpx.AsyncClient(timeout=2.0) as http_client:
+                # Пробуем получить данные о клиенте (используем тот же endpoint что и metadata_client)
                 if client_info['phone']:
                     phone_digits = ''.join(filter(str.isdigit, client_info['phone']))
-                    resp = await client.get(f"http://localhost:8020/metadata/{enterprise_number}/customer/{phone_digits}")
+                    resp = await http_client.get(f"http://localhost:8020/customer-name/{enterprise_number}/{phone_digits}")
                     if resp.status_code == 200:
                         cust_data = resp.json()
-                        if cust_data.get('full_name'):
-                            client_info['name'] = cust_data['full_name']
+                        if cust_data.get('name') and cust_data.get('name') != 'Неизвестный':
+                            client_info['name'] = cust_data['name']
                 
                 # Пробуем получить данные о менеджере
                 if manager_info['extension']:
-                    resp = await client.get(f"http://localhost:8020/metadata/{enterprise_number}/manager/{manager_info['extension']}")
+                    resp = await http_client.get(f"http://localhost:8020/metadata/{enterprise_number}/manager/{manager_info['extension']}")
                     if resp.status_code == 200:
                         mgr_data = resp.json()
                         if mgr_data.get('full_name'):

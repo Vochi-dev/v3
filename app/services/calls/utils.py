@@ -131,59 +131,39 @@ def should_send_as_comment(phone: str, event_type: str, chat_id: int = None) -> 
     
     return False, None
 
-def update_phone_tracker(phone: str, message_id: int, event_type: str, data: dict, chat_id: int = None) -> int:
+def update_phone_tracker(phone: str, message_id: int, event_type: str, data: dict, chat_id: int = None):
     """
     Обновляет трекер сообщений для номера телефона.
-    ВАЖНО: Возвращает message_id предыдущего сообщения, если его нужно удалить.
-    
-    Возвращает:
-        message_id предыдущего отправленного сообщения для удаления, или None
+    Переводит статус из 'pending' в 'sent'.
+    ОБНОВЛЕНО: теперь индивидуально для каждого chat_id + защита от race condition
     """
     if not phone or phone == "Номер не определен":
-        return None
+        return
     
     if chat_id is None:
         chat_id = SUPERUSER_CHAT_ID
     
-    previous_message_to_delete = None
-    
     # Используем lock для предотвращения race condition
     with _phone_tracker_lock:
-        # Проверяем есть ли предыдущее ОТПРАВЛЕННОЕ сообщение того же типа
-        existing = phone_message_tracker_by_chat[chat_id].get(phone)
-        if existing and existing.get('status') == 'sent' and existing.get('message_id'):
-            # Есть предыдущее отправленное сообщение
-            last_event = existing.get('event_type')
-            # Dial заменяет start или предыдущий dial
-            if event_type == 'dial' and last_event in ['start', 'dial']:
-                previous_message_to_delete = existing['message_id']
-                logging.info(f"[update_phone_tracker] Found previous {last_event} message {previous_message_to_delete} to delete")
-            # Bridge заменяет dial или предыдущий bridge
-            elif event_type == 'bridge' and last_event in ['dial', 'bridge']:
-                previous_message_to_delete = existing['message_id']
-                logging.info(f"[update_phone_tracker] Found previous {last_event} message {previous_message_to_delete} to delete")
-        
-        # Обновляем трекер
         phone_message_tracker_by_chat[chat_id][phone] = {
             'message_id': message_id,
             'event_type': event_type,
             'timestamp': datetime.now().isoformat(),
             'unique_id': data.get('UniqueId', ''),
             'call_type': data.get('CallType', 0),
-            'status': 'sent'
+            'status': 'sent'  # Сообщение отправлено
         }
         
         # Ограничиваем размер кеша для этого chat_id
         tracker = phone_message_tracker_by_chat[chat_id]
         if len(tracker) > 1000:
+            # Удаляем самые старые записи
             sorted_phones = sorted(
                 tracker.items(),
                 key=lambda x: x[1]['timestamp']
             )
             for phone_to_remove, _ in sorted_phones[:100]:
                 del tracker[phone_to_remove]
-    
-    return previous_message_to_delete
 
 def should_replace_previous_message(phone: str, event_type: str, chat_id: int = None) -> tuple[bool, int]:
     """

@@ -318,16 +318,7 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     update_hangup_message_map(raw_phone, callee, sent.message_id, is_int, chat_id=chat_id)
     
     # Обновляем новый трекер для группировки
-    # ВАЖНО: update_phone_tracker возвращает message_id для отложенного удаления
-    prev_msg_to_delete = update_phone_tracker(phone_for_grouping, sent.message_id, 'dial', data, chat_id)
-    
-    # Отложенное удаление предыдущего сообщения (если было)
-    if prev_msg_to_delete:
-        try:
-            await bot.delete_message(chat_id, prev_msg_to_delete)
-            logging.info(f"[process_dial] Deleted previous message {prev_msg_to_delete} (deferred)")
-        except Exception as e:
-            logging.warning(f"[process_dial] Failed to delete previous message {prev_msg_to_delete}: {e}")
+    update_phone_tracker(phone_for_grouping, sent.message_id, 'dial', data, chat_id)
 
     # ───────── Шаг 8. Сохраняем в БД ─────────
     await save_telegram_message(
