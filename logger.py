@@ -1250,6 +1250,7 @@ async def view_call_details(
         # ═══════════════════════════════════════════════════════════════════
         client_info = {"name": "Не определен", "phone": ""}
         manager_info = {"name": "Не определен", "phone": "", "extension": ""}
+        receiver_info = {"name": "Не определен", "phone": "", "extension": ""}  # Для internal звонков
         duration_seconds = 0
         call_direction = "unknown"
         call_start_time = None
@@ -1264,10 +1265,17 @@ async def view_call_details(
                 
                 # Определяем направление по CallType
                 call_type = event_data.get('CallType')
+                # Приводим к int (может быть строкой)
+                try:
+                    call_type = int(call_type) if call_type is not None else None
+                except:
+                    pass
                 if call_type == 1:
                     call_direction = "outgoing"
                 elif call_type == 0:
                     call_direction = "incoming"
+                elif call_type == 2:
+                    call_direction = "internal"
                 
                 # Берем время начала
                 if not call_start_time and event.get('event_timestamp_dt'):
@@ -1289,10 +1297,33 @@ async def view_call_details(
                         manager_info['phone'] = caller_id
                         manager_info['name'] = event_data.get('CallerIDName', caller_id)
             
+            # Извлекаем данные из hangup (для internal звонков может не быть dial/start)
+            if event_type == 'hangup':
+                # Если Phone ещё не установлен - берём из hangup
+                if not client_info['phone'] and event_data.get('Phone'):
+                    client_info['phone'] = event_data['Phone']
+                
+                # Если Extensions ещё не установлены - берём из hangup
+                extensions = event_data.get('Extensions', [])
+                if not manager_info['extension'] and extensions and len(extensions) > 0 and extensions[0]:
+                    manager_info['extension'] = extensions[0]
+                    manager_info['phone'] = extensions[0]
+                    manager_info['name'] = extensions[0]
+            
             # Рассчитываем длительность из события hangup
             if event_type == 'hangup' and not duration_seconds:
                 start_time_str = event_data.get('StartTime')
+                # Fallback: если StartTime пустой, используем DateReceived
+                if not start_time_str:
+                    start_time_str = event_data.get('DateReceived')
                 end_time_str = event_data.get('EndTime')
+                
+                # Сохраняем для отображения времени начала
+                if start_time_str and not call_start_time:
+                    try:
+                        call_start_time = dt.strptime(start_time_str, '%Y-%m-%d %H:%M:%S')
+                    except:
+                        pass
                 
                 if start_time_str and end_time_str:
                     try:
@@ -1304,34 +1335,72 @@ async def view_call_details(
                 
                 # Также обновляем call_direction и call_status из hangup
                 call_type = event_data.get('CallType')
+                # Приводим к int (может быть строкой)
+                try:
+                    call_type = int(call_type) if call_type is not None else None
+                except:
+                    pass
                 if call_type == 1:
                     call_direction = "outgoing"
                 elif call_type == 0:
                     call_direction = "incoming"
+                elif call_type == 2:
+                    call_direction = "internal"
                 
                 call_status = event_data.get('CallStatus')
                 call_data['call_status'] = call_status
+        
+        # Для internal звонков - настраиваем правильно участников
+        if call_direction == "internal":
+            # Phone - звонящий менеджер, Extensions[0] - принимающий менеджер
+            # Меняем местами: manager_info = звонящий, receiver_info = принимающий
+            caller_ext = client_info['phone']  # Phone содержит внутренний номер звонящего
+            receiver_ext = manager_info['extension']  # Extensions[0] - принимающий
+            
+            manager_info['extension'] = caller_ext
+            manager_info['phone'] = caller_ext
+            receiver_info['extension'] = receiver_ext
+            receiver_info['phone'] = receiver_ext
         
         # Получаем имена из metadata сервиса (если есть)
         try:
             import httpx
             async with httpx.AsyncClient(timeout=2.0) as http_client:
-                # Пробуем получить данные о клиенте (используем тот же endpoint что и metadata_client)
-                if client_info['phone']:
-                    phone_digits = ''.join(filter(str.isdigit, client_info['phone']))
-                    resp = await http_client.get(f"http://localhost:8020/customer-name/{enterprise_number}/{phone_digits}")
-                    if resp.status_code == 200:
-                        cust_data = resp.json()
-                        if cust_data.get('name') and cust_data.get('name') != 'Неизвестный':
-                            client_info['name'] = cust_data['name']
-                
-                # Пробуем получить данные о менеджере
-                if manager_info['extension']:
-                    resp = await http_client.get(f"http://localhost:8020/metadata/{enterprise_number}/manager/{manager_info['extension']}")
-                    if resp.status_code == 200:
-                        mgr_data = resp.json()
-                        if mgr_data.get('full_name'):
-                            manager_info['name'] = mgr_data['full_name']
+                # Для internal звонков - получаем ФИО обоих менеджеров
+                if call_direction == "internal":
+                    # ФИО звонящего менеджера
+                    if manager_info['extension']:
+                        resp = await http_client.get(f"http://localhost:8020/metadata/{enterprise_number}/manager/{manager_info['extension']}")
+                        if resp.status_code == 200:
+                            mgr_data = resp.json()
+                            if mgr_data.get('full_name'):
+                                manager_info['name'] = mgr_data['full_name']
+                    
+                    # ФИО принимающего менеджера
+                    if receiver_info['extension']:
+                        resp = await http_client.get(f"http://localhost:8020/metadata/{enterprise_number}/manager/{receiver_info['extension']}")
+                        if resp.status_code == 200:
+                            rcv_data = resp.json()
+                            if rcv_data.get('full_name'):
+                                receiver_info['name'] = rcv_data['full_name']
+                else:
+                    # Для внешних звонков - старая логика
+                    # Пробуем получить данные о клиенте
+                    if client_info['phone']:
+                        phone_digits = ''.join(filter(str.isdigit, client_info['phone']))
+                        resp = await http_client.get(f"http://localhost:8020/customer-name/{enterprise_number}/{phone_digits}")
+                        if resp.status_code == 200:
+                            cust_data = resp.json()
+                            if cust_data.get('name') and cust_data.get('name') != 'Неизвестный':
+                                client_info['name'] = cust_data['name']
+                    
+                    # Пробуем получить данные о менеджере
+                    if manager_info['extension']:
+                        resp = await http_client.get(f"http://localhost:8020/metadata/{enterprise_number}/manager/{manager_info['extension']}")
+                        if resp.status_code == 200:
+                            mgr_data = resp.json()
+                            if mgr_data.get('full_name'):
+                                manager_info['name'] = mgr_data['full_name']
         except Exception as e:
             logger.warning(f"Failed to enrich names from metadata: {e}")
         
@@ -1363,6 +1432,7 @@ async def view_call_details(
                 "unique_id": unique_id,
                 "client_info": client_info,
                 "manager_info": manager_info,
+                "receiver_info": receiver_info,  # Для internal звонков
                 "duration_seconds": duration_seconds,
                 "call_direction": call_direction,
                 "call_start_time": call_start_time,

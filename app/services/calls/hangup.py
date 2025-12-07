@@ -24,13 +24,14 @@ from app.utils.user_phones import (
 def get_recording_link_text(call_record_info):
     """
     Формирует кликабельную ссылку на запись разговора для Telegram
+    Возвращает пустую строку если нет данных о записи
     """
     if call_record_info and call_record_info.get('call_url'):
         call_url = call_record_info['call_url']
         return f'\n🔉<a href="{call_url}">Запись разговора</a>'
     else:
-        # Если ссылка недоступна, показываем обычный текст
-        return f'\n🔉Запись разговора'
+        # Нет данных о записи - не показываем ничего
+        return ''
 
 from .utils import (
     format_phone_number,
@@ -234,8 +235,13 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
 
         # ───────── Шаг 3. Расчет длительности ─────────
         duration_text = ""
+        actual_start_time_str = ""
         try:
             start_time_str = data.get("StartTime", "")
+            # Fallback: если StartTime пустой, используем DateReceived
+            if not start_time_str:
+                start_time_str = data.get("DateReceived", "")
+            actual_start_time_str = start_time_str  # Сохраняем для отображения
             end_time_str = data.get("EndTime", "")
             if start_time_str and end_time_str:
                 start_time = datetime.fromisoformat(start_time_str)
@@ -251,13 +257,26 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         
         # ВАЖНО: Если ExternalInitiated=true, то это ВСЕГДА внешний звонок (не внутренний)
         # Даже если caller и connected оба внутренние (промежуточные bridge)
+        # ИСКЛЮЧЕНИЕ: настоящий внутренний звонок (Phone внутренний + Extensions внутренние + нет Trunk)
         if external_initiated:
-            # ExternalInitiated=true + CallType=2 — это промежуточная нога к менеджеру, ПРОПУСКАЕМ
+            # ExternalInitiated=true + CallType=2 — проверяем, это настоящий внутренний или промежуточный
             if call_type == 2:
-                logging.info(f"[process_hangup] Skipping intermediate hangup (ExternalInitiated=true, CallType=2) uid={uid}")
-                return {"status": "skipped", "reason": "intermediate_leg_hangup"}
+                # Проверяем: Phone внутренний И все Extensions внутренние → настоящий внутренний звонок
+                phone_is_internal = is_internal_number(caller)
+                exts_are_internal = exts and all(is_internal_number(ext) for ext in exts if ext)
+                no_trunk = not trunk_info or trunk_info in ["", "unknown", "<unknown>"]
+                
+                if phone_is_internal and exts_are_internal:
+                    # Это НАСТОЯЩИЙ внутренний звонок, НЕ пропускаем
+                    logging.info(f"[process_hangup] INTERNAL CALL detected: Phone={caller}, Extensions={exts} - processing")
+                    call_direction = "internal"
+                    callee = exts[0] if exts else ""
+                else:
+                    # Это промежуточная нога внешнего звонка, ПРОПУСКАЕМ
+                    logging.info(f"[process_hangup] Skipping intermediate hangup (ExternalInitiated=true, CallType=2) uid={uid}")
+                    return {"status": "skipped", "reason": "intermediate_leg_hangup"}
             # Внешний звонок (определяем направление по CallType)
-            if call_type == 1:
+            elif call_type == 1:
                 call_direction = "outgoing"
             elif call_type == 0:
                 call_direction = "incoming"
@@ -414,65 +433,83 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
         # ───────── Шаг 6. Формируем текст согласно Пояснению ─────────
         
         if call_direction == "internal":
-            # Внутренние звонки
+            # Внутренние звонки - БЕЗ кнопки "Детали звонка" и БЕЗ логирования
+            # enterprise_secret НЕ получаем - кнопка не нужна
+            
+            # Определяем получателя: используем callee (уже определён выше) или exts[0]
+            receiver = callee or (exts[0] if exts else "") or connected
+            
+            # Получаем ФИО обоих участников параллельно
+            try:
+                caller_name, receiver_name = await asyncio.gather(
+                    metadata_client.get_manager_name(enterprise_number, caller, short=False),
+                    metadata_client.get_manager_name(enterprise_number, receiver, short=False)
+                )
+                
+                # Форматируем: если есть ФИО - "ФИО (номер)", иначе просто номер
+                if caller_name and not caller_name.startswith("Доб."):
+                    caller_display = f"{caller_name} ({caller})"
+                else:
+                    caller_display = caller
+                    
+                if receiver_name and not receiver_name.startswith("Доб."):
+                    connected_display = f"{receiver_name} ({receiver})"
+                else:
+                    connected_display = receiver
+            except Exception as e:
+                logging.warning(f"[process_hangup] Failed to get manager names for internal call: {e}")
+                caller_display = caller
+                connected_display = receiver
+            
             if call_status == 2:
                 # Успешный внутренний звонок
-                # Обогащаем ФИО для внутренних номеров
-                caller_display = caller
-                connected_display = connected
-                
-                # ФИО для внутренних номеров отключено для устранения блокировок
-                
                 text = (f"✅Успешный внутренний звонок\n"
                        f"☎️{caller_display}➡️\n"
                        f"☎️{connected_display}")
-                if duration_text:
-                    # ИСПРАВЛЕНО: Используем безопасный парсинг StartTime
-                    start_time = data.get('StartTime', '')
-                    if start_time:
-                        try:
-                            if 'T' in start_time:
-                                time_part = start_time.split('T')[1][:5]
-                            elif ' ' in start_time:
-                                parts = start_time.split(' ')
-                                if len(parts) >= 2:
-                                    time_part = parts[1][:5]
-                                else:
-                                    time_part = "неизв"
+                # Используем actual_start_time_str (StartTime или DateReceived)
+                if actual_start_time_str:
+                    try:
+                        if 'T' in actual_start_time_str:
+                            time_part = actual_start_time_str.split('T')[1][:5]
+                        elif ' ' in actual_start_time_str:
+                            parts = actual_start_time_str.split(' ')
+                            if len(parts) >= 2:
+                                time_part = parts[1][:5]
                             else:
                                 time_part = "неизв"
-                            text += f"\n⏰Начало звонка {time_part}"
-                        except Exception as e:
-                            logging.warning(f"[process_hangup] Error parsing StartTime '{start_time}': {e}")
-                            text += f"\n⏰Начало звонка неизв"
+                        else:
+                            time_part = "неизв"
+                        text += f"\n⏰Начало звонка {time_part}"
+                    except Exception as e:
+                        logging.warning(f"[process_hangup] Error parsing StartTime '{actual_start_time_str}': {e}")
+                        text += f"\n⏰Начало звонка неизв"
+                if duration_text:
                     text += f"\n⌛ Длительность: {duration_text}"
-                    text += get_recording_link_text(call_record_info)
+                text += get_recording_link_text(call_record_info)
             else:
                 # Неуспешный внутренний звонок
-                # Используем те же обогащённые отображения
                 text = (f"❌ Коллега не поднял трубку\n"
                        f"☎️{caller_display}➡️\n" 
                        f"☎️{connected_display}")
-                if duration_text:
-                    # ИСПРАВЛЕНО: Используем безопасный парсинг StartTime
-                    start_time = data.get('StartTime', '')
-                    if start_time:
-                        try:
-                            if 'T' in start_time:
-                                time_part = start_time.split('T')[1][:5]
-                            elif ' ' in start_time:
-                                parts = start_time.split(' ')
-                                if len(parts) >= 2:
-                                    time_part = parts[1][:5]
-                                else:
-                                    time_part = "неизв"
+                # Используем actual_start_time_str (StartTime или DateReceived)
+                if actual_start_time_str:
+                    try:
+                        if 'T' in actual_start_time_str:
+                            time_part = actual_start_time_str.split('T')[1][:5]
+                        elif ' ' in actual_start_time_str:
+                            parts = actual_start_time_str.split(' ')
+                            if len(parts) >= 2:
+                                time_part = parts[1][:5]
                             else:
                                 time_part = "неизв"
-                            text += f"\n⏰Начало звонка {time_part}"
-                        except Exception as e:
-                            logging.warning(f"[process_hangup] Error parsing StartTime '{start_time}': {e}")
-                            text += f"\n⏰Начало звонка неизв"
-                    text += f"\n⌛ Длительность: {duration_text}"
+                        else:
+                            time_part = "неизв"
+                        text += f"\n⏰Начало звонка {time_part}"
+                    except Exception as e:
+                        logging.warning(f"[process_hangup] Error parsing StartTime '{actual_start_time_str}': {e}")
+                        text += f"\n⏰Начало звонка неизв"
+                if duration_text:
+                    text += f"\n⌛ Дозванивался: {duration_text}"
         
         elif call_direction == "incoming":
             # Входящие звонки

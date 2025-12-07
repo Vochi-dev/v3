@@ -546,8 +546,43 @@
                             </p>
                         </div>
                     </div>
+                    {% elif call_direction == 'internal' %}
+                    <!-- Внутренний: Менеджер (сверху) звонит Менеджеру (снизу) -->
+                    <div class="participant participant-manager">
+                        <div class="participant-icon">☎️</div>
+                        <div>
+                            <p class="participant-label">Менеджер (звонит)</p>
+                            <p class="participant-value">
+                                {% if manager_info.extension %}
+                                {{ manager_info.extension }}
+                                {% else %}
+                                Не определен
+                                {% endif %}
+                                {% if manager_info.name and manager_info.name != 'Не определен' %}
+                                {{ manager_info.name }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="arrow-down">⬇️</div>
+                    <div class="participant participant-manager">
+                        <div class="participant-icon">☎️</div>
+                        <div>
+                            <p class="participant-label">Менеджер (принимает)</p>
+                            <p class="participant-value">
+                                {% if receiver_info.extension %}
+                                {{ receiver_info.extension }}
+                                {% else %}
+                                Не определен
+                                {% endif %}
+                                {% if receiver_info.name and receiver_info.name != 'Не определен' %}
+                                {{ receiver_info.name }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
                     {% else %}
-                    <!-- Исходящий/Внутренний: Менеджер (сверху) звонит Клиенту (снизу) -->
+                    <!-- Исходящий: Менеджер (сверху) звонит Клиенту (снизу) -->
                     <div class="participant participant-manager">
                         <div class="participant-icon">☎️</div>
                         <div>

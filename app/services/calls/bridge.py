@@ -392,6 +392,22 @@ def should_send_bridge(data: dict) -> bool:
     # СЛУЧАЙ 2 и 3: ExternalInitiated=true (CRM исходящий ИЛИ входящий)
     # ═══════════════════════════════════════════════════════════════════
     if external_initiated:
+        # ───────────────────────────────────────────────────────────────
+        # СЛУЧАЙ 4: ВНУТРЕННИЙ ЗВОНОК (caller_internal && connected_internal)
+        # Отправляем только первый bridge (с Exten = внутренний номер)
+        # ───────────────────────────────────────────────────────────────
+        if caller_is_internal and connected_is_internal:
+            # Bridge с Exten (номер вызываемого) - это первый bridge, ОТПРАВЛЯЕМ его
+            if exten and is_internal_number(exten):
+                logging.info(f"[should_send_bridge] ✅ INTERNAL CALL: {caller}→{connected} (exten={exten}) - SEND")
+                if bridge_id and not data.get("_from_dispatch_to_all"):
+                    sent_bridges[bridge_id] = time.time()
+                return True
+            # Bridge без Exten - это второй bridge, ПРОПУСКАЕМ
+            else:
+                logging.info(f"[should_send_bridge] ⏭️ INTERNAL CALL: {caller}→{connected} без Exten - SKIP (duplicate)")
+                return False
+        
         # Промежуточный bridge: internal → external → ПРОПУСКАЕМ
         if caller_is_internal and not connected_is_internal:
             logging.info(f"[should_send_bridge] ⏭️ ExternalInitiated: internal→external - SKIP (intermediate)")
@@ -630,12 +646,29 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     # ───────── Шаг 4. Формируем текст согласно Пояснению ─────────
     if call_direction == "internal":
         # Внутренний звонок с обогащением ФИО
-        caller_display = caller
-        connected_display = connected
+        # Получаем ФИО обоих участников параллельно
+        try:
+            caller_name, connected_name = await asyncio.gather(
+                metadata_client.get_manager_name(enterprise_number, caller, short=False),
+                metadata_client.get_manager_name(enterprise_number, connected, short=False)
+            )
+            
+            # Форматируем: если есть ФИО - "ФИО (номер)", иначе просто номер
+            if caller_name and not caller_name.startswith("Доб."):
+                caller_display = f"{caller_name} ({caller})"
+            else:
+                caller_display = caller
+                
+            if connected_name and not connected_name.startswith("Доб."):
+                connected_display = f"{connected_name} ({connected})"
+            else:
+                connected_display = connected
+        except Exception as e:
+            logging.warning(f"[send_bridge_to_single_chat] Failed to get manager names for internal call: {e}")
+            caller_display = caller
+            connected_display = connected
         
-        # ФИО участников отключено для устранения блокировок
-        
-        text = f"☎️{caller_display} 📞➡️ ☎️{connected_display}📞"
+        text = f"🔗 Идет внутренний разговор\n☎️{caller_display} 📞➡️ ☎️{connected_display}📞"
     
     elif call_direction in ["incoming", "outgoing"]:
         # Внешний звонок с обогащением метаданными
@@ -793,7 +826,7 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
         
         # ШАГ 1: Получаем и удаляем предыдущее сообщение (dial)
         try:
-            import httpx, asyncio
+            import httpx
             await asyncio.sleep(0.1)  # race condition fix
             
             # Получаем сообщения из кэша
