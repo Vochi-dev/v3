@@ -176,16 +176,27 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             elif trunk_info:
                 text += f"\nЛиния: {trunk_info}"
         else:  # Входящий - показываем все номера из Extensions
-            text = f"📞 Входящий звонок\n💰{display} ➡️ "
+            text = f"📞 Входящий звонок\n💰{display} ➡️"
             
-            # Получаем все внутренние номера из Extensions (ОПТИМИЗИРОВАНО: используем кэш)
+            # Получаем все внутренние номера из Extensions
             if exts:
                 internal_exts = [ext for ext in exts if is_internal_number(ext)]
                 if internal_exts:
-                    # Показываем только номера extensions без запросов имён
-                    # (имена менеджеров редко настроены, и это экономит 15-20 HTTP запросов)
-                    ext_list = " ".join([f"☎️({ext})" for ext in internal_exts])
-                    text += ext_list
+                    # Получаем имена менеджеров параллельно через кэш
+                    async def get_manager_display(ext):
+                        try:
+                            name = await metadata_client.get_manager_name(enterprise_number, ext, short=False)
+                            if name and not name.startswith("Доб."):
+                                return f"☎️{name} ({ext})"
+                        except Exception as e:
+                            logging.warning(f"[process_dial] Failed to get manager name for {ext}: {e}")
+                        return f"☎️({ext})"
+                    
+                    # Запрашиваем все имена параллельно
+                    manager_displays = await asyncio.gather(*[get_manager_display(ext) for ext in internal_exts])
+                    # Каждый менеджер на новой строке
+                    ext_list = "\n".join(manager_displays)
+                    text += f"\n{ext_list}"
             
             if not exts or not any(is_internal_number(ext) for ext in exts):
                 # Если нет внутренних номеров, показываем просто входящий
@@ -215,7 +226,7 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     # ───────── Шаг 4. DIAL удаляет START + предыдущий DIAL ─────────
     phone = get_phone_for_grouping(data)
     try:
-        import httpx, asyncio
+        import httpx
         
         # Задержка для предотвращения race condition (уменьшена до 0.1s при workers=1)
         await asyncio.sleep(0.1)
