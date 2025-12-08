@@ -1562,23 +1562,25 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                     logger.info(f"🔗 UUID ссылка: {call_data['call_url']}")
                                     
                                     # 📝 Логируем в call_tracer для работы "Детали звонка"
+                                    # ВАЖНО: используем стандартные имена событий (hangup, dial, bridge)
+                                    # чтобы logger.py мог их корректно распарсить
                                     if CALL_TRACER_AVAILABLE:
                                         try:
-                                            # Логируем hangup событие
-                                            log_asterisk_event(
-                                                enterprise_number=ent_id,
-                                                event_type="hangup_recovery",
-                                                unique_id=unique_id,
-                                                body=event.get('data', {})
-                                            )
-                                            # Логируем связанные события (dial, bridge)
+                                            # Сначала логируем связанные события (dial, bridge) в хронологическом порядке
                                             for rel_event in related_events:
                                                 log_asterisk_event(
                                                     enterprise_number=ent_id,
-                                                    event_type=rel_event.get('event', 'unknown') + "_recovery",
+                                                    event_type=rel_event.get('event', 'unknown'),  # dial, bridge и т.д.
                                                     unique_id=unique_id,
                                                     body=rel_event.get('data', {})
                                                 )
+                                            # Потом логируем hangup событие (последнее в хронологии)
+                                            log_asterisk_event(
+                                                enterprise_number=ent_id,
+                                                event_type="hangup",
+                                                unique_id=unique_id,
+                                                body=event.get('data', {})
+                                            )
                                         except Exception as log_err:
                                             logger.warning(f"[recovery] Failed to log asterisk events: {log_err}")
                                     
@@ -1764,7 +1766,7 @@ async def sync_enterprise_data(enterprise_id: str, force_all: bool = False,
                             try:
                                 log_asterisk_event(
                                     enterprise_number=enterprise_id,
-                                    event_type="hangup_recovery",
+                                    event_type="hangup",  # Стандартное имя для корректного парсинга
                                     unique_id=call_data['unique_id'],
                                     body=event.get('data', {})
                                 )
