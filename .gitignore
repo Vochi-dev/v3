@@ -53,3 +53,4 @@ debug.log.*
 
 # PID files
 pids/
+logs/uvicorn.log.5

@@ -26,7 +26,7 @@ except Exception:
 try:
     from app.services.metadata_client import metadata_client
     from app.services.calls.utils import format_phone_number as format_phone_pretty
-    from app.utils.user_phones import get_enterprise_secret
+    from app.utils.user_phones import get_enterprise_secret, get_all_internal_phones_by_tg_id, get_bot_owner_chat_id
     METADATA_CLIENT_AVAILABLE = True
 except Exception as e:
     METADATA_CLIENT_AVAILABLE = False
@@ -270,6 +270,29 @@ def extract_internal_phone_from_related(related_events: List[Dict]) -> Optional[
     return None
 
 
+def extract_all_extensions_from_related(related_events: List[Dict]) -> List[str]:
+    """Извлечь ВСЕ extensions из связанных событий dial
+    
+    Собирает уникальные номера из всех dial событий (для непринятых звонков)
+    """
+    all_extensions = []
+    seen = set()
+    
+    for event in related_events:
+        if event.get('event') == 'dial':
+            data = event.get('data', {})
+            extensions = data.get('Extensions', [])
+            for ext in extensions:
+                if ext and ext.strip() and ext not in seen:
+                    all_extensions.append(ext)
+                    seen.add(ext)
+    
+    if all_extensions:
+        logger.info(f"Extracted all extensions from dial events: {all_extensions}")
+    
+    return all_extensions
+
+
 def get_remote_failed_hangup_events(enterprise_id: str, db_file: str) -> List[Dict]:
     """Получить неуспешные события hangup из удаленного SQLite файла (AlternativeAPIlogs)"""
     enterprises = get_active_enterprises()
@@ -380,12 +403,20 @@ def parse_call_data(event: Dict, enterprise_id: str, related_events: List[Dict] 
     extensions = data.get('Extensions', [])
     main_extension = extensions[0] if extensions and extensions[0] else None
     
-    # 🆕 Если Extensions пустые - пытаемся восстановить из связанных событий
-    if not main_extension and related_events:
-        main_extension = extract_internal_phone_from_related(related_events)
-        if main_extension:
-            extensions = [main_extension]
-            logger.info(f"Recovered main_extension from related events: {main_extension}")
+    # 🆕 Если Extensions пустые - пытаемся восстановить ВСЕ из связанных событий
+    if (not extensions or not main_extension) and related_events:
+        # Извлекаем ВСЕ extensions из dial событий
+        recovered_extensions = extract_all_extensions_from_related(related_events)
+        if recovered_extensions:
+            extensions = recovered_extensions
+            main_extension = extensions[0]
+            logger.info(f"Recovered ALL extensions from related events: {extensions}")
+        elif not main_extension:
+            # Fallback - попробуем хотя бы один номер
+            main_extension = extract_internal_phone_from_related(related_events)
+            if main_extension:
+                extensions = [main_extension]
+                logger.info(f"Recovered main_extension only from related events: {main_extension}")
     
     # 🔗 Генерируем UUID ссылку для recovery события
     uuid_token = str(uuid.uuid4())
@@ -932,18 +963,21 @@ async def enrich_recovery_call_data(
     internal_phone: Optional[str],
     external_phone: Optional[str],
     trunk: Optional[str],
-    second_internal_phone: Optional[str] = None  # Для внутренних звонков - второй участник
+    second_internal_phone: Optional[str] = None,  # Для внутренних звонков - второй участник
+    all_extensions: List[str] = None  # Для непринятых звонков - все номера, на которые звонили
 ) -> Dict[str, Any]:
     """Обогащение данных звонка для recovery (имя клиента, менеджера, линии)
     
     Использует metadata_client (как в hangup.py) для идентичного обогащения
     second_internal_phone - для внутренних звонков, чтобы получить ФИО второго участника
+    all_extensions - для непринятых входящих, чтобы получить ФИО всех менеджеров
     """
     result = {
         "customer_name": None,
         "manager_name": None,
         "line_name": None,
-        "second_manager_name": None  # ФИО второго участника (для внутренних звонков)
+        "second_manager_name": None,  # ФИО второго участника (для внутренних звонков)
+        "all_managers": {}  # {extension: name} для всех менеджеров
     }
     
     # Используем metadata_client если доступен (как в hangup.py)
@@ -974,7 +1008,30 @@ async def enrich_recovery_call_data(
                 except Exception as e:
                     logger.warning(f"[enrich-recovery] Failed to get second_manager_name: {e}")
             
-            logger.info(f"[enrich-recovery] metadata_client result: customer={result['customer_name']}, manager={result['manager_name']}, line={result['line_name']}, second_manager={result['second_manager_name']}")
+            # Для непринятых входящих - получаем ФИО ВСЕХ менеджеров
+            if all_extensions and len(all_extensions) > 1:
+                try:
+                    import asyncio
+                    # Получаем ФИО для всех extensions параллельно
+                    tasks = [
+                        metadata_client.get_manager_name(enterprise_number, ext, short=False)
+                        for ext in all_extensions
+                    ]
+                    names = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    for ext, name in zip(all_extensions, names):
+                        if isinstance(name, Exception):
+                            result["all_managers"][ext] = None
+                        elif name and not name.startswith("Доб."):
+                            result["all_managers"][ext] = name
+                        else:
+                            result["all_managers"][ext] = None
+                    
+                    logger.info(f"[enrich-recovery] all_managers: {result['all_managers']}")
+                except Exception as e:
+                    logger.warning(f"[enrich-recovery] Failed to get all_managers: {e}")
+            
+            logger.info(f"[enrich-recovery] metadata_client result: customer={result['customer_name']}, manager={result['manager_name']}, line={result['line_name']}, second_manager={result['second_manager_name']}, all_managers_count={len(result['all_managers'])}")
             return result
             
         except Exception as e:
@@ -1179,6 +1236,7 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str, en
         main_extension = call_data.get('main_extension', '')
         call_url = call_data.get('call_url', '')
         trunk = call_data.get('trunk', '')
+        extensions = call_data.get('extensions', [])  # Все номера, на которые звонили
         
         # Enriched данные
         enriched_data = enriched_data or {}
@@ -1269,9 +1327,26 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str, en
             else:
                 text = f"❌🔄Мы не подняли трубку\n💰{display_phone}"
                 
-                # Кому звонили
-                if manager_display and is_internal_number(main_extension):
+                # Кому звонили - показываем ВСЕ номера для непринятых звонков
+                if extensions and len(extensions) > 1:
+                    # Несколько номеров - все в раскрывающемся блоке (expandable blockquote)
+                    all_managers_names = enriched_data.get('all_managers', {}) if enriched_data else {}
+                    
+                    # 2 пустые строки после "Менеджеры:" чтобы скрыть имена в свёрнутом виде
+                    managers_lines = []
+                    for ext in extensions:
+                        ext_name = all_managers_names.get(ext)
+                        if ext_name and not ext_name.startswith("Доб."):
+                            managers_lines.append(f"☎️{ext_name} ({ext})")
+                        else:
+                            managers_lines.append(f"☎️{ext}")
+                    
+                    managers_list = "👨🏼‍💼Менеджеры:\n\n" + "\n".join(managers_lines)
+                    text += f"\n<blockquote expandable>{managers_list}</blockquote>"
+                elif manager_display and is_internal_number(main_extension):
                     text += f"\n☎️{manager_display}"
+                elif main_extension:
+                    text += f"\n☎️{main_extension}"
                 
                 # Линия
                 if line_name:
@@ -1321,35 +1396,68 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str, en
                 text += f"\n⏰Начало звонка {time_part}"
                 text += f"\n⌛ Дозванивался: {duration_text}"
         
-        # Подготавливаем кнопки
-        buttons = []
+        # Подготавливаем данные для кнопок
         unique_id = call_data.get('unique_id', '')
         asterisk_token = call_data.get('asterisk_token', '')  # name2 для get_enterprise_secret
         
-        # Кнопка "Детали звонка" (как в hangup.py) - только для НЕ внутренних звонков
-        if not is_internal and unique_id and asterisk_token and METADATA_CLIENT_AVAILABLE:
+        # Получаем enterprise_secret один раз
+        enterprise_secret = None
+        if asterisk_token and METADATA_CLIENT_AVAILABLE:
             try:
                 enterprise_secret = await get_enterprise_secret(asterisk_token)
-                if enterprise_secret:
+            except Exception as e:
+                logger.warning(f"[recovery] Failed to get enterprise_secret: {e}")
+        
+        # Получаем owner_chat_id для определения владельца (ему не показываем кнопки "Позвонить")
+        owner_chat_id = None
+        if asterisk_token and METADATA_CLIENT_AVAILABLE:
+            try:
+                owner_chat_id = await get_bot_owner_chat_id(asterisk_token)
+            except Exception as e:
+                logger.warning(f"[recovery] Failed to get owner_chat_id: {e}")
+        
+        # Очищаем phone_number для callback (только для НЕ внутренних звонков)
+        clean_phone = None
+        if not is_internal and phone_number:
+            clean_phone = ''.join(filter(str.isdigit, str(phone_number)))
+        
+        # Отправляем сообщение ВСЕМ подписчикам с индивидуальными кнопками
+        sent_count = 0
+        failed_count = 0
+        
+        for chat_id in subscribers:
+            try:
+                buttons = []
+                
+                # Кнопки "Позвонить с XXX" (только для НЕ владельца и НЕ внутренних звонков)
+                if chat_id != owner_chat_id and not is_internal and clean_phone and enterprise_secret:
+                    try:
+                        user_internal_phones = await get_all_internal_phones_by_tg_id(
+                            enterprise_number=enterprise_id,
+                            telegram_tg_id=chat_id
+                        )
+                        if user_internal_phones:
+                            for internal_phone in user_internal_phones:
+                                button = InlineKeyboardButton(
+                                    text=f"📞 Позвонить с {internal_phone}",
+                                    callback_data=f"call:{clean_phone}:{internal_phone}:{enterprise_secret}"
+                                )
+                                buttons.append([button])
+                            logger.info(f"[recovery] Added {len(user_internal_phones)} call buttons for chat_id={chat_id}")
+                    except Exception as e:
+                        logger.warning(f"[recovery] Failed to get user_internal_phones for {chat_id}: {e}")
+                
+                # Кнопка "Детали звонка" (для ВСЕХ, включая владельца) - только для НЕ внутренних
+                if not is_internal and unique_id and enterprise_secret:
                     details_url = f"https://bot.vochi.by/call/{enterprise_id}/{unique_id}?token={enterprise_secret}"
                     details_button = InlineKeyboardButton(
                         text="📊 Детали звонка",
                         url=details_url
                     )
                     buttons.append([details_button])
-                    logger.info(f"[recovery] Added call details button: {details_url}")
-            except Exception as e:
-                logger.warning(f"[recovery] Failed to get enterprise_secret: {e}")
-        
-        # Формируем клавиатуру
-        reply_markup = InlineKeyboardMarkup(buttons) if buttons else None
-        
-        # Отправляем сообщение ВСЕМ подписчикам (как в webhooks.py)
-        sent_count = 0
-        failed_count = 0
-        
-        for chat_id in subscribers:
-            try:
+                
+                reply_markup = InlineKeyboardMarkup(buttons) if buttons else None
+                
                 await bot.send_message(
                     chat_id=chat_id,
                     text=text,
@@ -1358,7 +1466,7 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str, en
                     reply_markup=reply_markup
                 )
                 sent_count += 1
-                logger.info(f"✅ Отправлено в чат {chat_id}")
+                logger.info(f"✅ Отправлено в чат {chat_id} (кнопок: {len(buttons)})")
             except Exception as send_error:
                 failed_count += 1
                 logger.error(f"❌ Ошибка отправки в чат {chat_id}: {send_error}")
@@ -1435,12 +1543,18 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                         call_type = int(call_data.get('call_type', 0))
                                         is_internal_call = call_type == 2
                                         
+                                        # Для непринятых входящих (call_status != 2, call_type == 0) передаём все extensions
+                                        call_status = int(call_data.get('call_status', 0))
+                                        is_unanswered_incoming = call_type == 0 and call_status != 2
+                                        extensions_list = call_data.get('extensions', []) if is_unanswered_incoming else None
+                                        
                                         enriched_data = await enrich_recovery_call_data(
                                             enterprise_number=ent_id,
                                             internal_phone=call_data.get('main_extension'),
                                             external_phone=call_data.get('phone_number') if not is_internal_call else None,
                                             trunk=call_data.get('trunk'),
-                                            second_internal_phone=call_data.get('phone_number') if is_internal_call else None
+                                            second_internal_phone=call_data.get('phone_number') if is_internal_call else None,
+                                            all_extensions=extensions_list
                                         )
                                         
                                         telegram_sent = await send_recovery_telegram_message(call_data, ent_id, enriched_data)
@@ -1606,12 +1720,18 @@ async def sync_enterprise_data(enterprise_id: str, force_all: bool = False,
                             call_type = int(call_data.get('call_type', 0))
                             is_internal_call = call_type == 2
                             
+                            # Для непринятых входящих (call_status != 2, call_type == 0) передаём все extensions
+                            call_status = int(call_data.get('call_status', 0))
+                            is_unanswered_incoming = call_type == 0 and call_status != 2
+                            extensions_list = call_data.get('extensions', []) if is_unanswered_incoming else None
+                            
                             enriched_data = await enrich_recovery_call_data(
                                 enterprise_number=enterprise_id,
                                 internal_phone=call_data.get('main_extension'),
                                 external_phone=call_data.get('phone_number') if not is_internal_call else None,
                                 trunk=call_data.get('trunk'),
-                                second_internal_phone=call_data.get('phone_number') if is_internal_call else None
+                                second_internal_phone=call_data.get('phone_number') if is_internal_call else None,
+                                all_extensions=extensions_list
                             )
                             
                             telegram_sent = await send_recovery_telegram_message(call_data, enterprise_id, enriched_data)
