@@ -376,12 +376,20 @@ def should_send_bridge(data: dict) -> bool:
                 sent_bridges[bridge_id] = time.time()
             return True
         
-        # Bridge #2: caller=external, connected=internal, Exten="" → ПРОПУСКАЕМ
-        if not caller_is_internal and connected_is_internal and not exten_is_external:
+        # Bridge для ВХОДЯЩЕГО звонка: caller=external, connected=internal, Exten=trunk → ОТПРАВЛЯЕМ
+        if not caller_is_internal and connected_is_internal and exten_is_trunk:
+            logging.info(f"[should_send_bridge] ✅ INCOMING: external→internal with trunk Exten - SEND")
+            if bridge_id and not data.get("_from_dispatch_to_all"):
+                sent_bridges[bridge_id] = time.time()
+            return True
+        
+        # Bridge #2: caller=external, connected=internal, Exten="" (пустой) → ПРОПУСКАЕМ
+        # Это промежуточный bridge для исходящего звонка
+        if not caller_is_internal and connected_is_internal and not exten_is_external and not exten_is_trunk and not exten:
             logging.info(f"[should_send_bridge] ⏭️ REGULAR OUTGOING: external→internal without Exten - SKIP (waiting for bridge with Exten)")
             return False
         
-        # Fallback для обычных звонков
+        # Fallback для обычных звонков (external → internal)
         if not caller_is_internal and connected_is_internal:
             logging.info(f"[should_send_bridge] ✅ REGULAR: external→internal - SEND")
             if bridge_id and not data.get("_from_dispatch_to_all"):
