@@ -283,9 +283,10 @@ def extract_all_extensions_from_related(related_events: List[Dict]) -> List[str]
             data = event.get('data', {})
             extensions = data.get('Extensions', [])
             for ext in extensions:
-                if ext and ext.strip() and ext not in seen:
-                    all_extensions.append(ext)
-                    seen.add(ext)
+                ext_clean = ext.strip() if ext else None
+                if ext_clean and ext_clean not in seen:
+                    all_extensions.append(ext_clean)
+                    seen.add(ext_clean)
     
     if all_extensions:
         logger.info(f"Extracted all extensions from dial events: {all_extensions}")
