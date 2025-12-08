@@ -47,7 +47,7 @@ from telegram.error import BadRequest
 
 # Импортируем call_tracer для логирования событий (чтобы работали "Детали звонка")
 try:
-    from app.utils.call_tracer import log_telegram_event, log_asterisk_event
+    from app.utils.call_tracer import log_telegram_event, log_asterisk_event, log_http_request, log_sql_query
     CALL_TRACER_AVAILABLE = True
 except Exception as e:
     CALL_TRACER_AVAILABLE = False
@@ -490,7 +490,23 @@ def insert_call_to_db(cursor, call_data: Dict) -> Optional[int]:
     ))
     
     result = cursor.fetchone()
-    return result[0] if result else None
+    call_id = result[0] if result else None
+    
+    # Логируем SQL запрос в call_tracer
+    if CALL_TRACER_AVAILABLE and call_id:
+        try:
+            log_sql_query(
+                enterprise_number=call_data['enterprise_id'],
+                unique_id=call_data['unique_id'],
+                query_type="INSERT",
+                table="calls",
+                params={"unique_id": call_data['unique_id'], "phone": call_data['phone_number']},
+                result={"call_id": call_id, "status": "created"}
+            )
+        except Exception:
+            pass
+    
+    return call_id
 
 def insert_participants_to_db(cursor, call_id: int, extensions: List[str], call_data: Dict):
     """Вставка участников звонка"""
@@ -974,13 +990,15 @@ async def enrich_recovery_call_data(
     external_phone: Optional[str],
     trunk: Optional[str],
     second_internal_phone: Optional[str] = None,  # Для внутренних звонков - второй участник
-    all_extensions: List[str] = None  # Для непринятых звонков - все номера, на которые звонили
+    all_extensions: List[str] = None,  # Для непринятых звонков - все номера, на которые звонили
+    unique_id: str = None  # Для логирования в call_tracer
 ) -> Dict[str, Any]:
     """Обогащение данных звонка для recovery (имя клиента, менеджера, линии)
     
     Использует metadata_client (как в hangup.py) для идентичного обогащения
     second_internal_phone - для внутренних звонков, чтобы получить ФИО второго участника
     all_extensions - для непринятых входящих, чтобы получить ФИО всех менеджеров
+    unique_id - для логирования HTTP запросов в call_tracer
     """
     result = {
         "customer_name": None,
@@ -1005,6 +1023,19 @@ async def enrich_recovery_call_data(
             result["customer_name"] = enriched.get("customer_name")
             result["manager_name"] = enriched.get("manager_name")
             result["line_name"] = enriched.get("line_name")
+            
+            # Логируем HTTP запрос к metadata (enrich)
+            if CALL_TRACER_AVAILABLE and unique_id:
+                try:
+                    log_http_request(
+                        enterprise_number, unique_id, "GET", 
+                        f"http://localhost:8020/metadata/enrich",
+                        200, 
+                        {"internal": internal_phone, "external": external_phone, "trunk": trunk},
+                        {"customer": result["customer_name"], "manager": result["manager_name"], "line": result["line_name"]}
+                    )
+                except Exception:
+                    pass
             
             # Для внутренних звонков - получаем ФИО второго участника
             if second_internal_phone:
@@ -1602,7 +1633,8 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                             external_phone=call_data.get('phone_number') if not is_internal_call else None,
                                             trunk=call_data.get('trunk'),
                                             second_internal_phone=call_data.get('phone_number') if is_internal_call else None,
-                                            all_extensions=extensions_list
+                                            all_extensions=extensions_list,
+                                            unique_id=unique_id
                                         )
                                         
                                         telegram_sent = await send_recovery_telegram_message(call_data, ent_id, enriched_data)
@@ -1791,7 +1823,8 @@ async def sync_enterprise_data(enterprise_id: str, force_all: bool = False,
                                 external_phone=call_data.get('phone_number') if not is_internal_call else None,
                                 trunk=call_data.get('trunk'),
                                 second_internal_phone=call_data.get('phone_number') if is_internal_call else None,
-                                all_extensions=extensions_list
+                                all_extensions=extensions_list,
+                                unique_id=call_data.get('unique_id')
                             )
                             
                             telegram_sent = await send_recovery_telegram_message(call_data, enterprise_id, enriched_data)
