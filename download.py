@@ -45,6 +45,15 @@ except Exception as e:
     _logging.warning(f"[download] customers upsert not available: {e}")
 from telegram.error import BadRequest
 
+# Импортируем call_tracer для логирования событий (чтобы работали "Детали звонка")
+try:
+    from app.utils.call_tracer import log_telegram_event, log_asterisk_event
+    CALL_TRACER_AVAILABLE = True
+except Exception as e:
+    CALL_TRACER_AVAILABLE = False
+    import logging as _log
+    _log.warning(f"[download] call_tracer not available: {e}")
+
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -1459,7 +1468,7 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str, en
                 
                 reply_markup = InlineKeyboardMarkup(buttons) if buttons else None
                 
-                await bot.send_message(
+                sent_msg = await bot.send_message(
                     chat_id=chat_id,
                     text=text,
                     parse_mode="HTML",
@@ -1468,6 +1477,21 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str, en
                 )
                 sent_count += 1
                 logger.info(f"✅ Отправлено в чат {chat_id} (кнопок: {len(buttons)})")
+                
+                # Логируем в call_tracer для работы "Детали звонка"
+                if CALL_TRACER_AVAILABLE:
+                    try:
+                        log_telegram_event(
+                            enterprise_number=enterprise_id,
+                            action="send",
+                            chat_id=chat_id,
+                            message_type="hangup_recovery",
+                            message_id=sent_msg.message_id,
+                            unique_id=unique_id,
+                            text=text
+                        )
+                    except Exception as log_err:
+                        logger.warning(f"[recovery] Failed to log telegram event: {log_err}")
             except Exception as send_error:
                 failed_count += 1
                 logger.error(f"❌ Ошибка отправки в чат {chat_id}: {send_error}")
@@ -1536,6 +1560,27 @@ async def sync_live_events(enterprise_id: str = None) -> Dict[str, SyncStats]:
                                     new_events += 1
                                     logger.info(f"✅ Создана recovery запись call_id={call_id} для {unique_id}")
                                     logger.info(f"🔗 UUID ссылка: {call_data['call_url']}")
+                                    
+                                    # 📝 Логируем в call_tracer для работы "Детали звонка"
+                                    if CALL_TRACER_AVAILABLE:
+                                        try:
+                                            # Логируем hangup событие
+                                            log_asterisk_event(
+                                                enterprise_number=ent_id,
+                                                event_type="hangup_recovery",
+                                                unique_id=unique_id,
+                                                body=event.get('data', {})
+                                            )
+                                            # Логируем связанные события (dial, bridge)
+                                            for rel_event in related_events:
+                                                log_asterisk_event(
+                                                    enterprise_number=ent_id,
+                                                    event_type=rel_event.get('event', 'unknown') + "_recovery",
+                                                    unique_id=unique_id,
+                                                    body=rel_event.get('data', {})
+                                                )
+                                        except Exception as log_err:
+                                            logger.warning(f"[recovery] Failed to log asterisk events: {log_err}")
                                     
                                     # 📧 Отправляем уведомление в Telegram с enrichment
                                     try:
@@ -1713,6 +1758,18 @@ async def sync_enterprise_data(enterprise_id: str, force_all: bool = False,
                         file_new_events += 1
                         logger.info(f"✅ Создана recovery запись call_id={call_id} для {call_data['unique_id']}")
                         logger.info(f"🔗 UUID ссылка: {call_data['call_url']}")
+                        
+                        # 📝 Логируем в call_tracer для работы "Детали звонка"
+                        if CALL_TRACER_AVAILABLE:
+                            try:
+                                log_asterisk_event(
+                                    enterprise_number=enterprise_id,
+                                    event_type="hangup_recovery",
+                                    unique_id=call_data['unique_id'],
+                                    body=event.get('data', {})
+                                )
+                            except Exception as log_err:
+                                logger.warning(f"[recovery] Failed to log asterisk event: {log_err}")
                         
                         # 📧 Отправляем уведомление в Telegram с enrichment (только для новых записей)
                         try:
