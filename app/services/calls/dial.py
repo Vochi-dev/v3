@@ -15,6 +15,8 @@ from .utils import (
     update_call_pair_message,
     update_hangup_message_map,
     dial_cache,
+    dial_cache_by_chat,  # Для работы с конкретным chat_id
+    get_dial_cache_lock, # Lock для предотвращения race condition
     bridge_store,
     bridge_store_by_chat,
     # Новые функции для группировки событий
@@ -49,13 +51,60 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     is_int = call_type == 2
     external_initiated = data.get("ExternalInitiated", False)
     
+    # ───────── ЗАМЕНА: При failover удаляем предыдущий dial и отправляем новый ─────────
+    # При failover через несколько GSM-шлюзов приходит несколько dial событий
+    # с одним UniqueId но разными Trunk - каждый новый удаляет предыдущий
+    # ВАЖНО: используем dial_cache_by_chat[chat_id] для конкретного чата!
+    # Используем Lock чтобы избежать race condition при параллельных dial
+    prev_dial_msg_id = None
+    trunk_info = data.get("Trunk", "")
+    
+    # Ждём пока предыдущий dial с тем же uid не завершится (если есть)
+    # Максимум 3 секунды ожидания
+    wait_start = time.time()
+    dial_lock = get_dial_cache_lock()
+    print(f"[DIAL-DEBUG] uid={uid} trunk={trunk_info} chat_id={chat_id} starting lock check")
+    while True:
+        async with dial_lock:
+            chat_dial_cache = dial_cache_by_chat[chat_id]
+            if uid in chat_dial_cache:
+                cached_msg_id = chat_dial_cache[uid].get("message_id")
+                if cached_msg_id == 0:  # pending
+                    # Ждём немного и пробуем снова
+                    if time.time() - wait_start > 3.0:
+                        logging.warning(f"[DIAL] ⚠️ Timeout waiting for pending dial uid={uid}")
+                        break
+                else:
+                    # Есть реальный message_id - можно удалять
+                    cached_trunk = chat_dial_cache[uid].get("trunk", "")
+                    prev_dial_msg_id = cached_msg_id
+                    logging.info(f"[DIAL] 🔄 Trunk failover for uid={uid}: {cached_trunk} → {trunk_info}, will delete msg:{prev_dial_msg_id}")
+                    break
+            else:
+                # Первый dial для этого uid
+                break
+        # Освобождаем Lock и ждём
+        await asyncio.sleep(0.05)
+    
+    # Резервируем место в кэше с message_id=0 (pending)
+    async with dial_lock:
+        chat_dial_cache = dial_cache_by_chat[chat_id]
+        chat_dial_cache[uid] = {
+            "caller": raw_phone,
+            "extensions": exts,
+            "call_type": call_type,
+            "token": data.get("Token", ""),
+            "trunk": trunk_info,
+            "message_id": 0  # 0 = pending
+        }
+    
     # ───────── ФИЛЬТР: Пропускаем внутренние звонки при внешней инициации ─────────
     if is_int and external_initiated:
         logging.info(f"[DIAL] ⏭️ Skipping internal dial (CallType=2) with ExternalInitiated=true for chat {chat_id}")
         return {"status": "skipped", "reason": "internal_call_external_initiated"}
     callee = exts[0] if exts else ""
     token = data.get("Token", "")
-    trunk_info = data.get("Trunk", "")
+    # trunk_info уже определён выше
     
     # Сохраняем trunk в кэш для использования в bridge
     from .utils import save_trunk_for_call
@@ -274,7 +323,17 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         reply_to_id = None
         logging.info(f"[process_dial] Previous message was deleted, sending as standalone message")
     
-    # ───────── Шаг 6. Отправляем сообщение в Telegram ─────────
+    # ───────── Шаг 6. Удаляем предыдущий dial при failover ─────────
+    if prev_dial_msg_id:
+        try:
+            await bot.delete_message(chat_id, prev_dial_msg_id)
+            ent_num = data.get("_enterprise_number", enterprise_number)
+            log_telegram_event(ent_num, "delete", chat_id, "dial", prev_dial_msg_id, uid, "")
+            logging.info(f"[DIAL] 🗑️ Deleted previous dial msg:{prev_dial_msg_id} (trunk failover)")
+        except Exception as del_e:
+            logging.warning(f"[DIAL] ⚠️ Failed to delete previous dial: {del_e}")
+    
+    # ───────── Шаг 7. Отправляем сообщение в Telegram ─────────
     try:
         if should_comment and reply_to_id:
             logging.info(f"[process_dial] Sending as comment to message {reply_to_id}")
@@ -316,13 +375,16 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         logging.error(f"[process_dial] send_message failed: {e}. text={safe_text!r}")
         return {"status": "error", "error": str(e)}
 
-    # ───────── Шаг 6. Сохраняем в dial_cache ─────────
-    dial_cache[uid] = {
-        "caller":     raw_phone,
-        "extensions": exts,
-        "call_type":  call_type,
-        "token":      token
-    }
+    # ───────── Шаг 10. Обновляем dial_cache с реальным message_id ─────────
+    async with dial_lock:
+        dial_cache_by_chat[chat_id][uid] = {
+            "caller":     raw_phone,
+            "extensions": exts,
+            "call_type":  call_type,
+            "token":      token,
+            "trunk":      trunk_info,
+            "message_id": sent.message_id  # Для удаления при failover
+        }
 
     # ───────── Шаг 7. Обновляем состояние системы ─────────
     update_call_pair_message(raw_phone, callee, sent.message_id, is_int, chat_id)
