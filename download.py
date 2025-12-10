@@ -217,7 +217,8 @@ def get_related_events_by_uniqueid(enterprise_id: str, db_file: str, uniqueid: s
         return []
     
     # Запрашиваем dial, bridge, bridge_leave события по тому же UniqueId
-    cmd = f'''sshpass -p "{config["ssh_password"]}" ssh -p {config["ssh_port"]} -o StrictHostKeyChecking=no root@{config["ip"]} 'sqlite3 {db_file} "SELECT event, request FROM AlternativeAPIlogs WHERE Uniqueid = \\"{uniqueid}\\" AND event IN (\\"dial\\", \\"bridge\\", \\"bridge_leave\\")"' '''
+    # DISTINCT предотвращает дубликаты событий в логах
+    cmd = f'''sshpass -p "{config["ssh_password"]}" ssh -p {config["ssh_port"]} -o StrictHostKeyChecking=no root@{config["ip"]} 'sqlite3 {db_file} "SELECT DISTINCT event, request FROM AlternativeAPIlogs WHERE Uniqueid = \\"{uniqueid}\\" AND event IN (\\"dial\\", \\"bridge\\", \\"bridge_leave\\")"' '''
     
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
@@ -1516,7 +1517,7 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str, en
                             enterprise_number=enterprise_id,
                             action="send",
                             chat_id=chat_id,
-                            message_type="hangup_recovery",
+                            message_type="hangup",  # Стандартное имя для корректного парсинга
                             message_id=sent_msg.message_id,
                             unique_id=unique_id,
                             text=text
