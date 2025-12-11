@@ -316,6 +316,24 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                     "message_id": sent.message_id
                 })
             logging.info(f"[DIAL] ✅ Cached msg={sent.message_id} for {phone}:{chat_id}")
+            
+            # ДВОЙНАЯ ПРОВЕРКА: после отправки dial проверяем, появился ли bridge
+            # Если bridge уже есть - удаляем свой dial (race condition)
+            await asyncio.sleep(0.3)  # Даём время bridge записаться
+            try:
+                resp2 = await client.get(f"http://localhost:8020/telegram/messages/{phone}/{chat_id}")
+                if resp2.status_code == 200:
+                    cache_data2 = resp2.json()
+                    if "bridge" in cache_data2.get("messages", {}):
+                        logging.info(f"[DIAL] ⚠️ Bridge appeared after dial, deleting dial msg={sent.message_id}")
+                        try:
+                            await bot.delete_message(chat_id, sent.message_id)
+                            log_telegram_event(ent_num, "delete", chat_id, "dial", sent.message_id, uid, "")
+                        except Exception as del_e:
+                            logging.warning(f"[DIAL] Could not delete dial: {del_e}")
+            except Exception as check_e:
+                logging.debug(f"[DIAL] Double-check failed: {check_e}")
+                
         except Exception as cache_e:
             logging.warning(f"[DIAL] ❌ Cache failed: {cache_e}")
             
