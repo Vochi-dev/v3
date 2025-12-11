@@ -617,19 +617,15 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
     enriched_data = {}
     
     # Извлекаем trunk:
+    # ИСПРАВЛЕНО: Приоритет источников trunk:
     # 1. Сначала из data["Trunk"]
-    # 2. Потом из кэша (сохранённый из dial события)
-    # 3. Потом из Channel (но не внутренние номера!)
+    # 2. Потом из Channel (САМЫЙ НАДЁЖНЫЙ! Содержит реальный trunk звонка)
+    # 3. Потом из кэша (может быть неправильным при failover)
     from .utils import get_trunk_for_call
     
     trunk = data.get("Trunk", "")
-    if not trunk:
-        # Пробуем получить из кэша (сохранён из dial)
-        uid = data.get("UniqueId", "")
-        trunk = get_trunk_for_call(unique_id=uid, external_phone=external_phone)
-        if trunk:
-            logging.info(f"[send_bridge_to_single_chat] Got trunk '{trunk}' from cache for uid={uid}, phone={external_phone}")
     
+    # Приоритет: Channel содержит РЕАЛЬНЫЙ trunk текущего bridge
     if not trunk:
         channel = data.get("Channel", "")
         if channel and "/" in channel and "-" in channel:
@@ -643,6 +639,13 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
                     logging.info(f"[send_bridge_to_single_chat] Extracted trunk '{trunk}' from Channel '{channel}'")
                 else:
                     logging.info(f"[send_bridge_to_single_chat] Skipping internal number '{trunk_part}' as trunk from Channel '{channel}'")
+    
+    # Fallback на кэш (если Channel не дал trunk)
+    if not trunk:
+        uid = data.get("UniqueId", "")
+        trunk = get_trunk_for_call(unique_id=uid, external_phone=external_phone)
+        if trunk:
+            logging.info(f"[send_bridge_to_single_chat] Got trunk '{trunk}' from cache for uid={uid}, phone={external_phone}")
     
     # Используем pre-enriched данные (уже сделано в main.py)
     enriched_data = data.get("_enriched_data", {})
