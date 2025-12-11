@@ -225,52 +225,9 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
 
     # ───────── Шаг 4. DIAL удаляет START + предыдущий DIAL ─────────
     phone = get_phone_for_grouping(data)
-    try:
-        import httpx
-        
-        # Задержка для предотвращения race condition 
-        # Увеличена до 0.5s чтобы дать bridge время записаться в кэш
-        await asyncio.sleep(0.5)
-        
-        cache_url = f"http://localhost:8020/telegram/messages/{phone}/{chat_id}"
-        
-        # Получаем ВСЕ сообщения для звонка
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            resp = await client.get(cache_url)
-            if resp.status_code == 200:
-                cache_data = resp.json()
-                messages = cache_data.get("messages", {})
-                logging.info(f"[DIAL] 📥 Got cache: {list(messages.keys())}")
-                
-                # ВАЖНО: Если bridge уже был - dial не отправляем!
-                # Bridge означает что разговор уже начался
-                if "bridge" in messages:
-                    logging.info(f"[DIAL] ⏭️ SKIP: bridge already exists, call connected")
-                    return
-            else:
-                logging.info(f"[DIAL] ℹ️ No previous messages in cache")
-                messages = {}
-        
-            # Удаляем START и предыдущий BRIDGE из Telegram (не dial - он теперь список!)
-            ent_num = data.get("_enterprise_number", enterprise_number)
-            for event_type in ["start", "bridge"]:
-                if event_type in messages:
-                    msg_id = messages[event_type]
-                    logging.info(f"[DIAL] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
-                    try:
-                        await bot.delete_message(chat_id, msg_id)
-                        log_telegram_event(ent_num, "delete", chat_id, event_type, msg_id, uid, "")
-                        logging.info(f"[DIAL] ✅ {event_type.upper()} deleted")
-                    except BadRequest as e:
-                        logging.warning(f"[DIAL] ⚠️ Could not delete {event_type.upper()}: {e}")
-            
-            # Удаляем только START и BRIDGE из кэша (dial - список, удаляется в bridge/hangup)
-            if messages:
-                async with httpx.AsyncClient(timeout=2.0) as client:
-                    await client.delete(f"{cache_url}?event_types=start&event_types=bridge")
-                    logging.info(f"[DIAL] 🧹 Cleared start/bridge cache")
-    except Exception as e:
-        logging.warning(f"[DIAL] ⚠️ Failed to check/delete previous messages: {e}")
+    # Удаление start/bridge перенесено - dial отправляется МГНОВЕННО
+    # Bridge и hangup отвечают за удаление всех dial
+    pass
     
     # ───────── Шаг 5. Проверяем, нужно ли отправить как комментарий ─────────
     should_comment, reply_to_id = should_send_as_comment(phone_for_grouping, 'dial', chat_id)
@@ -316,35 +273,7 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                     "message_id": sent.message_id
                 })
             logging.info(f"[DIAL] ✅ Cached msg={sent.message_id} for {phone}:{chat_id}")
-            
-            # ДВОЙНАЯ ПРОВЕРКА: после отправки dial проверяем, появился ли bridge или hangup
-            # Если bridge/hangup уже есть - удаляем свой dial (race condition)
-            await asyncio.sleep(1.0)  # Даём время bridge/hangup записаться (увеличено с 0.3)
-            try:
-                resp2 = await client.get(f"http://localhost:8020/telegram/messages/{phone}/{chat_id}")
-                if resp2.status_code == 200:
-                    cache_data2 = resp2.json()
-                    messages2 = cache_data2.get("messages", {})
-                    # Удаляем dial если bridge или hangup уже появились
-                    if "bridge" in messages2 or "hangup" in messages2:
-                        reason = "bridge" if "bridge" in messages2 else "hangup"
-                        logging.info(f"[DIAL] ⚠️ {reason} appeared after dial, deleting dial msg={sent.message_id}")
-                        try:
-                            await bot.delete_message(chat_id, sent.message_id)
-                            log_telegram_event(ent_num, "delete", chat_id, "dial", sent.message_id, uid, "")
-                        except Exception as del_e:
-                            logging.warning(f"[DIAL] Could not delete dial: {del_e}")
-                elif resp2.status_code == 404:
-                    # Кэш пустой - значит hangup уже очистил всё, удаляем dial
-                    logging.info(f"[DIAL] ⚠️ Cache empty (hangup cleared?), deleting dial msg={sent.message_id}")
-                    try:
-                        await bot.delete_message(chat_id, sent.message_id)
-                        log_telegram_event(ent_num, "delete", chat_id, "dial", sent.message_id, uid, "")
-                    except Exception as del_e:
-                        logging.warning(f"[DIAL] Could not delete dial: {del_e}")
-            except Exception as check_e:
-                logging.debug(f"[DIAL] Double-check failed: {check_e}")
-                
+            # Dial отправляется мгновенно, bridge/hangup отвечают за удаление
         except Exception as cache_e:
             logging.warning(f"[DIAL] ❌ Cache failed: {cache_e}")
             
