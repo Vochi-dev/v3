@@ -319,7 +319,7 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
             
             # ДВОЙНАЯ ПРОВЕРКА: после отправки dial проверяем, появился ли bridge или hangup
             # Если bridge/hangup уже есть - удаляем свой dial (race condition)
-            await asyncio.sleep(0.3)  # Даём время bridge/hangup записаться
+            await asyncio.sleep(1.0)  # Даём время bridge/hangup записаться (увеличено с 0.3)
             try:
                 resp2 = await client.get(f"http://localhost:8020/telegram/messages/{phone}/{chat_id}")
                 if resp2.status_code == 200:
