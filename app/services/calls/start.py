@@ -37,6 +37,14 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
     # ───────── Шаг 2. Извлечение данных ─────────
     uid = data.get("UniqueId", "")
     raw_phone = data.get("Phone", "") or ""
+    
+    # SKIP: Если Phone - это GSM линия (0001xxx), не отправляем start
+    # В этом случае Phone содержит trunk, а не реальный номер звонящего
+    # Реальный номер придёт позже в dial событии
+    if raw_phone.startswith("0001"):
+        logging.info(f"[process_start] SKIP: Phone '{raw_phone}' is a GSM trunk, not a caller number")
+        return {"status": "skipped", "reason": "gsm_trunk_phone"}
+    
     phone = format_phone_number(raw_phone)
     exts = data.get("Extensions", [])
     call_type = int(data.get("CallType", 0))
