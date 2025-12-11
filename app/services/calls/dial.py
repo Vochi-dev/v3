@@ -228,8 +228,9 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
     try:
         import httpx
         
-        # Задержка для предотвращения race condition (уменьшена до 0.1s при workers=1)
-        await asyncio.sleep(0.1)
+        # Задержка для предотвращения race condition 
+        # Увеличена до 0.5s чтобы дать bridge время записаться в кэш
+        await asyncio.sleep(0.5)
         
         cache_url = f"http://localhost:8020/telegram/messages/{phone}/{chat_id}"
         
