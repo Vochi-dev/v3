@@ -39,6 +39,7 @@ from .utils import (
     update_call_pair_message,
     update_hangup_message_map,
     dial_cache,
+    dial_cache_by_chat,
     bridge_store,
     active_bridges,
     # Новые функции для группировки событий
@@ -658,6 +659,17 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                     if is_internal_number(ext):
                         internal_caller = ext
                         break
+            
+            # FALLBACK: Если не нашли internal_caller, ищем в dial_cache
+            if not internal_caller:
+                chat_dial_cache = dial_cache_by_chat.get(chat_id, {})
+                if uid in chat_dial_cache:
+                    cached_exts = chat_dial_cache[uid].get("extensions", [])
+                    for ext in cached_exts:
+                        if ext and is_internal_number(ext):
+                            internal_caller = ext
+                            logging.info(f"[HANGUP] Found internal_caller={ext} from dial_cache")
+                            break
             
             # Если не нашли внешний номер, используем данные из события
             if not external_phone:
