@@ -317,20 +317,31 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                 })
             logging.info(f"[DIAL] ✅ Cached msg={sent.message_id} for {phone}:{chat_id}")
             
-            # ДВОЙНАЯ ПРОВЕРКА: после отправки dial проверяем, появился ли bridge
-            # Если bridge уже есть - удаляем свой dial (race condition)
-            await asyncio.sleep(0.3)  # Даём время bridge записаться
+            # ДВОЙНАЯ ПРОВЕРКА: после отправки dial проверяем, появился ли bridge или hangup
+            # Если bridge/hangup уже есть - удаляем свой dial (race condition)
+            await asyncio.sleep(0.3)  # Даём время bridge/hangup записаться
             try:
                 resp2 = await client.get(f"http://localhost:8020/telegram/messages/{phone}/{chat_id}")
                 if resp2.status_code == 200:
                     cache_data2 = resp2.json()
-                    if "bridge" in cache_data2.get("messages", {}):
-                        logging.info(f"[DIAL] ⚠️ Bridge appeared after dial, deleting dial msg={sent.message_id}")
+                    messages2 = cache_data2.get("messages", {})
+                    # Удаляем dial если bridge или hangup уже появились
+                    if "bridge" in messages2 or "hangup" in messages2:
+                        reason = "bridge" if "bridge" in messages2 else "hangup"
+                        logging.info(f"[DIAL] ⚠️ {reason} appeared after dial, deleting dial msg={sent.message_id}")
                         try:
                             await bot.delete_message(chat_id, sent.message_id)
                             log_telegram_event(ent_num, "delete", chat_id, "dial", sent.message_id, uid, "")
                         except Exception as del_e:
                             logging.warning(f"[DIAL] Could not delete dial: {del_e}")
+                elif resp2.status_code == 404:
+                    # Кэш пустой - значит hangup уже очистил всё, удаляем dial
+                    logging.info(f"[DIAL] ⚠️ Cache empty (hangup cleared?), deleting dial msg={sent.message_id}")
+                    try:
+                        await bot.delete_message(chat_id, sent.message_id)
+                        log_telegram_event(ent_num, "delete", chat_id, "dial", sent.message_id, uid, "")
+                    except Exception as del_e:
+                        logging.warning(f"[DIAL] Could not delete dial: {del_e}")
             except Exception as check_e:
                 logging.debug(f"[DIAL] Double-check failed: {check_e}")
                 
