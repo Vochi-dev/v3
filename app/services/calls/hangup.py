@@ -927,7 +927,8 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 logging.info(f"[HANGUP] 🗑️ DELETE {url}")
                 try:
                     resp = await client.delete(url)  # Удаляет ВСЁ
-                    logging.info(f"[HANGUP] 📥 status={resp.status_code}")
+                    logging.info(f"[HANGUP] 📥 DELETE status={resp.status_code}")
+                    logging.info(f"[HANGUP] 📥 DELETE body={resp.text}")
                     
                     if resp.status_code == 200:
                         delete_result = resp.json()
