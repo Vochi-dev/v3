@@ -921,9 +921,9 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                         
                         logging.info(f"[HANGUP] ✅ Found {len(messages)} messages: {list(messages.keys())}")
                         
-                        # Удаляем ВСЁ: START, DIAL, BRIDGE
+                        # Удаляем ВСЁ: START, BRIDGE (одиночные)
                         ent_num = data.get("_enterprise_number", enterprise_number)
-                        for event_type in ["start", "dial", "bridge"]:
+                        for event_type in ["start", "bridge"]:
                             if event_type in messages:
                                 msg_id = messages[event_type]
                                 logging.info(f"[HANGUP] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
@@ -935,6 +935,29 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                                     logging.error(f"[HANGUP] ❌ BadRequest {event_type.upper()}: {e}")
                                 except Exception as e:
                                     logging.error(f"[HANGUP] ❌ Delete {event_type.upper()} failed: {e}")
+                        
+                        # DIAL - может быть списком (failover через несколько транков)
+                        if "dial" in messages:
+                            dial_msgs = messages["dial"]
+                            if isinstance(dial_msgs, list):
+                                logging.info(f"[HANGUP] 📋 Found {len(dial_msgs)} dial messages to delete: {dial_msgs}")
+                                for msg_id in dial_msgs:
+                                    try:
+                                        await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                                        log_telegram_event(ent_num, "delete", chat_id, "dial", msg_id, uid, "")
+                                        logging.info(f"[HANGUP] ✅ DIAL msg:{msg_id} deleted")
+                                    except Exception as e:
+                                        logging.debug(f"[HANGUP] ⚠️ DIAL msg:{msg_id} already deleted: {e}")
+                            else:
+                                # Одиночное значение (старый формат)
+                                msg_id = dial_msgs
+                                logging.info(f"[HANGUP] 🗑️ Deleting DIAL msg={msg_id}")
+                                try:
+                                    await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                                    log_telegram_event(ent_num, "delete", chat_id, "dial", msg_id, uid, "")
+                                    logging.info(f"[HANGUP] ✅ DIAL deleted")
+                                except Exception as e:
+                                    logging.error(f"[HANGUP] ❌ Delete DIAL failed: {e}")
                         
                         # ОЧИЩАЕМ весь кэш для этого звонка
                         logging.info(f"[HANGUP] 🧹 Clearing ALL cache for {phone}:{chat_id}")

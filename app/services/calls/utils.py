@@ -20,19 +20,6 @@ dial_cache_by_chat       = defaultdict(dict)
 bridge_store_by_chat     = defaultdict(dict)
 active_bridges_by_chat   = defaultdict(dict)
 
-# Lock для предотвращения race condition при failover через несколько транков
-# Lazy initialization - создаётся при первом использовании
-_dial_cache_lock = None
-
-def get_dial_cache_lock():
-    global _dial_cache_lock
-    if _dial_cache_lock is None:
-        _dial_cache_lock = asyncio.Lock()
-    return _dial_cache_lock
-
-# Для обратной совместимости - будет использоваться через get_dial_cache_lock()
-dial_cache_lock = None  # deprecated, use get_dial_cache_lock()
-
 # для историй: {chat_id: {phone: [records]}}
 call_pair_message_map_by_chat = defaultdict(dict)
 hangup_message_map_by_chat    = defaultdict(lambda: defaultdict(list))

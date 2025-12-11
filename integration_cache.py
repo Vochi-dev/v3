@@ -2413,16 +2413,24 @@ async def save_telegram_message(
 ):
     """
     Сохранить message_id Telegram сообщения для последующего удаления.
-    Структура: phone:chat_id -> {start: msg_id, dial: msg_id, bridge: msg_id}
+    Структура: phone:chat_id -> {start: msg_id, dial: [msg_id1, msg_id2, ...], bridge: msg_id}
+    ВАЖНО: dial хранится как СПИСОК (failover через несколько транков)
     """
     cache_key = f"{phone}:{chat_id}"
     
     if cache_key not in telegram_message_cache:
         telegram_message_cache[cache_key] = {}
     
-    telegram_message_cache[cache_key][event_type] = message_id
-    
-    logger.info(f"[TG_CACHE] ✅ Saved {event_type} msg={message_id} for {cache_key}")
+    # Для dial - добавляем в список (может быть несколько при failover)
+    if event_type == "dial":
+        if "dial" not in telegram_message_cache[cache_key]:
+            telegram_message_cache[cache_key]["dial"] = []
+        telegram_message_cache[cache_key]["dial"].append(message_id)
+        logger.info(f"[TG_CACHE] ✅ Added {event_type} msg={message_id} to list for {cache_key}, total: {len(telegram_message_cache[cache_key]['dial'])}")
+    else:
+        # Для start/bridge - одно значение
+        telegram_message_cache[cache_key][event_type] = message_id
+        logger.info(f"[TG_CACHE] ✅ Saved {event_type} msg={message_id} for {cache_key}")
     
     return {
         "status": "ok",
