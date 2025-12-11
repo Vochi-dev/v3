@@ -835,68 +835,35 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
         log_telegram_event(ent_num, "send", chat_id, "bridge", message_id, uid, debug_text)
         logging.info(f"[send_bridge_to_single_chat] Sent bridge message {message_id}")
         
-        # ШАГ 1: Получаем и удаляем предыдущее сообщение (dial)
+        # ШАГ 1: АТОМАРНО удаляем из кэша И получаем message_id для удаления из TG
+        # Это решает race condition когда dial добавляется между GET и DELETE
         try:
             import httpx
-            await asyncio.sleep(0.1)  # race condition fix
-            
-            # Получаем сообщения из кэша
             url = f"http://localhost:8020/telegram/messages/{phone_for_grouping}/{chat_id}"
+            
             async with httpx.AsyncClient(timeout=2.0) as client:
-                logging.info(f"[BRIDGE] 📞 GET {url}")
-                resp = await client.get(url)
-                logging.info(f"[BRIDGE] 📥 status={resp.status_code}")
+                # АТОМАРНОЕ удаление - получаем message_id которые нужно удалить из TG
+                logging.info(f"[BRIDGE] 🗑️ DELETE {url}?event_types=start&event_types=dial&event_types=bridge")
+                resp = await client.delete(f"{url}?event_types=start&event_types=dial&event_types=bridge")
                 
                 if resp.status_code == 200:
-                    cache_data = resp.json()
-                    messages = cache_data.get("messages", {})
-                    logging.info(f"[BRIDGE] 📥 Got cache: {list(messages.keys())}")
+                    delete_result = resp.json()
+                    deleted_messages = delete_result.get("deleted_messages", {})
+                    logging.info(f"[BRIDGE] 📥 Got deleted_messages: {deleted_messages}")
+                    
+                    # Удаляем из TG ВСЕ message_id которые вернул DELETE
+                    ent_num = data.get("_enterprise_number", "")
+                    for event_type, msg_ids in deleted_messages.items():
+                        for msg_id in msg_ids:
+                            logging.info(f"[BRIDGE] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
+                            try:
+                                await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                                log_telegram_event(ent_num, "delete", chat_id, event_type, msg_id, uid, "")
+                                logging.info(f"[BRIDGE] ✅ {event_type.upper()} msg:{msg_id} deleted")
+                            except Exception as e:
+                                logging.debug(f"[BRIDGE] ⚠️ {event_type.upper()} msg:{msg_id} delete failed: {e}")
                 else:
-                    logging.warning(f"[BRIDGE] ⚠️ No prev messages (404)")
-                    messages = {}
-            
-            # Удаляем START, DIAL и предыдущий BRIDGE из Telegram
-            ent_num = data.get("_enterprise_number", "")
-            for event_type in ["start", "bridge"]:  # start и bridge - одиночные
-                if event_type in messages:
-                    msg_id = messages[event_type]
-                    logging.info(f"[BRIDGE] 🗑️ Deleting {event_type.upper()} msg={msg_id}")
-                    try:
-                        await bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                        log_telegram_event(ent_num, "delete", chat_id, event_type, msg_id, uid, "")
-                        logging.info(f"[BRIDGE] ✅ {event_type.upper()} deleted")
-                    except Exception as e:
-                        logging.error(f"[BRIDGE] ❌ Delete {event_type.upper()} failed: {e}")
-            
-            # DIAL - может быть списком (failover через несколько транков)
-            if "dial" in messages:
-                dial_msgs = messages["dial"]
-                # Поддержка и списка и одиночного значения (обратная совместимость)
-                if isinstance(dial_msgs, list):
-                    logging.info(f"[BRIDGE] 📋 Found {len(dial_msgs)} dial messages to delete: {dial_msgs}")
-                    for msg_id in dial_msgs:
-                        try:
-                            await bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                            log_telegram_event(ent_num, "delete", chat_id, "dial", msg_id, uid, "")
-                            logging.info(f"[BRIDGE] ✅ DIAL msg:{msg_id} deleted")
-                        except Exception as e:
-                            logging.debug(f"[BRIDGE] ⚠️ DIAL msg:{msg_id} delete failed: {e}")
-                else:
-                    # Одиночное значение (старый формат)
-                    msg_id = dial_msgs
-                    logging.info(f"[BRIDGE] 🗑️ Deleting DIAL msg={msg_id}")
-                    try:
-                        await bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                        log_telegram_event(ent_num, "delete", chat_id, "dial", msg_id, uid, "")
-                        logging.info(f"[BRIDGE] ✅ DIAL deleted")
-                    except Exception as e:
-                        logging.error(f"[BRIDGE] ❌ Delete DIAL failed: {e}")
-            
-            # Удаляем START, DIAL и BRIDGE из кэша
-            if messages:
-                async with httpx.AsyncClient(timeout=2.0) as client:
-                    await client.delete(f"{url}?event_types=start&event_types=dial&event_types=bridge")
-                    logging.info(f"[BRIDGE] 🧹 Cleared cache")
+                    logging.info(f"[BRIDGE] ℹ️ No prev messages to delete (status={resp.status_code})")
         except Exception as e:
             logging.error(f"[BRIDGE] ❌ Error: {e}")
         

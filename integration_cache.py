@@ -2488,8 +2488,15 @@ async def delete_telegram_messages(
     if event_types:
         # Удаляем только указанные типы
         deleted = []
+        deleted_messages = {}  # {event_type: [msg_ids]}
         for event_type in event_types:
             if event_type in telegram_message_cache[cache_key]:
+                msg_data = telegram_message_cache[cache_key][event_type]
+                # dial - список, остальные - одиночные значения
+                if isinstance(msg_data, list):
+                    deleted_messages[event_type] = msg_data.copy()
+                else:
+                    deleted_messages[event_type] = [msg_data]
                 del telegram_message_cache[cache_key][event_type]
                 deleted.append(event_type)
         
@@ -2501,17 +2508,26 @@ async def delete_telegram_messages(
         return {
             "status": "deleted",
             "cache_key": cache_key,
-            "deleted_types": deleted
+            "deleted_types": deleted,
+            "deleted_messages": deleted_messages  # NEW: message IDs for each type
         }
     else:
         # Удаляем всё
         deleted_types = list(telegram_message_cache[cache_key].keys())
+        deleted_messages = {}
+        for event_type in deleted_types:
+            msg_data = telegram_message_cache[cache_key][event_type]
+            if isinstance(msg_data, list):
+                deleted_messages[event_type] = msg_data.copy()
+            else:
+                deleted_messages[event_type] = [msg_data]
         del telegram_message_cache[cache_key]
         logger.info(f"[TG_CACHE] 🗑️ Deleted ALL ({deleted_types}) for {cache_key}")
         return {
             "status": "deleted_all",
             "cache_key": cache_key,
-            "deleted_types": deleted_types
+            "deleted_types": deleted_types,
+            "deleted_messages": deleted_messages  # NEW: message IDs for each type
         }
 
 
