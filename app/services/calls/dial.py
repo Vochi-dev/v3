@@ -240,6 +240,12 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                 cache_data = resp.json()
                 messages = cache_data.get("messages", {})
                 logging.info(f"[DIAL] 📥 Got cache: {list(messages.keys())}")
+                
+                # ВАЖНО: Если bridge уже был - dial не отправляем!
+                # Bridge означает что разговор уже начался
+                if "bridge" in messages:
+                    logging.info(f"[DIAL] ⏭️ SKIP: bridge already exists, call connected")
+                    return
             else:
                 logging.info(f"[DIAL] ℹ️ No previous messages in cache")
                 messages = {}
