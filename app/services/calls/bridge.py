@@ -845,6 +845,8 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
                 # АТОМАРНОЕ удаление - получаем message_id которые нужно удалить из TG
                 logging.info(f"[BRIDGE] 🗑️ DELETE {url}?event_types=start&event_types=dial&event_types=bridge")
                 resp = await client.delete(f"{url}?event_types=start&event_types=dial&event_types=bridge")
+                logging.info(f"[BRIDGE] 📥 DELETE status={resp.status_code}")
+                logging.info(f"[BRIDGE] 📥 DELETE body={resp.text}")
                 
                 if resp.status_code == 200:
                     delete_result = resp.json()
