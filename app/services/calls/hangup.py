@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime
 
 from app.services.events import save_telegram_message
+from app.services.calls.bridge import stop_bridge_resend_task
 from app.services.customers import upsert_customer_from_hangup
 from app.services.postgres import get_pool
 from app.services.postgres import get_pool
@@ -1034,6 +1035,9 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             bridge_msg = chat_bridge_store.pop(uid)
             bridge_messages_to_delete.append(bridge_msg)
             logging.info(f"[process_hangup] Found bridge message {bridge_msg} in bridge_store for uid {uid}")
+            
+            # ⏹️ Останавливаем фоновую задачу переотправки bridge
+            stop_bridge_resend_task(chat_id, uid)
         
         # 2. ГЛАВНОЕ: Проверяем phone_message_tracker по ВНЕШНЕМУ НОМЕРУ (правильный якорь!)
         chat_phone_tracker = phone_message_tracker_by_chat[chat_id]

@@ -40,6 +40,120 @@ active_bridges = {}
 # Ключ: BridgeUniqueid, Значение: timestamp отправки
 sent_bridges = {}
 
+# ─────── Самопереотправка bridge ───────
+# Словарь для хранения задач переотправки: {(chat_id, uid): asyncio.Task}
+bridge_resend_tasks = {}
+# Интервал переотправки в секундах
+BRIDGE_RESEND_INTERVAL = 10
+
+
+async def bridge_self_resend_loop(bot, chat_id: int, uid: str, initial_msg_id: int, initial_text: str, reply_markup=None, enterprise_number: str = ""):
+    """
+    Фоновая задача: bridge сам себя переотправляет каждые N секунд.
+    Завершается когда bridge удалён из bridge_store_by_chat.
+    """
+    import asyncio
+    from telegram.error import BadRequest
+    try:
+        from app.utils.call_tracer import log_telegram_event
+    except:
+        log_telegram_event = lambda *args, **kwargs: None
+    
+    current_msg_id = initial_msg_id
+    current_text = initial_text
+    
+    logging.info(f"[bridge_resend] 🔄 Started resend loop for uid={uid}, msg={current_msg_id}")
+    
+    try:
+        while True:
+            await asyncio.sleep(BRIDGE_RESEND_INTERVAL)
+            
+            # Проверяем: bridge ещё активен?
+            if chat_id not in bridge_store_by_chat or uid not in bridge_store_by_chat[chat_id]:
+                logging.info(f"[bridge_resend] ⏹️ Bridge {uid} no longer active, stopping resend loop")
+                break
+            
+            # Проверяем: message_id не изменился (другой код не переотправил)?
+            stored_msg_id = bridge_store_by_chat[chat_id].get(uid)
+            if stored_msg_id != current_msg_id:
+                logging.info(f"[bridge_resend] ⏹️ Bridge {uid} msg changed ({current_msg_id} → {stored_msg_id}), stopping")
+                break
+            
+            # Переотправляем
+            try:
+                # Удаляем старое
+                await bot.delete_message(chat_id=chat_id, message_id=current_msg_id)
+                log_telegram_event(enterprise_number, "delete", chat_id, "bridge", current_msg_id, uid, "self-resend")
+                
+                # Отправляем новое
+                sent = await bot.send_message(
+                    chat_id=chat_id,
+                    text=current_text,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                    reply_markup=reply_markup
+                )
+                
+                new_msg_id = sent.message_id
+                
+                # Обновляем текст с новым msg_id
+                if "🔖 msg:" in current_text:
+                    current_text = current_text.rsplit("🔖 msg:", 1)[0] + f"🔖 msg:{new_msg_id}"
+                
+                # Обновляем кэш
+                bridge_store_by_chat[chat_id][uid] = new_msg_id
+                current_msg_id = new_msg_id
+                
+                log_telegram_event(enterprise_number, "send", chat_id, "bridge", new_msg_id, uid, current_text + " [self-resent]")
+                logging.info(f"[bridge_resend] ✅ Bridge {uid} self-resent: → msg:{new_msg_id}")
+                
+            except BadRequest as e:
+                logging.warning(f"[bridge_resend] ⚠️ Failed to resend {uid}: {e}")
+                break
+            except Exception as e:
+                logging.error(f"[bridge_resend] ❌ Error resending {uid}: {e}")
+                break
+                
+    except asyncio.CancelledError:
+        logging.info(f"[bridge_resend] ⏹️ Resend loop for {uid} cancelled")
+    finally:
+        # Очищаем задачу из словаря
+        task_key = (chat_id, uid)
+        if task_key in bridge_resend_tasks:
+            del bridge_resend_tasks[task_key]
+        logging.debug(f"[bridge_resend] Cleaned up task for {uid}")
+
+
+def start_bridge_resend_task(bot, chat_id: int, uid: str, msg_id: int, text: str, reply_markup=None, enterprise_number: str = ""):
+    """Запускает фоновую задачу переотправки bridge"""
+    import asyncio
+    
+    task_key = (chat_id, uid)
+    
+    # Отменяем старую задачу если есть
+    if task_key in bridge_resend_tasks:
+        old_task = bridge_resend_tasks[task_key]
+        if not old_task.done():
+            old_task.cancel()
+    
+    # Запускаем новую
+    task = asyncio.create_task(
+        bridge_self_resend_loop(bot, chat_id, uid, msg_id, text, reply_markup, enterprise_number)
+    )
+    bridge_resend_tasks[task_key] = task
+    logging.debug(f"[bridge_resend] Started task for uid={uid}")
+
+
+def stop_bridge_resend_task(chat_id: int, uid: str):
+    """Останавливает фоновую задачу переотправки bridge"""
+    task_key = (chat_id, uid)
+    if task_key in bridge_resend_tasks:
+        task = bridge_resend_tasks[task_key]
+        if not task.done():
+            task.cancel()
+            logging.info(f"[bridge_resend] ⏹️ Cancelled resend task for uid={uid}")
+        del bridge_resend_tasks[task_key]
+
 # ═══════════════════════════════════════════════════════════════════
 # ОСНОВНАЯ ФУНКЦИЯ ОБРАБОТКИ BRIDGE СОБЫТИЙ
 # ═══════════════════════════════════════════════════════════════════
@@ -173,6 +287,26 @@ async def process_bridge_leave(bot: Bot, chat_id: int, data: dict):
     if uid in active_bridges:
         logging.info(f"[process_bridge_leave] Removing bridge tracking for {uid}")
         active_bridges.pop(uid, None)
+    
+    # ⏹️ Останавливаем фоновую задачу переотправки bridge для ВСЕХ чатов
+    for (task_chat_id, task_uid), task in list(bridge_resend_tasks.items()):
+        if task_uid == uid:
+            stop_bridge_resend_task(task_chat_id, uid)
+            logging.info(f"[process_bridge_leave] Stopped resend task for uid={uid}, chat_id={task_chat_id}")
+    
+    # Удаляем bridge из bridge_store_by_chat для ВСЕХ чатов
+    for cid, store in list(bridge_store_by_chat.items()):
+        if uid in store:
+            msg_id = store.pop(uid, None)
+            if msg_id:
+                logging.info(f"[process_bridge_leave] Removed bridge msg={msg_id} from store for chat_id={cid}, uid={uid}")
+                # Удаляем сообщение из Telegram
+                try:
+                    await bot.delete_message(chat_id=cid, message_id=msg_id)
+                    log_telegram_event(enterprise_number, "delete", cid, "bridge", msg_id, uid, "bridge_leave")
+                    logging.info(f"[process_bridge_leave] ✅ Deleted bridge message {msg_id} from Telegram")
+                except Exception as e:
+                    logging.warning(f"[process_bridge_leave] Failed to delete bridge {msg_id}: {e}")
     
     # Сохраняем в БД для анализа
     await save_telegram_message(
@@ -888,6 +1022,10 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
         
         # Сохраняем в bridge_store
         bridge_store_by_chat[chat_id][uid] = message_id
+        
+        # 🔄 Запускаем фоновую задачу самопереотправки bridge
+        ent_num = data.get("_enterprise_number", "")
+        start_bridge_resend_task(bot, chat_id, uid, message_id, debug_text, reply_markup, ent_num)
         
         # Сохраняем в базу
         token = data.get("Token", "")
