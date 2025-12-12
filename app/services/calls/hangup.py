@@ -222,6 +222,45 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             logging.error(f"[process_hangup] ERROR accessing exts: {e}, exts={exts}")
             exts = []  # Обнуляем если есть проблемы
 
+        # 🆕 ВОССТАНОВЛЕНИЕ Extensions из dial_cache если Asterisk прислал пустые
+        # Фильтруем пустые строки из exts (с преобразованием в str для безопасности)
+        exts = [str(ext).strip() for ext in exts if ext and str(ext).strip()]
+        
+        if not exts and uid:
+            # Пытаемся восстановить из dial_cache_by_chat
+            chat_dial_cache = dial_cache_by_chat.get(chat_id, {})
+            if uid in chat_dial_cache:
+                cached_exts = chat_dial_cache[uid].get("extensions", [])
+                if cached_exts:
+                    exts = [str(ext).strip() for ext in cached_exts if ext and str(ext).strip()]
+                    logging.info(f"[process_hangup] 🔄 Recovered extensions from dial_cache: {exts}")
+            
+            # Если не нашли в dial_cache - ищем в call_events (БД)
+            if not exts:
+                try:
+                    pool = await get_pool()
+                    if pool:
+                        async with pool.acquire() as connection:
+                            query = """
+                                SELECT raw_data->'Extensions' as extensions
+                                FROM call_events 
+                                WHERE unique_id = $1 
+                                  AND event_type = 'dial'
+                                  AND raw_data ? 'Extensions'
+                                ORDER BY event_timestamp DESC
+                                LIMIT 1
+                            """
+                            result = await connection.fetchrow(query, uid)
+                            if result and result['extensions']:
+                                try:
+                                    db_exts = json.loads(str(result['extensions']))
+                                    exts = [str(ext).strip() for ext in db_exts if ext and str(ext).strip()]
+                                    logging.info(f"[process_hangup] 🔄 Recovered extensions from call_events: {exts}")
+                                except:
+                                    pass
+                except Exception as e:
+                    logging.warning(f"[process_hangup] Failed to recover extensions from DB: {e}")
+
         # Создаем запись в таблице calls и получаем ссылку на запись
         call_record_info = None
         if uid and token:
@@ -603,14 +642,42 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
                 # Неуспешный входящий звонок
                 text = f"❌ Мы не подняли трубку\n💰{display}"
                 
-                # Добавляем всех, кому звонили (с обогащением ФИО)
+                # Добавляем всех, кому звонили (со спойлером "Менеджеры:" как в download.py)
                 if exts:
                     internal_exts = [ext for ext in exts if is_internal_number(ext)]
                     mobile_exts = [ext for ext in exts if not is_internal_number(ext)]
                     
-                    for ext in internal_exts:
-                        # ФИО для внутренних номеров отключено для устранения блокировок
-                        text += f"\n☎️{ext}"
+                    if internal_exts:
+                        # Получаем ФИО всех менеджеров параллельно
+                        try:
+                            manager_names = await asyncio.gather(*[
+                                metadata_client.get_manager_name(enterprise_number, ext, short=False)
+                                for ext in internal_exts
+                            ], return_exceptions=True)
+                            
+                            # Формируем список менеджеров
+                            managers_lines = []
+                            for ext, name in zip(internal_exts, manager_names):
+                                if isinstance(name, Exception) or not name or name.startswith("Доб."):
+                                    managers_lines.append(f"☎️{ext}")
+                                else:
+                                    managers_lines.append(f"☎️{name} ({ext})")
+                            
+                            # Если несколько менеджеров - в спойлер, если один - просто строка
+                            if len(managers_lines) > 1:
+                                # Expandable blockquote со спойлером
+                                managers_list = "👨🏼‍💼Менеджеры:\n\n" + "\n".join(managers_lines)
+                                text += f"\n<blockquote expandable>{managers_list}</blockquote>"
+                            else:
+                                # Один менеджер - без спойлера
+                                text += f"\n{managers_lines[0]}"
+                        except Exception as e:
+                            logging.warning(f"[process_hangup] Failed to get manager names: {e}")
+                            # Fallback - просто номера
+                            for ext in internal_exts:
+                                text += f"\n☎️{ext}"
+                    
+                    # Мобильные номера добавляем отдельно
                     for ext in mobile_exts:
                         text += f"\n📱{format_phone_number(ext)}"
                 
