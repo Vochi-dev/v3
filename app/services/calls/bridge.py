@@ -46,6 +46,10 @@ bridge_resend_tasks = {}
 # Интервал переотправки в секундах
 BRIDGE_RESEND_INTERVAL = 10
 
+# Set для хранения uid звонков, по которым уже был hangup/bridge_leave
+# Это защита от race condition - проверяем ПЕРЕД delete
+completed_call_uids = set()
+
 
 async def bridge_self_resend_loop(bot, chat_id: int, uid: str, initial_msg_id: int, initial_text: str, reply_markup=None, enterprise_number: str = ""):
     """
@@ -67,6 +71,11 @@ async def bridge_self_resend_loop(bot, chat_id: int, uid: str, initial_msg_id: i
     try:
         while True:
             await asyncio.sleep(BRIDGE_RESEND_INTERVAL)
+            
+            # Проверяем: звонок уже завершён (hangup/bridge_leave)?
+            if uid in completed_call_uids:
+                logging.info(f"[bridge_resend] ⏹️ Call {uid} already completed, stopping resend loop")
+                break
             
             # Проверяем: bridge ещё активен?
             if chat_id not in bridge_store_by_chat or uid not in bridge_store_by_chat[chat_id]:
@@ -121,6 +130,11 @@ async def bridge_self_resend_loop(bot, chat_id: int, uid: str, initial_msg_id: i
         task_key = (chat_id, uid)
         if task_key in bridge_resend_tasks:
             del bridge_resend_tasks[task_key]
+        # Очищаем uid из completed_call_uids через 60 сек (чтобы все задачи успели увидеть)
+        async def cleanup_completed_uid():
+            await asyncio.sleep(60)
+            completed_call_uids.discard(uid)
+        asyncio.create_task(cleanup_completed_uid())
         logging.debug(f"[bridge_resend] Cleaned up task for {uid}")
 
 
@@ -262,6 +276,10 @@ async def process_bridge_leave(bot: Bot, chat_id: int, data: dict):
     channel = data.get("Channel", "")
     
     logging.info(f"[process_bridge_leave] BridgeLeave: uid={uid}, bridge_id={bridge_id}, channel={channel}")
+    
+    # 🛑 Отмечаем uid как завершённый ПЕРВЫМ ДЕЛОМ - это защита от race condition
+    completed_call_uids.add(uid)
+    logging.debug(f"[process_bridge_leave] Added {uid} to completed_call_uids")
     
     # ───────── Логирование bridge_leave события в Call Logger ─────────
     enterprise_number = "unknown"
