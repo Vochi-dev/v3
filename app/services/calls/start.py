@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from telegram import Bot
 from telegram.error import BadRequest
 
@@ -12,12 +13,17 @@ from .utils import (
     update_hangup_message_map,
     bridge_store,
     bridge_store_by_chat,
+    dial_received_uids,
     # Новые функции для группировки событий
     get_phone_for_grouping,
     should_send_as_comment,
     should_replace_previous_message,
     update_phone_tracker,
 )
+
+# Время ожидания перед отправкой start (сек)
+# Если за это время пришёл dial - start не отправляем (пустышка)
+START_WAIT_FOR_DIAL_SEC = 3
 
 async def process_start(bot: Bot, chat_id: int, data: dict):
     """
@@ -44,6 +50,27 @@ async def process_start(bot: Bot, chat_id: int, data: dict):
     if raw_phone.startswith("0001"):
         logging.info(f"[process_start] SKIP: Phone '{raw_phone}' is a GSM trunk, not a caller number")
         return {"status": "skipped", "reason": "gsm_trunk_phone"}
+    
+    # ───────── ФИЛЬТР "ПУСТЫХ" START ─────────
+    # Ждём 3 сек. Если за это время пришёл dial - значит start "пустышка"
+    # (клиент не слушал приветствие), не отправляем его
+    call_type = int(data.get("CallType", 0))
+    is_incoming = (call_type == 0)  # Входящий звонок
+    
+    if is_incoming and uid:
+        logging.info(f"[process_start] ⏳ Waiting {START_WAIT_FOR_DIAL_SEC}s to check if dial arrives...")
+        await asyncio.sleep(START_WAIT_FOR_DIAL_SEC)
+        
+        if uid in dial_received_uids:
+            logging.info(f"[process_start] SKIP: dial already received for {uid}, start is empty (no greeting played)")
+            # Очищаем uid из set через 60 сек
+            async def cleanup():
+                await asyncio.sleep(60)
+                dial_received_uids.discard(uid)
+            asyncio.create_task(cleanup())
+            return {"status": "skipped", "reason": "dial_already_received"}
+        
+        logging.info(f"[process_start] ✅ No dial yet for {uid}, sending start (greeting is playing)")
     
     phone = format_phone_number(raw_phone)
     exts = data.get("Extensions", [])

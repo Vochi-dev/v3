@@ -17,6 +17,7 @@ from .utils import (
     dial_cache,
     bridge_store,
     bridge_store_by_chat,
+    dial_received_uids,
     # Новые функции для группировки событий
     get_phone_for_grouping,
     should_send_as_comment,
@@ -42,6 +43,12 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
 
     # ───────── Шаг 1. Извлечение данных ─────────
     uid = data.get("UniqueId", "")
+    
+    # 🔔 Отмечаем что dial пришёл - используется в start.py для фильтрации "пустых" start
+    if uid:
+        dial_received_uids.add(uid)
+        logging.debug(f"[process_dial] Added {uid} to dial_received_uids")
+    
     raw_phone = data.get("Phone", "") or data.get("CallerIDNum", "") or ""
     phone = format_phone_number(raw_phone)
     exts = data.get("Extensions", [])
