@@ -15,6 +15,7 @@ from .utils import (
     bridge_store,
     bridge_store_by_chat,
     last_hangup_time_by_chat_enterprise,
+    bridge_by_internal,
     
     # Новые функции для группировки событий
     get_phone_for_grouping,
@@ -338,6 +339,12 @@ async def process_bridge_leave(bot: Bot, chat_id: int, data: dict):
                     logging.info(f"[process_bridge_leave] ✅ Deleted bridge message {msg_id} from Telegram")
                 except Exception as e:
                     logging.warning(f"[process_bridge_leave] Failed to delete bridge {msg_id}: {e}")
+    
+    # Очищаем bridge_by_internal - ищем все ключи с этим uid
+    for key in list(bridge_by_internal.keys()):
+        if bridge_by_internal.get(key, {}).get("uid") == uid:
+            bridge_by_internal.pop(key, None)
+            logging.debug(f"[process_bridge_leave] Cleaned bridge_by_internal: {key}")
     
     # Сохраняем в БД для анализа
     await save_telegram_message(
@@ -1054,8 +1061,14 @@ async def send_bridge_to_single_chat(bot: Bot, chat_id: int, data: dict):
         # Сохраняем в bridge_store
         bridge_store_by_chat[chat_id][uid] = message_id
         
-        # 🔄 Запускаем фоновую задачу самопереотправки bridge
+        # 📍 Сохраняем mapping по internal_number для cleanup "зависших" bridge
         ent_num = data.get("_enterprise_number", "")
+        if internal_ext:
+            bridge_key = (chat_id, ent_num, internal_ext)
+            bridge_by_internal[bridge_key] = {"uid": uid, "message_id": message_id}
+            logging.debug(f"[send_bridge_to_single_chat] Saved bridge_by_internal: {bridge_key} -> uid={uid}, msg={message_id}")
+        
+        # 🔄 Запускаем фоновую задачу самопереотправки bridge
         start_bridge_resend_task(bot, chat_id, uid, message_id, debug_text, reply_markup, ent_num)
         
         # Сохраняем в базу

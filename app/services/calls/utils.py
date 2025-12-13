@@ -48,6 +48,12 @@ dial_received_uids = set()
 # Ключ: (chat_id, enterprise_number), Значение: timestamp
 last_hangup_time_by_chat_enterprise = {}
 
+# ─────── Mapping bridge по внутреннему номеру ───────
+# Используется для удаления "зависших" bridge при hangup
+# Ключ: (chat_id, enterprise_number, internal_number)
+# Значение: {"uid": uid, "message_id": msg_id}
+bridge_by_internal = {}
+
 # ===== ОБРАТНАЯ СОВМЕСТИМОСТЬ =====
 # Для старого кода, который ещё использует глобальные переменные
 # Будем использовать значения для суперюзера 374573193

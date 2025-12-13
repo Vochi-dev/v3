@@ -44,6 +44,7 @@ from .utils import (
     bridge_store,
     active_bridges,
     last_hangup_time_by_chat_enterprise,
+    bridge_by_internal,
     # Новые функции для группировки событий
     get_phone_for_grouping,
     should_send_as_comment,
@@ -1046,6 +1047,28 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             
             # ⏹️ Останавливаем фоновую задачу переотправки bridge
             stop_bridge_resend_task(chat_id, uid)
+        
+        # 🧹 CLEANUP: Проверяем bridge_by_internal - удаляем "зависшие" bridge по internal_number
+        # Это нужно когда hangup приходит через download или в нештатных ситуациях
+        internal_for_cleanup = exts[0] if exts and exts[0] else None
+        if internal_for_cleanup and ent_num:
+            bridge_key = (chat_id, ent_num, str(internal_for_cleanup))
+            if bridge_key in bridge_by_internal:
+                orphan_data = bridge_by_internal.pop(bridge_key)
+                orphan_uid = orphan_data.get("uid", "")
+                orphan_msg_id = orphan_data.get("message_id")
+                
+                # Если это НЕ тот же bridge что мы уже нашли - добавляем к удалению
+                if orphan_uid != uid and orphan_msg_id and orphan_msg_id not in bridge_messages_to_delete:
+                    bridge_messages_to_delete.append(orphan_msg_id)
+                    logging.info(f"[process_hangup] 🧹 Found orphan bridge by internal={internal_for_cleanup}: uid={orphan_uid}, msg={orphan_msg_id}")
+                    
+                    # Останавливаем задачу переотправки для orphan bridge
+                    stop_bridge_resend_task(chat_id, orphan_uid)
+                    
+                    # Удаляем из bridge_store_by_chat если есть
+                    if orphan_uid in chat_bridge_store:
+                        chat_bridge_store.pop(orphan_uid, None)
         
         # 2. ГЛАВНОЕ: Проверяем phone_message_tracker по ВНЕШНЕМУ НОМЕРУ (правильный якорь!)
         chat_phone_tracker = phone_message_tracker_by_chat[chat_id]
