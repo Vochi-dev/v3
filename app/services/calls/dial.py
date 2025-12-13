@@ -201,9 +201,15 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
                     
                     # Запрашиваем все имена параллельно
                     manager_displays = await asyncio.gather(*[get_manager_display(ext) for ext in internal_exts])
-                    # Каждый менеджер на новой строке
-                    ext_list = "\n".join(manager_displays)
-                    text += f"\n{ext_list}"
+                    
+                    # Если менеджеров > 4 - прячем под спойлер
+                    if len(internal_exts) > 4:
+                        managers_list = "\n".join(manager_displays)
+                        text += f"\n<blockquote expandable>👨🏼‍💼Менеджеры ({len(internal_exts)}):\n\n{managers_list}</blockquote>"
+                    else:
+                        # Каждый менеджер на новой строке (без спойлера)
+                        ext_list = "\n".join(manager_displays)
+                        text += f"\n{ext_list}"
             
             if not exts or not any(is_internal_number(ext) for ext in exts):
                 # Если нет внутренних номеров, показываем просто входящий
@@ -226,8 +232,13 @@ async def process_dial(bot: Bot, chat_id: int, data: dict):
         # История звонков НЕ добавляется в DIAL (только в START)
         # DIAL показывает только текущий дозвон без истории
 
-    # Экранируем html-спецсимволы
-    safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
+    # Экранируем html-спецсимволы, но сохраняем наши HTML-теги
+    # Сначала защищаем blockquote, потом экранируем, потом возвращаем blockquote
+    if "<blockquote expandable>" in text:
+        # Не экранируем если есть наши HTML-теги
+        safe_text = text
+    else:
+        safe_text = text.replace("<", "&lt;").replace(">", "&gt;")
     logging.info(f"[process_dial] => chat={chat_id}, text={safe_text!r}")
 
     # ───────── Шаг 4. DIAL удаляет START + предыдущий DIAL ─────────
