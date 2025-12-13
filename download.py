@@ -452,7 +452,8 @@ def parse_call_data(event: Dict, enterprise_id: str, related_events: List[Dict] 
         'raw_data': json.dumps(data),
         'extensions': extensions,
         'uuid_token': uuid_token,
-        'call_url': call_url
+        'call_url': call_url,
+        'external_initiated': data.get('ExternalInitiated', False)
     }
 
 def insert_call_to_db(cursor, call_data: Dict) -> Optional[int]:
@@ -1293,6 +1294,15 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str, en
         is_outgoing = call_type == 1
         is_internal = call_type == 2
         is_answered = call_status == 2
+        external_initiated = call_data.get('external_initiated', False)
+        
+        # 🚫 ФИЛЬТР: Пропускаем паразитные hangup от CRM-инициированных звонков
+        # Паразитный = CallType=2 (внутренний) + ExternalInitiated=true + Phone=<unknown> или пустой
+        if is_internal and external_initiated:
+            phone_is_unknown = not phone_number or phone_number in ['<unknown>', 'unknown', '']
+            if phone_is_unknown:
+                logger.info(f"[download] ⏭️ Skipping parasitic hangup: CallType=2, ExternalInitiated=true, Phone={phone_number}")
+                return True  # Возвращаем True чтобы не было retry
         
         # Форматируем номер с именем клиента (или ФИО второго менеджера для внутренних)
         formatted_phone = format_phone_number(phone_number)
@@ -1508,7 +1518,21 @@ async def send_recovery_telegram_message(call_data: Dict, enterprise_id: str, en
                     reply_markup=reply_markup
                 )
                 sent_count += 1
-                logger.info(f"✅ Отправлено в чат {chat_id} (кнопок: {len(buttons)})")
+                
+                # 📝 Добавляем msg: для отслеживания (как в live hangup)
+                try:
+                    debug_text = f"{text}\n🔖 msg:{sent_msg.message_id}"
+                    await bot.edit_message_text(
+                        debug_text, 
+                        chat_id, 
+                        sent_msg.message_id, 
+                        parse_mode="HTML",
+                        reply_markup=reply_markup
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to add msg_id to text: {e}")
+                
+                logger.info(f"✅ Отправлено в чат {chat_id} msg:{sent_msg.message_id} (кнопок: {len(buttons)})")
                 
                 # Логируем в call_tracer для работы "Детали звонка"
                 if CALL_TRACER_AVAILABLE:
