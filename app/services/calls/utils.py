@@ -42,6 +42,12 @@ trunk_cache_by_phone = {}
 # Если dial пришёл быстро после start - start не отправляем
 dial_received_uids = set()
 
+# ─────── Timestamp последнего hangup для каждого (chat_id, enterprise_number) ───────
+# Используется в bridge.py для оптимизации переотправки
+# Bridge переотправляется только если был hangup за последние N секунд от ТОГО ЖЕ юнита
+# Ключ: (chat_id, enterprise_number), Значение: timestamp
+last_hangup_time_by_chat_enterprise = {}
+
 # ===== ОБРАТНАЯ СОВМЕСТИМОСТЬ =====
 # Для старого кода, который ещё использует глобальные переменные
 # Будем использовать значения для суперюзера 374573193

@@ -43,6 +43,7 @@ from .utils import (
     dial_cache_by_chat,
     bridge_store,
     active_bridges,
+    last_hangup_time_by_chat_enterprise,
     # Новые функции для группировки событий
     get_phone_for_grouping,
     should_send_as_comment,
@@ -979,6 +980,13 @@ async def process_hangup(bot: Bot, chat_id: int, data: dict):
             logging.error(f"[process_hangup] ❌ send_message failed: {e}. text={safe_text!r}")
             # НЕ ВОЗВРАЩАЕМ ОШИБКУ - ПРОДОЛЖАЕМ УДАЛЯТЬ ПРЕДЫДУЩИЕ СООБЩЕНИЯ!
             sent = None
+        
+        # 📝 Записываем timestamp hangup для оптимизации переотправки bridge
+        # Ключ: (chat_id, enterprise_number) — чтобы разные юниты не влияли друг на друга
+        import time
+        hangup_key = (chat_id, ent_num)
+        last_hangup_time_by_chat_enterprise[hangup_key] = time.time()
+        logging.debug(f"[process_hangup] Updated last_hangup_time for {hangup_key}")
         
         # ───────── Шаг 8. HANGUP - ГЛАВНЫЙ КИЛЛЕР (удаляет ВСЁ: start/dial/bridge) ─────────
         # АТОМАРНЫЙ подход: DELETE возвращает message_id для удаления из TG

@@ -14,6 +14,7 @@ from .utils import (
     format_phone_number,
     bridge_store,
     bridge_store_by_chat,
+    last_hangup_time_by_chat_enterprise,
     
     # Новые функции для группировки событий
     get_phone_for_grouping,
@@ -87,6 +88,18 @@ async def bridge_self_resend_loop(bot, chat_id: int, uid: str, initial_msg_id: i
             if stored_msg_id != current_msg_id:
                 logging.info(f"[bridge_resend] ⏹️ Bridge {uid} msg changed ({current_msg_id} → {stored_msg_id}), stopping")
                 break
+            
+            # 🔍 Проверяем: был ли hangup от ТОГО ЖЕ юнита за последние N секунд?
+            # Если не было — не переотправляем (bridge и так внизу)
+            import time
+            hangup_key = (chat_id, enterprise_number)
+            last_hangup = last_hangup_time_by_chat_enterprise.get(hangup_key, 0)
+            time_since_hangup = time.time() - last_hangup
+            if time_since_hangup > BRIDGE_RESEND_INTERVAL:
+                logging.debug(f"[bridge_resend] ⏭️ No recent hangup for {enterprise_number} in chat {chat_id} ({time_since_hangup:.1f}s ago), skipping resend")
+                continue  # Не переотправляем, но продолжаем цикл
+            
+            logging.info(f"[bridge_resend] 🔄 Hangup for {enterprise_number} was {time_since_hangup:.1f}s ago, resending bridge {uid}")
             
             # Переотправляем
             try:
